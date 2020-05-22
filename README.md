@@ -1,7 +1,7 @@
 # HyperNets
 
 
-## HyperNets: Neural Networks Search Toolkit
+## HyperNets: Neural Architecture Search Toolkit
 
 
 ## Overview

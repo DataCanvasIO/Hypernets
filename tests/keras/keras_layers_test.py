@@ -4,7 +4,7 @@ __author__ = 'yangjian'
 
 """
 
-from hypernets.keras.layers import *
+from hypernets.frameworks.keras.layers import *
 from tensorflow.keras import models
 
 

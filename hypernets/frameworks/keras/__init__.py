@@ -4,7 +4,7 @@ __author__ = 'yangjian'
 
 """
 
-from ..core.search_space import HyperSpace
+from hypernets.core.search_space import HyperSpace
 from tensorflow.keras.models import Model
 
 

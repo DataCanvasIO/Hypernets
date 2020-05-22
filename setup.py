@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from setuptools import find_packages
 from setuptools import setup
 
-version = '0.1.9'
+version = '0.0.1'
 
 requirements = [
     'scipy>=1.3.1',
@@ -17,7 +17,7 @@ requirements = [
 
 MIN_PYTHON_VERSION = '>=3.6.*'
 
-long_description = open('README.md', encoding ='utf-8').read()
+long_description = open('README.md', encoding='utf-8').read()
 
 setup(
     name='hypernets',

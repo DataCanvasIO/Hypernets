@@ -4,7 +4,7 @@
 """
 
 from tensorflow.keras import layers as kl
-from ..core.search_space import *
+from hypernets.core.search_space import *
 
 
 class HyperLayer(Module):
