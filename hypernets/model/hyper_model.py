@@ -28,7 +28,7 @@ class HyperModel():
     def get_best_trail(self):
         return self.history.get_best()
 
-    def _run_trial(self, space, trail_no, X, y, X_val, y_val, **kwargs):
+    def _run_trial(self, space, trail_no, X, y, X_val, y_val, **fit_kwargs):
         start_time = time.time()
         estimator = self._get_estimator(space)
 
@@ -36,7 +36,7 @@ class HyperModel():
             callback.on_build_estimator(self, space, estimator, trail_no)
             callback.on_trail_begin(self, space, trail_no)
 
-        estimator.fit(X, y, **kwargs)
+        estimator.fit(X, y, **fit_kwargs)
         metrics = estimator.evaluate(X_val, y_val)
         reward = self.get_reward(metrics, self.reward_metric)
         self.searcher.update_result(space.space_id, space.get_assignable_param_values(), reward)
@@ -63,12 +63,12 @@ class HyperModel():
                 f'[value] should be (float/int) or a dict which has a key named "{key}" whose value is (float/int).')
         return reward
 
-    def search(self, X, y, X_val, y_val, **kwargs):
+    def search(self, X, y, X_val, y_val, **fit_kwargs):
         self.start_search_time = time.time()
         for trail_no in range(1, self.max_trails + 1):
             space = self.searcher.sample()
             try:
-                self._run_trial(space, trail_no, X, y, X_val, y_val, **kwargs)
+                self._run_trial(space, trail_no, X, y, X_val, y_val, **fit_kwargs)
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
