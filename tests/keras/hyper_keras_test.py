@@ -22,7 +22,7 @@ class Test_HyperKeras():
                 dense1 = Dense(10, activation=Choice(['relu', 'tanh', None]), use_bias=Bool())(concat)
                 bn1 = BatchNormalization()(dense1)
                 dropout1 = Dropout(Choice([0.3, 0.4, 0.5]))(bn1)
-                output = Dense(2, activation=Choice(['relu', 'softmax']), use_bias=True)(dropout1)
+                output = Dense(2, activation='softmax', use_bias=True)(dropout1)
             return space
 
         rs = RandomSearcher(get_space, optimize_direction=OptimizeDirection.Maximize)
@@ -37,3 +37,10 @@ class Test_HyperKeras():
 
         hk.search(x, y, x, y)
         assert hk.best_model
+        best_trial = hk.get_best_trail()
+
+        estimator = hk.final_train(best_trial.space, x, y)
+        score = estimator.predict(x)
+        result = estimator.evaluate(x, y)
+        assert len(score)==100
+        assert result

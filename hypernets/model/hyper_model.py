@@ -25,9 +25,6 @@ class HyperModel():
     def _get_estimator(self, space):
         raise NotImplementedError
 
-    def get_best_trail(self):
-        return self.history.get_best()
-
     def _run_trial(self, space, trail_no, X, y, X_val, y_val, **fit_kwargs):
         start_time = time.time()
         estimator = self._get_estimator(space)
@@ -38,7 +35,7 @@ class HyperModel():
 
         estimator.fit(X, y, **fit_kwargs)
         metrics = estimator.evaluate(X_val, y_val)
-        reward = self.get_reward(metrics, self.reward_metric)
+        reward = self._get_reward(metrics, self.reward_metric)
         self.searcher.update_result(space.space_id, space.get_assignable_param_values(), reward)
         elapsed = time.time() - start_time
         trail = Trail(space, trail_no, reward, elapsed)
@@ -51,17 +48,29 @@ class HyperModel():
 
         return estimator.model
 
-    def get_reward(self, value, key=None):
+    def _get_reward(self, value, key=None):
+        def cast_float(value):
+            try:
+                fv = float(value)
+                return fv
+            except TypeError:
+                return None
+
         if key is None:
             key = 'reward'
-        if isinstance(value, (float, int)):
-            reward = value
-        elif isinstance(value, dict) and key in value and isinstance(value[key], (float, int)):
-            reward = value[key]
+
+        fv = cast_float(value)
+        if fv is not None:
+            reward = fv
+        elif isinstance(value, dict) and key in value and cast_float(value[key]) is not None:
+            reward = cast_float(value[key])
         else:
             raise ValueError(
-                f'[value] should be (float/int) or a dict which has a key named "{key}" whose value is (float/int).')
+                f'[value] should be a numeric or a dict which has a key named "{key}" whose value is a numeric.')
         return reward
+
+    def get_best_trail(self):
+        return self.history.get_best()
 
     def search(self, X, y, X_val, y_val, **fit_kwargs):
         self.start_search_time = time.time()
@@ -74,4 +83,6 @@ class HyperModel():
                 # TODO: early stopping
 
     def final_train(self, space, X, y, **kwargs):
-        pass
+        estimator = self._get_estimator(space)
+        estimator.fit(X, y, **kwargs)
+        return estimator
