@@ -529,6 +529,43 @@ class Dynamic(ParameterSpace):
         return self._param_dict
 
 
+class Cascade(ParameterSpace):
+    def __init__(self, lambda_fn, space=None, name=None, **param_dict):
+        ParameterSpace.__init__(self, space, name)
+        self._lambda_fn = lambda_fn
+        self._param_dict = {}
+
+        for n, p in param_dict.items():
+            self._param_dict[n] = p
+            p.attach(self, n)
+
+        self.update()
+
+    @property
+    def assigned(self):
+        if self.value is not None:
+            if isinstance(self.value, ParameterSpace):
+                return self.value.assigned
+            else:
+                return True
+
+    def update(self):
+        if all(p.assigned for p in self._param_dict.values()):
+            args = {name: p.value for name, p in self._param_dict.items()}
+            name, value = self._lambda_fn(args, self.space)
+            if isinstance(value, ParameterSpace):
+                for m in self.references:
+                    if isinstance(m, Module):
+                        m.add_parameters(**{name: value})
+                    elif isinstance(m, ParameterSpace):
+                        value.attach(m)
+            self.assign(value)
+
+    @property
+    def param_dict(self):
+        return self._param_dict
+
+
 class Module(HyperNode):
     def __init__(self, space=None, name=None, **hyperparams):
         HyperNode.__init__(self, space, name)
@@ -580,9 +617,9 @@ class Module(HyperNode):
         for name, p in self._hyper_params.items():
             if isinstance(p, Constant):
                 continue
-            elif isinstance(p, Dynamic):
+            elif isinstance(p, (Dynamic, Cascade)):
                 for dp in p.param_dict.values():
-                    if not dp in assignables:
+                    if not isinstance(dp, (Dynamic, Cascade)) and not dp in assignables:
                         assignables.append(dp)
             else:
                 if not p in assignables:
@@ -594,7 +631,7 @@ class Module(HyperNode):
         for name, p in self._hyper_params.items():
             if not p in all:
                 all.append(p)
-            if isinstance(p, Dynamic):
+            if isinstance(p, (Dynamic, Cascade)):
                 for dp in p.param_dict.values():
                     if not dp in all:
                         all.append(dp)

@@ -27,7 +27,7 @@ class Test_Parameter:
             assert int2.alias == 'Module_Identity_1.p2'
             assert c1.alias == 'Module_Identity_1.p3'
 
-            id2 = Identity(name = 'id2', action=int2)
+            id2 = Identity(name='id2', action=int2)
             assert int2.alias == 'Module_Identity_1.p2,id2.action'
 
     def test_choice(self):
@@ -140,3 +140,71 @@ class Test_Parameter:
 
         assert d2.assigned == True
         assert d2.value == 'no dependent'
+
+    def test_cascade(self):
+        def get_space():
+            space = HyperSpace()
+            with space.as_default():
+                c1 = Choice(['a', 'b', 'c'])
+
+                def cc1_fn(c1, s):
+                    with s.as_default():
+                        if c1 == 'a':
+                            return 'm1', Choice([1, 2])
+                        elif c1 == 'b':
+                            return 'm2', Choice([3, 4])
+                        else:
+                            return 'm3', Choice([5, 6])
+
+                cc1 = Cascade(lambda args, space: cc1_fn(args['c1'], space), c1=c1)
+
+                def cc2_fn(m1, s):
+                    with s.as_default():
+                        if isinstance(m1, ParameterSpace):
+                            m1 = m1.value
+                        if m1 == 5:
+                            return 'm2', Choice([11, 22])
+                        elif m1 == 6:
+                            return 'm2', Choice([33, 44])
+                        else:
+                            return 'm2', -1
+
+                cc2 = Cascade(lambda args, space: cc2_fn(args['m1'], space), m1=cc1)
+
+                def cc3_fn(m2, s):
+                    with s.as_default():
+                        if isinstance(m2, ParameterSpace):
+                            m2 = m2.value
+                        if m2 == 11:
+                            return 'm3', Choice([55, 66])
+                        else:
+                            return 'm3', -1
+
+                cc3 = Cascade(lambda args, space: cc3_fn(args['m2'], space), m2=cc2)
+                id1 = Identity(p1=c1, p2=cc1, p3=cc2, p4=cc3)
+            return space
+
+        space = get_space()
+        space.Param_Choice_1.assign('a')
+        assert space.Param_Cascade_1.value.options == [1, 2]
+
+        space = get_space()
+        space.Param_Choice_1.assign('b')
+        assert space.Param_Cascade_1.value.options == [3, 4]
+
+        space = get_space()
+        space.Param_Choice_1.assign('c')
+        assert space.Param_Cascade_1.value.options == [5, 6]
+
+        assert space.Module_Identity_1.all_assigned == False
+        space.Param_Choice_2.assign(5)
+
+        assert space.Param_Cascade_2.value.options == [11, 22]
+
+        assert space.Module_Identity_1.all_assigned == False
+        space.Param_Choice_3.assign(22)
+
+        assert space.Param_Cascade_3.value == -1
+        assert space.Module_Identity_1.all_assigned == True
+
+        assert len(space.get_assignable_params()) == 3
