@@ -23,7 +23,8 @@ class HyperLayer(Module):
         return self.compile_fn(inputs)
 
     def _on_params_ready(self):
-        self._build()
+        pass
+        # self._build()
 
 
 class Masking(HyperLayer):

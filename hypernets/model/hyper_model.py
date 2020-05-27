@@ -36,7 +36,7 @@ class HyperModel():
         estimator.fit(X, y, **fit_kwargs)
         metrics = estimator.evaluate(X_val, y_val)
         reward = self._get_reward(metrics, self.reward_metric)
-        self.searcher.update_result(space.space_id, space.get_assignable_param_values(), reward)
+        self.searcher.update_result(space, reward)
         elapsed = time.time() - start_time
         trail = Trail(space, trail_no, reward, elapsed)
         improved = self.history.append(trail)

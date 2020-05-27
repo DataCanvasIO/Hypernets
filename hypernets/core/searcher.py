@@ -22,7 +22,7 @@ class Searcher(Stateful):
     def get_best(self):
         raise NotImplementedError
 
-    def update_result(self, space_id, params, result):
+    def update_result(self, space, result):
         raise NotImplementedError
 
     def reset(self):

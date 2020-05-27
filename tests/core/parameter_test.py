@@ -152,9 +152,9 @@ class Test_Parameter:
                         if c1 == 'a':
                             return 'm1', Choice([1, 2])
                         elif c1 == 'b':
-                            return 'm2', Choice([3, 4])
+                            return 'm1', Choice([3, 4])
                         else:
-                            return 'm3', Choice([5, 6])
+                            return 'm1', Choice([5, 6])
 
                 cc1 = Cascade(lambda args, space: cc1_fn(args['c1'], space), c1=c1)
 
@@ -167,7 +167,7 @@ class Test_Parameter:
                         elif m1 == 6:
                             return 'm2', Choice([33, 44])
                         else:
-                            return 'm2', -1
+                            return 'm2', Constant(-1)
 
                 cc2 = Cascade(lambda args, space: cc2_fn(args['m1'], space), m1=cc1)
 
@@ -178,7 +178,7 @@ class Test_Parameter:
                         if m2 == 11:
                             return 'm3', Choice([55, 66])
                         else:
-                            return 'm3', -1
+                            return 'm3', Constant(-1)
 
                 cc3 = Cascade(lambda args, space: cc3_fn(args['m2'], space), m2=cc2)
                 id1 = Identity(p1=c1, p2=cc1, p3=cc2, p4=cc3)
@@ -204,7 +204,7 @@ class Test_Parameter:
         assert space.Module_Identity_1.all_assigned == False
         space.Param_Choice_3.assign(22)
 
-        assert space.Param_Cascade_3.value == -1
+        assert space.Param_Cascade_3.value.value == -1
         assert space.Module_Identity_1.all_assigned == True
 
         assert len(space.get_assignable_params()) == 3

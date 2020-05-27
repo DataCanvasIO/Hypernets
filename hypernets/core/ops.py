@@ -77,7 +77,7 @@ class Or(DynamicModule):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
         assert all([isinstance(m, Module) for m in module_list]), 'module_list can only contain Module.'
-        self.hp_or = Choice(range(len(module_list)))
+        self.hp_or = Choice(list(range(len(module_list))))
         self._module_list = module_list
         DynamicModule.__init__(self, self.or_fn, keep_link, space, name, hp_or=self.hp_or)
 

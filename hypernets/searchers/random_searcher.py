@@ -13,13 +13,12 @@ class RandomSearcher(Searcher):
     def sample(self):
         space = self.space_fn()
         space.random_sample()
-        space.compile_space()
         return space
 
     def get_best(self):
         raise NotImplementedError
 
-    def update_result(self, space_id, params, result):
+    def update_result(self, space, result):
         pass
 
     def reset(self):

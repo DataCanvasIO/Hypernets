@@ -7,6 +7,7 @@ import numpy as np
 import threading
 import contextlib
 import queue
+import copy
 from collections import OrderedDict
 from .mutables import Mutable, MutableScope
 from ..utils.common import generate_id
@@ -72,8 +73,12 @@ class HyperSpace(Mutable):
         self.__dict__[node.id] = node
 
     def compile_space(self):
-        assert not self._is_compiled, 'HyperSpace does not allow repeated `compile_space`'
+        space_copy = copy.deepcopy(self)
+        space_copy._compile_space()
+        return space_copy
 
+    def _compile_space(self):
+        assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
         space_out = []
 
         def compile_module(module):
@@ -93,7 +98,6 @@ class HyperSpace(Mutable):
         self.traverse(compile_module, direction='forward')
         self._is_compiled = True
         self.space_id = generate_id()
-        return space_out
 
     def traverse(self, fn, direction='forward'):
         if direction == 'forward':
@@ -354,6 +358,10 @@ class ParameterSpace(HyperNode):
         self.references = set()
 
     @property
+    def is_mutable(self):
+        return True
+
+    @property
     def type(self):
         return 'Param'
 
@@ -394,6 +402,8 @@ class ParameterSpace(HyperNode):
 class Int(ParameterSpace):
     def __init__(self, low, high, random_state=np.random.RandomState(), space=None, name=None):
         ParameterSpace.__init__(self, space, name)
+        assert isinstance(low, int) and isinstance(high, int), '`low` and `high` must be a int.'
+        assert low < high, '`low` must less than `high`.'
         self.low = low
         self.high = high
         self.random_state = random_state
@@ -410,6 +420,8 @@ class Int(ParameterSpace):
 class Real(ParameterSpace):
     def __init__(self, low, high, q=None, prior="uniform", random_state=np.random.RandomState(), space=None, name=None):
         ParameterSpace.__init__(self, space, name)
+        assert isinstance(low, float) and isinstance(high, int), 'low and high must be a float.'
+        assert low < high, '`low` must less than `high`.'
         self.low = low
         self.high = high
         self.q = q
@@ -445,8 +457,14 @@ class Real(ParameterSpace):
 class Choice(ParameterSpace):
     def __init__(self, options, random_state=np.random.RandomState(), space=None, name=None):
         ParameterSpace.__init__(self, space, name)
+        assert isinstance(options, list), '`options` must be a List.'
+        assert len(options) > 0, '`options` contains at least one item.'
         self.options = options
         self.random_state = random_state
+
+    @property
+    def is_mutable(self):
+        return len(self.options) > 1
 
     def random_sample(self):
         value = self.random_state.choice(self.options)
@@ -460,8 +478,8 @@ class Choice(ParameterSpace):
 class MultipleChoice(ParameterSpace):
     def __init__(self, options, max_chosen_num=0, random_state=np.random.RandomState(), space=None, name=None):
         ParameterSpace.__init__(self, space, name)
-        assert isinstance(options, list), 'options must be a List.'
-        assert len(options) > 1, 'options contains at least 2 item.'
+        assert isinstance(options, list), '`options` must be a List.'
+        assert len(options) > 1, '`options` contains at least 2 item.'
         self.options = options
         self.max_chosen_num = max_chosen_num
         self.random_state = random_state
@@ -503,6 +521,10 @@ class Constant(ParameterSpace):
         ParameterSpace.__init__(self, space, name)
         self.assign(value)
 
+    @property
+    def is_mutable(self):
+        return False
+
 
 class Dynamic(ParameterSpace):
     def __init__(self, lambda_fn, space=None, name=None, **param_dict):
@@ -517,6 +539,10 @@ class Dynamic(ParameterSpace):
             p.attach(self, n)
 
         self.update()
+
+    @property
+    def is_mutable(self):
+        return False
 
     def update(self):
         if all(p.assigned for p in self._param_dict.values()):
@@ -542,6 +568,10 @@ class Cascade(ParameterSpace):
         self.update()
 
     @property
+    def is_mutable(self):
+        return False
+
+    @property
     def assigned(self):
         if self.value is not None:
             if isinstance(self.value, ParameterSpace):
@@ -553,12 +583,12 @@ class Cascade(ParameterSpace):
         if all(p.assigned for p in self._param_dict.values()):
             args = {name: p.value for name, p in self._param_dict.items()}
             name, value = self._lambda_fn(args, self.space)
-            if isinstance(value, ParameterSpace):
-                for m in self.references:
-                    if isinstance(m, Module):
-                        m.add_parameters(**{name: value})
-                    elif isinstance(m, ParameterSpace):
-                        value.attach(m)
+            assert isinstance(value, ParameterSpace), 'The value of `Cascade` must be a ParameterSpace.'
+            for m in self.references:
+                if isinstance(m, Module):
+                    m.add_parameters(**{name: value})
+                elif isinstance(m, ParameterSpace):
+                    value.attach(m)
             self.assign(value)
 
     @property
@@ -677,6 +707,8 @@ class Module(HyperNode):
         for name, param in hyperparameters.items():
             if not isinstance(param, ParameterSpace):
                 param = Constant(param)
+            if self._hyper_params.get(name) is not None:
+                raise ValueError(f'Parameter `{name}` has existed.')
             self._hyper_params[name] = param
             param.attach(self, name)
 

@@ -9,10 +9,9 @@ from tensorflow.keras.models import Model
 
 
 def keras_model(self):
-    if not self._is_compiled:
-        self.compile_space()
-    inputs = self.get_inputs()
-    outputs = self.get_outputs()
+    compiled_space = self.compile_space()
+    inputs = compiled_space.get_inputs()
+    outputs = compiled_space.get_outputs()
     model = Model(inputs=[input.output for input in inputs],
                   outputs=[output.output for output in outputs])
     return model
