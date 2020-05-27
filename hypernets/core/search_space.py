@@ -34,7 +34,7 @@ class HyperSpace(Mutable):
         self.modules = set()
         self.hyper_params = set()
         self._is_compiled = False
-        self.space_id = None
+        self.space_id = generate_id()
 
     @property
     def type(self):
@@ -97,7 +97,6 @@ class HyperSpace(Mutable):
 
         self.traverse(compile_module, direction='forward')
         self._is_compiled = True
-        self.space_id = generate_id()
 
     def traverse(self, fn, direction='forward'):
         if direction == 'forward':
@@ -373,8 +372,14 @@ class ParameterSpace(HyperNode):
     def value(self):
         return self._value
 
-    def random_sample(self):
-        pass
+    def random_sample(self, assign=True):
+        value = self._random_sample()
+        if assign:
+            self.assign(value)
+        return value
+
+    def _random_sample(self):
+        raise NotImplementedError
 
     def assign(self, value):
         assert not self._assigned
@@ -408,10 +413,8 @@ class Int(ParameterSpace):
         self.high = high
         self.random_state = random_state
 
-    def random_sample(self):
-        value = self.random_state.randint(self.low, self.high)
-        self.assign(value)
-        return value
+    def _random_sample(self):
+        return self.random_state.randint(self.low, self.high)
 
     def _check(self, value):
         assert value >= self.low and value <= self.high
@@ -420,7 +423,8 @@ class Int(ParameterSpace):
 class Real(ParameterSpace):
     def __init__(self, low, high, q=None, prior="uniform", random_state=np.random.RandomState(), space=None, name=None):
         ParameterSpace.__init__(self, space, name)
-        assert isinstance(low, float) and isinstance(high, int), 'low and high must be a float.'
+        low = float(low)
+        high = float(high)
         assert low < high, '`low` must less than `high`.'
         self.low = low
         self.high = high
@@ -428,8 +432,7 @@ class Real(ParameterSpace):
         self.prior = prior
         self.random_state = random_state
 
-    def random_sample(self):
-        value = None
+    def _random_sample(self):
         if self.prior == "uniform":
             assert self.high >= self.low, 'Upper bound must be larger than lower bound'
             value = self.random_state.uniform(self.low, self.high)
@@ -444,7 +447,6 @@ class Real(ParameterSpace):
             self._check(value)
         else:
             raise ValueError(f'Not supported prior:{self.prior}')
-        self.assign(value)
         return value
 
     def _check(self, value):
@@ -466,10 +468,8 @@ class Choice(ParameterSpace):
     def is_mutable(self):
         return len(self.options) > 1
 
-    def random_sample(self):
-        value = self.random_state.choice(self.options)
-        self.assign(value)
-        return value
+    def _random_sample(self):
+        return self.random_state.choice(self.options)
 
     def _check(self, value):
         assert value in self.options
@@ -484,7 +484,7 @@ class MultipleChoice(ParameterSpace):
         self.max_chosen_num = max_chosen_num
         self.random_state = random_state
 
-    def random_sample(self):
+    def _random_sample(self):
         options = self.options.copy()
         options_state = [[True, False] for _ in range(len(options))]
         loop_counter = 0
@@ -498,7 +498,6 @@ class MultipleChoice(ParameterSpace):
                     if self.max_chosen_num > 0 and len(values) >= self.max_chosen_num:
                         break
             if len(values) > 0:
-                self.assign(values)
                 break
             if loop_counter > 100:
                 raise TimeoutError(f'Retry counter exceeded: {loop_counter}')

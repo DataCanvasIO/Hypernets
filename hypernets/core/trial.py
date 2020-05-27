@@ -6,8 +6,8 @@ from ..core.searcher import OptimizeDirection
 
 
 class Trail():
-    def __init__(self, space, trail_no, reward, elapsed):
-        self.space = space
+    def __init__(self, space_sample, trail_no, reward, elapsed):
+        self.space_sample = space_sample
         self.trail_no = trail_no
         self.reward = reward
         self.elapsed = elapsed

@@ -65,8 +65,8 @@ class HyperDT(HyperModel):
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, max_trails=max_trails,
                             reward_metric=reward_metric)
 
-    def _get_estimator(self, space):
-        estimator = DTEstimator(space, **self.config_kwargs)
+    def _get_estimator(self, space_sample):
+        estimator = DTEstimator(space_sample, **self.config_kwargs)
         return estimator
 
 

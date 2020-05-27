@@ -12,18 +12,18 @@ import gc
 
 
 class KerasEstimator(Estimator):
-    def __init__(self, space, optimizer, loss, metrics, max_model_size=0):
+    def __init__(self, space_sample, optimizer, loss, metrics, max_model_size=0):
         self.optimizer = optimizer
         self.loss = loss
         self.metrics = metrics
         self.max_model_size = max_model_size
-        Estimator.__init__(self, space=space)
+        Estimator.__init__(self, space=space_sample)
 
-    def _build_model(self, space):
+    def _build_model(self, space_sample):
         K.clear_session()
         gc.collect()
 
-        model = space.keras_model()
+        model = space_sample.keras_model()
         model.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
         if self.max_model_size > 0:
             model_size = compute_params_count(model)
@@ -58,8 +58,8 @@ class HyperKeras(HyperModel):
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, max_trails=max_trails,
                             reward_metric=reward_metric)
 
-    def _get_estimator(self, space):
-        estimator = KerasEstimator(space, optimizer=self.optimizer, loss=self.loss, metrics=self.metrics,
+    def _get_estimator(self, space_sample):
+        estimator = KerasEstimator(space_sample, optimizer=self.optimizer, loss=self.loss, metrics=self.metrics,
                                    max_model_size=self.max_model_size)
         return estimator
 

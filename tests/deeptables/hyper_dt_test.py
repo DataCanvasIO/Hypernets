@@ -33,7 +33,7 @@ class Test_HyperDT():
         assert hdt.best_model
         best_trial = hdt.get_best_trail()
 
-        estimator = hdt.final_train(best_trial.space, df, y)
+        estimator = hdt.final_train(best_trial.space_sample, df, y)
         score = estimator.predict(df)
         result = estimator.evaluate(df, y)
         assert len(score) == 100

@@ -39,7 +39,7 @@ class Test_HyperKeras():
         assert hk.best_model
         best_trial = hk.get_best_trail()
 
-        estimator = hk.final_train(best_trial.space, x, y)
+        estimator = hk.final_train(best_trial.space_sample, x, y)
         score = estimator.predict(x)
         result = estimator.evaluate(x, y)
         assert len(score)==100

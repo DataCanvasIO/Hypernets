@@ -96,14 +96,16 @@ class Test_KerasLayers():
 
         space.random_sample()
         assert dense.is_params_ready == True
-        space_copy = space.compile_space()
-        outputs = space_copy.get_outputs()
+        compiled_space = space.compile_space()
+        assert compiled_space.space_id == space.space_id
+
+        outputs = compiled_space.get_outputs()
         assert len(outputs) == 1
         assert outputs[0].output.shape, (None, space.Module_Dense_2.param_values['units'])
 
-        model = models.Model(inputs=space_copy.Module_Input_1.output, outputs=outputs[0].output)
+        model = models.Model(inputs=compiled_space.Module_Input_1.output, outputs=outputs[0].output)
         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         model.summary()
         assert model.get_layer('Module_Input_1').output.shape[1] == 3000
-        assert model.get_layer('Module_Dense_1').output.shape[1] == space_copy.Module_Dense_1.param_values['units']
+        assert model.get_layer('Module_Dense_1').output.shape[1] == compiled_space.Module_Dense_1.param_values['units']
         assert model.get_layer('dense_output').output.shape[1] == 2

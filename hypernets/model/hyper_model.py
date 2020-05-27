@@ -22,29 +22,29 @@ class HyperModel():
     def sample_space(self):
         return self.searcher.sample()
 
-    def _get_estimator(self, space):
+    def _get_estimator(self, space_sample):
         raise NotImplementedError
 
-    def _run_trial(self, space, trail_no, X, y, X_val, y_val, **fit_kwargs):
+    def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs):
         start_time = time.time()
-        estimator = self._get_estimator(space)
+        estimator = self._get_estimator(space_sample)
 
         for callback in self.callbacks:
-            callback.on_build_estimator(self, space, estimator, trail_no)
-            callback.on_trail_begin(self, space, trail_no)
+            callback.on_build_estimator(self, space_sample, estimator, trail_no)
+            callback.on_trail_begin(self, space_sample, trail_no)
 
         estimator.fit(X, y, **fit_kwargs)
         metrics = estimator.evaluate(X_val, y_val)
         reward = self._get_reward(metrics, self.reward_metric)
-        self.searcher.update_result(space, reward)
+        self.searcher.update_result(space_sample, reward)
         elapsed = time.time() - start_time
-        trail = Trail(space, trail_no, reward, elapsed)
+        trail = Trail(space_sample, trail_no, reward, elapsed)
         improved = self.history.append(trail)
         if improved:
             self.best_model = estimator.model
 
         for callback in self.callbacks:
-            callback.on_trail_end(self, space, trail_no, reward, improved, elapsed)
+            callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
 
         return estimator.model
 
@@ -75,14 +75,14 @@ class HyperModel():
     def search(self, X, y, X_val, y_val, **fit_kwargs):
         self.start_search_time = time.time()
         for trail_no in range(1, self.max_trails + 1):
-            space = self.searcher.sample()
+            space_sample = self.searcher.sample()
             try:
-                self._run_trial(space, trail_no, X, y, X_val, y_val, **fit_kwargs)
+                self._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
 
-    def final_train(self, space, X, y, **kwargs):
-        estimator = self._get_estimator(space)
+    def final_train(self, space_sample, X, y, **kwargs):
+        estimator = self._get_estimator(space_sample)
         estimator.fit(X, y, **kwargs)
         return estimator
