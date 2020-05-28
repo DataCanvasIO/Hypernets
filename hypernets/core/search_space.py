@@ -403,6 +403,19 @@ class ParameterSpace(HyperNode):
     def _check(self, value):
         pass
 
+    def same_config(self, other):
+        if self.__class__ == other.__class__ and self.alias == other.alias:
+            for key in self.config_keys:
+                if self.__dict__[key] != other.__dict__[key]:
+                    return False
+            return True
+        else:
+            return False
+
+    @property
+    def config_keys(self):
+        raise NotImplementedError
+
 
 class Int(ParameterSpace):
     def __init__(self, low, high, random_state=np.random.RandomState(), space=None, name=None):
@@ -418,6 +431,10 @@ class Int(ParameterSpace):
 
     def _check(self, value):
         assert value >= self.low and value <= self.high
+
+    @property
+    def config_keys(self):
+        return ['low', 'high']
 
 
 class Real(ParameterSpace):
@@ -455,6 +472,10 @@ class Real(ParameterSpace):
         else:
             assert value >= self.low and value <= self.high
 
+    @property
+    def config_keys(self):
+        return ['low', 'high', 'q', 'prior']
+
 
 class Choice(ParameterSpace):
     def __init__(self, options, random_state=np.random.RandomState(), space=None, name=None):
@@ -473,6 +494,10 @@ class Choice(ParameterSpace):
 
     def _check(self, value):
         assert value in self.options
+
+    @property
+    def config_keys(self):
+        return ['options']
 
 
 class MultipleChoice(ParameterSpace):
@@ -509,6 +534,10 @@ class MultipleChoice(ParameterSpace):
         assert (self.max_chosen_num == 0 or self.max_chosen_num <= len(self.options))
         assert all([v in self.options for v in value])
 
+    @property
+    def config_keys(self):
+        return ['options', 'max_chosen_num']
+
 
 class Bool(Choice):
     def __init__(self, random_state=np.random.RandomState(), space=None, name=None):
@@ -524,6 +553,9 @@ class Constant(ParameterSpace):
     def is_mutable(self):
         return False
 
+    @property
+    def config_keys(self):
+        return ['_value']
 
 class Dynamic(ParameterSpace):
     def __init__(self, lambda_fn, space=None, name=None, **param_dict):

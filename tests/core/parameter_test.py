@@ -208,3 +208,38 @@ class Test_Parameter:
         assert space.Module_Identity_1.all_assigned == True
 
         assert len(space.get_assignable_params()) == 3
+
+    def test_same(self):
+        int1 = Int(1, 10)
+        int2 = Int(1, 10)
+        assert int1.same_config(int2)
+        int2.alias = 'int2'
+        assert not int1.same_config(int2)
+
+        int3 = Int(0, 1)
+        assert not int1.same_config(int3)
+
+        real1 = Real(0, 1)
+        real2 = Real(0, 1)
+
+        assert real1.same_config(real2)
+
+        real3 = Real(0, 1, q=1)
+        assert not real1.same_config(real3)
+
+        choice1 = Choice([1, 2])
+        choice2 = Choice([1, 2])
+        assert choice1.same_config(choice2)
+
+        choice3 = Choice([1, 2, 3])
+        assert not choice1.same_config(choice3)
+
+        bool1 = Bool()
+        bool2 = Bool()
+        assert bool1.same_config(bool2)
+
+        const1 = Constant(1)
+        const2 = Constant(1)
+        assert const1.same_config(const2)
+        const3 = Constant('b')
+        assert not const1.same_config(const3)
