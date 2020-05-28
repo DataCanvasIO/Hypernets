@@ -65,11 +65,11 @@ class Population(object):
     def shuffle(self):
         np.random.shuffle(self.populations)
 
-    def mutate(self, offspring_space, parent_space):
+    def mutate(self, parent_space, offspring_space):
         parent_params = parent_space.get_assignable_params()
         pos = np.random.randint(0, len(parent_params))
         for i, hp in enumerate(offspring_space.unassigned_iterator):
-            if not parent_params[i].same_config(hp):
+            if i > (len(parent_params) - 1) or not parent_params[i].same_config(hp):
                 hp.random_sample()
             else:
                 if i == pos:
@@ -98,7 +98,7 @@ class EvolutionSearcher(Searcher):
         else:
             best = self.population.sample_best(self.sample_size)
             new_space = self.space_fn()
-            offspring = self.population.mutate(new_space, best.space_sample)
+            offspring = self.population.mutate(best.space_sample, new_space)
             return offspring
 
     def update_result(self, space_sample, result):

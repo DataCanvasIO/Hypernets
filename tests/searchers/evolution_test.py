@@ -78,7 +78,7 @@ class Test_Evolution():
 
         space2 = get_space()
         assert not space2.all_assigned
-        new_space = population.mutate(space2, space1)
+        new_space = population.mutate(space1, space2)
 
         pv1 = list(space1.get_assignable_param_values().values())
         pv2 = list(space2.get_assignable_param_values().values())
