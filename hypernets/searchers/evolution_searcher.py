@@ -45,7 +45,7 @@ class Population(object):
                 0]
         return best
 
-    def eliminate(self, num, regularized=False):
+    def eliminate(self, num=1, regularized=False):
         eliminates = []
         for i in range(num):
             if self.length <= 0:
@@ -96,9 +96,9 @@ class EvolutionSearcher(Searcher):
             space_sample.random_sample()
             return space_sample
         else:
-            parent = self.population.sample_best(self.sample_size)
+            best = self.population.sample_best(self.sample_size)
             new_space = self.space_fn()
-            offspring = self.population.mutate(new_space, parent)
+            offspring = self.population.mutate(new_space, best.space_sample)
             return offspring
 
     def update_result(self, space_sample, result):
