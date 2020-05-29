@@ -7,10 +7,10 @@ from tensorflow.keras import layers as kl
 from hypernets.core.search_space import *
 
 
-class HyperLayer(Module):
+class HyperLayer(ModuleSpace):
     def __init__(self, keras_layer, space=None, name=None, **hyperparams):
         self.keras_layer = keras_layer
-        Module.__init__(self, space, name, **hyperparams)
+        ModuleSpace.__init__(self, space, name, **hyperparams)
 
     def _build(self):
         pv = self.param_values

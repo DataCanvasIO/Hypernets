@@ -6,9 +6,9 @@
 from .search_space import *
 
 
-class HyperInput(Module):
+class HyperInput(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
-        Module.__init__(self, space, name, **hyperparams)
+        ModuleSpace.__init__(self, space, name, **hyperparams)
 
     def _build(self):
         pass
@@ -17,9 +17,9 @@ class HyperInput(Module):
         return inputs
 
 
-class Identity(Module):
+class Identity(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
-        Module.__init__(self, space, name, **hyperparams)
+        ModuleSpace.__init__(self, space, name, **hyperparams)
 
     def _build(self):
         pass
@@ -28,11 +28,11 @@ class Identity(Module):
         return inputs
 
 
-class DynamicModule(Module):
+class DynamicModuleSpace(ModuleSpace):
     def __init__(self, dynamic_fn, keep_link=False, space=None, name=None, **hyperparams):
         self.dynamic_fn = dynamic_fn
         self.keep_link = keep_link
-        Module.__init__(self, space, name, **hyperparams)
+        ModuleSpace.__init__(self, space, name, **hyperparams)
 
     def _on_params_ready(self):
         with self.space.as_default():
@@ -57,13 +57,13 @@ class DynamicModule(Module):
                 raise ValueError('input or output is None.')
 
 
-class Optional(DynamicModule):
+class Optional(DynamicModuleSpace):
 
     def __init__(self, module, keep_link=False, space=None, name=None, hp_opt=None):
-        assert isinstance(module, Module), f'{module} is not a valid Module. '
+        assert isinstance(module, ModuleSpace), f'{module} is not a valid Module. '
         self._module = module
         self.hp_opt = hp_opt if hp_opt is not None else Bool()
-        DynamicModule.__init__(self, self.optional_fn, keep_link, space, name, hp_opt=self.hp_opt)
+        DynamicModuleSpace.__init__(self, self.optional_fn, keep_link, space, name, hp_opt=self.hp_opt)
 
     def optional_fn(self, m):
         if self.hp_opt.value:
@@ -72,28 +72,28 @@ class Optional(DynamicModule):
             return None, None
 
 
-class Or(DynamicModule):
+class Or(DynamicModuleSpace):
     def __init__(self, module_list, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
-        assert all([isinstance(m, Module) for m in module_list]), 'module_list can only contain Module.'
+        assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
         self.hp_or = Choice(list(range(len(module_list))))
         self._module_list = module_list
-        DynamicModule.__init__(self, self.or_fn, keep_link, space, name, hp_or=self.hp_or)
+        DynamicModuleSpace.__init__(self, self.or_fn, keep_link, space, name, hp_or=self.hp_or)
 
     def or_fn(self, m):
         module = self._module_list[self.hp_or.value]
         return module, module
 
 
-class Sequential(DynamicModule):
+class Sequential(DynamicModuleSpace):
     def __init__(self, module_list, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
-        assert all([isinstance(m, Module) for m in module_list]), 'module_list can only contain Module.'
+        assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
         self._module_list = module_list
         self.hp_lazy = Choice([0])
-        DynamicModule.__init__(self, self.sequential_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
+        DynamicModuleSpace.__init__(self, self.sequential_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
 
     def sequential_fn(self, m):
         last = self._module_list[0]
@@ -105,12 +105,12 @@ class Sequential(DynamicModule):
         return input, output
 
 
-class InputChoice(DynamicModule):
+class InputChoice(DynamicModuleSpace):
     def __init__(self, connection_num, max_chosen_num=0, keep_link=False, space=None, name=None):
         self.hp_choice = MultipleChoice(list(range(connection_num)), max_chosen_num)
         self.connection_num = connection_num
         self.max_chosen_num = max_chosen_num
-        DynamicModule.__init__(self, None, keep_link, space, name, hp_choice=self.hp_choice)
+        DynamicModuleSpace.__init__(self, None, keep_link, space, name, hp_choice=self.hp_choice)
 
     def _on_params_ready(self):
         with self.space.as_default():
@@ -126,9 +126,9 @@ class InputChoice(DynamicModule):
             self.space.disconnect_all(self)
 
 
-class Reduction(Module):
+class Reduction(ModuleSpace):
     def __init__(self, reduction_op, space=None, name=None, **hyperparams):
-        Module.__init__(self, space, name, **hyperparams)
+        ModuleSpace.__init__(self, space, name, **hyperparams)
         self.reduction_op = reduction_op
 
     def _build(self):

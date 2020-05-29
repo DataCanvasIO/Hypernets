@@ -64,7 +64,7 @@ class HyperSpace(Mutable):
                         yield p
 
     def add_node(self, node):
-        if isinstance(node, Module):
+        if isinstance(node, ModuleSpace):
             self.modules.add(node)
         elif isinstance(node, ParameterSpace):
             self.hyper_params.add(node)
@@ -372,6 +372,12 @@ class ParameterSpace(HyperNode):
     def value(self):
         return self._value
 
+    def value2numeric(self, value):
+        raise NotImplementedError
+
+    def numeric2value(self, numeric):
+        raise NotImplementedError
+
     def random_sample(self, assign=True):
         value = self._random_sample()
         if assign:
@@ -432,6 +438,12 @@ class Int(ParameterSpace):
     def _check(self, value):
         assert value >= self.low and value <= self.high
 
+    def value2numeric(self, value):
+        return value
+
+    def numeric2value(self, numeric):
+        return numeric
+
     @property
     def config_keys(self):
         return ['low', 'high']
@@ -476,6 +488,12 @@ class Real(ParameterSpace):
     def config_keys(self):
         return ['low', 'high', 'q', 'prior']
 
+    def value2numeric(self, value):
+        return value
+
+    def numeric2value(self, numeric):
+        return numeric
+
 
 class Choice(ParameterSpace):
     def __init__(self, options, random_state=np.random.RandomState(), space=None, name=None):
@@ -498,6 +516,12 @@ class Choice(ParameterSpace):
     @property
     def config_keys(self):
         return ['options']
+
+    def value2numeric(self, value):
+        return self.options.index(value)
+
+    def numeric2value(self, numeric):
+        return self.options[numeric]
 
 
 class MultipleChoice(ParameterSpace):
@@ -538,10 +562,23 @@ class MultipleChoice(ParameterSpace):
     def config_keys(self):
         return ['options', 'max_chosen_num']
 
+    def value2numeric(self, value):
+        numeric = int(''.join(['1' if v in value else '0' for v in self.options]), 2)
+        return numeric
+
+    def numeric2value(self, numeric):
+        bin = np.binary_repr(numeric, len(self.options))
+
+        values = []
+        for i in range(len(bin)):
+            if bin[i] == '1':
+                values.append(self.options[i])
+        return values
+
 
 class Bool(Choice):
     def __init__(self, random_state=np.random.RandomState(), space=None, name=None):
-        Choice.__init__(self, [True, False], random_state, space, name)
+        Choice.__init__(self, [False, True], random_state, space, name)
 
 
 class Constant(ParameterSpace):
@@ -556,6 +593,7 @@ class Constant(ParameterSpace):
     @property
     def config_keys(self):
         return ['_value']
+
 
 class Dynamic(ParameterSpace):
     def __init__(self, lambda_fn, space=None, name=None, **param_dict):
@@ -616,7 +654,7 @@ class Cascade(ParameterSpace):
             name, value = self._lambda_fn(args, self.space)
             assert isinstance(value, ParameterSpace), 'The value of `Cascade` must be a ParameterSpace.'
             for m in self.references:
-                if isinstance(m, Module):
+                if isinstance(m, ModuleSpace):
                     m.add_parameters(**{name: value})
                 elif isinstance(m, ParameterSpace):
                     value.attach(m)
@@ -627,7 +665,7 @@ class Cascade(ParameterSpace):
         return self._param_dict
 
 
-class Module(HyperNode):
+class ModuleSpace(HyperNode):
     def __init__(self, space=None, name=None, **hyperparams):
         HyperNode.__init__(self, space, name)
         self._hyper_params = OrderedDict()
@@ -642,7 +680,7 @@ class Module(HyperNode):
     def __call__(self, *args, **kwargs):
         assert len(args) > 0
         m = args[0]
-        if isinstance(m, Module):
+        if isinstance(m, ModuleSpace):
             self.space.connect(m, self)
         elif isinstance(m, list):
             for mi in m:
@@ -650,11 +688,11 @@ class Module(HyperNode):
         return self
 
     def connect(self, module_or_list):
-        if isinstance(module_or_list, Module):
+        if isinstance(module_or_list, ModuleSpace):
             self.space.connect(self, module_or_list)
         elif isinstance(module_or_list, list):
             assert len(module_or_list) > 0, f'module_or_list contains at least 1 Module.'
-            assert all([isinstance(m, Module) for m in module_or_list]), 'module_or_list can only contain Module.'
+            assert all([isinstance(m, ModuleSpace) for m in module_or_list]), 'module_or_list can only contain Module.'
             for m in module_or_list:
                 self.space.connect(self, m)
         else:

@@ -2,7 +2,7 @@
 """
 
 """
-from hypernets.core.ops import Identity, HyperInput, DynamicModule
+from hypernets.core.ops import Identity, HyperInput, DynamicModuleSpace
 from hypernets.core.search_space import *
 
 
@@ -45,7 +45,7 @@ class Test_HyperSpace():
                 dm1 = Identity(dp1=Choice(['a', 'b']))
                 return dm1, dm1
 
-            id4 = DynamicModule(dynamic_fn=new_module, p6=Choice(['f', 'g']))
+            id4 = DynamicModuleSpace(dynamic_fn=new_module, p6=Choice(['f', 'g']))
             id5 = Identity()
             id6 = Identity()
             id7 = Identity()

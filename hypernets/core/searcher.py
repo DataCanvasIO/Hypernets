@@ -7,8 +7,8 @@ import enum
 
 
 class OptimizeDirection(enum.Enum):
-    Minimize = 'minimize'
-    Maximize = 'maximize'
+    Minimize = 'min'
+    Maximize = 'max'
 
 
 class Searcher(Stateful):

@@ -243,3 +243,24 @@ class Test_Parameter:
         assert const1.same_config(const2)
         const3 = Constant('b')
         assert not const1.same_config(const3)
+
+    def test_numeric2value(self):
+        int1 = Int(1, 100)
+        assert int1.value2numeric(10) == 10
+        assert int1.numeric2value(10) == 10
+
+        real1 = Real(0., 100.)
+        assert real1.value2numeric(10.) == 10.
+        assert real1.numeric2value(10.) == 10.
+
+        bool1 = Bool()
+        assert bool1.value2numeric(True) == 1
+        assert bool1.numeric2value(1) == True
+
+        choice1 = Choice(['a', 'b', 'c', 'd'])
+        assert choice1.value2numeric('c') == 2
+        assert choice1.numeric2value(2) == 'c'
+
+        mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
+        assert mutiple_choice1.value2numeric(['b', 'd']) == 5
+        assert mutiple_choice1.numeric2value(5) == ['b', 'd']

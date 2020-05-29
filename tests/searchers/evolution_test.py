@@ -70,7 +70,8 @@ class Test_Evolution():
                 id2 = Identity(p3=Real(0., 1.), p4=Bool())(id1)
             return space
 
-        population = Population(optimize_direction=OptimizeDirection.Maximize)
+        #population = Population(optimize_direction=OptimizeDirection.Maximize)
+        population = Population(optimize_direction='max')
 
         space1 = get_space()
         space1.random_sample()

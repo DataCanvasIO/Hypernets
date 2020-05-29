@@ -11,9 +11,9 @@ from hypernets.model.estimator import Estimator
 from hypernets.model.hyper_model import HyperModel
 
 
-class DTModule(Module):
+class DTModuleSpace(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
-        Module.__init__(self, space, name, **hyperparams)
+        ModuleSpace.__init__(self, space, name, **hyperparams)
         self.space.DT_Module = self
         self.config = None
 
@@ -73,18 +73,18 @@ class HyperDT(HyperModel):
 def default_space():
     space = HyperSpace()
     with space.as_default():
-        DTModule(nets=MultipleChoice(['dnn_nets', 'linear', 'dcn_nets', 'fm_nets']),
-                 auto_categorize=Bool(),
-                 cat_remain_numeric=Bool(),
-                 auto_discrete=Bool(),
-                 apply_gbm_features=Bool(),
-                 gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
-                 embeddings_output_dim=Choice([4, 10, 20]),
-                 embedding_dropout=Choice([0, 0.25, 0.5]),
-                 stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),
-                 output_use_bias=Bool(),
-                 apply_class_weight=Bool(),
-                 earlystopping_patience=Choice([1, 3, 5]))
+        DTModuleSpace(nets=MultipleChoice(['dnn_nets', 'linear', 'dcn_nets', 'fm_nets']),
+                      auto_categorize=Bool(),
+                      cat_remain_numeric=Bool(),
+                      auto_discrete=Bool(),
+                      apply_gbm_features=Bool(),
+                      gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
+                      embeddings_output_dim=Choice([4, 10, 20]),
+                      embedding_dropout=Choice([0, 0.25, 0.5]),
+                      stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),
+                      output_use_bias=Bool(),
+                      apply_class_weight=Bool(),
+                      earlystopping_patience=Choice([1, 3, 5]))
     return space
 
     # categorical_columns='auto',
