@@ -372,6 +372,15 @@ class ParameterSpace(HyperNode):
     def value(self):
         return self._value
 
+    @property
+    def config_keys(self):
+        raise NotImplementedError
+
+    @property
+    def label(self):
+        vs = [str(self.__dict__[key]) for key in self.config_keys]
+        return f"{self.id}-{'-'.join(vs)}"
+
     def value2numeric(self, value):
         raise NotImplementedError
 
@@ -418,8 +427,7 @@ class ParameterSpace(HyperNode):
         else:
             return False
 
-    @property
-    def config_keys(self):
+    def space_expansion(self, max_space):
         raise NotImplementedError
 
 
