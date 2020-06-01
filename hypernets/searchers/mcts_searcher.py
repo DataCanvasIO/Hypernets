@@ -8,26 +8,26 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class MCTSSearcher(Searcher):
-    def __init__(self, space_fn, policy, optimize_direction=OptimizeDirection.Minimize):
+    def __init__(self, space_fn, policy=UCT(), optimize_direction=OptimizeDirection.Minimize):
         self.tree = MCTree(space_fn, policy)
         Searcher.__init__(self, space_fn, optimize_direction)
+        self.best_nodes = {}
 
     def sample(self):
-        if self.tree.current_node == self.tree.root:
-            pass
-            # expansion
-        elif self.tree.current_node.is_terminal:
-            pass
-
-        best_node = self.tree.selection()
-
-        pass
+        space_sample, best_node = self.tree.selection_and_expansion()
+        if space_sample is None:
+            space_sample = self.tree.node_to_space(best_node)
+        else:
+            space_sample = self.tree.roll_out(space_sample, best_node)
+        self.best_nodes[space_sample.id] = best_node
+        return space_sample
 
     def get_best(self):
         raise NotImplementedError
 
     def update_result(self, space, result):
-        pass
+        best_node = self.best_nodes[space.id]
+        self.tree.back_propagation(best_node, result)
 
     def reset(self):
         raise NotImplementedError

@@ -33,6 +33,10 @@ class MCNode(object):
     def is_terminal(self):
         return self._is_terminal
 
+    def set_terminal(self):
+        self._is_terminal = True
+        return self._is_terminal
+
     @property
     def is_leaf(self):
         return len(self._children) <= 0
@@ -54,6 +58,10 @@ class MCNode(object):
         for param_sample in samples:
             self.add_child(param_sample)
 
+    def random_sample(self):
+        child = np.random.choice(self._children)
+        return child
+
 
 class MCTree(object):
     def __init__(self, space_fn, policy, max_node_space):
@@ -67,11 +75,17 @@ class MCTree(object):
     def current_node(self):
         return self._current_node
 
-    def is_expanded(self, node):
-        raise NotImplementedError
+    def selection_and_expansion(self):
+        node = self.root
+        while not node.is_terminal:
+            if node.is_leaf:
+                space_sample, child = self.expansion(node)
+                if child != node:
+                    return space_sample, child
+            else:
+                node = self.policy.selection(node)
 
-    def selection(self, node):
-        raise NotImplementedError
+        return None, node
 
     def path_to_node(self, node):
         nodes = [node]
@@ -80,27 +94,53 @@ class MCTree(object):
             node = node.parent
         return nodes
 
+    def node_to_space(self, node):
+        assert node.is_terminal
+
+        space_sample = self.space_fn()
+        nodes = self.path_to_node(node)
+        i = 0
+        for hp in space_sample.unassigned_iterator:
+            assert i < len(nodes)
+            hp.assign(nodes[i].value)
+            i += 1
+        return space_sample
+
     def expansion(self, node):
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
-        for i, hp in enumerate(space_sample.unassigned_iterator):
+        i = 0
+        for hp in space_sample.unassigned_iterator:
             if i < len(nodes):
                 hp.assign(nodes[i].value)
             else:
                 node.expansion(hp, self.max_node_space)
-                break
+                child = node.random_sample()
+                hp.assign(child.param_sample.value)
+                return space_sample, child
+            i += 1
+        node.set_terminal()
+        return space_sample, node
 
     def simulation(self, node):
         raise NotImplementedError
 
     def back_propagation(self, node, reward):
-        raise NotImplementedError
+        while node.parent is not None:
+            self.policy.back_propagation(node, reward)
+            node = node.parent
 
-    def roll_out(self, node):
-        raise NotImplementedError
+    def roll_out(self, space_sample, node):
+        terminal = True
+        for hp in space_sample.unassigned_iterator:
+            terminal = False
+            hp.random_sample()
+        if terminal:
+            node.set_terminal()
+        return space_sample
 
 
-class Policy(object):
+class BasePolicy(object):
     def selection(self, node):
         raise NotImplementedError
 
@@ -108,7 +148,7 @@ class Policy(object):
         raise NotImplementedError
 
 
-class UCT(Policy):
+class UCT(BasePolicy):
     def __init__(self, exploration_bonus):
         self.exploration_bonus = exploration_bonus
 
