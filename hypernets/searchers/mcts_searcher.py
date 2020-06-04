@@ -8,7 +8,9 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class MCTSSearcher(Searcher):
-    def __init__(self, space_fn, policy=UCT(), optimize_direction=OptimizeDirection.Minimize):
+    def __init__(self, space_fn, policy=None, optimize_direction=OptimizeDirection.Minimize):
+        if policy is None:
+            policy = UCT()
         self.tree = MCTree(space_fn, policy)
         Searcher.__init__(self, space_fn, optimize_direction)
         self.best_nodes = {}

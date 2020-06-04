@@ -277,3 +277,30 @@ class Test_Parameter:
         assert choice1.label == 'Param_Choice_1-[\'a\', \'b\', \'c\', \'d\']'
         mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
         assert mutiple_choice1.label == 'Param_MultipleChoice_1-[\'a\', \'b\', \'c\', \'d\']-0'
+
+    def test_expansion(self):
+        int1 = Int(1, 100)
+        vs = int1.expansion(20)
+        assert len(vs) == 20
+        vs = int1.expansion(101)
+        assert len(vs) == 99
+
+        real1 = Real(0., 100.)
+        vs = real1.expansion(20)
+        assert len(vs) == 20
+
+        bool1 = Bool()
+        assert bool1.expansion() == [False, True]
+
+        choice1 = Choice(['a', 'b', 'c', 'd'])
+        assert choice1.expansion() == ['a', 'b', 'c', 'd']
+
+        mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
+        vs = mutiple_choice1.expansion(20)
+        assert vs
+
+        mutiple_choice2 = MultipleChoice(['a', 'b', 'c', 'd'], max_chosen_num=1)
+        vs = mutiple_choice2.expansion(4)
+        assert len(vs) == 4
+        vs = mutiple_choice2.expansion(20)
+        assert len(vs) == 4

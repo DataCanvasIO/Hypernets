@@ -4,6 +4,7 @@
 """
 
 import numpy as np
+import math
 import threading
 import contextlib
 import queue
@@ -427,7 +428,7 @@ class ParameterSpace(HyperNode):
         else:
             return False
 
-    def space_expansion(self, max_space):
+    def expansion(self, sample_num):
         raise NotImplementedError
 
 
@@ -455,6 +456,17 @@ class Int(ParameterSpace):
     @property
     def config_keys(self):
         return ['low', 'high']
+
+    def expansion(self, sample_num):
+        p = self.high - self.low
+        if sample_num > p:
+            sample_num = p
+        values = []
+        while len(values) < sample_num:
+            v = self._random_sample()
+            if v not in values:
+                values.append(v)
+        return sorted(values)
 
 
 class Real(ParameterSpace):
@@ -502,6 +514,14 @@ class Real(ParameterSpace):
     def numeric2value(self, numeric):
         return numeric
 
+    def expansion(self, sample_num):
+        values = []
+        while len(values) < sample_num:
+            v = self._random_sample()
+            if v not in values:
+                values.append(v)
+        return sorted(values)
+
 
 class Choice(ParameterSpace):
     def __init__(self, options, random_state=np.random.RandomState(), space=None, name=None):
@@ -530,6 +550,9 @@ class Choice(ParameterSpace):
 
     def numeric2value(self, numeric):
         return self.options[numeric]
+
+    def expansion(self, sample_num=0):
+        return self.options
 
 
 class MultipleChoice(ParameterSpace):
@@ -581,6 +604,21 @@ class MultipleChoice(ParameterSpace):
         for i in range(len(bin)):
             if bin[i] == '1':
                 values.append(self.options[i])
+        return values
+
+    def expansion(self, sample_num):
+        l = len(self.options)
+        c = self.max_chosen_num
+        if c <= 0:
+            c = l
+        p = int(math.factorial(l) / math.factorial(l - c))
+        if sample_num > p:
+            sample_num = p
+        values = []
+        while len(values) < sample_num:
+            v = self._random_sample()
+            if v not in values:
+                values.append(v)
         return values
 
 
