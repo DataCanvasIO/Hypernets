@@ -461,12 +461,18 @@ class Int(ParameterSpace):
         p = self.high - self.low
         if sample_num > p:
             sample_num = p
+        samples = []
         values = []
-        while len(values) < sample_num:
+        while len(samples) < sample_num:
             v = self._random_sample()
-            if v not in values:
-                values.append(v)
-        return sorted(values)
+            if v in values:
+                continue
+            sample = copy.deepcopy(self)
+            sample.assign(v)
+            samples.append(sample)
+            values.append(v)
+
+        return sorted(samples, key=lambda s: s.value)
 
 
 class Real(ParameterSpace):
@@ -516,11 +522,16 @@ class Real(ParameterSpace):
 
     def expansion(self, sample_num):
         values = []
-        while len(values) < sample_num:
+        samples = []
+        while len(samples) < sample_num:
             v = self._random_sample()
-            if v not in values:
-                values.append(v)
-        return sorted(values)
+            if v in values:
+                continue
+            sample = copy.deepcopy(self)
+            sample.assign(v)
+            samples.append(sample)
+            values.append(v)
+        return sorted(samples, key=lambda s: s.value)
 
 
 class Choice(ParameterSpace):
@@ -552,7 +563,12 @@ class Choice(ParameterSpace):
         return self.options[numeric]
 
     def expansion(self, sample_num=0):
-        return self.options
+        samples = []
+        for option in self.options:
+            sample = copy.deepcopy(self)
+            sample.assign(option)
+            samples.append(sample)
+        return samples
 
 
 class MultipleChoice(ParameterSpace):
@@ -615,11 +631,16 @@ class MultipleChoice(ParameterSpace):
         if sample_num > p:
             sample_num = p
         values = []
+        samples = []
         while len(values) < sample_num:
             v = self._random_sample()
-            if v not in values:
-                values.append(v)
-        return values
+            if v in values:
+                continue
+            sample = copy.deepcopy(self)
+            sample.assign(v)
+            samples.append(sample)
+            values.append(v)
+        return samples
 
 
 class Bool(Choice):

@@ -54,7 +54,7 @@ class MCNode(object):
 
     def expansion(self, param_space, max_space):
         assert not param_space.assigned
-        samples = param_space.expansion(max_space=max_space)
+        samples = param_space.expansion(sample_num=max_space)
         for param_sample in samples:
             self.add_child(param_sample)
 
@@ -68,7 +68,7 @@ class MCTree(object):
         self.space_fn = space_fn
         self.policy = policy
         self.max_node_space = max_node_space
-        self.root = MCNode('ROOT', param_sample=None, tree=self)
+        self.root = MCNode(generate_id(), 'ROOT', param_sample=None, tree=self)
         self._current_node = self.root
 
     @property
@@ -88,9 +88,9 @@ class MCTree(object):
         return None, node
 
     def path_to_node(self, node):
-        nodes = [node]
+        nodes = []
         while node.parent is not None:
-            nodes.insert(0, node.parent)
+            nodes.insert(0, node)
             node = node.parent
         return nodes
 
@@ -112,7 +112,7 @@ class MCTree(object):
         i = 0
         for hp in space_sample.unassigned_iterator:
             if i < len(nodes):
-                hp.assign(nodes[i].value)
+                hp.assign(nodes[i].param_sample.value)
             else:
                 node.expansion(hp, self.max_node_space)
                 child = node.random_sample()
@@ -126,8 +126,8 @@ class MCTree(object):
         raise NotImplementedError
 
     def back_propagation(self, node, reward):
-        while node.parent is not None:
-            self.policy.back_propagation(node, reward)
+        while node is not None:
+            node.reward, node.visits = self.policy.back_propagation(node, reward)
             node = node.parent
 
     def roll_out(self, space_sample, node):
@@ -149,17 +149,16 @@ class BasePolicy(object):
 
 
 class UCT(BasePolicy):
-    def __init__(self, exploration_bonus):
+    def __init__(self, exploration_bonus=0.6):
         self.exploration_bonus = exploration_bonus
 
     def selection(self, node):
         node_log_nt = math.log10(node.visits)
-        return node.children[
-            np.argmax(
-                [(child.reward + self.exploration_bonus * math.sqrt(node_log_nt / child.visits)) for child
-                 in
-                 node.children])
-        ]
+        scores = [(child.reward + self.exploration_bonus * math.sqrt(
+            node_log_nt / child.visits)) if child.visits > 0 else np.inf for child
+                  in
+                  node.children]
+        return node.children[np.argmax(scores)]
 
     def back_propagation(self, node, reward):
         new_reward = node.reward + (reward - node.reward) / (node.visits + 1)

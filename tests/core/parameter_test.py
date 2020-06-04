@@ -290,10 +290,10 @@ class Test_Parameter:
         assert len(vs) == 20
 
         bool1 = Bool()
-        assert bool1.expansion() == [False, True]
+        assert len(bool1.expansion()) == 2
 
         choice1 = Choice(['a', 'b', 'c', 'd'])
-        assert choice1.expansion() == ['a', 'b', 'c', 'd']
+        assert len(choice1.expansion()) == 4
 
         mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
         vs = mutiple_choice1.expansion(20)
