@@ -38,12 +38,25 @@ class MCNode(object):
         return self._is_terminal
 
     @property
+    def expanded(self):
+        return all([n.visits > 0 for n in self.children])
+
+    @property
     def is_leaf(self):
         return len(self._children) <= 0
 
     @property
     def children(self):
         return self._children
+
+    @property
+    def depth(self):
+        d = 0
+        node = self.parent
+        while node is not None:
+            d += 1
+            node = node.parent
+        return d
 
     def add_child(self, param_sample):
         self.children.append(MCNode(generate_id(), param_sample.label, param_sample, parent=self))
@@ -53,6 +66,7 @@ class MCNode(object):
         self.parent = parent
 
     def expansion(self, param_space, max_space):
+        print(f'Node expanssion: param_space:{param_space.label}')
         assert not param_space.assigned
         samples = param_space.expansion(sample_num=max_space)
         for param_sample in samples:
@@ -61,6 +75,9 @@ class MCNode(object):
     def random_sample(self):
         child = np.random.choice(self._children)
         return child
+
+    def info(self):
+        return f'Name:{self.name}, value:{self.param_sample.value if self.param_sample is not None else None}, depth:{self.depth}, reward:{self.reward}, visits:{self.visits}, children:{len(self._children)}, is_terminal:{self.is_terminal}'
 
 
 class MCTree(object):
@@ -83,9 +100,13 @@ class MCTree(object):
                 if child != node:
                     return space_sample, child
             else:
+                print(f'Tree selection:{node.info()}')
                 node = self.policy.selection(node)
+                if node.visits <= 0:
+                    break
 
-        return None, node
+        space_sample = self.node_to_space(node)
+        return space_sample, node
 
     def path_to_node(self, node):
         nodes = []
@@ -95,18 +116,18 @@ class MCTree(object):
         return nodes
 
     def node_to_space(self, node):
-        assert node.is_terminal
-
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
         for hp in space_sample.unassigned_iterator:
-            assert i < len(nodes)
-            hp.assign(nodes[i].value)
+            if i >= len(nodes):
+                break
+            hp.assign(nodes[i].param_sample.value)
             i += 1
         return space_sample
 
     def expansion(self, node):
+        print(f'Tree expansion:{node.info()}')
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
@@ -131,6 +152,7 @@ class MCTree(object):
             node = node.parent
 
     def roll_out(self, space_sample, node):
+        print(f'Tree roll out:{node.info()}')
         terminal = True
         for hp in space_sample.unassigned_iterator:
             terminal = False
@@ -158,7 +180,10 @@ class UCT(BasePolicy):
             node_log_nt / child.visits)) if child.visits > 0 else np.inf for child
                   in
                   node.children]
-        return node.children[np.argmax(scores)]
+        index = np.argmax(scores)
+        selected = node.children[index]
+        print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
+        return selected
 
     def back_propagation(self, node, reward):
         new_reward = node.reward + (reward - node.reward) / (node.visits + 1)

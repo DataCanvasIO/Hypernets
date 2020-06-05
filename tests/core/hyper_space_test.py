@@ -117,7 +117,7 @@ class Test_HyperSpace():
         id_list = []
         space.traverse(print_module, direction='forward')
         assert id_list == ['Module_HyperInput_1', 'Module_HyperInput_2', 'Module_Identity_2', 'Module_Identity_4',
-                           'Module_DynamicModule_1', 'Module_Identity_6', 'Module_Identity_1', 'Module_Identity_3',
+                           'Module_DynamicModuleSpace_1', 'Module_Identity_6', 'Module_Identity_1', 'Module_Identity_3',
                            'Module_Identity_5']
 
         space.Param_Choice_3.random_sample()

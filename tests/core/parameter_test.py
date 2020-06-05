@@ -266,17 +266,19 @@ class Test_Parameter:
         assert mutiple_choice1.numeric2value(5) == ['b', 'd']
 
     def test_label(self):
-        int1 = Int(1, 100)
-        assert int1.label == 'Param_Int_1-1-100'
-        real1 = Real(0., 100.)
-        assert real1.label == 'Param_Real_1-0.0-100.0-None-uniform'
-        bool1 = Bool()
-        assert bool1.label == 'Param_Bool_1-[False, True]'
+        space = HyperSpace()
+        with space.as_default():
+            int1 = Int(1, 100)
+            assert int1.label == 'Param_Int_1-1-100'
+            real1 = Real(0., 100.)
+            assert real1.label == 'Param_Real_1-0.0-100.0-None-uniform'
+            bool1 = Bool()
+            assert bool1.label == 'Param_Bool_1-[False, True]'
 
-        choice1 = Choice(['a', 'b', 'c', 'd'])
-        assert choice1.label == 'Param_Choice_1-[\'a\', \'b\', \'c\', \'d\']'
-        mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
-        assert mutiple_choice1.label == 'Param_MultipleChoice_1-[\'a\', \'b\', \'c\', \'d\']-0'
+            choice1 = Choice(['a', 'b', 'c', 'd'])
+            assert choice1.label == 'Param_Choice_1-[\'a\', \'b\', \'c\', \'d\']'
+            mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
+            assert mutiple_choice1.label == 'Param_MultipleChoice_1-[\'a\', \'b\', \'c\', \'d\']-0'
 
     def test_expansion(self):
         int1 = Int(1, 100)
