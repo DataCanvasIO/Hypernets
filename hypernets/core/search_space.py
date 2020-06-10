@@ -237,11 +237,6 @@ class HyperSpace(Mutable):
                     outputs.add(to_module)
         return sorted(outputs, key=lambda m: m.id)
 
-    def get_io(self, module=None):
-        inputs = self.get_inputs(module)
-        outputs = self.get_outputs(module)
-        return inputs, outputs
-
     def random_sample(self):
         for hp in self.unassigned_iterator:
             hp.random_sample()
@@ -276,17 +271,32 @@ class HyperSpace(Mutable):
         self.traverse(append_params, direction=traverse_direction)
         return all
 
-    def params_summary(self, only_assignable=True, traverse_direction='forward', line_width=60):
-        print(f'\n{(line_width + 2) * "-"}')
+    def params_summary(self, only_assignable=True, traverse_direction='forward', line_width=60, LR='\n'):
+        outputs = []
+        outputs.append(f'\n{(line_width + 2) * "-"}')
         if only_assignable:
             params = self.get_assignable_params(traverse_direction)
         else:
             params = self.get_all_params(traverse_direction)
 
         for i, hp in enumerate(params):
-            print(
+            outputs.append(
                 f'({i}) {hp.alias}:{(line_width - len(str(i) + "() " + hp.alias + str(hp.value))) * " "}{hp.value}')
-        print(f'{(line_width + 2) * "-"}')
+        outputs.append(f'{(line_width + 2) * "-"}')
+        return LR.join(outputs)
+
+    @property
+    def signature(self):
+        labels = [p.label for p in self.get_assignable_params()]
+        import hashlib
+        key = ';'.join(labels)
+        md5 = hashlib.md5(key.encode('utf-8')).hexdigest()
+        return md5
+
+    @property
+    def features(self):
+        features = [p.value2numeric(p.value) for p in self.get_assignable_params()]
+        return features
 
 
 class DefaultStack(threading.local):

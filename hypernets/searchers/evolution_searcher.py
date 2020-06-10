@@ -3,6 +3,7 @@
 
 """
 from ..core.searcher import Searcher, OptimizeDirection
+from ..core.meta_learner import MetaLearner
 import numpy as np
 
 
@@ -83,25 +84,52 @@ class Population(object):
 
 
 class EvolutionSearcher(Searcher):
-    def __init__(self, space_fn, population_size, sample_size, regularized=False,
+    def __init__(self, space_fn, population_size, sample_size, regularized=False, use_meta_learner=True,
+                 candidates_size=10,
                  optimize_direction=OptimizeDirection.Minimize, ):
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction)
         self.population = Population(size=population_size, optimize_direction=optimize_direction)
         self.sample_size = sample_size
+        self.use_meta_learner = use_meta_learner
         self.regularized = regularized
+        self.histroy = None
+        self.meta_learner = None
+        self.candidate_size = candidates_size
 
-    def sample(self):
+    def sample(self, history):
+        if self.use_meta_learner and self.histroy is None:
+            self.histroy = history
+            self.meta_learner = MetaLearner(history)
         if self.population.initializing:
             space_sample = self.space_fn()
             space_sample.random_sample()
             return space_sample
         else:
             best = self.population.sample_best(self.sample_size)
-            new_space = self.space_fn()
-            offspring = self.population.mutate(best.space_sample, new_space)
+            offspring = self._get_offspring(best.space_sample)
             return offspring
+
+    def _get_offspring(self, space_sample):
+        if self.use_meta_learner:
+            candidates = []
+            scores = []
+            for i in range(self.candidate_size):
+                new_space = self.space_fn()
+                candidate = self.population.mutate(space_sample, new_space)
+                candidates.append(candidate)
+                scores.append(self.meta_learner.predict(candidate))
+            index = np.argmax(scores)
+            print(f'get_offspring scores:{scores}, argmax:{index}')
+            return candidates[index]
+        else:
+            new_space = self.space_fn()
+            candidate = self.population.mutate(space_sample, new_space)
+            return candidate
 
     def update_result(self, space_sample, result):
         if not self.population.initializing:
             self.population.eliminate(regularized=self.regularized)
         self.population.append(space_sample, result)
+        if self.use_meta_learner:
+            assert self.meta_learner is not None
+            self.meta_learner.new_sample(space_sample)

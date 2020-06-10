@@ -28,7 +28,7 @@ class Identity(ModuleSpace):
         return inputs
 
 
-class DynamicModuleSpace(ModuleSpace):
+class ConnectionSpace(ModuleSpace):
     def __init__(self, dynamic_fn, keep_link=False, space=None, name=None, **hyperparams):
         self.dynamic_fn = dynamic_fn
         self.keep_link = keep_link
@@ -57,13 +57,13 @@ class DynamicModuleSpace(ModuleSpace):
                 raise ValueError('input or output is None.')
 
 
-class Optional(DynamicModuleSpace):
+class Optional(ConnectionSpace):
 
     def __init__(self, module, keep_link=False, space=None, name=None, hp_opt=None):
         assert isinstance(module, ModuleSpace), f'{module} is not a valid Module. '
         self._module = module
         self.hp_opt = hp_opt if hp_opt is not None else Bool()
-        DynamicModuleSpace.__init__(self, self.optional_fn, keep_link, space, name, hp_opt=self.hp_opt)
+        ConnectionSpace.__init__(self, self.optional_fn, keep_link, space, name, hp_opt=self.hp_opt)
 
     def optional_fn(self, m):
         if self.hp_opt.value:
@@ -72,28 +72,28 @@ class Optional(DynamicModuleSpace):
             return None, None
 
 
-class Or(DynamicModuleSpace):
+class Or(ConnectionSpace):
     def __init__(self, module_list, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
         assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
         self.hp_or = Choice(list(range(len(module_list))))
         self._module_list = module_list
-        DynamicModuleSpace.__init__(self, self.or_fn, keep_link, space, name, hp_or=self.hp_or)
+        ConnectionSpace.__init__(self, self.or_fn, keep_link, space, name, hp_or=self.hp_or)
 
     def or_fn(self, m):
         module = self._module_list[self.hp_or.value]
         return module, module
 
 
-class Sequential(DynamicModuleSpace):
+class Sequential(ConnectionSpace):
     def __init__(self, module_list, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
         assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
         self._module_list = module_list
         self.hp_lazy = Choice([0])
-        DynamicModuleSpace.__init__(self, self.sequential_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
+        ConnectionSpace.__init__(self, self.sequential_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
 
     def sequential_fn(self, m):
         last = self._module_list[0]
@@ -105,12 +105,12 @@ class Sequential(DynamicModuleSpace):
         return input, output
 
 
-class InputChoice(DynamicModuleSpace):
+class InputChoice(ConnectionSpace):
     def __init__(self, connection_num, max_chosen_num=0, keep_link=False, space=None, name=None):
         self.hp_choice = MultipleChoice(list(range(connection_num)), max_chosen_num)
         self.connection_num = connection_num
         self.max_chosen_num = max_chosen_num
-        DynamicModuleSpace.__init__(self, None, keep_link, space, name, hp_choice=self.hp_choice)
+        ConnectionSpace.__init__(self, None, keep_link, space, name, hp_choice=self.hp_choice)
 
     def _on_params_ready(self):
         with self.space.as_default():

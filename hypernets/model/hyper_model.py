@@ -20,7 +20,7 @@ class HyperModel():
         self.start_search_time = None
 
     def sample_space(self):
-        return self.searcher.sample()
+        return self.searcher.sample(self.history)
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError
@@ -36,12 +36,13 @@ class HyperModel():
         estimator.fit(X, y, **fit_kwargs)
         metrics = estimator.evaluate(X_val, y_val)
         reward = self._get_reward(metrics, self.reward_metric)
-        self.searcher.update_result(space_sample, reward)
         elapsed = time.time() - start_time
         trail = Trail(space_sample, trail_no, reward, elapsed)
         improved = self.history.append(trail)
         if improved:
             self.best_model = estimator.model
+
+        self.searcher.update_result(space_sample, reward)
 
         for callback in self.callbacks:
             callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
@@ -75,9 +76,12 @@ class HyperModel():
     def search(self, X, y, X_val, y_val, **fit_kwargs):
         self.start_search_time = time.time()
         for trail_no in range(1, self.max_trails + 1):
-            space_sample = self.searcher.sample()
+            space_sample = self.sample_space()
             try:
                 self._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
+                print(f'----------------------------------------------------------------')
+                print(f'space signatures: {self.history.get_space_signatures()}')
+                print(f'----------------------------------------------------------------')
             except EarlyStoppingError:
                 break
                 # TODO: early stopping

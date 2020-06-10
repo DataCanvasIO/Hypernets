@@ -71,7 +71,7 @@ class Test_KerasLayers():
             output = Dense(2, activation=Choice(['relu', 'softmax']), use_bias=True)(dropout1)
 
         space.random_sample()
-        space.params_summary()
+        print(space.params_summary())
 
         model = space.keras_model()
         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])

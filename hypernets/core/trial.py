@@ -11,7 +11,6 @@ class Trail():
         self.trail_no = trail_no
         self.reward = reward
         self.elapsed = elapsed
-        pass
 
 
 class TrailHistory():
@@ -34,3 +33,13 @@ class TrailHistory():
             return sorted_trials[0]
         else:
             return None
+
+    def get_space_signatures(self):
+        signatures = set()
+        for s in [t.space_sample for t in self.history]:
+            signatures.add(s.signature)
+        return signatures
+
+    def get_features(self, signature):
+        features = [(t.space_sample.features, t.reward) for t in self.history if t.space_sample.signature == signature]
+        return features

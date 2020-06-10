@@ -3,6 +3,8 @@
 
 """
 import time
+import os
+import datetime
 
 
 class Callback():
@@ -34,10 +36,39 @@ class EarlyStopping(Callback):
         pass
 
 
+class FileLoggingCallback(Callback):
+    def __init__(self, searcher, output_dir=None):
+        self.output_dir = self._prepare_output_dir(output_dir, searcher)
+
+    def _prepare_output_dir(self, log_dir, searcher):
+        if log_dir is None:
+            log_dir = 'log'
+        if log_dir[-1] == '/':
+            log_dir = log_dir[:-1]
+
+        running_dir = f'exp_{searcher.__class__.__name__}_{datetime.datetime.now().__format__("%m%d-%H%M%S")}'
+        output_path = os.path.expanduser(f'{log_dir}/{running_dir}/')
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        return output_path
+
+    def on_build_estimator(self, hyper_model, space, estimator, trail_no):
+        pass
+
+    def on_trail_begin(self, hyper_model, space, trail_no):
+        pass
+        # with open(f'{self.output_dir}/trail_{trail_no}.log', 'w') as f:
+        #     f.write(space.params_summary())
+
+    def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
+        with open(f'{self.output_dir}/trail_{trail_no:04d}_{reward:010.8f}_{improved}_{elapsed:06.2f}.log', 'w') as f:
+            f.write(space.params_summary())
+
+
 class SummaryCallback(Callback):
     def on_build_estimator(self, hyper_model, space, estimator, trail_no):
         print(f'\nTrail No:{trail_no}')
-        space.params_summary()
+        print(space.params_summary())
         estimator.summary()
 
     def on_trail_begin(self, hyper_model, space, trail_no):

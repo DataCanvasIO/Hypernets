@@ -6,11 +6,45 @@ __author__ = 'yangjian'
 from contrib.deeptables.models import *
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.searcher import OptimizeDirection
-from hypernets.core.callbacks import SummaryCallback
+from hypernets.core.callbacks import SummaryCallback, FileLoggingCallback
 import pandas as pd
+
+import numpy as np
+import pandas as pd
+from deeptables.datasets import dsutils
+from sklearn.model_selection import train_test_split
 
 
 class Test_HyperDT():
+    def test_bankdata(self):
+        rs = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize, )
+        hdt = HyperDT(rs,
+                      callbacks=[SummaryCallback(), FileLoggingCallback(rs)],
+                      reward_metric='accuracy',
+                      max_trails=3,
+                      dnn_params={
+                          'dnn_units': ((256, 0, False), (256, 0, False)),
+                          'dnn_activation': 'relu',
+                      },
+                      )
+
+        df = dsutils.load_bank()
+        df.drop(['id'], axis=1, inplace=True)
+        df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
+        y = df_train.pop('y')
+        y_test = df_test.pop('y')
+
+        hdt.search(df_train, y, df_test, y_test)
+        assert hdt.best_model
+        best_trial = hdt.get_best_trail()
+
+        estimator = hdt.final_train(best_trial.space_sample, df, y)
+        score = estimator.predict(df)
+        result = estimator.evaluate(df, y)
+        assert len(score) == 100
+        assert result
+        assert isinstance(estimator.model, DeepTable)
+
     def test_hyper_dt(self):
         rs = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize, )
         hdt = HyperDT(rs,

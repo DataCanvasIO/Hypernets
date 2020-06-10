@@ -16,7 +16,7 @@ class Searcher(Stateful):
         self.space_fn = space_fn
         self.optimize_direction = optimize_direction
 
-    def sample(self):
+    def sample(self, history):
         raise NotImplementedError
 
     def get_best(self):

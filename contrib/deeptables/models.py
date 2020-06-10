@@ -5,6 +5,7 @@ __author__ = 'yangjian'
 """
 from deeptables.models.config import ModelConfig
 from deeptables.models.deeptable import DeepTable
+from deeptables.models.deepnets import get_nets
 from deeptables.utils import consts as DT_consts
 from hypernets.core.search_space import *
 from hypernets.model.estimator import Estimator
@@ -13,12 +14,30 @@ from hypernets.model.hyper_model import HyperModel
 
 class DTModuleSpace(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
+        nets = hyperparams.pop('nets')
+        assert nets is not None
+        assert isinstance(nets, list)
+        nets = get_nets(nets)
+
+        for net in nets:
+            hyperparams[f'b_use_{net}'] = Bool()
+
         ModuleSpace.__init__(self, space, name, **hyperparams)
         self.space.DT_Module = self
         self.config = None
 
     def _build(self):
-        self.config = ModelConfig(**self.param_values)
+        pv = {k: v for k, v in self.param_values.items() if not k.startswith('b_use_')}
+        nets = []
+        for k, v in self.param_values.items():
+            if k.startswith('b_use_') and v:
+                nets.append(k[6:])
+        if len(nets) <= 0:
+            nets = ['linear']
+            print(f'All networks are closed, default is `linear`.')
+        pv['nets'] = nets
+
+        self.config = ModelConfig(**pv)
         self.is_built = True
 
     def _compile(self, inputs):
@@ -62,6 +81,18 @@ class HyperDT(HyperModel):
     def __init__(self, searcher, dispatcher=None, callbacks=[], max_trails=10,
                  reward_metric=None, max_model_size=0, **config_kwargs):
         self.config_kwargs = config_kwargs
+        metrics = config_kwargs.get('metrics')
+        if metrics is None and reward_metric is None:
+            raise ValueError('Must specify `reward_metric` or `metrics`.')
+        if reward_metric is None:
+            reward_metric = metrics[0]
+        if metrics is None:
+            metrics = [reward_metric]
+            config_kwargs['metrics'] = metrics
+        if reward_metric not in metrics:
+            metrics.append(reward_metric)
+            config_kwargs['metrics'] = metrics
+
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, max_trails=max_trails,
                             reward_metric=reward_metric)
 
@@ -73,7 +104,7 @@ class HyperDT(HyperModel):
 def default_space():
     space = HyperSpace()
     with space.as_default():
-        DTModuleSpace(nets=MultipleChoice(['dnn_nets', 'linear', 'dcn_nets', 'fm_nets']),
+        DTModuleSpace(nets=['dnn_nets', 'linear', 'dcn_nets', 'fm_nets'],
                       auto_categorize=Bool(),
                       cat_remain_numeric=Bool(),
                       auto_discrete=Bool(),
