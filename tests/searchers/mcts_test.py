@@ -72,7 +72,7 @@ class Test_MCTS():
         searcher = MCTSSearcher(self.get_space, max_node_space=10)
 
         for i in range(100):
-            space_sample = searcher.sample()
+            space_sample = searcher.sample(history=None)
             assert space_sample.all_assigned == True
             print(space_sample.params_summary())
             searcher.update_result(space_sample, np.random.uniform(0.1, 0.9))

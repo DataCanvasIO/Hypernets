@@ -11,7 +11,7 @@ import queue
 import copy
 from collections import OrderedDict
 from .mutables import Mutable, MutableScope
-from ..utils.common import generate_id
+from ..utils.common import generate_id, combinations
 
 
 class HyperNode(Mutable):
@@ -469,7 +469,7 @@ class Int(ParameterSpace):
 
     def expansion(self, sample_num):
         p = self.high - self.low
-        if sample_num > p:
+        if sample_num > p or sample_num <= 0:
             sample_num = p
         samples = []
         values = []
@@ -486,7 +486,8 @@ class Int(ParameterSpace):
 
 
 class Real(ParameterSpace):
-    def __init__(self, low, high, q=None, prior="uniform", random_state=np.random.RandomState(), space=None, name=None):
+    def __init__(self, low, high, q=None, prior="uniform", max_expansion=100, random_state=np.random.RandomState(),
+                 space=None, name=None):
         ParameterSpace.__init__(self, space, name)
         low = float(low)
         high = float(high)
@@ -496,6 +497,7 @@ class Real(ParameterSpace):
         self.q = q
         self.prior = prior
         self.random_state = random_state
+        self.max_expansion = max_expansion
 
     def _random_sample(self):
         if self.prior == "uniform":
@@ -531,6 +533,8 @@ class Real(ParameterSpace):
         return numeric
 
     def expansion(self, sample_num):
+        if sample_num <= 0:
+            sample_num = self.max_expansion
         values = []
         samples = []
         while len(samples) < sample_num:
@@ -591,22 +595,25 @@ class MultipleChoice(ParameterSpace):
         self.random_state = random_state
 
     def _random_sample(self):
-        options = self.options.copy()
-        options_state = [[True, False] for _ in range(len(options))]
-        loop_counter = 0
-        while True:
-            loop_counter += 1
-            values = []
-            self.random_state.shuffle(options)
-            for i in range(len(options)):
-                if self.random_state.choice(options_state[i]):
-                    values.append(options[i])
-                    if self.max_chosen_num > 0 and len(values) >= self.max_chosen_num:
-                        break
-            if len(values) > 0:
-                break
-            if loop_counter > 100:
-                raise TimeoutError(f'Retry counter exceeded: {loop_counter}')
+        high = self.max_chosen_num
+        if high <= 0:
+            high = len(self.options)
+        indices = self.random_state.choice(range(0, len(self.options)), self.random_state.randint(1, high + 1), False)
+        values = [self.options[index] for index in sorted(indices)]
+        #
+        # retry_counter = 0
+        # while True:
+        #     retry_counter += 1
+        #     if retry_counter > 100:
+        #         raise RuntimeError(f'Retry counter exceeded: {retry_counter}')
+        #     options_state = [(i, self.random_state.choice([True, False])) for i in range(len(options))]
+        #     if all([not b[1] for b in options_state]):
+        #         continue
+        #     indices = [b[0] for b in options_state if b[1]]
+        #     if self.max_chosen_num > 0 and len(indices) > self.max_chosen_num:
+        #         indices = self.random_state.choice(indices, self.max_chosen_num, False)
+        #     values = [options[index] for index in sorted(indices)]
+        #     break
         return values
 
     def _check(self, value):
@@ -633,13 +640,9 @@ class MultipleChoice(ParameterSpace):
         return values
 
     def expansion(self, sample_num):
-        l = len(self.options)
-        c = self.max_chosen_num
-        if c <= 0:
-            c = l
-        p = int(math.factorial(l) / math.factorial(l - c))
-        if sample_num > p:
-            sample_num = p
+        c = combinations(len(self.options), self.max_chosen_num, 1)
+        if sample_num > c or sample_num <= 0:
+            sample_num = c
         values = []
         samples = []
         while len(values) < sample_num:

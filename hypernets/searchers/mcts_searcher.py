@@ -24,7 +24,7 @@ class MCTSSearcher(Searcher):
 
     def sample(self, history):
         print('Sample')
-        if self.use_meta_learner and self.histroy is None:
+        if self.use_meta_learner and history is not None and self.histroy is None:
             self.histroy = history
             self.meta_learner = MetaLearner(history)
 
@@ -37,7 +37,7 @@ class MCTSSearcher(Searcher):
         #         raise RuntimeError('Unable to obtain a valid sample.')
         #     space_sample, best_node = self.tree.selection_and_expansion()
         #     count += 1
-        if self.use_meta_learner:
+        if self.use_meta_learner and self.meta_learner is not None:
             space_sample = self._select_best_candidate(best_node)
         else:
             space_sample = self.tree.roll_out(space_sample, best_node)
@@ -65,7 +65,7 @@ class MCTSSearcher(Searcher):
         self.tree.back_propagation(best_node, result)
         print(f'After back propagation: {best_node.info()}')
         print('\n\n')
-        if self.use_meta_learner:
+        if self.use_meta_learner and self.meta_learner is not None:
             assert self.meta_learner is not None
             self.meta_learner.new_sample(space_sample)
 

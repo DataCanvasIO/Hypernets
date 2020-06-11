@@ -13,18 +13,18 @@ from hypernets.searchers.evolution_searcher import EvolutionSearcher
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
-#searcher = MCTSSearcher(default_space, max_node_space=10, optimize_direction=OptimizeDirection.Maximize)
-#searcher = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize )
-searcher = EvolutionSearcher(default_space, 50, 30, regularized=True, optimize_direction=OptimizeDirection.Maximize)
+searcher = MCTSSearcher(mini_dt_space, max_node_space=0, optimize_direction=OptimizeDirection.Maximize)
+# searcher = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize )
+# searcher = EvolutionSearcher(mini_dt_space, 50, 30, regularized=True, candidates_size=20,optimize_direction=OptimizeDirection.Maximize)
 
 hdt = HyperDT(searcher,
               callbacks=[SummaryCallback(), FileLoggingCallback(searcher)],
               reward_metric='AUC',
               max_trails=1000,
-              dnn_params={
-                  'dnn_units': ((256, 0, False), (256, 0, False)),
-                  'dnn_activation': 'relu',
-              },
+              # dnn_params={
+              #     'dnn_units': ((256, 0, False), (256, 0, False)),
+              #     'dnn_activation': 'relu',
+              # },
               earlystopping_patience=1,
               )
 

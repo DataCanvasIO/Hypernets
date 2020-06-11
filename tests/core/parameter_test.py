@@ -100,9 +100,9 @@ class Test_Parameter:
         v3 = mc3.random_sample()
         v4 = mc4.random_sample()
 
-        assert v1 == ['d', 'f']
-        assert v2 == ['e', 'd']
-        assert v3 == [4, 5]
+        assert v1 == ['a', 'b', 'c', 'd', 'e', 'f']
+        assert v2 == ['e']
+        assert v3 == [4]
         assert v4 == ['a']
 
         with pytest.raises(AssertionError):
@@ -286,10 +286,14 @@ class Test_Parameter:
         assert len(vs) == 20
         vs = int1.expansion(101)
         assert len(vs) == 99
+        vs = int1.expansion(0)
+        assert len(vs) == 99
 
-        real1 = Real(0., 100.)
+        real1 = Real(0., 100., max_expansion=10)
         vs = real1.expansion(20)
         assert len(vs) == 20
+        vs = real1.expansion(0)
+        assert len(vs) == 10
 
         bool1 = Bool()
         assert len(bool1.expansion()) == 2
@@ -299,7 +303,10 @@ class Test_Parameter:
 
         mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
         vs = mutiple_choice1.expansion(20)
-        assert vs
+        assert len(vs) == 15
+
+        vs = mutiple_choice1.expansion(0)
+        assert len(vs) == 15
 
         mutiple_choice2 = MultipleChoice(['a', 'b', 'c', 'd'], max_chosen_num=1)
         vs = mutiple_choice2.expansion(4)

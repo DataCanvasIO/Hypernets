@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 
 class Test_HyperDT():
     def test_bankdata(self):
-        rs = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize, )
+        rs = RandomSearcher(default_dt_space, optimize_direction=OptimizeDirection.Maximize, )
         hdt = HyperDT(rs,
                       callbacks=[SummaryCallback(), FileLoggingCallback(rs)],
                       reward_metric='accuracy',
@@ -38,15 +38,28 @@ class Test_HyperDT():
         assert hdt.best_model
         best_trial = hdt.get_best_trail()
 
-        estimator = hdt.final_train(best_trial.space_sample, df, y)
+        estimator = hdt.final_train(best_trial.space_sample, df_train, y)
         score = estimator.predict(df)
         result = estimator.evaluate(df, y)
         assert len(score) == 100
         assert result
         assert isinstance(estimator.model, DeepTable)
 
+    def test_default_dt_space(self):
+        space = default_dt_space()
+        space.random_sample()
+        assert space.Module_DnnModule_1.param_values['dnn_layers'] == len(
+            space.DT_Module.config.dnn_params['dnn_units'])
+        assert space.Module_DnnModule_1.param_values['dnn_units'] == space.DT_Module.config.dnn_params['dnn_units'][0][
+            0]
+        assert space.Module_DnnModule_1.param_values['dnn_dropout'] == \
+               space.DT_Module.config.dnn_params['dnn_units'][0][
+                   1]
+        assert space.Module_DnnModule_1.param_values['use_bn'] == space.DT_Module.config.dnn_params['dnn_units'][0][
+            2]
+
     def test_hyper_dt(self):
-        rs = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize, )
+        rs = RandomSearcher(default_dt_space, optimize_direction=OptimizeDirection.Maximize, )
         hdt = HyperDT(rs,
                       callbacks=[SummaryCallback()],
                       reward_metric='accuracy',

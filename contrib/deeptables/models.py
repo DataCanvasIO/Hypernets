@@ -14,30 +14,104 @@ from hypernets.model.hyper_model import HyperModel
 
 class DTModuleSpace(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
-        nets = hyperparams.pop('nets')
-        assert nets is not None
-        assert isinstance(nets, list)
-        nets = get_nets(nets)
-
-        for net in nets:
-            hyperparams[f'b_use_{net}'] = Bool()
+        # nets = hyperparams.pop('nets')
+        # assert nets is not None
+        # assert isinstance(nets, list)
+        # nets = get_nets(nets)
+        #
+        # for net in nets:
+        #     hyperparams[f'b_use_{net}'] = Bool()
 
         ModuleSpace.__init__(self, space, name, **hyperparams)
         self.space.DT_Module = self
         self.config = None
 
     def _build(self):
-        pv = {k: v for k, v in self.param_values.items() if not k.startswith('b_use_')}
-        nets = []
-        for k, v in self.param_values.items():
-            if k.startswith('b_use_') and v:
-                nets.append(k[6:])
-        if len(nets) <= 0:
-            nets = ['linear']
-            print(f'All networks are closed, default is `linear`.')
-        pv['nets'] = nets
+        # pv = {k: v for k, v in self.param_values.items() if not k.startswith('b_use_')}
+        # nets = []
+        # for k, v in self.param_values.items():
+        #     if k.startswith('b_use_') and v:
+        #         nets.append(k[6:])
+        # if len(nets) <= 0:
+        #     nets = ['linear']
+        #     print(f'All networks are closed, default is `linear`.')
+        # pv['nets'] = nets
 
-        self.config = ModelConfig(**pv)
+        self.config = ModelConfig(**self.param_values)
+        self.is_built = True
+
+    def _compile(self, inputs):
+        return inputs
+
+    def _on_params_ready(self):
+        self._build()
+
+
+class DTFit(ModuleSpace):
+    def __init__(self, batch_size=128, epochs=1000, space=None, name=None, **hyperparams):
+        if batch_size is None:
+            batch_size = Choice([128, 256, 512])
+        hyperparams['batch_size'] = batch_size
+
+        if epochs is None:
+            epochs = 1000
+        hyperparams['epochs'] = epochs
+
+        ModuleSpace.__init__(self, space, name, **hyperparams)
+        self.space.fit_params = self
+
+    def _build(self):
+        self.is_built = True
+
+    def _compile(self, inputs):
+        return inputs
+
+    def _on_params_ready(self):
+        self._build()
+
+
+class DnnModule(ModuleSpace):
+    def __init__(self, dnn_units=None, reduce_factor=None, dnn_dropout=None, use_bn=None, dnn_layers=None,
+                 activation=None, space=None, name=None, **hyperparams):
+        if dnn_units is None:
+            dnn_units = Choice([100, 200, 300, 500, 800, 1000])
+        hyperparams['dnn_units'] = dnn_units
+
+        if reduce_factor is None:
+            reduce_factor = Choice([1, 0.8, 0.5])
+        hyperparams['reduce_factor'] = reduce_factor
+
+        if dnn_dropout is None:
+            dnn_dropout = Choice([0, 0.1, 0.3, 0.5])
+        hyperparams['dnn_dropout'] = dnn_dropout
+
+        if use_bn is None:
+            use_bn = Bool()
+        hyperparams['use_bn'] = use_bn
+
+        if dnn_layers is None:
+            dnn_layers = Choice([1, 2, 3])
+        hyperparams['dnn_layers'] = dnn_layers
+
+        if activation is None:
+            activation = 'relu'
+        hyperparams['activation'] = activation
+
+        ModuleSpace.__init__(self, space, name, **hyperparams)
+
+    def _build(self):
+        dnn_layers = self.param_values['dnn_layers']
+        dnn_units = []
+        for i in range(0, dnn_layers):
+            dnn_units.append(
+                (self.param_values['dnn_units'] * 1 if i == 0 else (i * self.param_values['reduce_factor']),
+                 self.param_values['dnn_dropout'],
+                 self.param_values['use_bn']))
+        dnn_params = {
+            'dnn_units': dnn_units,
+            'dnn_activation': self.param_values['activation'],
+        }
+        self.space.DT_Module.config = self.space.DT_Module.config._replace(dnn_params=dnn_params)
         self.is_built = True
 
     def _compile(self, inputs):
@@ -67,6 +141,9 @@ class DTEstimator(Estimator):
             print(ex)
 
     def fit(self, X, y, **kwargs):
+        fit_params = self.space.__dict__.get('fit_params')
+        if fit_params is not None:
+            kwargs.update(fit_params.param_values)
         self.model.fit(X, y, **kwargs)
 
     def predict(self, X, **kwargs):
@@ -101,21 +178,60 @@ class HyperDT(HyperModel):
         return estimator
 
 
-def default_space():
+def default_dt_space():
     space = HyperSpace()
     with space.as_default():
-        DTModuleSpace(nets=['dnn_nets', 'linear', 'dcn_nets', 'fm_nets'],
-                      auto_categorize=Bool(),
-                      cat_remain_numeric=Bool(),
-                      auto_discrete=Bool(),
-                      apply_gbm_features=Bool(),
-                      gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
-                      embeddings_output_dim=Choice([4, 10, 20]),
-                      embedding_dropout=Choice([0, 0.25, 0.5]),
-                      stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),
-                      output_use_bias=Bool(),
-                      apply_class_weight=Bool(),
-                      earlystopping_patience=Choice([1, 3, 5]))
+        p_nets = MultipleChoice(
+            ['dnn_nets', 'linear', 'cin_nets', 'fm_nets', 'afm_nets', 'pnn_nets',
+             'cross_nets', 'widecross_nets', 'cross_dnn_nets', 'dcn_nets',
+             'autoint_nets', 'fgcnn_dnn_nets', 'fibi_dnn_nets'], max_chosen_num=3)
+        dt_module = DTModuleSpace(
+            auto_categorize=Bool(),
+            cat_remain_numeric=Bool(),
+            auto_discrete=Bool(),
+            apply_gbm_features=Bool(),
+            gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
+            nets=p_nets,
+            embeddings_output_dim=Choice([4, 10, 20]),
+            embedding_dropout=Choice([0, 0.1, 0.2, 0.3, 0.4, 0.5]),
+            stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),
+            output_use_bias=Bool(),
+            apply_class_weight=Bool(),
+            earlystopping_patience=Choice([1, 3, 5])
+        )
+        dnn = DnnModule()(dt_module)
+        fit = DTFit(batch_size=Choice([128, 256]))(dt_module)
+
+    return space
+
+
+def mini_dt_space():
+    space = HyperSpace()
+    with space.as_default():
+        p_nets = MultipleChoice(
+            ['dnn_nets', 'linear', 'fm_nets'], max_chosen_num=2)
+        dt_module = DTModuleSpace(
+            auto_categorize=Bool(),
+            cat_remain_numeric=Bool(),
+            auto_discrete=Bool(),
+            apply_gbm_features=Bool(),
+            gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
+            nets=p_nets,
+            embeddings_output_dim=Choice([4, 10]),
+            embedding_dropout=Choice([0, 0.5]),
+            stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),
+            output_use_bias=Bool(),
+            apply_class_weight=Bool(),
+            earlystopping_patience=Choice([1, 3, 5])
+        )
+        dnn = DnnModule(dnn_units=Choice([100, 200]),
+                        reduce_factor=Choice([1, 0.8]),
+                        dnn_dropout=Choice([0, 0.3]),
+                        use_bn=Bool(),
+                        dnn_layers=2,
+                        activation='relu')(dt_module)
+        fit = DTFit(batch_size=Choice([128, 256]))(dt_module)
+
     return space
 
     # categorical_columns='auto',

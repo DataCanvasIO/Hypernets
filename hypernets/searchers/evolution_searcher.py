@@ -97,7 +97,7 @@ class EvolutionSearcher(Searcher):
         self.candidate_size = candidates_size
 
     def sample(self, history):
-        if self.use_meta_learner and self.histroy is None:
+        if self.use_meta_learner and history is not None and self.histroy is None:
             self.histroy = history
             self.meta_learner = MetaLearner(history)
         if self.population.initializing:
@@ -110,7 +110,7 @@ class EvolutionSearcher(Searcher):
             return offspring
 
     def _get_offspring(self, space_sample):
-        if self.use_meta_learner:
+        if self.use_meta_learner and self.meta_learner is not None:
             candidates = []
             scores = []
             for i in range(self.candidate_size):
@@ -130,6 +130,6 @@ class EvolutionSearcher(Searcher):
         if not self.population.initializing:
             self.population.eliminate(regularized=self.regularized)
         self.population.append(space_sample, result)
-        if self.use_meta_learner:
+        if self.use_meta_learner and self.meta_learner is not None:
             assert self.meta_learner is not None
             self.meta_learner.new_sample(space_sample)
