@@ -61,7 +61,7 @@ class FileLoggingCallback(Callback):
         #     f.write(space.params_summary())
 
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
-        with open(f'{self.output_dir}/trail_{trail_no:04d}_{reward:010.8f}_{improved}_{elapsed:06.2f}.log', 'w') as f:
+        with open(f'{self.output_dir}/trail_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log', 'w') as f:
             f.write(space.params_summary())
 
 

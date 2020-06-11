@@ -186,12 +186,12 @@ def default_dt_space():
              'cross_nets', 'widecross_nets', 'cross_dnn_nets', 'dcn_nets',
              'autoint_nets', 'fgcnn_dnn_nets', 'fibi_dnn_nets'], max_chosen_num=3)
         dt_module = DTModuleSpace(
+            nets=p_nets,
             auto_categorize=Bool(),
             cat_remain_numeric=Bool(),
             auto_discrete=Bool(),
             apply_gbm_features=Bool(),
             gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
-            nets=p_nets,
             embeddings_output_dim=Choice([4, 10, 20]),
             embedding_dropout=Choice([0, 0.1, 0.2, 0.3, 0.4, 0.5]),
             stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),
@@ -211,12 +211,12 @@ def mini_dt_space():
         p_nets = MultipleChoice(
             ['dnn_nets', 'linear', 'fm_nets'], max_chosen_num=2)
         dt_module = DTModuleSpace(
+            nets=p_nets,
             auto_categorize=Bool(),
             cat_remain_numeric=Bool(),
             auto_discrete=Bool(),
             apply_gbm_features=Bool(),
             gbm_feature_type=Choice([DT_consts.GBM_FEATURE_TYPE_DENSE, DT_consts.GBM_FEATURE_TYPE_EMB]),
-            nets=p_nets,
             embeddings_output_dim=Choice([4, 10]),
             embedding_dropout=Choice([0, 0.5]),
             stacking_op=Choice([DT_consts.STACKING_OP_ADD, DT_consts.STACKING_OP_CONCAT]),

@@ -26,13 +26,21 @@ class TrailHistory():
         return improved
 
     def get_best(self):
+        top1 = self.get_top(1)
+        if len(top1) <= 0:
+            return None
+        else:
+            return top1[0]
+
+    def get_top(self, n=10):
+        if len(self.history) <= 0:
+            return []
         sorted_trials = sorted(self.history,
                                key=lambda
                                    t: t.reward if self.optimize_direction == OptimizeDirection.Minimize else -t.reward)
-        if len(sorted_trials) > 0:
-            return sorted_trials[0]
-        else:
-            return None
+        if n > len(sorted_trials):
+            n = len(sorted_trials)
+        return sorted_trials[:n]
 
     def get_space_signatures(self):
         signatures = set()
@@ -40,6 +48,4 @@ class TrailHistory():
             signatures.add(s.signature)
         return signatures
 
-    def get_features(self, signature):
-        features = [(t.space_sample.features, t.reward) for t in self.history if t.space_sample.signature == signature]
-        return features
+

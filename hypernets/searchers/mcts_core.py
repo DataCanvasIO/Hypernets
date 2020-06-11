@@ -12,6 +12,7 @@ class MCNode(object):
     def __init__(self, id, name, param_sample, parent=None, tree=None, is_terminal=False):
         self.visits = 0
         self.reward = 0.0
+        self.rewards = []
 
         assert name is not None
         if name != 'ROOT':
@@ -180,11 +181,17 @@ class UCT(BasePolicy):
             node_log_nt / child.visits)) if child.visits > 0 else np.inf for child
                   in
                   node.children]
+        details = [(child.param_sample.value, np.sum(child.rewards), child.reward, len(child.rewards)) for child in
+                   node.children]
         index = np.argmax(scores)
         selected = node.children[index]
         print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
+        print(f'Detials: {details}')
+        print('*******************************************************************************')
+
         return selected
 
     def back_propagation(self, node, reward):
         new_reward = node.reward + (reward - node.reward) / (node.visits + 1)
+        node.rewards.append(reward)
         return new_reward, node.visits + 1

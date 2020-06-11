@@ -16,12 +16,12 @@ class MetaLearner(object):
         self.fit(space_sample.signature)
 
     def fit(self, space_signature):
-        features = self.history.get_features(space_signature)
+        features = self.extract_features_and_labels(space_signature)
         x = []
         y = []
-        for f, reward in features:
-            x.append(f)
-            y.append(reward)
+        for features, label in features:
+            x.append(features)
+            y.append(label)
         if len(x) >= 2:
             regressor = LGBMRegressor()
             regressor.fit(x, y)
@@ -35,3 +35,8 @@ class MetaLearner(object):
         else:
             score = default_value
         return score
+
+    def extract_features_and_labels(self, signature):
+        features = [(t.space_sample.features, t.reward) for t in self.history.history if
+                    t.space_sample.signature == signature]
+        return features
