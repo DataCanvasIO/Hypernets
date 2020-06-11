@@ -48,4 +48,25 @@ class TrailHistory():
             signatures.add(s.signature)
         return signatures
 
+    def diff(self, trails):
+        signatures = set()
+        for s in [t.space_sample for t in trails]:
+            signatures.add(s.signature)
 
+        diffs = {}
+        for sign in signatures:
+            ts = [t for t in trails if t.space_sample.signature == sign]
+            pv_dict = {}
+            for t in ts:
+                for p in t.space_sample.get_assignable_params():
+                    k = p.alias
+                    v = str(p.value)
+                    if pv_dict.get(k) is None:
+                        pv_dict[k] = {}
+                    if pv_dict[k].get(v) is None:
+                        pv_dict[k][v] = [t.reward]
+                    else:
+                        pv_dict[k][v].append(t.reward)
+            diffs[sign] = pv_dict
+
+        return diffs

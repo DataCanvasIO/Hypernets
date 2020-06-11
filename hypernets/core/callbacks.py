@@ -5,6 +5,7 @@
 import time
 import os
 import datetime
+import json
 
 
 class Callback():
@@ -63,6 +64,12 @@ class FileLoggingCallback(Callback):
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
         with open(f'{self.output_dir}/trail_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log', 'w') as f:
             f.write(space.params_summary())
+
+        topn = 5
+        diff = hyper_model.history.diff(hyper_model.history.get_top(topn))
+        with open(f'{self.output_dir}/top_{topn}_diff.txt', 'w') as f:
+            diff_str = json.dumps(diff, indent=5)
+            f.write(diff_str)
 
 
 class SummaryCallback(Callback):

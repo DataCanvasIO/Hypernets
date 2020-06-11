@@ -14,29 +14,11 @@ from hypernets.model.hyper_model import HyperModel
 
 class DTModuleSpace(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
-        # nets = hyperparams.pop('nets')
-        # assert nets is not None
-        # assert isinstance(nets, list)
-        # nets = get_nets(nets)
-        #
-        # for net in nets:
-        #     hyperparams[f'b_use_{net}'] = Bool()
-
         ModuleSpace.__init__(self, space, name, **hyperparams)
         self.space.DT_Module = self
         self.config = None
 
     def _build(self):
-        # pv = {k: v for k, v in self.param_values.items() if not k.startswith('b_use_')}
-        # nets = []
-        # for k, v in self.param_values.items():
-        #     if k.startswith('b_use_') and v:
-        #         nets.append(k[6:])
-        # if len(nets) <= 0:
-        #     nets = ['linear']
-        #     print(f'All networks are closed, default is `linear`.')
-        # pv['nets'] = nets
-
         self.config = ModelConfig(**self.param_values)
         self.is_built = True
 
