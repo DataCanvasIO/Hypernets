@@ -33,7 +33,7 @@ class Test_MCTS():
     def test_mctree(self):
         tree = MCTree(self.get_space, policy=UCT(), max_node_space=2)
         space_sample, node = tree.selection_and_expansion()
-        assert node.param_sample.label == 'Param_Int_1-1-100'
+        assert node.param_sample.label == 'Param_Int_1-1-100-1'
         assert space_sample.all_assigned == False
 
         tree.back_propagation(node, np.random.uniform(0.1, 0.9))
@@ -41,7 +41,7 @@ class Test_MCTS():
         assert tree.root.visits == 1
 
         space_sample, node = tree.selection_and_expansion()
-        assert node.param_sample.label == 'Param_Int_1-1-100'
+        assert node.param_sample.label == 'Param_Int_1-1-100-1'
         assert space_sample.all_assigned == False
 
         tree.back_propagation(node, np.random.uniform(0.1, 0.9))

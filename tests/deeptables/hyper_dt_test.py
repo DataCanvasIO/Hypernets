@@ -16,8 +16,8 @@ from sklearn.model_selection import train_test_split
 
 
 class Test_HyperDT():
-    def test_bankdata(self):
-        rs = RandomSearcher(default_dt_space, optimize_direction=OptimizeDirection.Maximize, )
+    def bankdata(self):
+        rs = RandomSearcher(mini_dt_space, optimize_direction=OptimizeDirection.Maximize, )
         hdt = HyperDT(rs,
                       callbacks=[SummaryCallback(), FileLoggingCallback(rs)],
                       reward_metric='accuracy',
@@ -59,7 +59,7 @@ class Test_HyperDT():
             2]
 
     def test_hyper_dt(self):
-        rs = RandomSearcher(default_dt_space, optimize_direction=OptimizeDirection.Maximize, )
+        rs = RandomSearcher(mini_dt_space, optimize_direction=OptimizeDirection.Maximize, )
         hdt = HyperDT(rs,
                       callbacks=[SummaryCallback()],
                       reward_metric='accuracy',

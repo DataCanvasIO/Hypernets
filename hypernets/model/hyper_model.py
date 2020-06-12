@@ -81,6 +81,13 @@ class HyperModel():
         self.start_search_time = time.time()
         for trail_no in range(1, self.max_trails + 1):
             space_sample = self.sample_space()
+
+            # for testing
+            # space_sample = self.searcher.space_fn()
+            # trails = self.trail_store.get_all(dataset_id, space_sample1.signature)
+            # space_sample.assign_by_vectors(trails[0].space_sample_vectors)
+            # space_sample.space_id = space_sample1.space_id
+
             try:
                 if self.trail_store is not None:
                     trail = self.trail_store.get(dataset_id, space_sample)
@@ -95,7 +102,7 @@ class HyperModel():
                         for callback in self.callbacks:
                             callback.on_skip_trail(self, space_sample, trail_no, 'hit_history', reward, improved,
                                                    elapsed)
-                            continue
+                        continue
                 trail = self._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
                 print(f'----------------------------------------------------------------')
                 print(f'space signatures: {self.history.get_space_signatures()}')
@@ -106,8 +113,11 @@ class HyperModel():
                 break
                 # TODO: early stopping
 
-    def generate_dataset_id(self, X: object, y):
-        return str(X.shape)
+    def generate_dataset_id(self, X, y):
+        if isinstance(X,list):
+            return  ','.join([str(i) for i in X[0]])
+        else:
+            return str(X.shape)
 
     def final_train(self, space_sample, X, y, **kwargs):
         estimator = self._get_estimator(space_sample)

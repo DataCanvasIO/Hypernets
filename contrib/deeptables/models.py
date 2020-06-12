@@ -165,7 +165,7 @@ def default_dt_space():
     with space.as_default():
         p_nets = MultipleChoice(
             ['dnn_nets', 'linear', 'cin_nets', 'fm_nets', 'afm_nets', 'pnn_nets',
-             'cross_nets', 'widecross_nets', 'cross_dnn_nets', 'dcn_nets',
+             'cross_nets', 'cross_dnn_nets', 'dcn_nets',
              'autoint_nets', 'fgcnn_dnn_nets', 'fibi_dnn_nets'], max_chosen_num=3)
         dt_module = DTModuleSpace(
             nets=p_nets,
