@@ -114,8 +114,8 @@ class HyperModel():
                 # TODO: early stopping
 
     def generate_dataset_id(self, X, y):
-        if isinstance(X,list):
-            return  ','.join([str(i) for i in X[0]])
+        if isinstance(X, list):
+            return ','.join([str(i) for i in X[0]])
         else:
             return str(X.shape)
 
