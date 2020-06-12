@@ -133,3 +133,4 @@ dmypy.json
 .pyre/
 dt_output/
 log/
+trail_store/

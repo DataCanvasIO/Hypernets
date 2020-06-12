@@ -145,7 +145,8 @@ class Test_HyperSpace():
         with space.as_default():
             const = Constant(1)
         assert const in space.hyper_params
-        ps = space.get_assignable_params()
+        space.random_sample()
+        ps = space.get_assigned_params()
         assert ps == [space.Param_Real_1, space.Param_Choice_1, space.Param_Int_1, space.Param_Choice_2]
 
     def test_unassigned_iterator(self):
@@ -179,6 +180,10 @@ class Test_HyperSpace():
         space = self.get_space_with_dynamic()
         ps = []
         space.random_sample()
+        assert len(space.get_assigned_params()) == 6
+        assert len(space.get_all_params()) == 7
+
+        assert space.all_assigned
         for p in space.unassigned_iterator:
             ps.append(p)
         assert ps == []
@@ -201,3 +206,13 @@ class Test_HyperSpace():
 
         dg5 = get_default_space()
         assert dg5 == dg1
+
+    def test_vectors(self):
+        space = self.get_space_with_dynamic()
+        space.random_sample()
+        assert len(space.get_assigned_params()) == 6
+
+        space1 = self.get_space_with_dynamic()
+        space1.assign_by_vectors(space.vectors)
+
+        assert space.vectors == space1.vectors

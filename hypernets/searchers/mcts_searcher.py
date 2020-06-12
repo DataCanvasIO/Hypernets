@@ -6,18 +6,18 @@ __author__ = 'yangjian'
 from .mcts_core import *
 from ..core.searcher import Searcher, OptimizeDirection
 from ..core.meta_learner import MetaLearner
+from ..core.trial import get_default_trail_store
 
 
 class MCTSSearcher(Searcher):
     def __init__(self, space_fn, policy=None, max_node_space=10, use_meta_learner=True, candidates_size=10,
-                 optimize_direction=OptimizeDirection.Minimize):
+                 optimize_direction=OptimizeDirection.Minimize, dataset_id=None, trail_store=None):
         if policy is None:
             policy = UCT()
         self.tree = MCTree(space_fn, policy, max_node_space=max_node_space)
-        Searcher.__init__(self, space_fn, optimize_direction)
+        Searcher.__init__(self, space_fn, optimize_direction, dataset_id=dataset_id, trail_store=trail_store)
         self.best_nodes = {}
         self.use_meta_learner = use_meta_learner
-
         self.histroy = None
         self.meta_learner = None
         self.candidate_size = candidates_size
@@ -26,8 +26,7 @@ class MCTSSearcher(Searcher):
         print('Sample')
         if self.use_meta_learner and history is not None and self.histroy is None:
             self.histroy = history
-            self.meta_learner = MetaLearner(history)
-
+            self.meta_learner = MetaLearner(history, self.dataset_id, self.trail_store)
         space_sample, best_node = self.tree.selection_and_expansion()
         print(f'Sample: {best_node.info()}')
 

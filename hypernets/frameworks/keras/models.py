@@ -48,7 +48,7 @@ class KerasEstimator(Estimator):
 
 class HyperKeras(HyperModel):
     def __init__(self, searcher, optimizer, loss, metrics, dispatcher=None, callbacks=[], max_trails=10,
-                 reward_metric=None, max_model_size=0):
+                 reward_metric=None, max_model_size=0, trail_store=None):
         self.optimizer = optimizer
         self.loss = loss
         self.metrics = metrics
@@ -56,7 +56,7 @@ class HyperKeras(HyperModel):
         if reward_metric is None:
             reward_metric = metrics[0]
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, max_trails=max_trails,
-                            reward_metric=reward_metric)
+                            reward_metric=reward_metric, trail_store=trail_store)
 
     def _get_estimator(self, space_sample):
         estimator = KerasEstimator(space_sample, optimizer=self.optimizer, loss=self.loss, metrics=self.metrics,

@@ -9,13 +9,17 @@ from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.callbacks import SummaryCallback, FileLoggingCallback
 from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.evolution_searcher import EvolutionSearcher
-
+from hypernets.core.trial import DiskTrailStore
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
-searcher = MCTSSearcher(mini_dt_space, max_node_space=0, optimize_direction=OptimizeDirection.Maximize)
-# searcher = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize )
-# searcher = EvolutionSearcher(mini_dt_space, 50, 30, regularized=True, candidates_size=20,optimize_direction=OptimizeDirection.Maximize)
+disk_trail_store = DiskTrailStore()
+
+searcher = MCTSSearcher(mini_dt_space, max_node_space=0,
+                        optimize_direction=OptimizeDirection.Maximize,
+                        dataset_id='(26048, 14)', trail_store=disk_trail_store)
+# searcher = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize ,dataset_id='(26048, 14)', trail_store=disk_trail_store)
+# searcher = EvolutionSearcher(mini_dt_space, 50, 30, regularized=True, candidates_size=20, dataset_id='(26048, 14)', optimize_direction=OptimizeDirection.Maximize, trail_store=disk_trail_store)
 
 hdt = HyperDT(searcher,
               callbacks=[SummaryCallback(), FileLoggingCallback(searcher)],
@@ -26,6 +30,7 @@ hdt = HyperDT(searcher,
               #     'dnn_activation': 'relu',
               # },
               earlystopping_patience=1,
+              trail_store=disk_trail_store
               )
 
 df = dsutils.load_adult()
@@ -34,7 +39,7 @@ df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
 X = df_train
 y = df_train.pop(14)
 y_test = df_test.pop(14)
-
+# dataset_id='adult_whole_data',
 hdt.search(df_train, y, df_test, y_test, batch_size=256, epochs=10, verbose=1, )
 assert hdt.best_model
 best_trial = hdt.get_best_trail()

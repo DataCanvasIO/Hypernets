@@ -4,7 +4,7 @@
 """
 
 import numpy as np
-import math
+import hashlib
 import threading
 import contextlib
 import queue
@@ -34,6 +34,7 @@ class HyperSpace(Mutable):
         self.edges = set()
         self.modules = set()
         self.hyper_params = set()
+        self._assigned_params_stack = []
         self._is_compiled = False
         self.space_id = generate_id()
 
@@ -49,11 +50,14 @@ class HyperSpace(Mutable):
         all_assigned = self.traverse(lambda m: m.all_assigned, direction='backward')
         return all_assigned
 
+    def push_assigned_param(self, param):
+        self._assigned_params_stack.append(param)
+
     @property
     def unassigned_iterator(self):
         visited = {}
         while not self.all_assigned:
-            for p in self.get_assignable_params():
+            for p in self.get_unassigned_params():
                 if not p.assigned:
                     if visited.get(p):
                         visited[p] += 1
@@ -241,7 +245,7 @@ class HyperSpace(Mutable):
         for hp in self.unassigned_iterator:
             hp.random_sample()
 
-    def get_assignable_params(self, traverse_direction='forward'):
+    def get_unassigned_params(self, traverse_direction='forward'):
         assignables = []
 
         def append_params(m):
@@ -254,30 +258,25 @@ class HyperSpace(Mutable):
         self.traverse(append_params, direction=traverse_direction)
         return assignables
 
-    def get_assignable_param_values(self, traverse_direction='forward'):
-        assignables = self.get_assignable_params()
-        return {p.id: p.value for p in assignables}
+    def get_assigned_params(self):
+        assert self.all_assigned
+        return self._assigned_params_stack
 
-    def get_all_params(self, traverse_direction='forward'):
-        all = []
+    def get_assigned_param_values(self, traverse_direction='forward'):
+        ps = self.get_assigned_params()
+        return {p.id: p.value for p in ps}
 
-        def append_params(m):
-            ps = m.get_all_params()
-            for p in ps:
-                if p not in all:
-                    all.append(p)
-            return True
-
-        self.traverse(append_params, direction=traverse_direction)
+    def get_all_params(self):
+        all = list(self.hyper_params)
         return all
 
-    def params_summary(self, only_assignable=True, traverse_direction='forward', line_width=60, LR='\n'):
+    def params_summary(self, only_assignable=True, line_width=60, LR='\n'):
         outputs = []
         outputs.append(f'\n{(line_width + 2) * "-"}')
         if only_assignable:
-            params = self.get_assignable_params(traverse_direction)
+            params = self.get_assigned_params()
         else:
-            params = self.get_all_params(traverse_direction)
+            params = self.get_all_params()
 
         for i, hp in enumerate(params):
             outputs.append(
@@ -287,16 +286,27 @@ class HyperSpace(Mutable):
 
     @property
     def signature(self):
-        labels = [p.label for p in self.get_assignable_params()]
-        import hashlib
+        assert self.all_assigned
+        labels = [p.label for p in self._assigned_params_stack]
         key = ';'.join(labels)
         md5 = hashlib.md5(key.encode('utf-8')).hexdigest()
         return md5
 
     @property
-    def features(self):
-        features = [p.value2numeric(p.value) for p in self.get_assignable_params()]
-        return features
+    def vectors(self):
+        assert self.all_assigned
+        vectors = [p.value2numeric(p.value) for p in self._assigned_params_stack]
+        return vectors
+
+    def assign_by_vectors(self, vectors):
+        i = 0
+        for p in self.unassigned_iterator:
+            if i >= len(vectors):
+                raise ValueError('`vector` and `space` does not match.')
+            p.assign(p.numeric2value(vectors[i]))
+            i += 1
+        if len(vectors) != i:
+            raise ValueError('`vector` and `space` does not match.')
 
 
 class DefaultStack(threading.local):
@@ -412,7 +422,8 @@ class ParameterSpace(HyperNode):
         self._check(value)
         self._assigned = True
         self._value = value
-
+        if self.is_mutable:
+            self.space.push_assigned_param(self)
         for m in self.references:
             m.update()
 
@@ -443,16 +454,21 @@ class ParameterSpace(HyperNode):
 
 
 class Int(ParameterSpace):
-    def __init__(self, low, high, random_state=np.random.RandomState(), space=None, name=None):
+    def __init__(self, low, high, step=1, random_state=np.random.RandomState(), space=None, name=None):
         ParameterSpace.__init__(self, space, name)
         assert isinstance(low, int) and isinstance(high, int), '`low` and `high` must be a int.'
         assert low < high, '`low` must less than `high`.'
         self.low = low
         self.high = high
+        self.step = step
         self.random_state = random_state
 
     def _random_sample(self):
-        return self.random_state.randint(self.low, self.high)
+        value = self.random_state.randint(self.low, self.high)
+        if self.step is not None:
+            all = np.arange(self.low, self.high + self.step, step=self.step)
+            value = all[np.abs(all - value).argmin()]
+        return value
 
     def _check(self, value):
         assert value >= self.low and value <= self.high
@@ -465,7 +481,7 @@ class Int(ParameterSpace):
 
     @property
     def config_keys(self):
-        return ['low', 'high']
+        return ['low', 'high', 'step']
 
     def expansion(self, sample_num):
         p = self.high - self.low
@@ -486,7 +502,8 @@ class Int(ParameterSpace):
 
 
 class Real(ParameterSpace):
-    def __init__(self, low, high, q=None, prior="uniform", max_expansion=100, random_state=np.random.RandomState(),
+    def __init__(self, low, high, q=None, prior="uniform", step=0.01, max_expansion=100,
+                 random_state=np.random.RandomState(),
                  space=None, name=None):
         ParameterSpace.__init__(self, space, name)
         low = float(low)
@@ -496,6 +513,7 @@ class Real(ParameterSpace):
         self.high = high
         self.q = q
         self.prior = prior
+        self.step = float(step)
         self.random_state = random_state
         self.max_expansion = max_expansion
 
@@ -514,6 +532,13 @@ class Real(ParameterSpace):
             self._check(value)
         else:
             raise ValueError(f'Not supported prior:{self.prior}')
+
+        if self.step is not None:
+            if self.prior == 'log_uniform':
+                all = np.arange(np.exp(self.low), np.exp(self.high) + self.step, step=self.step)
+            else:
+                all = np.arange(self.low, self.high + self.step, step=self.step)
+            value = all[np.abs(all - value).argmin()]
         return value
 
     def _check(self, value):
@@ -524,7 +549,7 @@ class Real(ParameterSpace):
 
     @property
     def config_keys(self):
-        return ['low', 'high', 'q', 'prior']
+        return ['low', 'high', 'q', 'prior', 'step']
 
     def value2numeric(self, value):
         return value

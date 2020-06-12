@@ -12,8 +12,10 @@ class OptimizeDirection(enum.Enum):
 
 
 class Searcher(Stateful):
-    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize):
+    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize, dataset_id=None, trail_store=None):
         self.space_fn = space_fn
+        self.trail_store = trail_store
+        self.dataset_id = dataset_id
         self.optimize_direction = optimize_direction
 
     def sample(self, history):

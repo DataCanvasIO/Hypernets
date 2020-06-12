@@ -81,9 +81,9 @@ class Test_Parameter:
         r4.assign(0.2)
         assert r1.assigned == True
         assert r4.assigned == True
-        assert v1 == 0.33068165175773345
+        assert v1 == 0.33
         assert v2 == 0.4
-        assert v3 == 1.2745819909588392
+        assert v3 == 1.2700501670841682
         assert r4.value == 0.2
 
         with pytest.raises(AssertionError) as excinfo:
@@ -207,7 +207,7 @@ class Test_Parameter:
         assert space.Param_Cascade_3.value.value == -1
         assert space.Module_Identity_1.all_assigned == True
 
-        assert len(space.get_assignable_params()) == 3
+        assert len(space.get_assigned_params()) == 3
 
     def test_same(self):
         int1 = Int(1, 10)
@@ -269,9 +269,9 @@ class Test_Parameter:
         space = HyperSpace()
         with space.as_default():
             int1 = Int(1, 100)
-            assert int1.label == 'Param_Int_1-1-100'
+            assert int1.label == 'Param_Int_1-1-100-1'
             real1 = Real(0., 100.)
-            assert real1.label == 'Param_Real_1-0.0-100.0-None-uniform'
+            assert real1.label == 'Param_Real_1-0.0-100.0-None-uniform-0.01'
             bool1 = Bool()
             assert bool1.label == 'Param_Bool_1-[False, True]'
 

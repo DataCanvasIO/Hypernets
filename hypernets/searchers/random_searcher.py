@@ -6,8 +6,8 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class RandomSearcher(Searcher):
-    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize):
-        Searcher.__init__(self, space_fn, optimize_direction)
+    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize, dataset_id=None, trail_store=None):
+        Searcher.__init__(self, space_fn, optimize_direction, dataset_id=dataset_id, trail_store=trail_store)
 
     def sample(self, history):
         space = self.space_fn()
