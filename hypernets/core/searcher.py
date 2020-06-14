@@ -27,6 +27,9 @@ class Searcher(Stateful):
     def update_result(self, space, result):
         raise NotImplementedError
 
+    def summary(self):
+        return 'No Summary'
+
     def reset(self):
         raise NotImplementedError
 

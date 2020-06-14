@@ -119,10 +119,13 @@ class EvolutionSearcher(Searcher):
                 new_space = self.space_fn()
                 candidate = self.population.mutate(space_sample, new_space)
                 candidates.append(candidate)
-                scores.append(self.meta_learner.predict(candidate))
-            index = np.argmax(scores)
-            print(f'get_offspring scores:{scores}, argmax:{index}')
-            return candidates[index]
+                scores.append((i, self.meta_learner.predict(candidate)))
+            topn = sorted(scores,
+                          key=lambda s: s[1] if self.optimize_direction == OptimizeDirection.Minimize else -s[1])[
+                   :int(self.candidate_size * 0.3)]
+            best = topn[np.random.choice(range(len(topn)))]
+            print(f'get_offspring scores:{best[1]}, index:{best[0]}')
+            return candidates[best[0]]
         else:
             new_space = self.space_fn()
             candidate = self.population.mutate(space_sample, new_space)
@@ -135,3 +138,11 @@ class EvolutionSearcher(Searcher):
         if self.use_meta_learner and self.meta_learner is not None:
             assert self.meta_learner is not None
             self.meta_learner.new_sample(space_sample)
+
+    def summary(self):
+        summary = '\n'.join(
+            [f'vectors:{",".join([str(v) for v in individual.space_sample.vectors])}     reward:{individual.reward} '
+             for
+             individual in
+             self.population.populations])
+        return summary

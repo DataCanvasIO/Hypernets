@@ -15,16 +15,16 @@ from sklearn.model_selection import train_test_split
 
 disk_trail_store = DiskTrailStore()
 
-searcher = MCTSSearcher(mini_dt_space, max_node_space=0,
-                        optimize_direction=OptimizeDirection.Maximize,
-                        dataset_id='(26048, 14)', trail_store=disk_trail_store)
-# searcher = RandomSearcher(default_space, optimize_direction=OptimizeDirection.Maximize ,dataset_id='(26048, 14)', trail_store=disk_trail_store)
-# searcher = EvolutionSearcher(mini_dt_space, 50, 30, regularized=True, candidates_size=20, dataset_id='(26048, 14)', optimize_direction=OptimizeDirection.Maximize, trail_store=disk_trail_store)
+#searcher = MCTSSearcher(mini_dt_space, max_node_space=0,
+#                        optimize_direction=OptimizeDirection.Maximize,
+#                        dataset_id='(26048, 14)', trail_store=disk_trail_store)
+# searcher = RandomSearcher(mini_dt_space, optimize_direction=OptimizeDirection.Maximize ,dataset_id='(26048, 14)', trail_store=disk_trail_store)
+searcher = EvolutionSearcher(mini_dt_space, 200, 100, regularized=True, candidates_size=30, dataset_id='(26048, 14)', optimize_direction=OptimizeDirection.Maximize, trail_store=disk_trail_store)
 
 hdt = HyperDT(searcher,
               callbacks=[SummaryCallback(), FileLoggingCallback(searcher)],
               reward_metric='AUC',
-              max_trails=1000,
+              max_trails=2000,
               # dnn_params={
               #     'dnn_units': ((256, 0, False), (256, 0, False)),
               #     'dnn_activation': 'relu',

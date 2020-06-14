@@ -79,9 +79,15 @@ class HyperModel():
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
         self.start_search_time = time.time()
-        for trail_no in range(1, self.max_trails + 1):
+        trail_no = 1
+        while trail_no < self.max_trails:
             space_sample = self.sample_space()
-
+            if self.history.is_existed(space_sample):
+                trail = self.history.get_trail(space_sample)
+                for callback in self.callbacks:
+                    callback.on_skip_trail(self, space_sample, trail_no, 'trail_exsited', trail.reward, False,
+                                           trail.elapsed)
+                continue
             # for testing
             # space_sample = self.searcher.space_fn()
             # trails = self.trail_store.get_all(dataset_id, space_sample1.signature)
@@ -100,8 +106,9 @@ class HyperModel():
                             self.best_model = None
                         self.searcher.update_result(space_sample, reward)
                         for callback in self.callbacks:
-                            callback.on_skip_trail(self, space_sample, trail_no, 'hit_history', reward, improved,
+                            callback.on_skip_trail(self, space_sample, trail_no, 'hit_trail_store', reward, improved,
                                                    elapsed)
+                        trail_no += 1
                         continue
                 trail = self._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
                 print(f'----------------------------------------------------------------')
@@ -109,6 +116,7 @@ class HyperModel():
                 print(f'----------------------------------------------------------------')
                 if self.trail_store is not None:
                     self.trail_store.put(dataset_id, trail)
+                trail_no += 1
             except EarlyStoppingError:
                 break
                 # TODO: early stopping

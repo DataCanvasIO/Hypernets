@@ -68,6 +68,9 @@ class Test_MCTS():
         space_sample = tree.roll_out(space_sample, node)
         assert space_sample.all_assigned == True
 
+        tree_str = str(tree.root)
+        assert tree_str
+
     def test_mcts_searcher(self):
         searcher = MCTSSearcher(self.get_space, max_node_space=10)
 

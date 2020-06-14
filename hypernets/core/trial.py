@@ -28,6 +28,17 @@ class TrailHistory():
         improved = old_best != new_best
         return improved
 
+    def is_existed(self, space_sample):
+        return space_sample.vectors in [t.space_sample.vectors for t in self.history]
+
+    def get_trail(self, space_sample):
+        all_vectors = [t.space_sample.vectors for t in self.history]
+        index = all_vectors.index(space_sample.vectors)
+        if index >= 0:
+            return self.history[index]
+        else:
+            return None
+
     def get_best(self):
         top1 = self.get_top(1)
         if len(top1) <= 0:

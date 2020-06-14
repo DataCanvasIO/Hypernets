@@ -68,6 +68,9 @@ class MCTSSearcher(Searcher):
             assert self.meta_learner is not None
             self.meta_learner.new_sample(space_sample)
 
+    def summary(self):
+        return str(self.tree.root)
+
     def reset(self):
         raise NotImplementedError
 

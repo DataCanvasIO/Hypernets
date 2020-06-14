@@ -78,7 +78,15 @@ class MCNode(object):
         return child
 
     def info(self):
-        return f'Name:{self.name}, value:{self.param_sample.value if self.param_sample is not None else None}, depth:{self.depth}, reward:{self.reward}, visits:{self.visits}, children:{len(self._children)}, is_terminal:{self.is_terminal}'
+        return f'Reward:{self.reward}, Visits:{self.visits}, Name:{self.name}, Alias:{self.param_sample.alias if self.param_sample is not None else None}, value:{self.param_sample.value if self.param_sample is not None else None}, depth:{self.depth},  children:{len(self._children)}, is_terminal:{self.is_terminal}'
+
+    def __str__(self, level=0):
+        indent = "\t" * level
+
+        str = f'{indent}{self.info()}\n'
+        for child in self.children:
+            str += child.__str__(level + 1)
+        return str
 
 
 class MCTree(object):
