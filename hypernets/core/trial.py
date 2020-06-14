@@ -212,8 +212,10 @@ class DiskTrailStore(TrailStore):
 
     def get_all(self, dataset_id, space_signature):
         path = f'{self.home_dir}/{dataset_id}/{space_signature}'
-        files = os.listdir(path)
         trails = []
+        if not os.path.exists(path):
+            return trails
+        files = os.listdir(path)
         for f in files:
             if f.endswith('.pkl'):
                 f = path + '/' + f
