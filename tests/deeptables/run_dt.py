@@ -4,7 +4,7 @@
 """
 import sys
 
-sys.path.append('../../..')
+sys.path.append('../../../Hypernets-incubator')
 
 from contrib.deeptables.models import *
 from hypernets.searchers.random_searcher import RandomSearcher
