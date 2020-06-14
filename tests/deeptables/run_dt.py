@@ -1,8 +1,11 @@
 # -*- coding:utf-8 -*-
-__author__ = 'yangjian'
 """
 
 """
+import sys
+
+sys.path.append('../../..')
+
 from contrib.deeptables.models import *
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.searcher import OptimizeDirection
