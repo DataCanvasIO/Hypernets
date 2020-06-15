@@ -16,7 +16,7 @@ from hypernets.core.trial import DiskTrailStore
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
-disk_trail_store = DiskTrailStore()
+disk_trail_store = DiskTrailStore('~/jack/trail_store')
 
 #searcher = MCTSSearcher(mini_dt_space, max_node_space=0,
 #                        optimize_direction=OptimizeDirection.Maximize,

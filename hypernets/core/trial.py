@@ -156,6 +156,7 @@ class DiskTrailStore(TrailStore):
             home_dir = 'trail_store'
         if home_dir[-1] == '/':
             home_dir = home_dir[:-1]
+        home_dir = os.path.expanduser(home_dir)
         if not os.path.exists(home_dir):
             os.makedirs(home_dir)
         return home_dir
