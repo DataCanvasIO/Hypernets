@@ -5,23 +5,19 @@
 import time
 from ..core.callbacks import EarlyStoppingError
 from ..core.trial import *
+from ..core.meta_learner import MetaLearner
 
 
 class HyperModel():
-    def __init__(self, searcher, dispatcher=None, callbacks=[], max_trails=10, reward_metric=None, trail_store=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None):
         # self.searcher = self._build_searcher(searcher, space_fn)
         self.searcher = searcher
         self.dispatcher = dispatcher
         self.callbacks = callbacks
-        self.max_trails = max_trails
         self.reward_metric = reward_metric
         self.history = TrailHistory(searcher.optimize_direction)
         self.best_model = None
         self.start_search_time = None
-        self.trail_store = trail_store
-
-    def sample_space(self):
-        return self.searcher.sample(self.history)
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError
@@ -75,13 +71,18 @@ class HyperModel():
     def get_best_trail(self):
         return self.history.get_best()
 
-    def search(self, X, y, X_val, y_val, dataset_id=None, **fit_kwargs):
+    def search(self, X, y, X_val, y_val, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
+        self.start_search_time = time.time()
+
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
-        self.start_search_time = time.time()
+        if self.searcher.use_meta_learner:
+            self.searcher.set_meta_learner(MetaLearner(self.history, dataset_id, trail_store))
+
         trail_no = 1
-        while trail_no < self.max_trails:
-            space_sample = self.sample_space()
+
+        while trail_no < max_trails:
+            space_sample = self.searcher.sample()
             if self.history.is_existed(space_sample):
                 trail = self.history.get_trail(space_sample)
                 for callback in self.callbacks:
@@ -95,8 +96,8 @@ class HyperModel():
             # space_sample.space_id = space_sample1.space_id
 
             try:
-                if self.trail_store is not None:
-                    trail = self.trail_store.get(dataset_id, space_sample)
+                if trail_store is not None:
+                    trail = trail_store.get(dataset_id, space_sample)
                     if trail is not None:
                         reward = trail.reward
                         elapsed = trail.elapsed
@@ -114,8 +115,8 @@ class HyperModel():
                 print(f'----------------------------------------------------------------')
                 print(f'space signatures: {self.history.get_space_signatures()}')
                 print(f'----------------------------------------------------------------')
-                if self.trail_store is not None:
-                    self.trail_store.put(dataset_id, trail)
+                if trail_store is not None:
+                    trail_store.put(dataset_id, trail)
                 trail_no += 1
             except EarlyStoppingError:
                 break

@@ -10,32 +10,20 @@ from ..core.trial import get_default_trail_store
 
 
 class MCTSSearcher(Searcher):
-    def __init__(self, space_fn, policy=None, max_node_space=10, use_meta_learner=True, candidates_size=10,
-                 optimize_direction=OptimizeDirection.Minimize, dataset_id=None, trail_store=None):
+    def __init__(self, space_fn, policy=None, max_node_space=10, candidates_size=10,
+                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True):
         if policy is None:
             policy = UCT()
         self.tree = MCTree(space_fn, policy, max_node_space=max_node_space)
-        Searcher.__init__(self, space_fn, optimize_direction, dataset_id=dataset_id, trail_store=trail_store)
+        Searcher.__init__(self, space_fn, optimize_direction, use_meta_learner=use_meta_learner)
         self.best_nodes = {}
-        self.use_meta_learner = use_meta_learner
-        self.histroy = None
-        self.meta_learner = None
         self.candidate_size = candidates_size
 
-    def sample(self, history):
+    def sample(self):
         print('Sample')
-        if self.use_meta_learner and history is not None and self.histroy is None:
-            self.histroy = history
-            self.meta_learner = MetaLearner(history, self.dataset_id, self.trail_store)
         space_sample, best_node = self.tree.selection_and_expansion()
         print(f'Sample: {best_node.info()}')
 
-        # count = 0
-        # while best_node.is_terminal and best_node.visits > 0:
-        #     if count > 1000:
-        #         raise RuntimeError('Unable to obtain a valid sample.')
-        #     space_sample, best_node = self.tree.selection_and_expansion()
-        #     count += 1
         if self.use_meta_learner and self.meta_learner is not None:
             space_sample = self._select_best_candidate(best_node)
         else:

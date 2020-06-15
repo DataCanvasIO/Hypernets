@@ -35,12 +35,12 @@ class Test_HyperKeras():
         y = np.random.randint(0, 2, size=(100), dtype='int')
         x = [x1, x2, x3]
 
-        hk.search(x, y, x, y)
+        hk.search(x, y, x, y, max_trails=3)
         assert hk.best_model
         best_trial = hk.get_best_trail()
 
         estimator = hk.final_train(best_trial.space_sample, x, y)
         score = estimator.predict(x)
         result = estimator.evaluate(x, y)
-        assert len(score)==100
+        assert len(score) == 100
         assert result

@@ -137,8 +137,7 @@ class DTEstimator(Estimator):
 
 
 class HyperDT(HyperModel):
-    def __init__(self, searcher, dispatcher=None, callbacks=[], max_trails=10,
-                 reward_metric=None, max_model_size=0, trail_store=None, **config_kwargs):
+    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None, max_model_size=0, **config_kwargs):
         self.config_kwargs = config_kwargs
         metrics = config_kwargs.get('metrics')
         if metrics is None and reward_metric is None:
@@ -152,8 +151,7 @@ class HyperDT(HyperModel):
             metrics.append(reward_metric)
             config_kwargs['metrics'] = metrics
 
-        HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, max_trails=max_trails,
-                            reward_metric=reward_metric, trail_store=trail_store)
+        HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, reward_metric=reward_metric)
 
     def _get_estimator(self, space_sample):
         estimator = DTEstimator(space_sample, **self.config_kwargs)

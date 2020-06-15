@@ -3,8 +3,6 @@
 
 """
 from ..core.searcher import Searcher, OptimizeDirection
-from ..core.meta_learner import MetaLearner
-from ..core.trial import get_default_trail_store
 import numpy as np
 
 
@@ -86,22 +84,16 @@ class Population(object):
 
 
 class EvolutionSearcher(Searcher):
-    def __init__(self, space_fn, population_size, sample_size, regularized=False, use_meta_learner=True,
-                 candidates_size=10, optimize_direction=OptimizeDirection.Minimize, dataset_id=None, trail_store=None):
-        Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction, dataset_id=dataset_id,
-                          trail_store=trail_store)
+    def __init__(self, space_fn, population_size, sample_size, regularized=False,
+                 candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True):
+        Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
+                          use_meta_learner=use_meta_learner)
         self.population = Population(size=population_size, optimize_direction=optimize_direction)
         self.sample_size = sample_size
-        self.use_meta_learner = use_meta_learner
         self.regularized = regularized
-        self.histroy = None
-        self.meta_learner = None
         self.candidate_size = candidates_size
 
-    def sample(self, history):
-        if self.use_meta_learner and history is not None and self.histroy is None:
-            self.histroy = history
-            self.meta_learner = MetaLearner(history, self.dataset_id, self.trail_store)
+    def sample(self):
         if self.population.initializing:
             space_sample = self.space_fn()
             space_sample.random_sample()

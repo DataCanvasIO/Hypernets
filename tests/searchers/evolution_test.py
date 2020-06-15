@@ -70,7 +70,7 @@ class Test_Evolution():
                 id2 = Identity(p3=Real(0., 1.), p4=Bool())(id1)
             return space
 
-        #population = Population(optimize_direction=OptimizeDirection.Maximize)
+        # population = Population(optimize_direction=OptimizeDirection.Maximize)
         population = Population(optimize_direction='max')
 
         space1 = get_space()
@@ -104,7 +104,7 @@ class Test_Evolution():
 
         rs = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
         hk = HyperKeras(rs, optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'],
-                        callbacks=[SummaryCallback()], max_trails=10)
+                        callbacks=[SummaryCallback()])
 
         x1 = np.random.randint(0, 10000, size=(100, 10))
         x2 = np.random.randint(0, 100, size=(100, 20))
@@ -112,7 +112,7 @@ class Test_Evolution():
         y = np.random.randint(0, 2, size=(100), dtype='int')
         x = [x1, x2, x3]
 
-        hk.search(x, y, x, y)
+        hk.search(x, y, x, y, max_trails=10)
         assert hk.best_model
         best_trial = hk.get_best_trail()
 

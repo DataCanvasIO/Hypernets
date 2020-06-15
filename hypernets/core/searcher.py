@@ -12,13 +12,16 @@ class OptimizeDirection(enum.Enum):
 
 
 class Searcher(Stateful):
-    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize, dataset_id=None, trail_store=None):
+    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True):
         self.space_fn = space_fn
-        self.trail_store = trail_store
-        self.dataset_id = dataset_id
+        self.use_meta_learner = use_meta_learner
         self.optimize_direction = optimize_direction
+        self.meta_learner = None
 
-    def sample(self, history):
+    def set_meta_learner(self, meta_learner):
+        self.meta_learner = meta_learner
+
+    def sample(self):
         raise NotImplementedError
 
     def get_best(self):

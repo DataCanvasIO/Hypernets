@@ -75,7 +75,7 @@ class Test_MCTS():
         searcher = MCTSSearcher(self.get_space, max_node_space=10)
 
         for i in range(100):
-            space_sample = searcher.sample(history=None)
+            space_sample = searcher.sample()
             assert space_sample.all_assigned == True
             print(space_sample.params_summary())
             searcher.update_result(space_sample, np.random.uniform(0.1, 0.9))
@@ -99,7 +99,7 @@ class Test_MCTS():
 
         mcts = MCTSSearcher(get_space, max_node_space=4)
         hk = HyperKeras(mcts, optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'],
-                        callbacks=[SummaryCallback()], max_trails=10)
+                        callbacks=[SummaryCallback()])
 
         x1 = np.random.randint(0, 10000, size=(100, 10))
         x2 = np.random.randint(0, 100, size=(100, 20))
@@ -107,7 +107,7 @@ class Test_MCTS():
         y = np.random.randint(0, 2, size=(100), dtype='int')
         x = [x1, x2, x3]
 
-        hk.search(x, y, x, y)
+        hk.search(x, y, x, y, max_trails=10)
         assert hk.best_model
         best_trial = hk.get_best_trail()
 

@@ -63,7 +63,6 @@ class Test_HyperDT():
         hdt = HyperDT(rs,
                       callbacks=[SummaryCallback()],
                       reward_metric='accuracy',
-                      max_trails=3,
                       dnn_params={
                           'dnn_units': ((256, 0, False), (256, 0, False)),
                           'dnn_activation': 'relu',
@@ -76,7 +75,7 @@ class Test_HyperDT():
 
         y = np.random.randint(0, 2, size=(100), dtype='int')
         df = pd.DataFrame({'x1': x1, 'x2': x2, 'x3': x3, 'x4': x4})
-        hdt.search(df, y, df, y)
+        hdt.search(df, y, df, y, max_trails=3, )
         assert hdt.best_model
         best_trial = hdt.get_best_trail()
 
