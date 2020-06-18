@@ -308,6 +308,13 @@ class HyperSpace(Mutable):
         if len(vectors) != i:
             raise ValueError('`vector` and `space` does not match.')
 
+    @property
+    def combinations(self):
+        count = 1
+        for hp in self.hyper_params:
+            count *= hp.choice_num
+        return count
+
 
 class DefaultStack(threading.local):
     def __init__(self):
@@ -452,6 +459,16 @@ class ParameterSpace(HyperNode):
     def expansion(self, sample_num):
         raise NotImplementedError
 
+    @property
+    def choice_num(self):
+        if self.is_mutable:
+            return self._get_choice_num()
+        else:
+            return 1
+
+    def _get_choice_num(self):
+        raise NotImplementedError
+
 
 class Int(ParameterSpace):
     def __init__(self, low, high, step=1, random_state=np.random.RandomState(), space=None, name=None):
@@ -484,7 +501,7 @@ class Int(ParameterSpace):
         return ['low', 'high', 'step']
 
     def expansion(self, sample_num):
-        p = self.high - self.low
+        p = self._get_choice_num()
         if sample_num > p or sample_num <= 0:
             sample_num = p
         samples = []
@@ -499,6 +516,12 @@ class Int(ParameterSpace):
             values.append(v)
 
         return sorted(samples, key=lambda s: s.value)
+
+    def _get_choice_num(self):
+        p = self.high - self.low
+        if self.step is not None:
+            p = len(np.arange(self.low, self.high + self.step, step=self.step))
+        return p
 
 
 class Real(ParameterSpace):
@@ -560,6 +583,7 @@ class Real(ParameterSpace):
     def expansion(self, sample_num):
         if sample_num <= 0:
             sample_num = self.max_expansion
+        sample_num = min(sample_num, self._get_choice_num())
         values = []
         samples = []
         while len(samples) < sample_num:
@@ -571,6 +595,15 @@ class Real(ParameterSpace):
             samples.append(sample)
             values.append(v)
         return sorted(samples, key=lambda s: s.value)
+
+    def _get_choice_num(self):
+        p = self.max_expansion
+        if self.step is not None:
+            if self.prior == 'log_uniform':
+                p = len(np.arange(np.exp(self.low), np.exp(self.high) + self.step, step=self.step))
+            else:
+                p = len(np.arange(self.low, self.high + self.step, step=self.step))
+        return p
 
 
 class Choice(ParameterSpace):
@@ -609,6 +642,9 @@ class Choice(ParameterSpace):
             samples.append(sample)
         return samples
 
+    def _get_choice_num(self):
+        return len(self.options)
+
 
 class MultipleChoice(ParameterSpace):
     def __init__(self, options, max_chosen_num=0, random_state=np.random.RandomState(), space=None, name=None):
@@ -625,20 +661,6 @@ class MultipleChoice(ParameterSpace):
             high = len(self.options)
         indices = self.random_state.choice(range(0, len(self.options)), self.random_state.randint(1, high + 1), False)
         values = [self.options[index] for index in sorted(indices)]
-        #
-        # retry_counter = 0
-        # while True:
-        #     retry_counter += 1
-        #     if retry_counter > 100:
-        #         raise RuntimeError(f'Retry counter exceeded: {retry_counter}')
-        #     options_state = [(i, self.random_state.choice([True, False])) for i in range(len(options))]
-        #     if all([not b[1] for b in options_state]):
-        #         continue
-        #     indices = [b[0] for b in options_state if b[1]]
-        #     if self.max_chosen_num > 0 and len(indices) > self.max_chosen_num:
-        #         indices = self.random_state.choice(indices, self.max_chosen_num, False)
-        #     values = [options[index] for index in sorted(indices)]
-        #     break
         return values
 
     def _check(self, value):
@@ -665,7 +687,7 @@ class MultipleChoice(ParameterSpace):
         return values
 
     def expansion(self, sample_num):
-        c = combinations(len(self.options), self.max_chosen_num, 1)
+        c = self._get_choice_num()
         if sample_num > c or sample_num <= 0:
             sample_num = c
         values = []
@@ -679,6 +701,9 @@ class MultipleChoice(ParameterSpace):
             samples.append(sample)
             values.append(v)
         return samples
+
+    def _get_choice_num(self):
+        return int(combinations(len(self.options), self.max_chosen_num, 1))
 
 
 class Bool(Choice):

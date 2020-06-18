@@ -77,6 +77,13 @@ class FileLoggingCallback(Callback):
             f.write(diff_str)
             f.write('\r\n')
             f.write(hyper_model.searcher.summary())
+        with open(f'{self.output_dir}/top_{topn}_config.txt', 'w') as f:
+            trials = hyper_model.history.get_top(topn)
+            configs = hyper_model.export_configuration(trials)
+            for trail, conf in zip(trials, configs):
+                f.write(f'Trail No: {trail.trail_no}, Reward: {trail.reward}\r\n')
+                f.write(conf)
+                f.write('\r\n---------------------------------------------------\r\n')
 
     def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
         with open(f'{self.output_dir}/trail_{reason}_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',

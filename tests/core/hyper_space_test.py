@@ -216,3 +216,7 @@ class Test_HyperSpace():
         space1.assign_by_vectors(space.vectors)
 
         assert space.vectors == space1.vectors
+
+    def test_combinations(self):
+        space = self.get_space_with_dynamic()
+        assert space.combinations == 121200

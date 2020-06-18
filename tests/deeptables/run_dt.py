@@ -26,6 +26,11 @@ searcher = EvolutionSearcher(mini_dt_space, 200, 100, regularized=True, candidat
 hdt = HyperDT(searcher, callbacks=[SummaryCallback(), FileLoggingCallback(searcher)], reward_metric='AUC',
               earlystopping_patience=1, )
 
+space = mini_dt_space()
+assert space.combinations == 589824
+space2 = default_dt_space()
+assert space2.combinations == 3559292928
+
 df = dsutils.load_adult()
 # df.drop(['id'], axis=1, inplace=True)
 df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)

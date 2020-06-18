@@ -132,3 +132,12 @@ class HyperModel():
         estimator = self._get_estimator(space_sample)
         estimator.fit(X, y, **kwargs)
         return estimator
+
+    def export_configuration(self, trials):
+        configurations = []
+        for trail in trials:
+            configurations.append(self.export_trail_configuration(trail))
+        return configurations
+
+    def export_trail_configuration(self):
+        raise NotImplementedError

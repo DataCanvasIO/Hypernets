@@ -10,6 +10,7 @@ from deeptables.utils import consts as DT_consts
 from hypernets.core.search_space import *
 from hypernets.model.estimator import Estimator
 from hypernets.model.hyper_model import HyperModel
+import json
 
 
 class DTModuleSpace(ModuleSpace):
@@ -86,7 +87,8 @@ class DnnModule(ModuleSpace):
         dnn_units = []
         for i in range(0, dnn_layers):
             dnn_units.append(
-                (self.param_values['dnn_units'] * 1 if i == 0 else (i * self.param_values['reduce_factor']),
+                (int(self.param_values['dnn_units'] * 1 if i == 0 else (
+                        self.param_values['dnn_units'] * (self.param_values['reduce_factor'] ** i))),
                  self.param_values['dnn_dropout'],
                  self.param_values['use_bn']))
         dnn_params = {
@@ -156,6 +158,16 @@ class HyperDT(HyperModel):
     def _get_estimator(self, space_sample):
         estimator = DTEstimator(space_sample, **self.config_kwargs)
         return estimator
+
+    def export_trail_configuration(self, trail):
+        default_conf = ModelConfig()
+        new_conf = trail.space_sample.DT_Module.config
+        conf_set = []
+        for f in default_conf._fields:
+            if new_conf.__getattribute__(f) != default_conf.__getattribute__(f):
+                conf_set.append(f'\n\t{f}={new_conf.__getattribute__(f)}')
+        str = f'ModelConfig({",".join(conf_set)})\n\nfit params:{trail.space_sample.fit_params.param_values}'
+        return str
 
 
 def default_dt_space():
