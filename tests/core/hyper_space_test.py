@@ -219,4 +219,4 @@ class Test_HyperSpace():
 
     def test_combinations(self):
         space = self.get_space_with_dynamic()
-        assert space.combinations == 121200
+        assert space.combinations == 119988

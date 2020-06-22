@@ -520,7 +520,7 @@ class Int(ParameterSpace):
     def _get_choice_num(self):
         p = self.high - self.low
         if self.step is not None:
-            p = len(np.arange(self.low, self.high + self.step, step=self.step))
+            p = len(np.arange(self.low, self.high + self.step, step=self.step)) - 1
         return p
 
 

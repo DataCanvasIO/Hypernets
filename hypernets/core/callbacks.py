@@ -83,7 +83,7 @@ class FileLoggingCallback(Callback):
             for trail, conf in zip(trials, configs):
                 f.write(f'Trail No: {trail.trail_no}, Reward: {trail.reward}\r\n')
                 f.write(conf)
-                f.write('\r\n---------------------------------------------------\r\n')
+                f.write('\r\n---------------------------------------------------\r\n\r\n')
 
     def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
         with open(f'{self.output_dir}/trail_{reason}_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',

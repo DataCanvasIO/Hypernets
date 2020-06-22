@@ -1,11 +1,19 @@
 # HyperNets
 
 
-## HyperNets: Neural Architecture Search Toolkit
+## HyperNets: An Open Source Automated Machine Learning Framework
 
 
 ## Overview
+### Conceptual Model
+<p align="center">
+<img src="docs/images/hypernets_conceptual_model.png" width="300"/>
+</p>
 
+### Search Space
+<p align="center">
+<img src="docs/images/hypernets_search_space.png.png" width="300"/>
+</p>
 ## Tutorials
 
 ## Installation
