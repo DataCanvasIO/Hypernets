@@ -1,7 +1,7 @@
-# HyperNets
+# Hypernets
 
 
-## HyperNets: An Open Source Automated Machine Learning Framework
+## Hypernets: An Open Source Automated Machine Learning Framework
 HyperNets is a general AutoML framework that can meet various needs such as feature engineering, hyperparameter optimization, and neural architecture search, thereby helping users achieve the end-to-end automated machine learning pipeline.
  
 
@@ -16,6 +16,18 @@ HyperNets is a general AutoML framework that can meet various needs such as feat
 <p align="center">
 <img src="docs/images/hypernets_search_space.png" width="100%"/>
 </p>
+
+
+## Installation
+```shell script
+pip install hypernets
+```
+
+***Verify installation***:
+```shell script
+python -c "from examples import smoke_testing;"
+```
+
 
 ## Examples
 
@@ -48,6 +60,12 @@ assert hk.best_model
 ```
 
 ### HyperDT (Hyperparameter Tuning & NAS for DeepTables)
+
+#### Install DeepTables
+```shell script
+pip install deeptables
+```
+
 ```python
 from contrib.deeptables.models import *
 from hypernets.searchers.random_searcher import RandomSearcher
@@ -59,7 +77,7 @@ from hypernets.core.trial import DiskTrailStore
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
-disk_trail_store = DiskTrailStore('~/jack/trail_store')
+disk_trail_store = DiskTrailStore('~/trail_store')
 
 # searcher = MCTSSearcher(mini_dt_space, max_node_space=0,optimize_direction=OptimizeDirection.Maximize)
 # searcher = RandomSearcher(mini_dt_space, optimize_direction=OptimizeDirection.Maximize)
@@ -82,4 +100,4 @@ best_trial = hdt.get_best_trail()
 
 
 ## DataCanvas
-HyperNets is an open source project created by [DataCanvas](https://www.datacanvas.com/). 
+Hypernets is an open source project created by [DataCanvas](https://www.datacanvas.com/). 
