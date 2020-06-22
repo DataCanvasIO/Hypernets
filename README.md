@@ -7,12 +7,12 @@
 ## Overview
 ### Conceptual Model
 <p align="center">
-<img src="docs/images/hypernets_conceptual_model.png" width="300"/>
+<img src="docs/images/hypernets_conceptual_model.png" width="100%"/>
 </p>
 
 ### Search Space
 <p align="center">
-<img src="docs/images/hypernets_search_space.png.png" width="300"/>
+<img src="docs/images/hypernets_search_space.png" width="100%"/>
 </p>
 ## Tutorials
 
