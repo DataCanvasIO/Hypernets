@@ -88,24 +88,18 @@ class Test_MCTS():
             space = HyperSpace()
             with space.as_default():
                 in1 = Input(shape=(10,))
-                in2 = Input(shape=(20,))
-                in3 = Input(shape=(1,))
-                concat = Concatenate()([in1, in2, in3])
-                dense1 = Dense(10, activation=Choice(['relu', 'tanh', None]), use_bias=Bool())(concat)
+                dense1 = Dense(10, activation=Choice(['relu', 'tanh', None]), use_bias=Bool())(in1)
                 bn1 = BatchNormalization()(dense1)
                 dropout1 = Dropout(Choice([0.3, 0.4, 0.5]))(bn1)
                 output = Dense(2, activation='softmax', use_bias=True)(dropout1)
             return space
 
-        mcts = MCTSSearcher(get_space, max_node_space=4)
+        mcts = MCTSSearcher(get_space)
         hk = HyperKeras(mcts, optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'],
                         callbacks=[SummaryCallback()])
 
-        x1 = np.random.randint(0, 10000, size=(100, 10))
-        x2 = np.random.randint(0, 100, size=(100, 20))
-        x3 = np.random.normal(1.0, 100.0, size=(100))
+        x = np.random.randint(0, 10000, size=(100, 10))
         y = np.random.randint(0, 2, size=(100), dtype='int')
-        x = [x1, x2, x3]
 
         hk.search(x, y, x, y, max_trails=10)
         assert hk.best_model
