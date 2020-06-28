@@ -5,20 +5,20 @@
 [![Downloads](https://pepy.tech/badge/hypernets)](https://pepy.tech/project/hypernets)
 [![PyPI Version](https://img.shields.io/pypi/v/hypernets.svg)](https://pypi.org/project/hypernets)
 
-## Hypernets: An Open Source Automated Machine Learning Framework
-Hypernets is a general AutoML framework that can meet various needs such as feature engineering, hyperparameter optimization, and neural architecture search, thereby helping users achieve the end-to-end automated machine learning pipeline.
+## Hypernets: A General Automated Machine Learning Framework
+Hypernets is a general AutoML framework that can meet various needs such as feature engineering, hyperparameter optimization, and neural architecture search, thereby helping users achieve the end-to-end automated machine learning pipelines.
  
 
 
 ## Overview
 ### Conceptual Model
 <p align="center">
-<img src="docs/images/hypernets_conceptual_model.png" width="100%"/>
+<img src="docs/source/images/hypernets_conceptual_model.png" width="100%"/>
 </p>
 
 ### Illustration of the Search Space 
 <p align="center">
-<img src="docs/images/hypernets_search_space.png" width="100%"/>
+<img src="docs/source/images/hypernets_search_space.png" width="100%"/>
 </p>
 
 
