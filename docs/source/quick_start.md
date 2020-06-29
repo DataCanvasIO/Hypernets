@@ -23,7 +23,7 @@ In current version, we provide `HyperKeras` and `HyperDT` two `HyperModel`, whic
 
 DeepTables is a deep learning toolkit for tabular data, you can learn more here: https://github.com/DataCanvasIO/DeepTables
 
-Basically, the search of a model only needs 4 steps:
+Basically, to search the best model only needs 4 steps:
 * Step 1. Define `Search Space`
 * Step 2. Select a `Searcher`
 * Step 3. Select a `HyperModel`
