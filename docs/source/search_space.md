@@ -6,7 +6,7 @@ Hypernets introduced an abstract search space representation and taken into acco
 
 * illustration of the search space in Hypernets
 <p align="center">
-<img src="https://github.com/DataCanvasIO/Hypernets/blob/master/docs/source/images/hypernets_search_space.png" width="100%"/>
+<img src="https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/hypernets_search_space.png" width="100%"/>
 </p>
 
 ## HyperSpace
