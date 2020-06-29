@@ -11,26 +11,29 @@ Hypernets introduced an abstract search space representation and taken into acco
 
 ## HyperSpace
 
+The general form of `HyperSpace` is a graph formed by connecting nodes and edges, each node can contain a set of hyper-parameters. `HyperModel` can represent a pipeline, or a more complex directed acyclic graph(DAG), in some cases The objective function to be optimized has only one node, for example when we only need to optimize a few hyper-parameters of a lightgbm model.
+ 
+
 
 ## Parameter Space
 
+ParameterSpace is diveded into two types: mutable and immutable. The mutable is created with a set of possible values, for example, `Real(0.1, 0.9)`, `Choice(['relu','tanh'])`, etc. The immutable includes `Constant`,`Dynamic`, and `Cascade`.
 
-* Int
-* Real
-* Bool
-* Choice
-* MultipleChoice
-* Constant
-* Dynamic
-* Cascade
+* Mutable: `Int`, `Real`, `Bool`, `Choice`, `MultipleChoice`
+
+* Immutable: `Constant`, `Dynamic`, `Cascade`
 
 ## Connection Space
 
-* Optional
-* Or
-* Sequential
-* InputChoice
-* **Repeat**
+ConnectionSpace is used to represent possible connections between modules.
+
+* Optional:  Whether to insert a module between two modules.
+* Or:  There are several optional modules on a node, choose one of them.
+* Sequential: A series of modules connected in order.
+* InputChoice: A modules has n upstream modules, choose one or more connections.
 
 
 ## Module Space
+
+ModuleSpace represents an optimizable function with a set of hyper-parameters. Unlike ParameterSpace and ConnectionSpace, ModuleSpace is related to frameworks or libraries. In different `HyperModel`, it is necessary to define a corresponding series of ModuleSpace.
+
