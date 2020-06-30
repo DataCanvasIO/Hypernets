@@ -171,6 +171,72 @@ class Test_ConnectionSpace:
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_3']
 
+    def test_repeat_id(self):
+        def get_space():
+            space = HyperSpace()
+            with space.as_default():
+                in1 = HyperInput()
+                rep = Repeat(module_fn=lambda: Identity(p1=Choice([1, 2, 3])), repeat_num_choices=[2, 3, 4])(in1)
+                id3 = Identity()(rep)
+            return space
+
+        space = get_space()
+        ids = []
+
+        def get_id(m):
+            ids.append(m.id)
+            return True
+
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Repeat_1', 'Module_Identity_1']
+
+        assert space.Param_Choice_1.options == [2, 3, 4]
+        ids = []
+        space.Param_Choice_1.assign(3)
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_3', 'Module_Identity_4',
+                       'Module_Identity_1']
+        assert len(space.hyper_params) == 4
+
+    def test_repeat_seq(self):
+        def seq_fn():
+            id1 = Identity(p1=Choice([1, 2]))
+            id2 = Identity(p2=Int(1, 10))
+            seq = Sequential([id1, id2])
+            return seq
+
+        def get_space():
+            space = HyperSpace()
+            with space.as_default():
+                in1 = HyperInput()
+                rep = Repeat(module_fn=seq_fn, repeat_num_choices=[2, 3, 4])(in1)
+                id3 = Identity()(rep)
+            return space
+
+        space = get_space()
+        ids = []
+
+        def get_id(m):
+            ids.append(m.id)
+            return True
+
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Repeat_1', 'Module_Identity_1']
+
+        assert space.Param_Choice_1.options == [2, 3, 4]
+        ids = []
+        space.Param_Choice_1.assign(3)
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Sequential_1', 'Module_Sequential_2', 'Module_Sequential_3',
+                       'Module_Identity_1']
+        assert len(space.hyper_params) == 10
+
+        space.random_sample()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_3', 'Module_Identity_4',
+                       'Module_Identity_5', 'Module_Identity_6', 'Module_Identity_7', 'Module_Identity_1']
+
     def test_input_choice(self):
         def get_space(keep_link=True):
             space = HyperSpace()
