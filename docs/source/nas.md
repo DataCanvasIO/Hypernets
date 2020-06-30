@@ -4,7 +4,12 @@ Deep Learning has enabled remarkable progress over the last years on a variety o
 
 NAS has demonstrated much success in automating neural network architecture design for various tasks, such as image recognition and language modeling. Representative works include: NASNet, ENAS, DARTS, ProxylessNAS, One-Shot NAS, AlphaX, etc.
 
-A NAS method must solve 3 problems: Search Space, Search Strategy, and Performance Estimation Strategy,  which correspond to `HyperSpace`, `Searcher`, and `Estimator` in Hypernets respectively.
+However, most of these works are usually for specific use-cases, and their search space, search strategy and estimation strategy are often intertwined, making it difficult to reuse the code and make further innovations on it.
+
+In Hypernets, we propose an abstract architecture, fully decouple Search Space, Search Strategy, and Performance Estimation Strategy so that each part is relatively independent and can be reused to accelerate innovations and engineering of NAS algorithms.
+
+
+The 3 problems of NAS: Search Space, Search Strategy, and Performance Estimation Strategy,  which correspond to `HyperSpace`, `Searcher`, and `Estimator` in Hypernets respectively.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/abstract_illustration_of_nas.png" width="100%"/>

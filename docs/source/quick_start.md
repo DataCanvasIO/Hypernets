@@ -21,7 +21,7 @@ python -c "from examples import smoke_testing;"
 
 In current version, we provide `HyperKeras` and `HyperDT` two `HyperModel`, which can be used for hyper-parameter tuning and NAS for Keras and DeepTables respectively.
 
-DeepTables is a deep learning toolkit for tabular data, you can learn more here: https://github.com/DataCanvasIO/DeepTables
+DeepTables is a deep learning toolkit for tabular data, you can learn more here: [https://github.com/DataCanvasIO/DeepTables](https://github.com/DataCanvasIO/DeepTables)
 
 Basically, to search the best model only needs 4 steps:
 * Step 1. Define `Search Space`
