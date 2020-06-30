@@ -37,6 +37,7 @@ class Masking(HyperLayer):
 class Input(HyperLayer):
     def __init__(self, shape, dtype=None, space=None, name=None, **kwargs):
         kwargs['shape'] = shape
+        self.set_values()
         if dtype is not None:
             kwargs['dtype'] = dtype
         HyperLayer.__init__(self, kl.Input, space, name, **kwargs)
@@ -119,3 +120,59 @@ class Activation(HyperLayer):
     def __init__(self, activation, space=None, name=None, **kwargs):
         kwargs['activation'] = activation
         HyperLayer.__init__(self, kl.Activation, space, name, **kwargs)
+
+
+class Conv2D(HyperLayer):
+    def __init__(self, filters, kernel_size, space=None, name=None, **kwargs):
+        kwargs['filters'] = filters
+        kwargs['kernel_size'] = kernel_size
+        HyperLayer.__init__(self, kl.Conv2D, space, name, **kwargs)
+
+
+class SeparableConv2D(HyperLayer):
+    def __init__(self, filters, kernel_size, space=None, name=None, **kwargs):
+        kwargs['filters'] = filters
+        kwargs['kernel_size'] = kernel_size
+        HyperLayer.__init__(self, kl.SeparableConv2D, space, name, **kwargs)
+
+
+class AveragePooling2D(HyperLayer):
+    def __init__(self, pool_size=(2, 2), strides=None, padding='valid', data_format=None, space=None, name=None,
+                 **kwargs):
+        if pool_size is not None:
+            kwargs['pool_size'] = pool_size
+        if strides is not None:
+            kwargs['strides'] = strides
+        if padding is not None:
+            kwargs['padding'] = padding
+        if data_format is not None:
+            kwargs['data_format'] = data_format
+        HyperLayer.__init__(self, kl.AveragePooling2D, space, name, **kwargs)
+
+
+class MaxPooling2D(HyperLayer):
+    def __init__(self, pool_size=(2, 2), strides=None, padding='valid', data_format=None, space=None, name=None,
+                 **kwargs):
+        if pool_size is not None:
+            kwargs['pool_size'] = pool_size
+        if strides is not None:
+            kwargs['strides'] = strides
+        if padding is not None:
+            kwargs['padding'] = padding
+        if data_format is not None:
+            kwargs['data_format'] = data_format
+        HyperLayer.__init__(self, kl.MaxPooling2D, space, name, **kwargs)
+
+
+class GlobalAveragePooling2D(HyperLayer):
+    def __init__(self, data_format=None, space=None, name=None, **kwargs):
+        if data_format is not None:
+            kwargs['data_format'] = data_format
+        HyperLayer.__init__(self, kl.GlobalAveragePooling2D, space, name, **kwargs)
+
+
+class GlobalMaxPooling2D(HyperLayer):
+    def __init__(self, data_format=None, space=None, name=None, **kwargs):
+        if data_format is not None:
+            kwargs['data_format'] = data_format
+        HyperLayer.__init__(self, kl.GlobalMaxPooling2D, space, name, **kwargs)

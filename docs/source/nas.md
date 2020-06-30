@@ -31,5 +31,3 @@ The 3 problems of NAS: Search Space, Search Strategy, and Performance Estimation
 
 
 [1] Elsken T, Metzen J H, Hutter F. Neural architecture search: A survey[J]. arXiv preprint arXiv:1808.05377, 2018.
-
-##
