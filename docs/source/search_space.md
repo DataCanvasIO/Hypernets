@@ -30,6 +30,8 @@ ConnectionSpace is used to represent possible connections between modules.
 * Optional:  Whether to insert a module between two modules.
 * Or:  There are several optional modules on a node, choose one of them.
 * Sequential: A series of modules connected in order.
+* Permutation: Choose one of permutations of a module list and connected in order.
+* Repeat: The module is repeated n times and connected in order.
 * InputChoice: A modules has n upstream modules, choose one or more connections.
 
 
