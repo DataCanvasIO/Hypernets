@@ -619,7 +619,9 @@ class Choice(ParameterSpace):
         return len(self.options) > 1
 
     def _random_sample(self):
-        return self.random_state.choice(self.options)
+        index = self.random_state.choice(range(len(self.options)))
+        return self.options[index]
+        #return self.random_state.choice(self.options)
 
     def _check(self, value):
         assert value in self.options

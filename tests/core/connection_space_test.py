@@ -7,7 +7,7 @@ from hypernets.core.ops import *
 import pytest
 
 
-class Test_Module:
+class Test_ConnectionSpace:
     def test_identity(self):
         id = Identity()
         id.compile([1, 2, 3])
@@ -107,6 +107,35 @@ class Test_Module:
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_1', 'Module_Identity_2', 'Module_Identity_3']
 
+    def test_permutation(self):
+        def get_space(keep_link=True):
+            space = HyperSpace()
+            with space.as_default():
+                in1 = HyperInput()
+                id1 = Identity()
+                id2 = Identity()
+                seq = Permutation([id1, id2])(in1)
+                id3 = Identity()(seq)
+                # id3(seq(in1))
+
+            return space
+
+        space = get_space()
+        ids = []
+
+        def get_id(m):
+            ids.append(m.id)
+            return True
+
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Permutation_1', 'Module_Identity_3']
+
+        assert space.Param_Choice_1.options == [(0, 1), (1, 0)]
+        ids = []
+        space.Param_Choice_1.assign((1, 0))
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_1', 'Module_Identity_3']
+
     def test_or(self):
         def get_space(keep_link=True):
             space = HyperSpace()
@@ -167,21 +196,21 @@ class Test_Module:
 
         space.Module_InputChoice_1.hp_choice.assign([0, 1])
         assert len(space.edges - set([(space.Module_HyperInput_1, space.Module_Identity_2),
-                               (space.Module_HyperInput_1, space.Module_Identity_3),
-                               (space.Module_Identity_2, space.Module_Identity_4),
-                               (space.Module_Identity_1, space.Module_Identity_4),
-                               (space.Module_HyperInput_1, space.Module_Identity_1)]))==0
+                                      (space.Module_HyperInput_1, space.Module_Identity_3),
+                                      (space.Module_Identity_2, space.Module_Identity_4),
+                                      (space.Module_Identity_1, space.Module_Identity_4),
+                                      (space.Module_HyperInput_1, space.Module_Identity_1)])) == 0
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([1])
         assert len(space.edges - set([(space.Module_HyperInput_1, space.Module_Identity_2),
-                               (space.Module_HyperInput_1, space.Module_Identity_3),
-                               (space.Module_Identity_2, space.Module_Identity_4),
-                               (space.Module_HyperInput_1, space.Module_Identity_1)]))==0
+                                      (space.Module_HyperInput_1, space.Module_Identity_3),
+                                      (space.Module_Identity_2, space.Module_Identity_4),
+                                      (space.Module_HyperInput_1, space.Module_Identity_1)])) == 0
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([2])
         assert len(space.edges - set([(space.Module_HyperInput_1, space.Module_Identity_2),
-                               (space.Module_HyperInput_1, space.Module_Identity_3),
-                               (space.Module_Identity_3, space.Module_Identity_4),
-                               (space.Module_HyperInput_1, space.Module_Identity_1)]))==0
+                                      (space.Module_HyperInput_1, space.Module_Identity_3),
+                                      (space.Module_Identity_3, space.Module_Identity_4),
+                                      (space.Module_HyperInput_1, space.Module_Identity_1)])) == 0

@@ -4,6 +4,7 @@
 """
 
 from .search_space import *
+import itertools
 
 
 class HyperInput(ModuleSpace):
@@ -101,6 +102,34 @@ class Sequential(ConnectionSpace):
             self._module_list[i](last)
             last = self._module_list[i]
         input = self._module_list[0]
+        output = last
+        return input, output
+
+
+class Permutation(ConnectionSpace):
+    def __init__(self, module_list, keep_link=False, space=None, name=None):
+        assert isinstance(module_list, list), f'module_list must be a List.'
+        assert len(module_list) > 1, f'module_list contains at least 2 Module.'
+        assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
+        self._module_list = module_list
+
+        p = itertools.permutations(range(len(module_list)))
+        all_seq = []
+        for seq in p:
+            all_seq.append(seq)
+        self.hp_all_seq = Choice(all_seq)
+        ConnectionSpace.__init__(self, self.permutation_fn, keep_link, space, name, hp_all_seq=self.hp_all_seq)
+
+    def permutation_fn(self, m):
+        seq = self.hp_all_seq.value
+        input = None
+        last = None
+        for i in seq:
+            if input is None:
+                input = self._module_list[i]
+            if last is not None:
+                self._module_list[i](last)
+            last = self._module_list[i]
         output = last
         return input, output
 
