@@ -81,7 +81,7 @@ class HyperModel():
 
         trail_no = 1
 
-        while trail_no < max_trails:
+        while trail_no <= max_trails:
             space_sample = self.searcher.sample()
             if self.history.is_existed(space_sample):
                 trail = self.history.get_trail(space_sample)
@@ -139,5 +139,5 @@ class HyperModel():
             configurations.append(self.export_trail_configuration(trail))
         return configurations
 
-    def export_trail_configuration(self):
+    def export_trail_configuration(self, trail):
         raise NotImplementedError

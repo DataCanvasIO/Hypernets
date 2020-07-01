@@ -75,11 +75,12 @@ class Optional(ConnectionSpace):
 
 
 class Or(ConnectionSpace):
-    def __init__(self, module_list, keep_link=False, space=None, name=None):
+    def __init__(self, module_list, keep_link=False, space=None, name=None, hp_or=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
         assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
-        self.hp_or = Choice(list(range(len(module_list))))
+
+        self.hp_or = hp_or if hp_or is not None else Choice(list(range(len(module_list))))
         self._module_list = module_list
         ConnectionSpace.__init__(self, self.or_fn, keep_link, space, name, hp_or=self.hp_or)
 

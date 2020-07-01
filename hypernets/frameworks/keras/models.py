@@ -62,7 +62,7 @@ class HyperKeras(HyperModel):
                                    max_model_size=self.max_model_size)
         return estimator
 
-    def export_trail_configuration(self):
+    def export_trail_configuration(self, trail):
         return None
 
 def compute_params_count(model):
