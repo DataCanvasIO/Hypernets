@@ -23,19 +23,21 @@ def dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_
 
 
 def dnn_search_space(input_shape, output_units, output_activation, units_choices=[200, 500, 1000],
-                     reduce_facotr_choices=[1, 0.8, 0.5], layer_num_choices=[2, 3, 4], ):
+                     reduce_facotr_choices=[1, 0.8, 0.5], layer_num_choices=[2, 3, 4],
+                     activation_choices=['relu', 'tanh']):
     space = HyperSpace()
     with space.as_default():
         hp_dnn_units = Choice(units_choices)
         hp_reduce_factor = Choice(reduce_facotr_choices)
         hp_use_bn = Bool()
-        hp_activation = Choice(['relu', 'tanh'])
+        if len(activation_choices) == 1:
+            hp_activation = activation_choices[0]
+        else:
+            hp_activation = Choice(activation_choices)
+
         hp_dropout = Real(0., 0.5, step=0.1)
-        p = itertools.permutations(range(3))
-        all_seq = []
-        for seq in p:
-            all_seq.append(seq)
-        hp_seq = Choice(all_seq)
+        hp_seq = Choice([seq for seq in itertools.permutations(range(3))])
+
         input = Input(shape=input_shape)
         backbone = Repeat(
             lambda step: dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_activation, step),
