@@ -37,7 +37,6 @@ class Masking(HyperLayer):
 class Input(HyperLayer):
     def __init__(self, shape, dtype=None, space=None, name=None, **kwargs):
         kwargs['shape'] = shape
-        self.set_values()
         if dtype is not None:
             kwargs['dtype'] = dtype
         HyperLayer.__init__(self, kl.Input, space, name, **kwargs)

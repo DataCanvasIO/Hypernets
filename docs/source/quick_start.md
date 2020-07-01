@@ -87,7 +87,7 @@ from sklearn.model_selection import train_test_split
 disk_trail_store = DiskTrailStore('~/trail_store')
 
 # Define Search Space
-# `mini_dt_space` is a preset search space
+# `mini_dt_space` is a canned search space
 
 # Select a Searcher
 searcher = EvolutionSearcher(mini_dt_space, 200, 100, regularized=True, candidates_size=30,

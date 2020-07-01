@@ -747,7 +747,7 @@ class Dynamic(ParameterSpace):
     def update(self):
         if all(p.assigned for p in self._param_dict.values()):
             args = {name: p.value for name, p in self._param_dict.items()}
-            value = self._lambda_fn(args)
+            value = self._lambda_fn(**args)
             self.assign(value)
 
     @property

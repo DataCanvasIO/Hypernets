@@ -176,7 +176,7 @@ class Test_ConnectionSpace:
             space = HyperSpace()
             with space.as_default():
                 in1 = HyperInput()
-                rep = Repeat(module_fn=lambda: Identity(p1=Choice([1, 2, 3])), repeat_num_choices=[2, 3, 4])(in1)
+                rep = Repeat(module_fn=lambda step: Identity(p1=Choice([1, 2, 3])), repeat_num_choices=[2, 3, 4])(in1)
                 id3 = Identity()(rep)
             return space
 
@@ -199,7 +199,7 @@ class Test_ConnectionSpace:
         assert len(space.hyper_params) == 4
 
     def test_repeat_seq(self):
-        def seq_fn():
+        def seq_fn(step):
             id1 = Identity(p1=Choice([1, 2]))
             id2 = Identity(p2=Int(1, 10))
             seq = Sequential([id1, id2])

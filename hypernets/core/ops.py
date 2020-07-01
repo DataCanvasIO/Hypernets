@@ -108,17 +108,21 @@ class Sequential(ConnectionSpace):
 
 
 class Permutation(ConnectionSpace):
-    def __init__(self, module_list, keep_link=False, space=None, name=None):
+    def __init__(self, module_list, keep_link=False, space=None, name=None, hp_seq=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 1, f'module_list contains at least 2 Module.'
         assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
         self._module_list = module_list
 
-        p = itertools.permutations(range(len(module_list)))
-        all_seq = []
-        for seq in p:
-            all_seq.append(seq)
-        self.hp_all_seq = Choice(all_seq)
+        if hp_seq is None:
+            p = itertools.permutations(range(len(module_list)))
+            all_seq = []
+            for seq in p:
+                all_seq.append(seq)
+            self.hp_all_seq = Choice(all_seq)
+        else:
+            self.hp_all_seq = hp_seq
+
         ConnectionSpace.__init__(self, self.permutation_fn, keep_link, space, name, hp_all_seq=self.hp_all_seq)
 
     def permutation_fn(self, m):
@@ -149,7 +153,7 @@ class Repeat(ConnectionSpace):
 
     def repeat_fn(self, m):
         repeat_num = self.hp_repeat_num.value
-        module_list = [self.module_fn() for _ in range(repeat_num)]
+        module_list = [self.module_fn(step) for step in range(repeat_num)]
         last = module_list[0]
         for i in range(1, len(module_list)):
             module_list[i](last)
