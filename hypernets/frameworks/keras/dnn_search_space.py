@@ -8,8 +8,8 @@ from ...core.search_space import HyperSpace, Bool, Choice, Real, Dynamic
 from ...core.ops import Permutation, Sequential, Optional, Repeat
 import itertools
 
-
 def dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_activation, step):
+    # The value of a `Dynamic` is computed as a function of the values of the `ParameterSpace` it depends on.
     block_units = Dynamic(
         lambda_fn=lambda units, reduce_factor: units if step == 0 else units * (reduce_factor ** step),
         units=hp_dnn_units, reduce_factor=hp_reduce_factor)
@@ -17,7 +17,12 @@ def dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_
     act = Activation(activation=hp_activation)
     optional_bn = Optional(BatchNormalization(), keep_link=True, hp_opt=hp_use_bn)
     dropout = Dropout(rate=hp_dropout)
+
+    # Use `Permutation` to try different arrangements of act, optional_bn, dropout
+    # optional_bn is optional module and will be skipped when hp_use_bn is False
     perm_act_bn_dropout = Permutation([act, optional_bn, dropout], hp_seq=hp_seq)
+
+    # Use `Sequential` to connect dense and perm_act_bn_dropout in order
     seq = Sequential([dense, perm_act_bn_dropout])
     return seq
 
