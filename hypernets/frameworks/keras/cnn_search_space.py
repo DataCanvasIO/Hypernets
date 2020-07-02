@@ -23,12 +23,12 @@ def conv_block(block_no, hp_pooling, hp_filters, hp_kernel_size, hp_bn_act, hp_u
 
     if block_no < 2:
         repeat_num_choices = [2]
-        reduction = 1
+        multiplier = 1
     else:
         repeat_num_choices = [3, 4, 5]
-        reduction = 2 ** (block_no - 1)
+        multiplier = 2 ** (block_no - 1)
 
-    conv_filters = Dynamic(lambda filters: filters * reduction, filters=hp_filters)
+    conv_filters = Dynamic(lambda filters: filters * multiplier, filters=hp_filters)
     conv = Repeat(conv_bn, repeat_num_choices=repeat_num_choices)
     pooling = Or([MaxPooling2D(padding='same'), AveragePooling2D(padding='same')], hp_or=hp_pooling)
     block = Sequential([conv, pooling])

@@ -60,12 +60,10 @@ class Test_Dnn_Space():
         print("Number of original training examples:", len(x_train))
         print("Number of original test examples:", len(x_test))
 
-        # x = np.random.randint(0, 10000, size=(100, 50, 50, 3))
-        # y = np.random.randint(0, 10, size=(100, 10), dtype='int')
-
-        samples = 1000
+        # sample for speed up
+        samples = 100
         hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
-                  max_trails=1, epochs=10)
+                  max_trails=3, epochs=1)
         assert hk.best_model
 
     def test_cnn_space(self):
