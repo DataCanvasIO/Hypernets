@@ -175,3 +175,21 @@ class GlobalMaxPooling2D(HyperLayer):
         if data_format is not None:
             kwargs['data_format'] = data_format
         HyperLayer.__init__(self, kl.GlobalMaxPooling2D, space, name, **kwargs)
+
+
+class Cropping2D(HyperLayer):
+    def __init__(self, cropping=((0, 0), (0, 0)), data_format=None, space=None, name=None, **kwargs):
+        if cropping is not None:
+            kwargs['cropping'] = cropping
+        if data_format is not None:
+            kwargs['data_format'] = data_format
+        HyperLayer.__init__(self, kl.Cropping2D, space, name, **kwargs)
+
+
+class ZeroPadding2D(HyperLayer):
+    def __init__(self, padding=(1, 1), data_format=None, space=None, name=None, **kwargs):
+        if padding is not None:
+            kwargs['padding'] = padding
+        if data_format is not None:
+            kwargs['data_format'] = data_format
+        HyperLayer.__init__(self, kl.ZeroPadding2D, space, name, **kwargs)
