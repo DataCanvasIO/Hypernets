@@ -220,3 +220,41 @@ class Test_HyperSpace():
     def test_combinations(self):
         space = self.get_space_with_dynamic()
         assert space.combinations == 119988
+
+    def test_get_subnet_inputs(self):
+        space = HyperSpace()
+        with space.as_default():
+            id1 = Identity()
+            id2 = Identity()(id1)
+            assert space.get_sub_graph_inputs(id2) == set([id1])
+
+        space = HyperSpace()
+        with space.as_default():
+            id1 = Identity()
+            id2 = Identity()
+            id3 = Identity()([id1, id2])
+            assert space.get_sub_graph_inputs(id3) == set([id1, id2])
+
+        space = HyperSpace()
+        with space.as_default():
+            id1 = Identity()
+            id2 = Identity()(id1)
+            id3 = Identity()(id2)
+            assert space.get_sub_graph_inputs(id3) == set([id1])
+
+        space = HyperSpace()
+        with space.as_default():
+            id1 = Identity()
+            id2 = Identity()(id1)
+            id3 = Identity()(id2)
+            id4 = Identity()(id3)
+            assert space.get_sub_graph_inputs(id3) == set([id1])
+            assert space.get_sub_graph_inputs(id4) == set([id1])
+
+        space = HyperSpace()
+        with space.as_default():
+            id1 = Identity()
+            id2 = Identity()(id1)
+            id3 = Identity()
+            id4 = Identity()([id2, id3])
+            assert space.get_sub_graph_inputs(id4) == set([id1, id3])

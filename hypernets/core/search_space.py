@@ -187,6 +187,47 @@ class HyperSpace(Mutable):
         self.reroute_to(old_module, new_module)
         self.reroute_from(old_module, new_module)
 
+    def is_isolated_module(self, module):
+        assert module is not None
+        for from_module, to_module in self.edges:
+            if module == from_module or module == to_module:
+                return False
+        return True
+
+    def get_sub_graph_inputs(self, output_module):
+        standby = queue.Queue()
+        visited = {output_module}
+        finished = {output_module}
+        inputs = set()
+        for m in self.get_inputs(output_module):
+            standby.put(m)
+            visited.add(m)
+
+        while not standby.empty():
+            m_todo = standby.get()
+            m_outputs = self.get_outputs(m_todo)
+            ready = True
+            for mi in m_outputs:
+                if mi not in finished:
+                    ready = False
+                    break
+
+            if not ready:
+                visited.remove(m_todo)
+                continue
+
+            finished.add(m_todo)
+            m_inputs = self.get_inputs(m_todo)
+            if len(m_inputs) <= 0:
+                inputs.add(m_todo)
+                continue
+
+            for m in m_inputs:
+                if not m in visited:
+                    standby.put(m)
+                    visited.add(m)
+        return inputs
+
     def get_inputs(self, module=None):
         inputs = set()
         if module is None:
