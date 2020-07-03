@@ -113,29 +113,26 @@ class Test_Parameter:
             mc5.assign([])
 
     def test_dynamic(self):
-        i1 = Int(1, 100)
-        r1 = Real(0, 10.0)
-        c1 = Choice(['a', 'b', 'c'])
+        i = Int(1, 100)
+        r = Real(0, 10.0)
+        c = Choice(['a', 'b', 'c'])
 
-        d1 = Dynamic(
-            lambda args: f'i1:{args["i1"]}, r1:{args["r1"]}, c1:{args["c1"]}',
-            i1=i1, r1=r1, c1=c1
-        )
+        d1 = Dynamic(lambda i1, r1, c1: f'i1:{i1}, r1:{r1}, c1:{c1}', i1=i, r1=r, c1=c)
 
-        i1.assign(33)
+        i.assign(33)
         assert d1.value is None
         assert d1.assigned == False
 
-        r1.assign(0.99)
+        r.assign(0.99)
         assert d1.value is None
         assert d1.assigned == False
 
-        c1.assign('b')
+        c.assign('b')
         assert d1.assigned == True
         assert d1.value == 'i1:33, r1:0.99, c1:b'
 
         d2 = Dynamic(
-            lambda args: 'no dependent'
+            lambda: 'no dependent'
         )
 
         assert d2.assigned == True

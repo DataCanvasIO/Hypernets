@@ -13,7 +13,7 @@ class Test_TrailStore():
         with space.as_default():
             id1 = Identity(p1=Choice([1, 2]), p2=Int(1, 100))
             id2 = Identity(p3=Real(0, 1, step=0.2))(id1)
-            id3 = Identity(p4=Dynamic(lambda args: args['p5'] * 3, p5=Choice([2, 4, 8])))(id2)
+            id3 = Identity(p4=Dynamic(lambda p5: p5 * 3, p5=Choice([2, 4, 8])))(id2)
         return space
 
     def test_basic(self):

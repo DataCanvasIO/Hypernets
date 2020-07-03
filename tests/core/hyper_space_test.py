@@ -15,7 +15,7 @@ class Test_HyperSpace():
 
             id1 = Identity(p1=Choice([1, 2]), p2=Int(1, 100))
             id2 = Identity(p3=Real(0, 1))
-            id3 = Identity(p4=Dynamic(lambda args: args['p5'] * 3, p5=Choice([2, 4, 8])))
+            id3 = Identity(p4=Dynamic(lambda p5: p5 * 3, p5=Choice([2, 4, 8])))
             id4 = Identity()
             id5 = Identity()
             id6 = Identity()
@@ -39,7 +39,7 @@ class Test_HyperSpace():
 
             id1 = Identity(p1=Choice([1, 2]), p2=Int(1, 100))
             id2 = Identity(p3=Real(0, 1))
-            id3 = Identity(p4=Dynamic(lambda args: args['p5'] * 3, p5=Choice([2, 4, 8])))
+            id3 = Identity(p4=Dynamic(lambda p5: p5 * 3, p5=Choice([2, 4, 8])))
 
             def new_module(m):
                 dm1 = Identity(dp1=Choice(['a', 'b']))
