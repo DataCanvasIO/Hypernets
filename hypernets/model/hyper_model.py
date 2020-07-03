@@ -80,14 +80,18 @@ class HyperModel():
             self.searcher.set_meta_learner(MetaLearner(self.history, dataset_id, trail_store))
 
         trail_no = 1
-
+        retry_counter = 0
         while trail_no <= max_trails:
             space_sample = self.searcher.sample()
             if self.history.is_existed(space_sample):
+                if retry_counter >= 1000:
+                    print(f'Unable to take valid sample and exceed the retry limit 1000.')
+                    break
                 trail = self.history.get_trail(space_sample)
                 for callback in self.callbacks:
                     callback.on_skip_trail(self, space_sample, trail_no, 'trail_exsited', trail.reward, False,
                                            trail.elapsed)
+                retry_counter += 1
                 continue
             # for testing
             # space_sample = self.searcher.space_fn()
@@ -118,6 +122,7 @@ class HyperModel():
                 if trail_store is not None:
                     trail_store.put(dataset_id, trail)
                 trail_no += 1
+                retry_counter = 0
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
