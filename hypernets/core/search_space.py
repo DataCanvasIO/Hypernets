@@ -166,6 +166,7 @@ class HyperSpace(Mutable):
             self.edges.remove((f, t))
 
     def reroute_to(self, old_module, new_module):
+        assert isinstance(new_module, (list, ModuleSpace))
         found = set()
         for f, t in self.edges:
             if t == old_module:
@@ -173,17 +174,27 @@ class HyperSpace(Mutable):
 
         for f, t in found:
             self.edges.remove((f, t))
-            self.edges.add((f, new_module))
+            if isinstance(new_module, ModuleSpace):
+                self.edges.add((f, new_module))
+            else:
+                for m in new_module:
+                    self.edges.add((f, m))
 
     def reroute_from(self, old_module, new_module):
         found = set()
+        assert isinstance(new_module, (list, ModuleSpace))
+
         for f, t in self.edges:
             if f == old_module:
                 found.add((f, t))
 
         for f, t in found:
             self.edges.remove((f, t))
-            self.edges.add((new_module, t))
+            if isinstance(new_module, ModuleSpace):
+                self.edges.add((new_module, t))
+            else:
+                for m in new_module:
+                    self.edges.add((m, t))
 
     def replace_route(self, old_module, new_module):
         self.reroute_to(old_module, new_module)
@@ -239,7 +250,8 @@ class HyperSpace(Mutable):
                     break
 
             if not ready:
-                visited.remove(m_todo)
+                if len(visited & {m_todo}) > 0:
+                    visited.remove(m_todo)
                 continue
 
             finished.add(m_todo)

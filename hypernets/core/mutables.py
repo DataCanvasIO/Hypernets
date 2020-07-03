@@ -16,19 +16,19 @@ class MutableScope:
     def register(self, mutable):
         assert isinstance(mutable, Mutable)
 
-        id = self.assign_id(mutable)
-        mutable.id = id
         if mutable.name is None:
-            mutable.name = id
-
-        if self.name_dict.get(mutable.name) is not None:
-            raise ValueError(f'name `{mutable.name}` is duplicate.')
+            mutable.id = self.assign_id(mutable)
+            mutable.name = mutable.id
+        else:
+            if self.name_dict.get(mutable.name) is not None:
+                raise ValueError(f'name `{mutable.name}` is duplicate.')
+            mutable.id = mutable.name
 
         self.name_dict[mutable.name] = mutable
-        self.id_dict[id] = mutable
+        self.id_dict[mutable.id] = mutable
 
     def assign_id(self, mutable):
-        prefix = mutable.name if mutable.name is not None else mutable.__class__.__name__
+        prefix = mutable.__class__.__name__
         if mutable.type is not None:
             prefix = mutable.type + '_' + prefix
         i = 1

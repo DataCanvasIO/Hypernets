@@ -107,6 +107,51 @@ class Test_ConnectionSpace:
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_1', 'Module_Identity_2', 'Module_Identity_3']
 
+    def test_sequential_subgraph(self):
+        def block1(step):
+            id1 = Identity(name=f'{step}_block1_id_1')
+            id2 = Identity(name=f'{step}_block1_id_2')(id1)
+            return id2
+
+        def block2(step):
+            id1_1 = Identity(name=f'{step}_block2_id_1_1')
+            id1_2 = Identity(name=f'{step}_block2_id_1_2')
+            id2 = Identity(name=f'{step}_block2_id_2')([id1_1, id1_2])
+            return id2
+
+        def block3(step):
+            id1 = Identity(name=f'{step}_block3_id_1')
+            id2_1 = Identity(name=f'{step}_block2_id_2_1')(id1)
+            id2_2 = Identity(name=f'{step}_block2_id_2_2')(id1)
+            return [id2_1, id2_2]
+
+        ids = []
+
+        def get_id(m):
+            ids.append(m.id)
+            return True
+
+        space = HyperSpace()
+        with space.as_default():
+            input = Identity(name='input')
+            seq = Sequential([block1(1), block1(2)])(input)
+            output = Identity(name='output')(seq)
+            space.random_sample()
+            space.traverse(get_id)
+            assert ids == ['input', '1_block1_id_1', '1_block1_id_2', '2_block1_id_1', '2_block1_id_2', 'output']
+
+        space = HyperSpace()
+        with space.as_default():
+            input = Identity(name='input')
+            Sequential([block1(1), block2(1)])(input)
+            ids = []
+            space.random_sample()
+            space.traverse(get_id)
+            assert ids == ['input', '1_block1_id_1', '1_block1_id_2', '1_block2_id_1_1', '1_block2_id_1_2',
+                           '1_block2_id_2']
+
+
+
     def test_permutation(self):
         def get_space(keep_link=True):
             space = HyperSpace()

@@ -66,8 +66,8 @@ class ConnectionSpace(ModuleSpace):
             assert self.space.is_isolated_module(from_module), f'`to_module` is not an isolated module. '
             return to_module(from_module)
         else:
-            assert isinstance(from_module, [ModuleSpace, list])
-            assert isinstance(to_module, [ModuleSpace, list])
+            assert isinstance(from_module, (ModuleSpace, list))
+            assert isinstance(to_module, (ModuleSpace, list))
 
             if isinstance(from_module, ModuleSpace):
                 real_from = [from_module]
@@ -77,7 +77,7 @@ class ConnectionSpace(ModuleSpace):
                 real_from = from_module[:1]
 
             if not self.space.is_isolated_module(real_from[0]):
-                real_from = list(self.space.get_sub_graph_outputs(from_module))
+                real_from = list(self.space.get_sub_graph_outputs(real_from[0]))
 
             if isinstance(from_module, ModuleSpace):
                 real_to = [to_module]
@@ -87,7 +87,7 @@ class ConnectionSpace(ModuleSpace):
                 real_to = to_module[:1]
 
             if not self.space.is_isolated_module(real_to[0]):
-                real_to = list(self.space.get_sub_graph_inputs(to_module))
+                real_to = list(self.space.get_sub_graph_inputs(real_to[0]))
             for m_to in real_to:
                 for m_from in real_from:
                     m_to(m_from)
@@ -136,10 +136,11 @@ class Sequential(ConnectionSpace):
     def sequential_fn(self, m):
         last = self._module_list[0]
         for i in range(1, len(self._module_list)):
-            self._module_list[i](last)
+            self.connect_module_or_subgraph(last, self._module_list[i])
+            # self._module_list[i](last)
             last = self._module_list[i]
-        input = self._module_list[0]
-        output = last
+        input = self.space.get_sub_graph_inputs(last)
+        output = self.space.get_sub_graph_outputs(last)
         return input, output
 
 
