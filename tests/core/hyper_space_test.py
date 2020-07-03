@@ -226,15 +226,15 @@ class Test_HyperSpace():
         with space.as_default():
             id1 = Identity()
             id2 = Identity()(id1)
-            assert space.get_sub_graph_outputs(id1) == {id2}
+            assert space.get_sub_graph_outputs(id1) == [id2]
 
         space = HyperSpace()
         with space.as_default():
             id1 = Identity()
             id2 = Identity()
             id3 = Identity()([id1, id2])
-            assert space.get_sub_graph_outputs(id1) == {id3}
-            assert space.get_sub_graph_outputs(id2) == {id3}
+            assert space.get_sub_graph_outputs(id1) == [id3]
+            assert space.get_sub_graph_outputs(id2) == [id3]
 
         space = HyperSpace()
         with space.as_default():
@@ -243,9 +243,9 @@ class Test_HyperSpace():
             id3 = Identity()([id1, id2])
             id4 = Identity()(id3)
             id5 = Identity()(id3)
-            assert space.get_sub_graph_outputs(id3) == {id4, id5}
-            assert space.get_sub_graph_outputs(id1) == {id4, id5}
-            assert space.get_sub_graph_outputs(id2) == {id4, id5}
+            assert space.get_sub_graph_outputs(id3) == [id4, id5]
+            assert space.get_sub_graph_outputs(id1) == [id4, id5]
+            assert space.get_sub_graph_outputs(id2) == [id4, id5]
 
         space = HyperSpace()
         with space.as_default():
@@ -259,42 +259,42 @@ class Test_HyperSpace():
             id11 = Identity()
             id31(id11)
             id41 = Identity()(id3)
-            assert space.get_sub_graph_outputs(id1) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id2) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id3) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id31) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id32) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id4) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id5) == {id4, id5, id41}
-            assert space.get_sub_graph_outputs(id41) == {id4, id5, id41}
+            assert space.get_sub_graph_outputs(id1) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id2) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id3) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id31) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id32) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id4) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id5) == [id4, id5, id41]
+            assert space.get_sub_graph_outputs(id41) == [id4, id5, id41]
 
     def test_get_subnet_inputs(self):
         space = HyperSpace()
         with space.as_default():
             id1 = Identity()
             id2 = Identity()(id1)
-            assert space.get_sub_graph_inputs(id2) == {id1}
+            assert space.get_sub_graph_inputs(id2) == [id1]
 
         space = HyperSpace()
         with space.as_default():
             id1 = Identity()
             id2 = Identity()
             id3 = Identity()([id1, id2])
-            assert space.get_sub_graph_inputs(id3) == {id1, id2}
+            assert space.get_sub_graph_inputs(id3) == [id1, id2]
 
         space = HyperSpace()
         with space.as_default():
             id1 = Identity()
             id2 = Identity()(id1)
             id3 = Identity()(id1)
-            assert space.get_sub_graph_inputs(id3) == {id1}
+            assert space.get_sub_graph_inputs(id3) == [id1]
 
         space = HyperSpace()
         with space.as_default():
             id1 = Identity()
             id2 = Identity()(id1)
             id3 = Identity()(id2)
-            assert space.get_sub_graph_inputs(id3) == {id1}
+            assert space.get_sub_graph_inputs(id3) == [id1]
 
         space = HyperSpace()
         with space.as_default():
@@ -302,8 +302,8 @@ class Test_HyperSpace():
             id2 = Identity()(id1)
             id3 = Identity()(id2)
             id4 = Identity()(id3)
-            assert space.get_sub_graph_inputs(id3) == {id1}
-            assert space.get_sub_graph_inputs(id4) == {id1}
+            assert space.get_sub_graph_inputs(id3) == [id1]
+            assert space.get_sub_graph_inputs(id4) == [id1]
 
         space = HyperSpace()
         with space.as_default():
@@ -311,7 +311,7 @@ class Test_HyperSpace():
             id2 = Identity()(id1)
             id3 = Identity()
             id4 = Identity()([id2, id3])
-            assert space.get_sub_graph_inputs(id4) == {id1, id3}
+            assert space.get_sub_graph_inputs(id4) == [id1, id3]
 
         space = HyperSpace()
         with space.as_default():
@@ -320,11 +320,11 @@ class Test_HyperSpace():
             id3 = Identity()([id1, id2])
             id4 = Identity()(id3)
             id5 = Identity()(id3)
-            assert space.get_sub_graph_inputs(id3) == {id1, id2}
-            assert space.get_sub_graph_inputs(id4) == {id1, id2}
-            assert space.get_sub_graph_inputs(id5) == {id1, id2}
-            assert space.get_sub_graph_inputs(id1) == {id1, id2}
-            assert space.get_sub_graph_inputs(id2) == {id1, id2}
+            assert space.get_sub_graph_inputs(id3) == [id1, id2]
+            assert space.get_sub_graph_inputs(id4) == [id1, id2]
+            assert space.get_sub_graph_inputs(id5) == [id1, id2]
+            assert space.get_sub_graph_inputs(id1) == [id1, id2]
+            assert space.get_sub_graph_inputs(id2) == [id1, id2]
 
         space = HyperSpace()
         with space.as_default():
@@ -335,11 +335,11 @@ class Test_HyperSpace():
             id32 = Identity()(id31)
             id4 = Identity()(id32)
             id5 = Identity()(id32)
-            assert space.get_sub_graph_inputs(id3) == {id1, id2}
-            assert space.get_sub_graph_inputs(id4) == {id1, id2}
-            assert space.get_sub_graph_inputs(id5) == {id1, id2}
-            assert space.get_sub_graph_inputs(id1) == {id1, id2}
-            assert space.get_sub_graph_inputs(id2) == {id1, id2}
+            assert space.get_sub_graph_inputs(id3) == [id1, id2]
+            assert space.get_sub_graph_inputs(id4) == [id1, id2]
+            assert space.get_sub_graph_inputs(id5) == [id1, id2]
+            assert space.get_sub_graph_inputs(id1) == [id1, id2]
+            assert space.get_sub_graph_inputs(id2) == [id1, id2]
 
         space = HyperSpace()
         with space.as_default():
@@ -352,8 +352,40 @@ class Test_HyperSpace():
             id5 = Identity()(id32)
             id11 = Identity()
             id31(id11)
-            assert space.get_sub_graph_inputs(id3) == {id1, id2, id11}
-            assert space.get_sub_graph_inputs(id4) == {id1, id2, id11}
-            assert space.get_sub_graph_inputs(id5) == {id1, id2, id11}
-            assert space.get_sub_graph_inputs(id1) == {id1, id2, id11}
-            assert space.get_sub_graph_inputs(id2) == {id1, id2, id11}
+            assert space.get_sub_graph_inputs(id3) == [id1, id2, id11]
+            assert space.get_sub_graph_inputs(id4) == [id1, id2, id11]
+            assert space.get_sub_graph_inputs(id5) == [id1, id2, id11]
+            assert space.get_sub_graph_inputs(id1) == [id1, id2, id11]
+            assert space.get_sub_graph_inputs(id2) == [id1, id2, id11]
+
+    def test_traverse_subgraph(self):
+        space = HyperSpace()
+        with space.as_default():
+            id1 = Identity()
+            id2 = Identity()
+            id3 = Identity()([id1, id2])
+            id31 = Identity()(id3)
+            id32 = Identity()(id31)
+            id4 = Identity()(id32)
+            id5 = Identity()(id32)
+            id11 = Identity()
+            id31(id11)
+            id_isolated = Identity()
+            start = space.get_sub_graph_inputs(id4)
+            assert start == [id1, id2, id11]
+            id_list = []
+
+            def get_id(m):
+                id_list.append(m.id)
+                return True
+
+            space.traverse(get_id, direction='forward', start_modules=start)
+            assert id_list == ['Module_Identity_1', 'Module_Identity_2', 'Module_Identity_8', 'Module_Identity_3',
+                               'Module_Identity_4', 'Module_Identity_5', 'Module_Identity_6', 'Module_Identity_7']
+
+            start = space.get_sub_graph_outputs(id1)
+            assert start == [id4, id5]
+            id_list = []
+            space.traverse(get_id, direction='backward', start_modules=start)
+            assert id_list == ['Module_Identity_6', 'Module_Identity_7', 'Module_Identity_5', 'Module_Identity_4',
+                               'Module_Identity_3', 'Module_Identity_8', 'Module_Identity_1', 'Module_Identity_2']

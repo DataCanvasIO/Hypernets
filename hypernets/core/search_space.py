@@ -103,7 +103,7 @@ class HyperSpace(Mutable):
         self.traverse(compile_module, direction='forward')
         self._is_compiled = True
 
-    def traverse(self, fn, direction='forward'):
+    def traverse(self, fn, direction='forward', start_modules=[]):
         if direction == 'forward':
             fn_inputs = self.get_inputs
             fn_outputs = self.get_outputs
@@ -116,7 +116,9 @@ class HyperSpace(Mutable):
         standby = queue.Queue()
         visited = set()
         finished = set()
-        for m in fn_inputs():
+        if start_modules is None or len(start_modules) <= 0:
+            start_modules = fn_inputs()
+        for m in start_modules:
             standby.put(m)
             visited.add(m)
 
@@ -194,13 +196,14 @@ class HyperSpace(Mutable):
                 return False
         return True
 
-    def get_sub_graph_outputs(self, module_in_subnet):
-        return self.get_sub_graph_end_modules(module_in_subnet, direction='forward')
+    def get_sub_graph_outputs(self, module_in_subgraph):
+        return self.get_sub_graph_end_modules(module_in_subgraph, direction='forward')
 
-    def get_sub_graph_inputs(self, module_in_subnet):
-        return self.get_sub_graph_end_modules(module_in_subnet, direction='backward')
+    def get_sub_graph_inputs(self, module_in_subgraph):
+        return self.get_sub_graph_end_modules(module_in_subgraph, direction='backward')
 
-    def get_sub_graph_end_modules(self, module_in_subnet, direction='forward'):
+    def get_sub_graph_end_modules(self, module_in_subgraph, direction='forward'):
+        assert isinstance(module_in_subgraph, ModuleSpace)
         if direction == 'forward':  # get outputs
             get_upstream = self.get_outputs
             get_downstream = self.get_inputs
@@ -212,15 +215,15 @@ class HyperSpace(Mutable):
             raise ValueError(f'Not supported direction:{direction}')
 
         standby = queue.Queue()
-        visited = {module_in_subnet}
-        finished = {module_in_subnet}
+        visited = {module_in_subgraph}
+        finished = {module_in_subgraph}
         end_modules = set()
-        if len(get_upstream(module_in_subnet)) <= 0:
-            end_modules.add(module_in_subnet)
-        for m in get_upstream(module_in_subnet):
+        if len(get_upstream(module_in_subgraph)) <= 0:
+            end_modules.add(module_in_subgraph)
+        for m in get_upstream(module_in_subgraph):
             standby.put(m)
             visited.add(m)
-        for m in get_downstream(module_in_subnet):
+        for m in get_downstream(module_in_subgraph):
             standby.put(m)
             visited.add(m)
 
@@ -249,7 +252,7 @@ class HyperSpace(Mutable):
                 if not m in visited:
                     standby.put(m)
                     visited.add(m)
-        return end_modules
+        return sorted(end_modules, key=lambda m: m.id)
 
     def get_inputs(self, module=None):
         inputs = set()
@@ -263,7 +266,7 @@ class HyperSpace(Mutable):
                     if m == to_module:
                         no_in = False
                         break
-                # discard orphan node
+                # discard isolated node
                 if no_in and has_out:
                     inputs.add(m)
             if len(inputs) == 0:

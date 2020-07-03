@@ -58,15 +58,40 @@ class ConnectionSpace(ModuleSpace):
             else:
                 raise ValueError('input or output is None.')
 
-    def connect(self, from_module, to_module, support_subgraph=False):
+    def connect_module_or_subgraph(self, from_module, to_module, support_subgraph=True):
         if not support_subgraph:
-            assert self.space.is_isolated_module(from_module),f'`from_module` is not an isolated module. '
-            assert self.space.is_isolated_module(from_module),f'`to_module` is not an isolated module. '
+            assert isinstance(from_module, ModuleSpace)
+            assert isinstance(to_module, ModuleSpace)
+            assert self.space.is_isolated_module(from_module), f'`from_module` is not an isolated module. '
+            assert self.space.is_isolated_module(from_module), f'`to_module` is not an isolated module. '
             return to_module(from_module)
         else:
-            real_from = from_module
-            if not self.space.is_isolated_module(from_module):
-                self.space.get_sub_graph_inputs()
+            assert isinstance(from_module, [ModuleSpace, list])
+            assert isinstance(to_module, [ModuleSpace, list])
+
+            if isinstance(from_module, ModuleSpace):
+                real_from = [from_module]
+            else:
+                assert len(from_module) > 0, f'`from_module` contains at least 1 element.'
+                # If from_module is a list, take any module to get the outputs of the subgraph
+                real_from = from_module[:1]
+
+            if not self.space.is_isolated_module(real_from[0]):
+                real_from = list(self.space.get_sub_graph_outputs(from_module))
+
+            if isinstance(from_module, ModuleSpace):
+                real_to = [to_module]
+            else:
+                assert len(to_module) > 0, f'`from_module` contains at least 1 element.'
+                # If to_module is a list, take any module to get the inputs of the subgraph
+                real_to = to_module[:1]
+
+            if not self.space.is_isolated_module(real_to[0]):
+                real_to = list(self.space.get_sub_graph_inputs(to_module))
+            for m_to in real_to:
+                for m_from in real_from:
+                    m_to(m_from)
+            return to_module
 
 
 class Optional(ConnectionSpace):
