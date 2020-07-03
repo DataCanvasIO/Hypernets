@@ -194,21 +194,44 @@ class HyperSpace(Mutable):
                 return False
         return True
 
-    def get_sub_graph_inputs(self, output_module):
+    def get_sub_graph_outputs(self, module_in_subnet):
+        return self.get_sub_graph_end_modules(module_in_subnet, direction='forward')
+
+    def get_sub_graph_inputs(self, module_in_subnet):
+        return self.get_sub_graph_end_modules(module_in_subnet, direction='backward')
+
+    def get_sub_graph_end_modules(self, module_in_subnet, direction='forward'):
+        if direction == 'forward':  # get outputs
+            get_upstream = self.get_outputs
+            get_downstream = self.get_inputs
+        elif direction == 'backward':  # get inputs
+            get_upstream = self.get_inputs
+            get_downstream = self.get_outputs
+
+        else:
+            raise ValueError(f'Not supported direction:{direction}')
+
         standby = queue.Queue()
-        visited = {output_module}
-        finished = {output_module}
-        inputs = set()
-        for m in self.get_inputs(output_module):
+        visited = {module_in_subnet}
+        finished = {module_in_subnet}
+        end_modules = set()
+        if len(get_upstream(module_in_subnet)) <= 0:
+            end_modules.add(module_in_subnet)
+        for m in get_upstream(module_in_subnet):
+            standby.put(m)
+            visited.add(m)
+        for m in get_downstream(module_in_subnet):
             standby.put(m)
             visited.add(m)
 
         while not standby.empty():
             m_todo = standby.get()
-            m_outputs = self.get_outputs(m_todo)
+            m_downstream = get_downstream(m_todo)
             ready = True
-            for mi in m_outputs:
+            for mi in m_downstream:
                 if mi not in finished:
+                    standby.put(mi)
+                    visited.add(mi)
                     ready = False
                     break
 
@@ -217,16 +240,16 @@ class HyperSpace(Mutable):
                 continue
 
             finished.add(m_todo)
-            m_inputs = self.get_inputs(m_todo)
-            if len(m_inputs) <= 0:
-                inputs.add(m_todo)
+            m_upstream = get_upstream(m_todo)
+            if len(m_upstream) <= 0:
+                end_modules.add(m_todo)
                 continue
 
-            for m in m_inputs:
+            for m in m_upstream:
                 if not m in visited:
                     standby.put(m)
                     visited.add(m)
-        return inputs
+        return end_modules
 
     def get_inputs(self, module=None):
         inputs = set()
@@ -852,10 +875,12 @@ class ModuleSpace(HyperNode):
     def __call__(self, *args, **kwargs):
         assert len(args) > 0
         m = args[0]
+        assert m is not None, 'The module to be connected cannot be None.'
         if isinstance(m, ModuleSpace):
             self.space.connect(m, self)
         elif isinstance(m, list):
             for mi in m:
+                assert mi is not None, 'The module to be connected cannot be None.'
                 self.space.connect(mi, self)
         return self
 

@@ -58,6 +58,16 @@ class ConnectionSpace(ModuleSpace):
             else:
                 raise ValueError('input or output is None.')
 
+    def connect(self, from_module, to_module, support_subgraph=False):
+        if not support_subgraph:
+            assert self.space.is_isolated_module(from_module),f'`from_module` is not an isolated module. '
+            assert self.space.is_isolated_module(from_module),f'`to_module` is not an isolated module. '
+            return to_module(from_module)
+        else:
+            real_from = from_module
+            if not self.space.is_isolated_module(from_module):
+                self.space.get_sub_graph_inputs()
+
 
 class Optional(ConnectionSpace):
 
