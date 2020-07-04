@@ -279,7 +279,7 @@ class HyperSpace(Mutable):
                         has_in = True
                         break
                 if not has_in:
-                    if not discard_isolated_node or has_out:
+                    if has_out or (not discard_isolated_node and m.path == ''):
                         inputs.add(m)
 
             if len(inputs) == 0:
@@ -308,7 +308,7 @@ class HyperSpace(Mutable):
                     if m == to_module:
                         has_in = True
                 if not has_out:
-                    if not discard_isolated_node or has_in:
+                    if has_in or (not discard_isolated_node and m.path == ''):
                         outputs.add(m)
             if len(outputs) == 0:
                 if len(self.modules) == 1:

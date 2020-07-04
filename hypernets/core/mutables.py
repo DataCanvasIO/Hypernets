@@ -8,6 +8,17 @@ from collections import OrderedDict
 class MutableScope:
     def __init__(self):
         self.reset()
+        self.stack = []
+
+    @property
+    def current_path(self):
+        return '.'.join(self.stack)
+
+    def entry(self, name):
+        self.stack.append(name)
+
+    def exit(self):
+        self.stack.pop()
 
     def reset(self):
         self.id_dict = OrderedDict()
@@ -53,6 +64,7 @@ class Mutable(object):
         self.name = name
         self.alias = None
         self.scope.register(self)
+        self.path = scope.current_path
 
     def __repr__(self):
         # if self.alias is not None:

@@ -38,25 +38,29 @@ class ConnectionSpace(ModuleSpace):
 
     def _on_params_ready(self):
         with self.space.as_default():
-            input, output = self.dynamic_fn(self)
-            if not all([input, output]):
-                # node removed
-                if self.keep_link:
-                    # Only one input and one output are allowed
-                    inputs = self.space.get_inputs(self)
-                    outputs = self.space.get_outputs(self)
-                    if len(inputs) > 1 or len(outputs) > 1:
-                        raise ValueError("Only one input and one output are allowed.")
-                    self.space.disconnect_all(self)
-                    outputs[0](inputs[0])
-                else:
-                    self.space.disconnect_all(self)
+            try:
+                self.space.scope.entry(self.id)
+                input, output = self.dynamic_fn(self)
+                if not all([input, output]):
+                    # node removed
+                    if self.keep_link:
+                        # Only one input and one output are allowed
+                        inputs = self.space.get_inputs(self)
+                        outputs = self.space.get_outputs(self)
+                        if len(inputs) > 1 or len(outputs) > 1:
+                            raise ValueError("Only one input and one output are allowed.")
+                        self.space.disconnect_all(self)
+                        outputs[0](inputs[0])
+                    else:
+                        self.space.disconnect_all(self)
 
-            elif all([input, output]):
-                self.space.reroute_to(self, input)
-                self.space.reroute_from(self, output)
-            else:
-                raise ValueError('input or output is None.')
+                elif all([input, output]):
+                    self.space.reroute_to(self, input)
+                    self.space.reroute_from(self, output)
+                else:
+                    raise ValueError('input or output is None.')
+            finally:
+                self.space.scope.exit()
 
     def connect_module_or_subgraph(self, from_module, to_module, support_subgraph=True):
         if not support_subgraph:
