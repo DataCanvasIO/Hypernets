@@ -47,7 +47,7 @@ class HyperSpace(Mutable):
 
     @property
     def all_assigned(self):
-        all_assigned = self.traverse(lambda m: m.all_assigned, direction='backward')
+        all_assigned = self.traverse(lambda m: m.all_assigned, direction='backward', discard_isolated_node=False)
         return all_assigned
 
     def push_assigned_param(self, param):
@@ -103,7 +103,7 @@ class HyperSpace(Mutable):
         self.traverse(compile_module, direction='forward')
         self._is_compiled = True
 
-    def traverse(self, fn, direction='forward', start_modules=[]):
+    def traverse(self, fn, direction='forward', start_modules=[], discard_isolated_node=True):
         if direction == 'forward':
             fn_inputs = self.get_inputs
             fn_outputs = self.get_outputs
@@ -117,7 +117,7 @@ class HyperSpace(Mutable):
         visited = set()
         finished = set()
         if start_modules is None or len(start_modules) <= 0:
-            start_modules = fn_inputs()
+            start_modules = fn_inputs(discard_isolated_node=discard_isolated_node)
         for m in start_modules:
             standby.put(m)
             visited.add(m)
@@ -266,21 +266,22 @@ class HyperSpace(Mutable):
                     visited.add(m)
         return sorted(end_modules, key=lambda m: m.id)
 
-    def get_inputs(self, module=None):
+    def get_inputs(self, module=None, discard_isolated_node=True):
         inputs = set()
         if module is None:
             for m in self.modules:
-                no_in = True
+                has_in = False
                 has_out = False
                 for from_module, to_module in self.edges:
                     if m == from_module:
                         has_out = True
                     if m == to_module:
-                        no_in = False
+                        has_in = True
                         break
-                # discard isolated node
-                if no_in and has_out:
-                    inputs.add(m)
+                if not has_in:
+                    if not discard_isolated_node or has_out:
+                        inputs.add(m)
+
             if len(inputs) == 0:
                 if len(self.modules) == 1:
                     inputs = self.modules.copy()
@@ -294,21 +295,21 @@ class HyperSpace(Mutable):
 
         return sorted(inputs, key=lambda m: m.id)
 
-    def get_outputs(self, module=None):
+    def get_outputs(self, module=None, discard_isolated_node=True):
         outputs = set()
         if module is None:
             for m in self.modules:
-                no_out = True
-                has_input = False
+                has_in = False
+                has_out = False
                 for from_module, to_module in self.edges:
-                    if m == to_module:
-                        has_input = True
                     if m == from_module:
-                        no_out = False
+                        has_out = True
                         break
-                # discard orphan node
-                if no_out and has_input:
-                    outputs.add(m)
+                    if m == to_module:
+                        has_in = True
+                if not has_out:
+                    if not discard_isolated_node or has_in:
+                        outputs.add(m)
             if len(outputs) == 0:
                 if len(self.modules) == 1:
                     outputs = self.modules.copy()
@@ -334,7 +335,7 @@ class HyperSpace(Mutable):
                     assignables.append(p)
             return True
 
-        self.traverse(append_params, direction=traverse_direction)
+        self.traverse(append_params, direction=traverse_direction, discard_isolated_node=False)
         return assignables
 
     def get_assigned_params(self):

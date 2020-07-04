@@ -133,10 +133,19 @@ class Test_ConnectionSpace:
 
         space = HyperSpace()
         with space.as_default():
+            seq = Sequential([block1(1), block1(2)])
+            space.random_sample()
+            ids = []
+            space.traverse(get_id)
+            assert ids == ['1_block1_id_1', '1_block1_id_2', '2_block1_id_1', '2_block1_id_2']
+
+        space = HyperSpace()
+        with space.as_default():
             input = Identity(name='input')
             seq = Sequential([block1(1), block1(2)])(input)
             output = Identity(name='output')(seq)
             space.random_sample()
+            ids = []
             space.traverse(get_id)
             assert ids == ['input', '1_block1_id_1', '1_block1_id_2', '2_block1_id_1', '2_block1_id_2', 'output']
 
@@ -149,8 +158,6 @@ class Test_ConnectionSpace:
             space.traverse(get_id)
             assert ids == ['input', '1_block1_id_1', '1_block1_id_2', '1_block2_id_1_1', '1_block2_id_1_2',
                            '1_block2_id_2']
-
-
 
     def test_permutation(self):
         def get_space(keep_link=True):
