@@ -19,13 +19,13 @@ class Test_Mutable:
             assert id1.id == 'Module_Identity_1'
 
             assert id2.name == 'named_id'
-            assert id2.id == 'named_id'
+            assert id2.id == 'ID_named_id'
 
             assert id3.name == 'Module_Identity_2'
             assert id3.id == 'Module_Identity_2'
 
             assert id4.name == 'named_id_2'
-            assert id4.id == 'named_id_2'
+            assert id4.id == 'ID_named_id_2'
 
             hp1 = Int(0, 100)
             hp2 = Real(0, 10.0)

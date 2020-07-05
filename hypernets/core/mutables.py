@@ -33,7 +33,7 @@ class MutableScope:
         else:
             if self.name_dict.get(mutable.name) is not None:
                 raise ValueError(f'name `{mutable.name}` is duplicate.')
-            mutable.id = mutable.name
+            mutable.id = f'ID_{mutable.name}'
 
         self.name_dict[mutable.name] = mutable
         self.id_dict[mutable.id] = mutable

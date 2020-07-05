@@ -34,6 +34,7 @@ class HyperSpace(Mutable):
         self.edges = set()
         self.modules = set()
         self.hyper_params = set()
+        self._inputs = set()
         self._assigned_params_stack = []
         self._is_compiled = False
         self.space_id = generate_id()
@@ -214,7 +215,10 @@ class HyperSpace(Mutable):
         return self.get_sub_graph_end_modules(module_in_subgraph, direction='backward')
 
     def get_sub_graph_end_modules(self, module_in_subgraph, direction='forward'):
-        assert isinstance(module_in_subgraph, ModuleSpace)
+        assert isinstance(module_in_subgraph, (ModuleSpace, list))
+        if isinstance(module_in_subgraph, list):
+            module_in_subgraph = module_in_subgraph[0]
+
         if direction == 'forward':  # get outputs
             get_upstream = self.get_outputs
             get_downstream = self.get_inputs
@@ -266,9 +270,22 @@ class HyperSpace(Mutable):
                     visited.add(m)
         return sorted(end_modules, key=lambda m: m.id)
 
+    def set_inputs(self, modules):
+        assert modules is not None
+        assert isinstance(modules, (ModuleSpace, list))
+        if isinstance(modules, ModuleSpace):
+            self._inputs = {modules}
+        else:
+            assert len(modules) > 0
+            assert all([isinstance(m, ModuleSpace) for m in modules])
+            self._inputs = set(modules)
+
     def get_inputs(self, module=None, discard_isolated_node=True):
         inputs = set()
         if module is None:
+            if len(self._inputs) > 0:
+                return sorted(self._inputs, key=lambda m: m.id)
+
             for m in self.modules:
                 has_in = False
                 has_out = False

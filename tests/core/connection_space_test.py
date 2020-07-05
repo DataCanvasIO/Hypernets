@@ -7,6 +7,34 @@ from hypernets.core.ops import *
 import pytest
 
 
+def block1(step):
+    id1 = Identity(name=f'{step}_block1_id_1')
+    id2 = Identity(name=f'{step}_block1_id_2')(id1)
+    return id2
+
+
+def block2(step):
+    id1_1 = Identity(name=f'{step}_block2_id_1_1')
+    id1_2 = Identity(name=f'{step}_block2_id_1_2')
+    id2 = Identity(name=f'{step}_block2_id_2')([id1_1, id1_2])
+    return id2
+
+
+def block3(step):
+    id1 = Identity(name=f'{step}_block3_id_1')
+    id2_1 = Identity(name=f'{step}_block2_id_2_1')(id1)
+    id2_2 = Identity(name=f'{step}_block2_id_2_2')(id1)
+    return [id2_1, id2_2]
+
+
+ids = []
+
+
+def get_id(m):
+    ids.append(m.id)
+    return True
+
+
 class Test_ConnectionSpace:
     def test_identity(self):
         id = Identity()
@@ -51,13 +79,9 @@ class Test_ConnectionSpace:
                 id2(opt)
             return space
 
+        global ids
         space = get_space()
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
-
         space.traverse(get_id)
         assert ids == ['Module_Identity_1', 'Module_Optional_1', 'Module_Identity_3']
 
@@ -79,6 +103,30 @@ class Test_ConnectionSpace:
             space.traverse(get_id)
         assert excinfo.value.args[0] == 'Graph is not connected.'
 
+    def test_optional_subgraph(self):
+        def get_space(keep_link=True):
+            space = HyperSpace()
+            with space.as_default():
+                input = Identity(name='input')
+                hp_opt = Bool()
+                opt = Optional(block1(1), keep_link=keep_link, hp_opt=hp_opt)(input)
+                output = Identity(name='output')(opt)
+                space.set_inputs(input)
+            return space
+
+        space = get_space()
+        global ids
+        space.Param_Bool_1.assign(True)
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input', 'ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_output']
+
+        space = get_space()
+        space.Param_Bool_1.assign(False)
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input', 'ID_output']
+
     def test_sequential(self):
         def get_space(keep_link=True):
             space = HyperSpace()
@@ -89,16 +137,11 @@ class Test_ConnectionSpace:
                 seq = Sequential([id1, id2])(in1)
                 id3 = Identity()(seq)
                 # id3(seq(in1))
-
             return space
 
+        global ids
         space = get_space()
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
-
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Sequential_1', 'Module_Identity_3']
 
@@ -108,36 +151,14 @@ class Test_ConnectionSpace:
         assert ids == ['Module_HyperInput_1', 'Module_Identity_1', 'Module_Identity_2', 'Module_Identity_3']
 
     def test_sequential_subgraph(self):
-        def block1(step):
-            id1 = Identity(name=f'{step}_block1_id_1')
-            id2 = Identity(name=f'{step}_block1_id_2')(id1)
-            return id2
-
-        def block2(step):
-            id1_1 = Identity(name=f'{step}_block2_id_1_1')
-            id1_2 = Identity(name=f'{step}_block2_id_1_2')
-            id2 = Identity(name=f'{step}_block2_id_2')([id1_1, id1_2])
-            return id2
-
-        def block3(step):
-            id1 = Identity(name=f'{step}_block3_id_1')
-            id2_1 = Identity(name=f'{step}_block2_id_2_1')(id1)
-            id2_2 = Identity(name=f'{step}_block2_id_2_2')(id1)
-            return [id2_1, id2_2]
-
-        ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
-
+        global ids
         space = HyperSpace()
         with space.as_default():
             seq = Sequential([block1(1), block1(2)])
             space.random_sample()
             ids = []
             space.traverse(get_id)
-            assert ids == ['1_block1_id_1', '1_block1_id_2', '2_block1_id_1', '2_block1_id_2']
+            assert ids == ['ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_2_block1_id_1', 'ID_2_block1_id_2']
 
         space = HyperSpace()
         with space.as_default():
@@ -147,7 +168,8 @@ class Test_ConnectionSpace:
             space.random_sample()
             ids = []
             space.traverse(get_id)
-            assert ids == ['input', '1_block1_id_1', '1_block1_id_2', '2_block1_id_1', '2_block1_id_2', 'output']
+            assert ids == ['ID_input', 'ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_2_block1_id_1', 'ID_2_block1_id_2',
+                           'ID_output']
 
         space = HyperSpace()
         with space.as_default():
@@ -156,8 +178,19 @@ class Test_ConnectionSpace:
             ids = []
             space.random_sample()
             space.traverse(get_id)
-            assert ids == ['input', '1_block1_id_1', '1_block1_id_2', '1_block2_id_1_1', '1_block2_id_1_2',
-                           '1_block2_id_2']
+            assert ids == ['ID_input', 'ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_1_block2_id_1_1',
+                           'ID_1_block2_id_1_2',
+                           'ID_1_block2_id_2']
+
+        space = HyperSpace()
+        with space.as_default():
+            Sequential([block1(1), block2(1), block3(1)])
+            ids = []
+            space.random_sample()
+            space.traverse(get_id)
+            assert ids == ['ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_1_block2_id_1_1', 'ID_1_block2_id_1_2',
+                           'ID_1_block2_id_2',
+                           'ID_1_block3_id_1', 'ID_1_block2_id_2_1', 'ID_1_block2_id_2_2']
 
     def test_permutation(self):
         def get_space(keep_link=True):
@@ -172,12 +205,10 @@ class Test_ConnectionSpace:
 
             return space
 
+        global ids
+
         space = get_space()
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
 
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Permutation_1', 'Module_Identity_3']
@@ -202,12 +233,9 @@ class Test_ConnectionSpace:
 
             return space
 
+        global ids
         space = get_space()
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
 
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Or_1', 'Module_Identity_3']
@@ -223,6 +251,34 @@ class Test_ConnectionSpace:
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_3']
 
+    def test_or_subgraph(self):
+        def get_space(keep_link=True):
+            space = HyperSpace()
+            with space.as_default():
+                in1 = HyperInput(name='input')
+                orop = Or([block1(1), block2(1)])(in1)
+                output = Identity(name='output')(orop)
+                space.set_inputs(in1)
+            return space
+
+        global ids
+        space = get_space()
+        ids = []
+
+        space.traverse(get_id)
+        assert ids == ['ID_input', 'Module_Or_1', 'ID_output']
+
+        space.Module_Or_1.hp_or.assign(0)
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input', 'ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_output']
+
+        space = get_space()
+        space.Module_Or_1.hp_or.assign(1)
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input', 'ID_1_block2_id_1_1', 'ID_1_block2_id_1_2', 'ID_1_block2_id_2', 'ID_output']
+
     def test_repeat_id(self):
         def get_space():
             space = HyperSpace()
@@ -232,12 +288,9 @@ class Test_ConnectionSpace:
                 id3 = Identity()(rep)
             return space
 
+        global ids
         space = get_space()
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
 
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Repeat_1', 'Module_Identity_1']
@@ -266,12 +319,8 @@ class Test_ConnectionSpace:
             return space
 
         space = get_space()
+        global ids
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
-
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Repeat_1', 'Module_Identity_1']
 
@@ -289,6 +338,28 @@ class Test_ConnectionSpace:
         assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_3', 'Module_Identity_4',
                        'Module_Identity_5', 'Module_Identity_6', 'Module_Identity_7', 'Module_Identity_1']
 
+    def test_repeat_subgraph(self):
+        def get_space():
+            space = HyperSpace()
+            with space.as_default():
+                in1 = HyperInput()
+                rep = Repeat(module_fn=block1, repeat_num_choices=[2, 3, 4])(in1)
+                id3 = Identity()(rep)
+            return space
+
+        space = get_space()
+        global ids
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'Module_Repeat_1', 'Module_Identity_1']
+
+        assert space.Param_Choice_1.options == [2, 3, 4]
+        ids = []
+        space.Param_Choice_1.assign(3)
+        space.traverse(get_id)
+        assert ids == ['Module_HyperInput_1', 'ID_0_block1_id_1', 'ID_0_block1_id_2', 'ID_1_block1_id_1',
+                       'ID_1_block1_id_2', 'ID_2_block1_id_1', 'ID_2_block1_id_2', 'Module_Identity_1']
+
     def test_input_choice(self):
         def get_space(keep_link=True):
             space = HyperSpace()
@@ -301,12 +372,9 @@ class Test_ConnectionSpace:
                 id4 = Identity()(ic1)
             return space
 
+        global ids
         space = get_space()
         ids = []
-
-        def get_id(m):
-            ids.append(m.id)
-            return True
 
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_1', 'Module_Identity_2', 'Module_Identity_3',

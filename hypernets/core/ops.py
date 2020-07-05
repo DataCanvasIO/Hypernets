@@ -41,7 +41,8 @@ class ConnectionSpace(ModuleSpace):
             try:
                 self.space.scope.entry(self.id)
                 input, output = self.dynamic_fn(self)
-                if not all([input, output]):
+                if not all([input, output]) or (
+                        isinstance(input, list) and isinstance(output, list) and (len(input) <= 0 or len(output) <= 0)):
                     # node removed
                     if self.keep_link:
                         # Only one input and one output are allowed
@@ -83,7 +84,7 @@ class ConnectionSpace(ModuleSpace):
             if not self.space.is_isolated_module(real_from[0]):
                 real_from = list(self.space.get_sub_graph_outputs(real_from[0]))
 
-            if isinstance(from_module, ModuleSpace):
+            if isinstance(to_module, ModuleSpace):
                 real_to = [to_module]
             else:
                 assert len(to_module) > 0, f'`from_module` contains at least 1 element.'
@@ -108,7 +109,9 @@ class Optional(ConnectionSpace):
 
     def optional_fn(self, m):
         if self.hp_opt.value:
-            return self._module, self._module
+            input = self.space.get_sub_graph_inputs(self._module)
+            output = self.space.get_sub_graph_outputs(self._module)
+            return input, output
         else:
             return None, None
 
@@ -125,14 +128,17 @@ class Or(ConnectionSpace):
 
     def or_fn(self, m):
         module = self._module_list[self.hp_or.value]
-        return module, module
+        input = self.space.get_sub_graph_inputs(module)
+        output = self.space.get_sub_graph_outputs(module)
+        return input, output
 
 
 class Sequential(ConnectionSpace):
     def __init__(self, module_list, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
-        assert all([isinstance(m, ModuleSpace) for m in module_list]), 'module_list can only contain Module.'
+        assert all([isinstance(m, (ModuleSpace, list)) for m in
+                    module_list]), 'module_list can only contains ModuleSpace or list.'
         self._module_list = module_list
         self.hp_lazy = Choice([0])
         ConnectionSpace.__init__(self, self.sequential_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
@@ -168,15 +174,17 @@ class Permutation(ConnectionSpace):
 
     def permutation_fn(self, m):
         seq = self.hp_all_seq.value
-        input = None
+        # input = None
         last = None
         for i in seq:
-            if input is None:
-                input = self._module_list[i]
+            # if input is None:
+            #    input = self._module_list[i]
             if last is not None:
-                self._module_list[i](last)
+                self.connect_module_or_subgraph(last, self._module_list[i])
+                # self._module_list[i](last)
             last = self._module_list[i]
-        output = last
+        input = self.space.get_sub_graph_inputs(last)
+        output = self.space.get_sub_graph_outputs(last)
         return input, output
 
 
@@ -197,10 +205,11 @@ class Repeat(ConnectionSpace):
         module_list = [self.module_fn(step) for step in range(repeat_num)]
         last = module_list[0]
         for i in range(1, len(module_list)):
-            module_list[i](last)
+            self.connect_module_or_subgraph(last, module_list[i])
+            # module_list[i](last)
             last = module_list[i]
-        input = module_list[0]
-        output = last
+        input = self.space.get_sub_graph_inputs(last)
+        output = self.space.get_sub_graph_outputs(last)
         return input, output
 
 
