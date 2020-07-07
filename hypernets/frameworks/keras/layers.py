@@ -222,7 +222,7 @@ class Identity(BaseHyperLayer):
         BaseHyperLayer.__init__(self, self._call, space, name, **hyperparams)
 
     def _call(self, x):
-        return x
+        return kl.Activation('linear', name=self.name)(x)
 
 
 class AlignFilters(BaseHyperLayer):
@@ -232,14 +232,14 @@ class AlignFilters(BaseHyperLayer):
         BaseHyperLayer.__init__(self, self._call, space, name, **hyperparams)
 
     def _call(self, x):
-        if x.get_shape().as_list[-1] != self.filters:
-            x = kl.Activation('relu', name=f'{self.name_prefix}_relu_')(x)
+        if x.get_shape().as_list()[-1] > 1 and x.get_shape().as_list()[-1] != self.filters:
+            x = kl.Activation('relu', name=f'{self.name_prefix}relu_')(x)
             x = kl.Conv2D(filters=self.filters,
                           kernel_size=(1, 1),
                           strides=(1, 1),
                           padding='same',
-                          name=f'{self.name_prefix}_bn_')(x)
-            x = kl.BatchNormalization(name=f'{self.name_prefix}_bn_')(x)
+                          name=f'{self.name_prefix}conv2d_')(x)
+            x = kl.BatchNormalization(name=f'{self.name_prefix}bn_')(x)
             return x
         else:
             return x

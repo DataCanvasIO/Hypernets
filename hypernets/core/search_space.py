@@ -35,6 +35,7 @@ class HyperSpace(Mutable):
         self.modules = set()
         self.hyper_params = set()
         self._inputs = set()
+        self._outputs = set()
         self._assigned_params_stack = []
         self._is_compiled = False
         self.space_id = generate_id()
@@ -98,11 +99,12 @@ class HyperSpace(Mutable):
 
             outputs = self.get_outputs(module)
             if len(outputs) <= 0:
-                space_out.append(module.output)
+                space_out.append(module)
             return True
 
         self.traverse(compile_module, direction='forward')
         self._is_compiled = True
+        self._outputs = set(space_out)
 
     def traverse(self, fn, direction='forward', start_modules=[], discard_isolated_node=True):
         if direction == 'forward':
@@ -281,6 +283,16 @@ class HyperSpace(Mutable):
             assert all([isinstance(m, ModuleSpace) for m in modules])
             self._inputs = set(modules)
 
+    def set_outputs(self, modules):
+        assert modules is not None
+        assert isinstance(modules, (ModuleSpace, list))
+        if isinstance(modules, ModuleSpace):
+            self._outputs = {modules}
+        else:
+            assert len(modules) > 0
+            assert all([isinstance(m, ModuleSpace) for m in modules])
+            self._outputs = set(modules)
+
     def get_inputs(self, module=None, discard_isolated_node=True):
         inputs = set()
         if module is None:
@@ -316,6 +328,9 @@ class HyperSpace(Mutable):
     def get_outputs(self, module=None, discard_isolated_node=True):
         outputs = set()
         if module is None:
+            if len(self._outputs) > 0:
+                return sorted(self._outputs, key=lambda m: m.id)
+
             for m in self.modules:
                 has_in = False
                 has_out = False

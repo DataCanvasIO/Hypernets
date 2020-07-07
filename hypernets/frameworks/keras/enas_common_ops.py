@@ -41,6 +41,7 @@ def sepconv5x5(name_prefix, filters, strides=(1, 1)):
 
 def maxpooling3x3(name_prefix, filters, strides=(1, 1)):
     max = MaxPooling2D(pool_size=(3, 3), strides=strides, padding='same', name=f'{name_prefix}maxpooling3x3_')
+    # return max
     align = AlignFilters(filters=filters, name_prefix=name_prefix + 'maxpool3x3_align_')(max)
     return align
 
@@ -48,6 +49,7 @@ def maxpooling3x3(name_prefix, filters, strides=(1, 1)):
 def avgpooling3x3(name_prefix, filters, strides=(1, 1)):
     name_prefix = name_prefix + 'avgpooling3x3_'
     avg = AveragePooling2D(pool_size=(3, 3), strides=strides, padding='same', name=f'{name_prefix}avgpooling3x3_')
+    # return avg
     align = AlignFilters(filters=filters, name_prefix=name_prefix + 'avgpoo3x3_align_')(avg)
     return align
 
