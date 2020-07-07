@@ -156,7 +156,8 @@ class HyperSpace(Mutable):
             if f == from_module and t == to_module:
                 found = True
                 break
-        self.edges.remove((from_module, to_module))
+        if len(self.edges & {(from_module, to_module)}) == 1:
+            self.edges.remove((from_module, to_module))
 
     def disconnect_all(self, module):
         found = set()
@@ -909,9 +910,10 @@ class ModuleSpace(HyperNode):
         assert len(args) > 0
         m = args[0]
         assert m is not None, 'The module to be connected cannot be None.'
+        assert isinstance(m, (ModuleSpace, list))
         if isinstance(m, ModuleSpace):
             self.space.connect(m, self)
-        elif isinstance(m, list):
+        else:
             for mi in m:
                 assert mi is not None, 'The module to be connected cannot be None.'
                 self.space.connect(mi, self)

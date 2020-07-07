@@ -214,18 +214,22 @@ class Repeat(ConnectionSpace):
 
 
 class InputChoice(ConnectionSpace):
-    def __init__(self, connection_num, max_chosen_num=0, keep_link=False, space=None, name=None):
+    def __init__(self, inputs, max_chosen_num=0, keep_link=False, space=None, name=None):
+        assert isinstance(inputs, list)
+        connection_num = len(inputs)
+        assert connection_num > 1
+        self.inputs = inputs
         self.hp_choice = MultipleChoice(list(range(connection_num)), max_chosen_num)
-        self.connection_num = connection_num
         self.max_chosen_num = max_chosen_num
         ConnectionSpace.__init__(self, None, keep_link, space, name, hp_choice=self.hp_choice)
 
     def _on_params_ready(self):
         with self.space.as_default():
-            inputs = self.space.get_inputs(self)
-            for i, input in enumerate(inputs):
-                if i not in self.hp_choice.value:
-                    self.space.disconnect(input, self)
+            for input in self.inputs:
+                self.space.disconnect(input, self)
+            for i, input in enumerate(self.inputs):
+                if i in self.hp_choice.value:
+                    self.space.connect(input, self)
 
             outputs = self.space.get_outputs(self)
             for output in outputs:

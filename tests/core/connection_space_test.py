@@ -368,7 +368,7 @@ class Test_ConnectionSpace:
                 id1 = Identity()(in1)
                 id2 = Identity()(in1)
                 id3 = Identity()(in1)
-                ic1 = InputChoice(3, 2)([id1, id2, id3])
+                ic1 = InputChoice([id1, id2, id3], 2)([id1, id2, id3])
                 id4 = Identity()(ic1)
             return space
 
