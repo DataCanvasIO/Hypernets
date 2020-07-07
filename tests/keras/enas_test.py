@@ -4,6 +4,7 @@
 """
 from hypernets.frameworks.keras.enas_common_ops import sepconv2d_bn, sepconv3x3, sepconv5x5, avgpooling3x3, \
     maxpooling3x3, add, identity, conv_op, conv_node, conv_cell
+from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
 from hypernets.frameworks.keras.layers import Input
 from hypernets.core.ops import *
 from hypernets.core.search_space import HyperSpace
@@ -71,7 +72,7 @@ class Test_Enas():
         space.Module_Or_1.hp_or.assign(2)
         ids = []
         space.traverse(get_id)
-        assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_avgpooling3x3_avgpooling3x3_',
+        assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_avgpooling3x3_pool_',
                        'Module_AlignFilters_1']
 
         space = get_space()
@@ -79,7 +80,7 @@ class Test_Enas():
         space.Module_Or_1.hp_or.assign(3)
         ids = []
         space.traverse(get_id)
-        assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_maxpooling3x3_', 'Module_AlignFilters_2']
+        assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_maxpooling3x3_pool_', 'Module_AlignFilters_2']
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
@@ -89,17 +90,20 @@ class Test_Enas():
         assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_identity']
 
     def test_enas_op(self):
+        hp_dict = {}
+
         def get_space():
             space = HyperSpace()
             with space.as_default():
                 filters = 64
                 in1 = Input(shape=(28, 28, 1,))
-                conv = conv_op('normal', 0, 0, 'L', [in1, in1], filters)
+                conv = conv_op(hp_dict, 'normal', 0, 0, 'L', [in1, in1], filters)
                 space.set_inputs([in1, in1])
                 space.set_outputs(conv)
                 return space
 
         space = get_space()
+        assert len(hp_dict.items()) == 2
         global ids
         ids = []
         space.traverse(get_id)
@@ -117,7 +121,7 @@ class Test_Enas():
                        'ID_normal_C0_N0_L_sepconv5x5_sepconv2d_0', 'ID_normal_C0_N0_L_sepconv5x5_bn_0_',
                        'ID_normal_C0_N0_L_sepconv5x5_relu_1_', 'ID_normal_C0_N0_L_sepconv5x5_sepconv2d_1',
                        'ID_normal_C0_N0_L_sepconv5x5_bn_1_']
-
+        hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
         space.Module_Or_1.hp_or.assign(1)
@@ -130,22 +134,23 @@ class Test_Enas():
         #
         # model = space.keras_model()
         # plot_model(model)
-
+        hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
         space.Module_Or_1.hp_or.assign(2)
         ids = []
         space.traverse(get_id)
-        assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_avgpooling3x3_avgpooling3x3_',
+        assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_avgpooling3x3_pool_',
                        'Module_AlignFilters_1']
-
+        hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
         space.Module_Or_1.hp_or.assign(3)
         ids = []
         space.traverse(get_id)
-        assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_maxpooling3x3_', 'Module_AlignFilters_2']
+        assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_maxpooling3x3_pool_', 'Module_AlignFilters_2']
 
+        hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
         space.Module_Or_1.hp_or.assign(4)
@@ -154,24 +159,27 @@ class Test_Enas():
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_identity']
 
     def test_enas_node(self):
+        hp_dict = {}
+
         def get_space():
             space = HyperSpace()
             with space.as_default():
                 filters = 64
                 in1 = Input(shape=(28, 28, 1,))
-                conv_node('normal', 0, 0, [in1, in1], filters)
+                conv_node(hp_dict, 'normal', 0, 0, [in1, in1], filters)
                 space.set_inputs(in1)
                 return space
 
         space = get_space()
+        assert len(hp_dict.items()) == 4
         assert len(space.edges & {(space.Module_Input_1, space.Module_InputChoice_1),
                                   (space.Module_Input_1, space.Module_InputChoice_2)}) == 2
         global ids
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_InputChoice_1', 'Module_InputChoice_2',
-                       'Module_Or_1', 'Module_Or_2', 'ID_normal_C0_N0_add_']
-
+                       'Module_Or_1', 'Module_Or_2', 'Module_SafeAdd_1']
+        hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
         space.Module_Or_1.hp_or.assign(0)
@@ -186,8 +194,8 @@ class Test_Enas():
                        'ID_normal_C0_N0_R_sepconv3x3_bn_0_', 'ID_normal_C0_N0_L_sepconv5x5_relu_1_',
                        'ID_normal_C0_N0_R_sepconv3x3_relu_1_', 'ID_normal_C0_N0_L_sepconv5x5_sepconv2d_1',
                        'ID_normal_C0_N0_R_sepconv3x3_sepconv2d_1', 'ID_normal_C0_N0_L_sepconv5x5_bn_1_',
-                       'ID_normal_C0_N0_R_sepconv3x3_bn_1_', 'ID_normal_C0_N0_add_']
-
+                       'ID_normal_C0_N0_R_sepconv3x3_bn_1_', 'Module_SafeAdd_1']
+        hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
         space.Module_Or_1.hp_or.assign(0)
@@ -199,16 +207,28 @@ class Test_Enas():
         plot_model(model, to_file='test_enas_node.png', show_shapes=True)
 
     def test_enas_cell(self):
+        hp_dict = {}
+
         def get_space():
             space = HyperSpace()
             with space.as_default():
                 filters = 64
                 in1 = Input(shape=(28, 28, 1,))
-                conv_cell('normal', 0, [in1, in1], filters, 5)
+                conv_cell(hp_dict, 'normal', 0, [in1, in1], filters, 5)
                 space.set_inputs(in1)
                 return space
 
         space = get_space()
+        assert len(hp_dict.items()) == 20
         space.random_sample()
         model = space.keras_model()
         plot_model(model, to_file='test_enas_cell.png', show_shapes=True)
+
+    def test_enas_micro(self):
+        hp_dict = {}
+        space = enas_micro_search_space(arch='NNRNNR', hp_dict=hp_dict)
+        assert len(hp_dict.items()) == 32
+
+        space.random_sample()
+        model = space.keras_model()
+        plot_model(model, to_file='test_enas_micro.png', show_shapes=True)

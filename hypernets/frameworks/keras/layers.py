@@ -7,21 +7,6 @@ from tensorflow.keras import layers as kl
 from hypernets.core.search_space import *
 
 
-class BaseHyperLayer(ModuleSpace):
-    def __init__(self, compile_fn, space=None, name=None, **hyperparams):
-        self.compile_fn = compile_fn
-        ModuleSpace.__init__(self, space, name, **hyperparams)
-
-    def _build(self):
-        self.is_built = True
-
-    def _compile(self, inputs):
-        return self.compile_fn(inputs)
-
-    def _on_params_ready(self):
-        pass
-
-
 class HyperLayer(ModuleSpace):
     def __init__(self, keras_layer, space=None, name=None, **hyperparams):
         self.keras_layer = keras_layer
@@ -215,31 +200,3 @@ class ZeroPadding2D(HyperLayer):
         if data_format is not None:
             kwargs['data_format'] = data_format
         HyperLayer.__init__(self, kl.ZeroPadding2D, space, name, **kwargs)
-
-
-class Identity(BaseHyperLayer):
-    def __init__(self, space=None, name=None, **hyperparams):
-        BaseHyperLayer.__init__(self, self._call, space, name, **hyperparams)
-
-    def _call(self, x):
-        return kl.Activation('linear', name=self.name)(x)
-
-
-class AlignFilters(BaseHyperLayer):
-    def __init__(self, filters, name_prefix, space=None, name=None, **hyperparams):
-        self.filters = filters
-        self.name_prefix = name_prefix
-        BaseHyperLayer.__init__(self, self._call, space, name, **hyperparams)
-
-    def _call(self, x):
-        if x.get_shape().as_list()[-1] > 1 and x.get_shape().as_list()[-1] != self.filters:
-            x = kl.Activation('relu', name=f'{self.name_prefix}relu_')(x)
-            x = kl.Conv2D(filters=self.filters,
-                          kernel_size=(1, 1),
-                          strides=(1, 1),
-                          padding='same',
-                          name=f'{self.name_prefix}conv2d_')(x)
-            x = kl.BatchNormalization(name=f'{self.name_prefix}bn_')(x)
-            return x
-        else:
-            return x
