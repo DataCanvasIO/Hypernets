@@ -2,13 +2,14 @@
 """
 
 """
-from hypernets.frameworks.keras.enas_common_ops import sepconv2d_bn, sepconv3x3, sepconv5x5, avgpooling3x3, \
-    maxpooling3x3, add, identity, conv_cell, conv_node, conv_layer
-from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
-from hypernets.frameworks.keras.layers import Input
+from tensorflow.keras.utils import plot_model
+
 from hypernets.core.ops import *
 from hypernets.core.search_space import HyperSpace
-from tensorflow.keras.utils import plot_model
+from hypernets.frameworks.keras.enas_common_ops import sepconv3x3, sepconv5x5, avgpooling3x3, \
+    maxpooling3x3, identity, conv_cell, conv_node, conv_layer
+from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
+from hypernets.frameworks.keras.layers import Input
 
 ids = []
 

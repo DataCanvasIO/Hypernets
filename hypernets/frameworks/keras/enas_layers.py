@@ -98,7 +98,7 @@ class FactorizedReduction(EnasHyperLayer):
                                 **hyperparams)
 
     def _call(self, x):
-        return self.factorized_reduction(x, f'{self.name_prefix}reduction')
+        return self.factorized_reduction(x, f'{self.name_prefix}reduction_')
 
 
 class CalibrateSize(EnasHyperLayer):

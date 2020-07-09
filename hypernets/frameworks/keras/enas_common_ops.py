@@ -5,7 +5,7 @@
 
 from hypernets.frameworks.keras.enas_layers import SafeConcatenate, Identity, CalibrateSize
 from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
-    SeparableConv2D
+    SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import Or, InputChoice, ConnectLooseEnd
 from hypernets.core.search_space import ModuleSpace
 
@@ -108,7 +108,7 @@ def conv_layer(hp_dict, type, cell_no, inputs, filters, node_num, is_reduction=F
         c1 = CalibrateSize(0, filters, name_prefix, data_format)(inputs)
         c2 = CalibrateSize(1, filters, name_prefix, data_format)(inputs)
     inputs = [c1, c2]
-    all_nodes = []
+    all_nodes = [c1, c2]
     for node_no in range(node_num):
         node = conv_node(hp_dict, type, cell_no, node_no, inputs, filters, is_reduction, data_format)
         inputs.append(node)
@@ -116,3 +116,29 @@ def conv_layer(hp_dict, type, cell_no, inputs, filters, node_num, is_reduction=F
     cle = ConnectLooseEnd(all_nodes)(all_nodes)
     concat = SafeConcatenate(filters, name_prefix, name=name_prefix + 'concat_')(cle)
     return concat
+
+
+def stem_op(input, filters, data_format=None):
+    conv = Conv2D(
+        filters=filters * 3,
+        kernel_size=(3, 3),
+        strides=(1, 1),
+        padding='same',
+        data_format=data_format,
+        name=f'0_stem_conv2d'
+    )(input)
+    bn = BatchNormalization(name=f'0_stem_bn')(conv)
+    return bn
+
+
+def auxiliary_head():
+    pass
+
+
+def classfication(x, classes, dropout_rate=0, data_format=None):
+    x = Activation('relu')(x)
+    x = GlobalAveragePooling2D(data_format=data_format)(x)
+    if dropout_rate > 0:
+        x = Dropout(dropout_rate)(x)
+    x = Dense(classes, activation='softmax')(x)
+    return x
