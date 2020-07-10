@@ -12,7 +12,7 @@ from hypernets.frameworks.keras.models import HyperKeras
 from hypernets.searchers.random_searcher import RandomSearcher
 
 rs = RandomSearcher(
-    lambda: enas_micro_search_space(arch='NR', hp_dict={}),
+    lambda: enas_micro_search_space(arch='NNRNNR', hp_dict={}),
     optimize_direction='max')
 hk = HyperKeras(rs, optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'],
                 callbacks=[SummaryCallback()])
@@ -27,7 +27,7 @@ print("Number of original training examples:", len(x_train))
 print("Number of original test examples:", len(x_test))
 
 # sample for speed up
-samples = 10000
+samples = 100
 hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
-          max_trails=10, epochs=3)
+          max_trails=10, epochs=1)
 assert hk.best_model

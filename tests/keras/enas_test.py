@@ -227,6 +227,7 @@ class Test_Enas():
         hp_dict = {}
         space = enas_micro_search_space(arch='NNRNNR', hp_dict=hp_dict)
         assert len(hp_dict.items()) == 32
+        assert space.combinations
 
         space.random_sample()
         model = space.keras_model()

@@ -42,7 +42,7 @@ class EnasHyperLayer(ModuleSpace):
 
     def factorized_reduction(self, x, name_prefix):
         half_filters = self.filters // 2
-        x = kl.ReLU(name=f'{self.name_prefix}relu_')(x)
+        x = kl.ReLU(name=f'{name_prefix}relu_')(x)
         x_0 = kl.AveragePooling2D(
             pool_size=(1, 1),
             strides=(2, 2),

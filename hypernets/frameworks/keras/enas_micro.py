@@ -18,8 +18,6 @@ def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=6
         stem = stem_op(input, init_filters, data_format)
         node0 = stem
         node1 = stem
-        # node0 = input
-        # node1 = input
         reduction_no = 0
         normal_no = 0
 
@@ -38,11 +36,12 @@ def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=6
 
             if is_reduction:
                 node0 = node1
-                node1 = FactorizedReduction(filters, f'{type}_C{cell_no}_', data_format)(node1)
+                node1 = FactorizedReduction(filters, f'{normal_no + reduction_no}_{type}_C{cell_no}_', data_format)(
+                    node1)
             x = conv_layer(hp_dict, f'{normal_no + reduction_no}_{type}', cell_no, [node0, node1], filters, node_num,
                            is_reduction)
             node0 = node1
             node1 = x
-        logit = classfication(x, classes, classification_dropout, data_format)
+        logit = classification(x, classes, classification_dropout, data_format)
         space.set_inputs(input)
     return space

@@ -129,16 +129,30 @@ class Activation(HyperLayer):
 
 
 class Conv2D(HyperLayer):
-    def __init__(self, filters, kernel_size, space=None, name=None, **kwargs):
+    def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', data_format=None, space=None, name=None,
+                 **kwargs):
         kwargs['filters'] = filters
         kwargs['kernel_size'] = kernel_size
+        if strides is not None:
+            kwargs['strides'] = strides
+        if padding is not None:
+            kwargs['padding'] = padding
+        if data_format is not None:
+            kwargs['data_format'] = data_format
         HyperLayer.__init__(self, kl.Conv2D, space, name, **kwargs)
 
 
 class SeparableConv2D(HyperLayer):
-    def __init__(self, filters, kernel_size, space=None, name=None, **kwargs):
+    def __init__(self, filters, kernel_size, strides=(1, 1), padding='valid', data_format=None, space=None, name=None,
+                 **kwargs):
         kwargs['filters'] = filters
         kwargs['kernel_size'] = kernel_size
+        if strides is not None:
+            kwargs['strides'] = strides
+        if padding is not None:
+            kwargs['padding'] = padding
+        if data_format is not None:
+            kwargs['data_format'] = data_format
         HyperLayer.__init__(self, kl.SeparableConv2D, space, name, **kwargs)
 
 

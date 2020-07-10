@@ -188,6 +188,11 @@ assert hk.best_model
 
 ## Define An ENAS Micro Search Space
 
+![](images/enas_arch_1.png)
+
+![](images/enas_arch_2.png)
+* illastration of ENAS 
+
 ```python
 # define an ENAS micro search space
 
@@ -332,9 +337,9 @@ def classfication(x, classes, dropout_rate=0, data_format=None):
     return x
 
 
-from .enas_common_ops import *
-from .layers import Input
-from .enas_layers import FactorizedReduction
+from hypernets.frameworks.keras.enas_common_ops import *
+from hypernets.frameworks.keras.layers import Input
+from hypernets.frameworks.keras.enas_layers import FactorizedReduction
 from hypernets.core.search_space import HyperSpace
 
 def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=64, 
@@ -697,4 +702,8 @@ Trail No:2
 ```
 
 
-[1] Elsken T, Metzen J H, Hutter F. Neural architecture search: A survey[J]. arXiv preprint arXiv:1808.05377, 2018.
+References
+
+[1] Pham H, Guan M Y, Zoph B, et al. Efficient neural architecture search via parameter sharing[J]. arXiv preprint arXiv:1802.03268, 2018.
+
+[2] Elsken T, Metzen J H, Hutter F. Neural architecture search: A survey[J]. arXiv preprint arXiv:1808.05377, 2018.

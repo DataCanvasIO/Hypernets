@@ -131,14 +131,15 @@ def stem_op(input, filters, data_format=None):
     return bn
 
 
-def auxiliary_head():
+def auxiliary_head(x, data_format=None):
     pass
 
 
-def classfication(x, classes, dropout_rate=0, data_format=None):
-    x = Activation('relu')(x)
-    x = GlobalAveragePooling2D(data_format=data_format)(x)
+def classification(x, classes, dropout_rate=0, data_format=None):
+    name_prefix = 'classification'
+    x = Activation('relu', name=f'{name_prefix}_relu')(x)
+    x = GlobalAveragePooling2D(data_format=data_format, name=f'{name_prefix}_global_avgpool')(x)
     if dropout_rate > 0:
-        x = Dropout(dropout_rate)(x)
-    x = Dense(classes, activation='softmax')(x)
+        x = Dropout(dropout_rate, name=f'{name_prefix}_dropout')(x)
+    x = Dense(classes, activation='softmax', name=f'{name_prefix}_logit')(x)
     return x
