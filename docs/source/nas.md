@@ -194,6 +194,10 @@ assert hk.best_model
 
 ![](images/enas_arch_2.png)
 
+* An ENAS architecture sample
+
+![](images/enas_arch_sample.png)
+
 ```python
 # define an ENAS micro search space
 
@@ -414,8 +418,6 @@ hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_te
 assert hk.best_model
 ```
 
-* ENAS arch sample
-![](images/enas_arch_sample.png)
 
 ```log
 /Users/jack/opt/anaconda3/envs/hypernets/bin/python /Users/jack/workspace/aps/Hypernets/tests/keras/run_enas.py
