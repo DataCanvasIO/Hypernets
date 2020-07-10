@@ -415,7 +415,7 @@ assert hk.best_model
 ```
 
 * ENAS arch sample
-![](images/enas_arch_2.png)
+![](images/enas_arch_sample.png)
 
 ```log
 /Users/jack/opt/anaconda3/envs/hypernets/bin/python /Users/jack/workspace/aps/Hypernets/tests/keras/run_enas.py
