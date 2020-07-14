@@ -6,33 +6,87 @@ __author__ = 'yangjian'
 
 from hypernets.core.search_space import ModuleSpace, Choice
 from hypernets.core.ops import ConnectionSpace
+from sklearn import impute, pipeline, compose, preprocessing as sk_pre
 
-from sklearn import preprocessing as sk_pre
-from sklearn import impute
-from sklearn import pipeline
-from sklearn.compose import ColumnTransformer
 import numpy as np
 
 
-class PipelineInput(ModuleSpace):
-    def __init__(self, space=None, name=None, **hyperparams):
+class HyperTransformer(ModuleSpace):
+    def __init__(self, transformer=None, space=None, name=None, **hyperparams):
+        self.transformer = transformer
         ModuleSpace.__init__(self, space, name, **hyperparams)
+
+    def _build(self):
+        if self.transformer is not None:
+            pv = self.param_values
+            self.compile_fn = self.transformer(**pv)
+        else:
+            self.compile_fn = None
+
+    def _compile(self, inputs):
+        return self.compile_fn
+
+    def _on_params_ready(self):
+        pass
+
+
+class ComposeTransformer(HyperTransformer):
+    def __init__(self, space=None, name=None, **hyperparams):
+        HyperTransformer.__init__(self, None, space, name, **hyperparams)
+
+    def compose(self):
+        raise NotImplementedError
+
+    def get_transformers(self, last_module, input_id):
+        transformers = []
+        next = last_module
+        while True:
+            if next.id == input_id:
+                break
+            assert isinstance(next, HyperTransformer)
+            if isinstance(next, ComposeTransformer):
+                next, transformer = next.compose()
+            else:
+                transformer = (next.name, next.output)
+
+            transformers.insert(0, transformer)
+            inputs = self.space.get_inputs(next)
+            if len(inputs) <= 0:
+                break
+            assert len(inputs) == 1, 'Pipeline does not support branching.'
+            next = inputs[0]
+        return next, transformers
+
+
+class PipelineInput(HyperTransformer):
+    def __init__(self, space=None, name=None, **hyperparams):
+        HyperTransformer.__init__(self, None, space, name, **hyperparams)
         self.output_id = None
 
 
-class PipelineOutput(ModuleSpace):
-    def __init__(self, space=None, name=None, **hyperparams):
-        ModuleSpace.__init__(self, space, name, **hyperparams)
+class PipelineOutput(ComposeTransformer):
+    def __init__(self, pipeline_name, columns=None, space=None, name=None, **hyperparams):
+        ComposeTransformer.__init__(self, space, name, **hyperparams)
         self.input_id = None
+        self.pipeline_name = pipeline_name
+        self.columns = columns
+
+    def compose(self):
+        inputs = self.space.get_inputs(self)
+        assert len(inputs) == 1, 'Pipeline does not support branching.'
+        next, steps = self.get_transformers(inputs[0], self.input_id)
+        p = pipeline.Pipeline(steps)
+        return next, (self.pipeline_name, p)
 
 
 class Pipeline(ConnectionSpace):
-    def __init__(self, module_list, keep_link=False, space=None, name=None):
+    def __init__(self, module_list, columns=None, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
         assert all([isinstance(m, (ModuleSpace, list)) for m in
                     module_list]), 'module_list can only contains ModuleSpace or list.'
         self._module_list = module_list
+        self.columns = columns
         self.hp_lazy = Choice([0])
         ConnectionSpace.__init__(self, self.pipeline_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
 
@@ -42,8 +96,9 @@ class Pipeline(ConnectionSpace):
             self.connect_module_or_subgraph(last, self._module_list[i])
             # self._module_list[i](last)
             last = self._module_list[i]
-        pipeline_input = PipelineInput(name=self.id + '_input')
-        pipeline_output = PipelineOutput(name=self.id + '_output')
+        pipeline_input = PipelineInput(name=self.name + '_input', space=self.space)
+        pipeline_output = PipelineOutput(pipeline_name=self.name, columns=self.columns, name=self.name + '_output',
+                                         space=self.space)
         pipeline_input.output_id = pipeline_output.id
         pipeline_output.input_id = pipeline_input.id
 
@@ -58,49 +113,58 @@ class Pipeline(ConnectionSpace):
         return pipeline_input, pipeline_output
 
 
-class HyperTransformer(ModuleSpace):
-    def __init__(self, transformer=None, space=None, name=None, **hyperparams):
-        self.transformer = transformer
-        ModuleSpace.__init__(self, space, name, **hyperparams)
-
-    def _build(self):
-        if self.transformer is not None:
-            pv = self.param_values
-            self.compile_fn = self.transformer(**pv)
-        self.is_built = True
-
-    def _compile(self, inputs):
-        return self.compile_fn
-
-    def _on_params_ready(self):
-        pass
-        # self._build()
-
-
-class ComposeTransformer(HyperTransformer):
-    def __init__(self, last_transformer, space=None, name=None, **kwargs):
-        HyperTransformer.__init__(self, None, space, name, **kwargs)
-        self.last_transformer = last_transformer
-        self(last_transformer)
+class ColumnTransformer(ComposeTransformer):
+    def __init__(self, space=None, name=None, **hyperparams):
+        ComposeTransformer.__init__(self, space, name, **hyperparams)
 
     def compose(self):
-        raise NotImplementedError
-
-    def get_transformers(self):
+        inputs = self.space.get_inputs(self)
+        assert all([isinstance(m, PipelineOutput) for m in
+                    inputs]), 'The upstream module of `ColumnTransformer` must be `Pipeline`.'
         transformers = []
-        next = self.last_transformer
-        while True:
-            transformer = next
-            assert isinstance(next, HyperTransformer)
-            if isinstance(next, ComposeTransformer):
-                transformer = next.compose()
-            transformers.insert(0, transformer)
-            inputs = self.space.get_inputs(next)
-            if len(inputs) <= 0:
-                break
-            assert len(inputs) == 1, 'Pipeline does not support branching.'
-            next = inputs[0]
-        return transformers
+        next = None
+        for p in inputs:
+            next, (pipeline_name, transformer) = p.compose()
+            transformers.append((p.pipeline_name, transformer, p.columns))
+
+        pv = self.param_values
+        ct = compose.ColumnTransformer(transformers, **pv)
+        return next, (self.name, ct)
+
+
+#
+# class ColumnTransformer(ConnectionSpace):
+#     def __init__(self, transformers, keep_link=False, space=None, name=None):
+#         assert isinstance(transformers, list), f'transformers must be a List.'
+#         assert len(transformers) > 0, f'transformers contains at least 1.'
+#         assert all([isinstance(m, tuple) and len(m) == 2 and isinstance(m[0], ModuleSpace) for m in
+#                     transformers]), 'transformers should be a list of (module, column(s)) tuples.'
+#         self.transformers = transformers
+#         self.hp_lazy = Choice([0])
+#         ConnectionSpace.__init__(self, self.column_transformer_fn, keep_link, space, name, hp_lazy=self.hp_lazy)
+#
+#     def column_transformer_fn(self, m):
+#         for module, columns in self.transformers:
+#
+#         last = self._module_list[0]
+#         for i in range(1, len(self._module_list)):
+#             self.connect_module_or_subgraph(last, self._module_list[i])
+#             # self._module_list[i](last)
+#             last = self._module_list[i]
+#         pipeline_input = PipelineInput(name=self.name + '_input', space=self.space)
+#         pipeline_output = PipelineOutput(pipeline_name=self.name, name=self.name + '_output', space=self.space)
+#         pipeline_input.output_id = pipeline_output.id
+#         pipeline_output.input_id = pipeline_input.id
+#
+#         input = self.space.get_sub_graph_inputs(last)
+#         assert len(input) == 1, 'Pipeline does not support branching.'
+#         output = self.space.get_sub_graph_outputs(last)
+#         assert len(output) == 1, 'Pipeline does not support branching.'
+#
+#         input[0](pipeline_input)
+#         pipeline_output(output[0])
+#
+#         return pipeline_input, pipeline_output
 
 
 class StandardScaler(HyperTransformer):
