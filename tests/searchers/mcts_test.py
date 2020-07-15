@@ -10,7 +10,7 @@ from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.ops import *
 from hypernets.core.search_space import *
 from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.core.callbacks import SummaryCallback
 
 import numpy as np

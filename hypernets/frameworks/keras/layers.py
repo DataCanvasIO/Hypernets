@@ -24,7 +24,6 @@ class HyperLayer(ModuleSpace):
 
     def _on_params_ready(self):
         pass
-        # self._build()
 
 
 class Masking(HyperLayer):
