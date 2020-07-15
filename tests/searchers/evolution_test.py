@@ -6,7 +6,7 @@ from hypernets.searchers.evolution_searcher import *
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.ops import *
 from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.models import *
+from hypernets.frameworks.keras.hyper_keras import *
 from hypernets.core.callbacks import SummaryCallback
 import numpy as np
 

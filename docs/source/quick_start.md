@@ -36,7 +36,7 @@ Basically, to search the best model only needs 4 steps:
 ```python
 from hypernets.searchers.mcts_searcher import *
 from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.core.callbacks import SummaryCallback
 
 # Define Search Space

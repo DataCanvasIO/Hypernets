@@ -7,7 +7,7 @@ import tensorflow as tf
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import *
 from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.searchers.random_searcher import RandomSearcher
 
 rs = RandomSearcher(

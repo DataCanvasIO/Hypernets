@@ -8,7 +8,7 @@ from hypernets.frameworks.keras.cnn_search_space import cnn_search_space
 
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import SummaryCallback
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 import numpy as np
 import tensorflow as tf
 

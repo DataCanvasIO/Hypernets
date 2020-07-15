@@ -39,7 +39,7 @@ python -c "from examples import smoke_testing;"
 ```python
 from hypernets.searchers.mcts_searcher import *
 from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.core.callbacks import SummaryCallback
 def get_space():
     space = HyperSpace()

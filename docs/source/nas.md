@@ -73,7 +73,7 @@ def dnn_search_space(input_shape, output_units, output_activation, units_choices
 # Search the best model in search space defined above 
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import SummaryCallback
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 import numpy as np
 
 rs = RandomSearcher(lambda: dnn_search_space(input_shape=10, output_units=2, output_activation='sigmoid'),
@@ -160,7 +160,7 @@ def cnn_search_space(input_shape, output_units, output_activation='softmax', blo
 
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import SummaryCallback
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 import numpy as np
 import tensorflow as tf
 
@@ -393,7 +393,7 @@ import tensorflow as tf
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import *
 from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.searchers.random_searcher import RandomSearcher
 
 rs = RandomSearcher(

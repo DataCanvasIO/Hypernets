@@ -4,7 +4,7 @@ __author__ = 'yangjian'
 
 """
 from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.models import HyperKeras
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection
