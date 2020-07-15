@@ -49,7 +49,7 @@ class HyperSpace(Mutable):
 
     @property
     def all_assigned(self):
-        all_assigned = self.traverse(lambda m: m.all_assigned, direction='backward', discard_isolated_node=False)
+        all_assigned = self.traverse(lambda m: m.all_assigned, direction='forward', discard_isolated_node=False)
         return all_assigned
 
     def push_assigned_param(self, param):

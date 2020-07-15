@@ -6,6 +6,7 @@
 from hypernets.core.search_space import ModuleSpace, Choice
 from hypernets.core.ops import ConnectionSpace
 from sklearn import impute, pipeline, compose, preprocessing as sk_pre
+from . import sklearn_ex
 
 import numpy as np
 
@@ -113,7 +114,17 @@ class Pipeline(ConnectionSpace):
 
 
 class ColumnTransformer(ComposeTransformer):
-    def __init__(self, space=None, name=None, **hyperparams):
+    def __init__(self, remainder='drop', sparse_threshold=0.3, n_jobs=None, transformer_weights=None, space=None,
+                 name=None, **hyperparams):
+        if remainder is not None and remainder != 'drop':
+            hyperparams['remainder'] = remainder
+        if sparse_threshold is not None and sparse_threshold != 0.3:
+            hyperparams['sparse_threshold'] = sparse_threshold
+        if n_jobs is not None:
+            hyperparams['n_jobs'] = n_jobs
+        if transformer_weights is not None:
+            hyperparams['transformer_weights'] = transformer_weights
+
         ComposeTransformer.__init__(self, space, name, **hyperparams)
 
     def compose(self):
@@ -177,6 +188,13 @@ class MaxAbsScaler(HyperTransformer):
 class LabelEncoder(HyperTransformer):
     def __init__(self, space=None, name=None, **kwargs):
         HyperTransformer.__init__(self, sk_pre.LabelEncoder, space, name, **kwargs)
+
+
+class MultiLabelEncoder(HyperTransformer):
+    def __init__(self, columns=None, space=None, name=None, **kwargs):
+        if columns is not None:
+            kwargs['columns'] = columns
+        HyperTransformer.__init__(self, sklearn_ex.MultiLabelEncoder, space, name, **kwargs)
 
 
 class OneHotEncoder(HyperTransformer):
