@@ -7,7 +7,7 @@ from hypernets.core.search_space import ModuleSpace, Choice
 from hypernets.core.ops import ConnectionSpace
 from sklearn import impute, pipeline, compose, preprocessing as sk_pre
 from . import sklearn_ex
-
+from . import sklearn_pandas
 import numpy as np
 
 
@@ -139,6 +139,34 @@ class ColumnTransformer(ComposeTransformer):
 
         pv = self.param_values
         ct = compose.ColumnTransformer(transformers, **pv)
+        return next, (self.name, ct)
+
+
+class DataFrameMapper(ComposeTransformer):
+    def __init__(self, default=False, sparse=False, df_out=False, input_df=False, space=None, name=None, **hyperparams):
+        if default != False:
+            hyperparams['default'] = default
+        if sparse is not None and sparse != False:
+            hyperparams['sparse'] = sparse
+        if df_out is not None and df_out != False:
+            hyperparams['df_out'] = df_out
+        if input_df is not None and input_df != False:
+            hyperparams['input_df'] = input_df
+
+        ComposeTransformer.__init__(self, space, name, **hyperparams)
+
+    def compose(self):
+        inputs = self.space.get_inputs(self)
+        assert all([isinstance(m, PipelineOutput) for m in
+                    inputs]), 'The upstream module of `DataFrameMapper` must be `Pipeline`.'
+        transformers = []
+        next = None
+        for p in inputs:
+            next, (pipeline_name, transformer) = p.compose()
+            transformers.append((p.columns, transformer))
+
+        pv = self.param_values
+        ct = sklearn_pandas.DataFrameMapper(features=transformers, **pv)
         return next, (self.name, ct)
 
 
