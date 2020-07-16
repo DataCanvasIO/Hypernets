@@ -52,6 +52,10 @@ class HyperSpace(Mutable):
         all_assigned = self.traverse(lambda m: m.all_assigned, direction='forward', discard_isolated_node=False)
         return all_assigned
 
+    @property
+    def assigned_params_stack(self):
+        return self._assigned_params_stack
+    
     def push_assigned_param(self, param):
         self._assigned_params_stack.append(param)
 
@@ -414,6 +418,9 @@ class HyperSpace(Mutable):
     def assign_by_vectors(self, vectors):
         i = 0
         for p in self.unassigned_iterator:
+            if not p.is_mutable:
+                p.random_sample()
+                continue
             if i >= len(vectors):
                 raise ValueError('`vector` and `space` does not match.')
             p.assign(p.numeric2value(vectors[i]))

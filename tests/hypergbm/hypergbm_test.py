@@ -5,7 +5,7 @@
 
 from hypernets.core.search_space import *
 from hypernets.core.ops import *
-from hypernets.frameworks.ml.preprocessing import Pipeline, SimpleImputer, StandardScaler, ColumnTransformer
+from hypernets.frameworks.ml.transformers import Pipeline, SimpleImputer, StandardScaler, ColumnTransformer
 import pytest
 from sklearn import pipeline
 from sklearn import preprocessing

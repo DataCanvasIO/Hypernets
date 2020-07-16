@@ -6,9 +6,10 @@
 from pandas import DataFrame
 import numpy as np
 import pandas as pd
-from hypernets.frameworks.ml.preprocessing import ColumnTransformer, DataFrameMapper
+from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
 from hypernets.frameworks.ml.column_selector import *
-from hypernets.frameworks.ml.common_ops import categorical_pipeline, numeric_pipeline
+from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, categorical_pipeline_complex, \
+    numeric_pipeline, numeric_pipeline_complex
 from hypernets.core.search_space import *
 from hypernets.core.ops import *
 
@@ -24,7 +25,17 @@ def get_space_categorical_pipeline():
     space = HyperSpace()
     with space.as_default():
         input = HyperInput(name='input1')
-        p1 = categorical_pipeline()(input)
+        p1 = categorical_pipeline_simple()(input)
+        p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
+        space.set_inputs(input)
+    return space
+
+
+def get_space_categorical_pipeline_complex():
+    space = HyperSpace()
+    with space.as_default():
+        input = HyperInput(name='input1')
+        p1 = categorical_pipeline_complex()(input)
         p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
         space.set_inputs(input)
     return space
@@ -40,12 +51,33 @@ def get_space_numeric_pipeline():
     return space
 
 
+def get_space_numeric_pipeline_complex():
+    space = HyperSpace()
+    with space.as_default():
+        input = HyperInput(name='input1')
+        p1 = numeric_pipeline_complex()(input)
+        p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
+        space.set_inputs(input)
+    return space
+
+
 def get_space_num_cat_pipeline(default=False):
     space = HyperSpace()
     with space.as_default():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline()(input)
-        p2 = categorical_pipeline()(input)
+        p2 = categorical_pipeline_simple()(input)
+        p3 = DataFrameMapper(default=default, input_df=True, df_out=True)([p1, p2])  # passthrough
+        space.set_inputs(input)
+    return space
+
+
+def get_space_num_cat_pipeline_complex(default=False):
+    space = HyperSpace()
+    with space.as_default():
+        input = HyperInput(name='input1')
+        p1 = numeric_pipeline_complex()(input)
+        p2 = categorical_pipeline_complex()(input)
         p3 = DataFrameMapper(default=default, input_df=True, df_out=True)([p1, p2])  # passthrough
         space.set_inputs(input)
     return space
@@ -80,13 +112,78 @@ class Test_CommonOps():
         global ids
         ids = []
         space.traverse(get_id)
-        assert ids == ['ID_input1', 'ID_Module_Pipeline_1_input', 'ID_categorical_imputer',
-                       'ID_categorical_label_encoder', 'ID_Module_Pipeline_1_output', 'Module_DataFrameMapper_1']
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_simple_0_input', 'ID_categorical_imputer_0',
+                       'ID_categorical_label_encoder_0', 'ID_categorical_pipeline_simple_0_output',
+                       'Module_DataFrameMapper_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
         df_1 = p.fit_transform(X, y)
         assert list(df_1.columns) == ['a', 'e', 'f']
+        assert df_1.shape == (3, 3)
+
+    def test_categorical_pipeline_complex(self):
+        global ids
+
+        space = get_space_categorical_pipeline_complex()
+        space.assign_by_vectors([1, 0])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
+                       'ID_categorical_label_encoder_0', 'ID_categorical_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a', 'e', 'f']
+        assert df_1.shape == (3, 3)
+
+        space = get_space_categorical_pipeline_complex()
+        space.assign_by_vectors([1, 1, 0])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
+                       'ID_categorical_onehot_0',
+                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a_a', 'a_b', 'e_False', 'e_True', 'f_c', 'f_d']
+        assert df_1.shape == (3, 6)
+
+        space = get_space_categorical_pipeline_complex()
+        space.assign_by_vectors([0, 1, 0])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
+                       'ID_categorical_onehot_0',
+                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a_a', 'a_b', 'a_missing_value', 'e_False', 'e_True', 'f_c', 'f_d',
+                                      'f_missing_value']
+        assert df_1.shape == (3, 8)
+
+        space = get_space_categorical_pipeline_complex()
+        space.assign_by_vectors([1, 1, 1])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
+                       'ID_categorical_onehot_0',
+                       'ID_categorical_svd_0', 'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a_e_f_0', 'a_e_f_1', 'a_e_f_2']
         assert df_1.shape == (3, 3)
 
     def test_numeric_pipeline(self):
@@ -96,8 +193,86 @@ class Test_CommonOps():
         global ids
         ids = []
         space.traverse(get_id)
-        assert ids == ['ID_input1', 'ID_Module_Pipeline_1_input', 'ID_numeric_imputer', 'ID_numeric_standard_scaler',
-                       'ID_Module_Pipeline_1_output', 'Module_DataFrameMapper_1']
+        assert ids == ['ID_input1', 'ID_numeric_pipeline_simple_0_input', 'ID_numeric_imputer_0',
+                       'ID_numeric_standard_scaler_0',
+                       'ID_numeric_pipeline_simple_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 4)
+
+    def test_numeric_pipeline_complex(self):
+        global ids
+
+        space = get_space_numeric_pipeline_complex()
+        space.assign_by_vectors([1, 0])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
+                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 4)
+
+        space = get_space_numeric_pipeline_complex()
+        space.assign_by_vectors([0, 1, 0])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
+                       'ID_numeric_standard_scaler_0', 'ID_numeric_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 4)
+
+        space = get_space_numeric_pipeline_complex()
+        space.assign_by_vectors([0, 1, 1])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
+                       'ID_numeric_minmax_scaler_0', 'ID_numeric_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 4)
+
+        space = get_space_numeric_pipeline_complex()
+        space.assign_by_vectors([0, 1, 2])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
+                       'ID_numeric_maxabs_scaler_0', 'ID_numeric_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 4)
+
+        space = get_space_numeric_pipeline_complex()
+        space.assign_by_vectors([0, 1, 3])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
+                       'ID_numeric_robust_scaler_0', 'ID_numeric_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -112,15 +287,21 @@ class Test_CommonOps():
         global ids
         ids = []
         space.traverse(get_id)
-        assert ids == ['ID_input1', 'ID_Module_Pipeline_1_input', 'ID_Module_Pipeline_2_input', 'ID_numeric_imputer',
-                       'ID_categorical_imputer', 'ID_numeric_standard_scaler', 'ID_categorical_label_encoder',
-                       'ID_Module_Pipeline_1_output', 'ID_Module_Pipeline_2_output', 'Module_DataFrameMapper_1']
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_simple_0_input', 'ID_numeric_pipeline_simple_0_input',
+                       'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_label_encoder_0',
+                       'ID_numeric_standard_scaler_0', 'ID_categorical_pipeline_simple_0_output',
+                       'ID_numeric_pipeline_simple_0_output', 'Module_DataFrameMapper_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
         df_1 = p.fit_transform(X, y)
-        assert list(df_1.columns) == ['b', 'c', 'd', 'l', 'a', 'e', 'f']
+        assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l']
         assert df_1.shape == (3, 7)
+
+        col_num = column_number(df_1)
+        assert col_num == ['b', 'c', 'd', 'l']
+        col_cat = column_object_category_bool(df_1)
+        assert col_cat == ['a', 'e', 'f']
 
         space = get_space_num_cat_pipeline(default=None)
         space.random_sample()
@@ -129,4 +310,55 @@ class Test_CommonOps():
         X, y = get_df()
         df_1 = p.fit_transform(X, y)
         assert df_1.shape == (3, 12)
-        assert list(df_1.columns) == ['b', 'c', 'd', 'l', 'a', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
+        assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l', 'g', 'h', 'i', 'j', 'k']
+
+    def test_num_cat_pipeline_complex(self):
+        global ids
+
+        space = get_space_num_cat_pipeline_complex()
+        space.assign_by_vectors([1, 1, 1, 1, 1, 1])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
+                       'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_onehot_0',
+                       'ID_numeric_minmax_scaler_0', 'ID_categorical_svd_0', 'ID_numeric_pipeline_complex_0_output',
+                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a_e_f_0', 'a_e_f_1', 'a_e_f_2', 'b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 7)
+
+        space = get_space_num_cat_pipeline_complex()
+        space.assign_by_vectors([1, 1, 1, 1, 1, 0])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
+                       'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_onehot_0',
+                       'ID_numeric_minmax_scaler_0', 'ID_categorical_pipeline_complex_0_output',
+                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a_a', 'a_b', 'e_False', 'e_True', 'f_c', 'f_d', 'b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 10)
+
+        space = get_space_num_cat_pipeline_complex()
+        space.assign_by_vectors([1, 1, 0, 1, 1])
+        space = space.compile_space()
+        ids = []
+        space.traverse(get_id)
+        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
+                       'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_label_encoder_0',
+                       'ID_numeric_minmax_scaler_0', 'ID_categorical_pipeline_complex_0_output',
+                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+
+        next, (name, p) = space.Module_DataFrameMapper_1.compose()
+        X, y = get_df()
+        df_1 = p.fit_transform(X, y)
+        assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l']
+        assert df_1.shape == (3, 7)

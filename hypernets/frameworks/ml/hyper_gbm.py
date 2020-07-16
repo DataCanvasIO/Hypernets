@@ -6,7 +6,7 @@ from hypernets.model.hyper_model import HyperModel
 from hypernets.model.estimator import Estimator
 import numpy as np
 import lightgbm
-from .preprocessing import *
+from .transformers import *
 from .estimators import HyperEstimator
 from sklearn import pipeline as sk_pipeline
 

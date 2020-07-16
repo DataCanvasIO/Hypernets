@@ -6,9 +6,9 @@
 from pandas import DataFrame
 import numpy as np
 import pandas as pd
-from hypernets.frameworks.ml.preprocessing import ColumnTransformer, DataFrameMapper
+from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
 from hypernets.frameworks.ml.column_selector import *
-from hypernets.frameworks.ml.common_ops import categorical_pipeline, numeric_pipeline
+from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, numeric_pipeline
 from hypernets.frameworks.ml.estimators import LightGBMEstimator
 from hypernets.frameworks.ml.hyper_gbm import HyperGBMEstimator
 from hypernets.core.search_space import *
@@ -19,7 +19,7 @@ def get_space_categorical_pipeline():
     space = HyperSpace()
     with space.as_default():
         input = HyperInput(name='input1')
-        p1 = categorical_pipeline()(input)
+        p1 = categorical_pipeline_simple()(input)
         p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
         est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
@@ -42,7 +42,7 @@ def get_space_num_cat_pipeline(default=False):
     with space.as_default():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline()(input)
-        p2 = categorical_pipeline()(input)
+        p2 = categorical_pipeline_simple()(input)
         p3 = DataFrameMapper(default=default, input_df=True, df_out=True)([p1, p2])  # passthrough
         est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
@@ -54,11 +54,11 @@ def get_space_multi_dataframemapper(default=False):
     with space.as_default():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline(seq_no=0)(input)
-        p2 = categorical_pipeline(seq_no=0)(input)
+        p2 = categorical_pipeline_simple(seq_no=0)(input)
         p3 = DataFrameMapper(default=default, input_df=True, df_out=True)([p1, p2])  # passthrough
 
         p4 = numeric_pipeline(seq_no=1)(p3)
-        p5 = categorical_pipeline(seq_no=1)(p3)
+        p5 = categorical_pipeline_simple(seq_no=1)(p3)
         p6 = DataFrameMapper(default=default, input_df=True, df_out=True)([p4, p5])
         est = LightGBMEstimator(task='binary', fit_kwargs={})(p6)
         space.set_inputs(input)
@@ -101,5 +101,5 @@ class Test_Estimator():
         estimator = HyperGBMEstimator(space)
         X, y = get_df()
         df_1 = estimator.pipeline.fit_transform(X, y)
-        assert list(df_1.columns) == ['b', 'c', 'd', 'l', 'a', 'e', 'f']
+        assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l']
         assert df_1.shape == (3, 7)
