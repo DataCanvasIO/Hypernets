@@ -117,7 +117,7 @@ class Test_Estimator():
         )
         space.assign_by_vectors([0, 3, 0.01, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1])
         estimator = HyperGBMEstimator('binary', space)
-        assert estimator.pipeline.pipeline_signature == 'f587f30db8357e13531ca2dbb38fec7d'
+        assert estimator.get_pipeline_signature(estimator.pipeline) == 'f587f30db8357e13531ca2dbb38fec7d'
 
     def test_bankdata(self):
         space = get_space_num_cat_pipeline_complex(
