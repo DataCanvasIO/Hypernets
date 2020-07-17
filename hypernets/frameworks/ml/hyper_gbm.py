@@ -2,36 +2,57 @@
 """
 
 """
-from hypernets.model.hyper_model import HyperModel
 from hypernets.model.estimator import Estimator
-import numpy as np
-import lightgbm
 from .transformers import *
 from .estimators import HyperEstimator
 from sklearn import pipeline as sk_pipeline
 from .sklearn_ex import calc_score
+import pickle
+import datetime
+import re
+import os
+import hashlib
+import pandas as pd
 
 
 class HyperGBMModel():
-    def __init__(self, data_pipeline, estimator, task, fit_kwargs=None):
+    def __init__(self, data_pipeline, pipeline_signature, estimator, task, cache_dir, fit_kwargs=None):
         self.data_pipeline = data_pipeline
+        self.pipeline_signature = pipeline_signature
         self.estimator = estimator
         self.task = task
         self.fit_kwargs = fit_kwargs
+        self.cache_dir = self._prepare_cache_dir(cache_dir)
 
     def fit(self, X, y, **kwargs):
-        X = self.data_pipeline.fit_transform(X, y)
+        X_cache = self.get_X_from_cache(X, load_pipeline=True)
+        if X_cache is None:
+            X = self.data_pipeline.fit_transform(X, y)
+            self.save_X_to_cache(X, save_pipeline=True)
+        else:
+            X = X_cache
         if self.fit_kwargs is not None:
             kwargs = self.fit_kwargs
         self.estimator.fit(X, y, **kwargs)
 
     def predict(self, X, **kwargs):
-        X = self.data_pipeline.transform(X)
+        X_cache = self.get_X_from_cache(X)
+        if X_cache is None:
+            X = self.data_pipeline.transform(X)
+            self.save_X_to_cache(X)
+        else:
+            X = X_cache
+
         preds = self.estimator.predict(X, **kwargs)
         return preds
 
     def predict_proba(self, X, **kwargs):
-        X = self.data_pipeline.transform(X)
+        X_cache = self.get_X_from_cache(X)
+        if X_cache is None:
+            X = self.data_pipeline.transform(X)
+            self.save_X_to_cache(X)
+        else:
+            X = X_cache
         proba = self.estimator.predict_proba(X, **kwargs)
         return proba
 
@@ -41,10 +62,73 @@ class HyperGBMModel():
         scores = calc_score(y, preds, proba, metrics, self.task)
         return scores
 
+    def _prepare_cache_dir(self, cache_dir):
+        if cache_dir is None:
+            cache_dir = 'tmp/cache'
+        if cache_dir[-1] == '/':
+            cache_dir = cache_dir[:-1]
+
+        cache_dir = os.path.expanduser(f'{cache_dir}')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        return cache_dir
+
+    def get_X_filepath(self, X):
+        file_path = f'{self.cache_dir}/{X.shape[0]}_{X.shape[1]}_{self.pipeline_signature}.h5'
+        return file_path
+
+    def get_pipeline_filepath(self, X):
+        file_path = f'{self.cache_dir}/{X.shape[0]}_{X.shape[1]}_pipeline_{self.pipeline_signature}.pkl'
+        return file_path
+
+    def get_X_from_cache(self, X, load_pipeline=False):
+        file_path = self.get_X_filepath(X)
+        if os.path.exists(file_path):
+            df = self.load_df(file_path)
+            if load_pipeline:
+                pipeline_filepath = self.get_pipeline_filepath(X)
+                try:
+                    with open(f'{pipeline_filepath}', 'rb') as input:
+                        self.data_pipeline = pickle.load(input)
+                except:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    return None
+            return df
+        else:
+            return None
+
+    def save_X_to_cache(self, X, save_pipeline=False):
+        file_path = self.get_X_filepath(X)
+        self.save_df(file_path, X)
+        if save_pipeline:
+            pipeline_file_path = self.get_pipeline_filepath(X)
+            with open(f'{pipeline_file_path}', 'wb') as output:
+                pickle.dump(self.data_pipeline, output, protocol=2)
+
+    def load_df(self, filepath):
+        try:
+            h5 = pd.HDFStore(filepath)
+            df = h5['data']
+            return df
+        except:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        finally:
+            h5.close()
+
+    def save_df(self, filepath, df):
+        try:
+            df.to_hdf(filepath, key='data', mode='w', format='t')
+        except:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
 
 class HyperGBMEstimator(Estimator):
-    def __init__(self, task, space_sample):
+    def __init__(self, task, space_sample, cache_dir=None):
         self.pipeline = None
+        self.cache_dir = cache_dir
         self.task = task
         Estimator.__init__(self, space=space_sample)
 
@@ -63,14 +147,21 @@ class HyperGBMEstimator(Estimator):
                           ComposeTransformer), 'The upstream node of `HyperEstimator` must be `ComposeTransformer`.'
         # next, (name, p) = pipeline_module[0].compose()
         self.pipeline = self.build_pipeline(space, pipeline_module[0])
-        model = HyperGBMModel(self.pipeline, estimator, fit_kwargs)
+        pipeline_signature = self.get_pipeline_signature(self.pipeline)
+        model = HyperGBMModel(self.pipeline, pipeline_signature, estimator, self.task, self.cache_dir, fit_kwargs)
         return model
+
+    def get_pipeline_signature(self, pipeline):
+        repr = self.pipeline.__repr__(1000000)
+        repr = re.sub(r'object at 0x(.*)>', "", repr)
+        md5 = hashlib.md5(repr.encode('utf-8')).hexdigest()
+        return md5
 
     def build_pipeline(self, space, last_transformer):
         transformers = []
         while True:
             next, (name, p) = last_transformer.compose()
-            transformers.append((name, p))
+            transformers.insert(0, (name, p))
             inputs = space.get_inputs(next)
             if inputs == space.get_inputs():
                 break

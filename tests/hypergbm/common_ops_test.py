@@ -5,6 +5,7 @@
 
 from pandas import DataFrame
 import pandas as pd
+import numpy as np
 from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
 from hypernets.frameworks.ml.column_selector import column_number, column_object_category_bool, column_object
 from hypernets.frameworks.ml.estimators import LightGBMEstimator
@@ -333,7 +334,7 @@ class Test_CommonOps():
         global ids
 
         space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([1, 1, 1, 1, 1, 1])
+        space.assign_by_vectors([0, 0, 0.1, 1, 1, 1, 1, 1, 1])
         space = space.compile_space()
         ids = []
         space.traverse(get_id)
@@ -350,7 +351,7 @@ class Test_CommonOps():
         assert df_1.shape == (3, 7)
 
         space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([1, 1, 1, 1, 1, 0])
+        space.assign_by_vectors([0, 0, 0.1, 1, 1, 1, 1, 1, 0])
         space = space.compile_space()
         ids = []
         space.traverse(get_id)
@@ -366,7 +367,7 @@ class Test_CommonOps():
         assert df_1.shape == (3, 10)
 
         space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([1, 1, 0, 1, 1])
+        space.assign_by_vectors([0, 0, 0.1, 1, 1, 0, 1, 1])
         space = space.compile_space()
         ids = []
         space.traverse(get_id)

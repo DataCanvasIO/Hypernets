@@ -6,9 +6,11 @@ from deeptables.datasets import dsutils
 from pandas import DataFrame
 import pandas as pd
 from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
-from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, numeric_pipeline
+from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, numeric_pipeline, \
+    categorical_pipeline_complex, numeric_pipeline_complex
 from hypernets.frameworks.ml.estimators import LightGBMEstimator
 from hypernets.frameworks.ml.hyper_gbm import HyperGBMEstimator
+from hypernets.frameworks.ml.column_selector import column_object
 from hypernets.core.ops import *
 
 from .common_ops_test import get_space_categorical_pipeline, get_space_num_cat_pipeline_complex
@@ -29,6 +31,45 @@ def get_space_multi_dataframemapper(default=False):
         est = LightGBMEstimator(task='binary', fit_kwargs={})(p6)
         space.set_inputs(input)
     return space
+
+
+def get_space_num_cat_pipeline_multi_complex(dataframe_mapper_default=False, lightgbm_fit_kwargs={}):
+    space = HyperSpace()
+    with space.as_default():
+        input = HyperInput(name='input1')
+        p1 = numeric_pipeline_complex()(input)
+        p2 = categorical_pipeline_complex()(input)
+        p3 = DataFrameMapper(default=dataframe_mapper_default, input_df=True, df_out=True,
+                             df_out_dtype_transforms=[(column_object, 'category')])([p1, p2])
+
+        p4 = numeric_pipeline_complex(seq_no=1)(p3)
+        p5 = categorical_pipeline_complex(seq_no=1)(p3)
+        p6 = DataFrameMapper(default=dataframe_mapper_default, input_df=True, df_out=True,
+                             df_out_dtype_transforms=[(column_object, 'category')])([p4, p5])
+
+        lightgbm_init_kwargs = {
+            'boosting_type': Choice(['gbdt', 'dart', 'goss']),
+            'num_leaves': Choice([11, 31, 101, 301, 501]),
+            'learning_rate': Real(0.001, 0.1, step=0.005),
+            'n_estimators': 100,
+            'max_depth': -1,
+            # subsample_for_bin = 200000, objective = None, class_weight = None,
+            #  min_split_gain = 0., min_child_weight = 1e-3, min_child_samples = 20,
+        }
+
+        est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)(p6)
+        space.set_inputs(input)
+    return space
+
+
+def get_kwargs(**kwargs):
+    return kwargs
+
+
+lightgbm_fit_kwargs = get_kwargs(sample_weight=None, init_score=None,
+                                 eval_set=None, eval_names=None, eval_sample_weight=None,
+                                 eval_init_score=None, eval_metric=None, early_stopping_rounds=None,
+                                 verbose=True, feature_name='auto', categorical_feature='auto', callbacks=None)
 
 
 def get_df():
@@ -70,15 +111,15 @@ class Test_Estimator():
         assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l']
         assert df_1.shape == (3, 7)
 
+    def test_pipeline_signature(self):
+        space = get_space_num_cat_pipeline_multi_complex(
+            lightgbm_fit_kwargs=lightgbm_fit_kwargs,
+        )
+        space.assign_by_vectors([0, 3, 0.01, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1])
+        estimator = HyperGBMEstimator('binary', space)
+        assert estimator.pipeline.pipeline_signature == 'f587f30db8357e13531ca2dbb38fec7d'
+
     def test_bankdata(self):
-        def get_kwargs(**kwargs):
-            return kwargs
-
-        lightgbm_fit_kwargs = get_kwargs(sample_weight=None, init_score=None,
-                                         eval_set=None, eval_names=None, eval_sample_weight=None,
-                                         eval_init_score=None, eval_metric=None, early_stopping_rounds=None,
-                                         verbose=True, feature_name='auto', categorical_feature='auto', callbacks=None)
-
         space = get_space_num_cat_pipeline_complex(
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
