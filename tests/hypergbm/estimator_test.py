@@ -71,12 +71,22 @@ class Test_Estimator():
         assert df_1.shape == (3, 7)
 
     def test_bankdata(self):
-        space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([1, 1, 0, 1, 1])
+        def get_kwargs(**kwargs):
+            return kwargs
+
+        lightgbm_fit_kwargs = get_kwargs(sample_weight=None, init_score=None,
+                                         eval_set=None, eval_names=None, eval_sample_weight=None,
+                                         eval_init_score=None, eval_metric=None, early_stopping_rounds=None,
+                                         verbose=True, feature_name='auto', categorical_feature='auto', callbacks=None)
+
+        space = get_space_num_cat_pipeline_complex(
+            lightgbm_fit_kwargs=lightgbm_fit_kwargs,
+        )
+        space.assign_by_vectors([0, 3, 0.01, 1, 1, 0, 1, 1])
         estimator = HyperGBMEstimator('binary', space)
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        X_train, X_test = train_test_split(df.head(1000), test_size=0.2, random_state=42)
+        X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
         y_train = X_train.pop('y')
         y_test = X_test.pop('y')
 

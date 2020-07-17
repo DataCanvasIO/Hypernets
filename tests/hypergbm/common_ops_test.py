@@ -10,7 +10,7 @@ from hypernets.frameworks.ml.column_selector import column_number, column_object
 from hypernets.frameworks.ml.estimators import LightGBMEstimator
 from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, categorical_pipeline_complex, \
     numeric_pipeline, numeric_pipeline_complex
-from hypernets.core.ops import *
+from hypernets.core.ops import Choice, Int, Real, HyperSpace, HyperInput
 
 ids = []
 
@@ -76,15 +76,26 @@ def get_space_num_cat_pipeline(default=False):
     return space
 
 
-def get_space_num_cat_pipeline_complex(default=False):
+def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False, lightgbm_fit_kwargs={}):
     space = HyperSpace()
     with space.as_default():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline_complex()(input)
         p2 = categorical_pipeline_complex()(input)
-        p3 = DataFrameMapper(default=default, input_df=True, df_out=True,
-                             df_out_dtype_transforms=[(column_object, 'category')])([p1, p2])  # passthrough
-        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
+        p3 = DataFrameMapper(default=dataframe_mapper_default, input_df=True, df_out=True,
+                             df_out_dtype_transforms=[(column_object, 'category')])([p1, p2])
+
+        lightgbm_init_kwargs = {
+            'boosting_type': Choice(['gbdt', 'dart', 'goss']),
+            'num_leaves': Choice([11, 31, 101, 301, 501]),
+            'learning_rate': Real(0.001, 0.1, step=0.005),
+            'n_estimators': 100,
+            'max_depth': -1,
+            # subsample_for_bin = 200000, objective = None, class_weight = None,
+            #  min_split_gain = 0., min_child_weight = 1e-3, min_child_samples = 20,
+        }
+
+        est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)(p3)
         space.set_inputs(input)
     return space
 
