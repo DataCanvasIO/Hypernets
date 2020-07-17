@@ -165,7 +165,7 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, features, default=False, sparse=False, df_out=False,
-                 input_df=False):
+                 input_df=False, df_out_dtype_transforms=None):
         """
         Params:
 
@@ -206,7 +206,7 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
         self.df_out = df_out
         self.input_df = input_df
         self.transformed_names_ = []
-
+        self.df_out_dtype_transforms = df_out_dtype_transforms
         if (df_out and (sparse or default)):
             raise ValueError("Can not use df_out with sparse or default")
 
@@ -468,9 +468,20 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
             # preserve types
             for col, dtype in zip(self.transformed_names_, dtypes):
                 df_out[col] = df_out[col].astype(dtype)
+            df_out = self._dtype_transform(df_out)
             return df_out
         else:
             return stacked
+
+    def _dtype_transform(self, df_out):
+        if self.df_out_dtype_transforms is not None:
+            for columns, dtype in self.df_out_dtype_transforms:
+                if callable(columns):
+                    columns = columns(df_out)
+                if isinstance(columns, list) and len(columns) <= 0:
+                    continue
+                df_out[columns] = df_out[columns].astype(dtype)
+        return df_out
 
     def transform(self, X):
         """

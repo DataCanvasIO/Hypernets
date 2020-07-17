@@ -9,12 +9,14 @@ import lightgbm
 from .transformers import *
 from .estimators import HyperEstimator
 from sklearn import pipeline as sk_pipeline
+from .sklearn_ex import calc_score
 
 
 class HyperGBMModel():
-    def __init__(self, data_pipeline, estimator, fit_kwargs=None):
+    def __init__(self, data_pipeline, estimator, task, fit_kwargs=None):
         self.data_pipeline = data_pipeline
         self.estimator = estimator
+        self.task = task
         self.fit_kwargs = fit_kwargs
 
     def fit(self, X, y, **kwargs):
@@ -25,12 +27,25 @@ class HyperGBMModel():
 
     def predict(self, X, **kwargs):
         X = self.data_pipeline.transform(X)
-        self.estimator.predict(X, **kwargs)
+        preds = self.estimator.predict(X, **kwargs)
+        return preds
+
+    def predict_proba(self, X, **kwargs):
+        X = self.data_pipeline.transform(X)
+        proba = self.estimator.predict_proba(X, **kwargs)
+        return proba
+
+    def evaluate(self, X, y, metrics=['accuracy'], **kwargs):
+        proba = self.predict_proba(X, **kwargs)
+        preds = self.predict(X, **kwargs)
+        scores = calc_score(y, preds, proba, metrics, self.task)
+        return scores
 
 
 class HyperGBMEstimator(Estimator):
-    def __init__(self, space_sample):
+    def __init__(self, task, space_sample):
         self.pipeline = None
+        self.task = task
         Estimator.__init__(self, space=space_sample)
 
     def _build_model(self, space_sample):
@@ -81,5 +96,5 @@ class HyperGBMEstimator(Estimator):
 
     def evaluate(self, X, y, **kwargs):
         scores = self.model.evaluate(X, y, **kwargs)
-        result = {k: v for k, v in zip(self.model.metrics_names, scores)}
-        return result
+        # result = {k: v for k, v in zip(self.model.metrics_names, scores)}
+        return scores

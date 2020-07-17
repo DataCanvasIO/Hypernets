@@ -4,13 +4,12 @@
 """
 
 from pandas import DataFrame
-import numpy as np
 import pandas as pd
 from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
-from hypernets.frameworks.ml.column_selector import *
+from hypernets.frameworks.ml.column_selector import column_number, column_object_category_bool, column_object
+from hypernets.frameworks.ml.estimators import LightGBMEstimator
 from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, categorical_pipeline_complex, \
     numeric_pipeline, numeric_pipeline_complex
-from hypernets.core.search_space import *
 from hypernets.core.ops import *
 
 ids = []
@@ -27,6 +26,7 @@ def get_space_categorical_pipeline():
         input = HyperInput(name='input1')
         p1 = categorical_pipeline_simple()(input)
         p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
+        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
     return space
 
@@ -37,6 +37,7 @@ def get_space_categorical_pipeline_complex():
         input = HyperInput(name='input1')
         p1 = categorical_pipeline_complex()(input)
         p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
+        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
     return space
 
@@ -47,6 +48,7 @@ def get_space_numeric_pipeline():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline()(input)
         p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
+        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
     return space
 
@@ -57,6 +59,7 @@ def get_space_numeric_pipeline_complex():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline_complex()(input)
         p3 = DataFrameMapper(input_df=True, df_out=True)([p1])  # passthrough
+        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
     return space
 
@@ -68,6 +71,7 @@ def get_space_num_cat_pipeline(default=False):
         p1 = numeric_pipeline()(input)
         p2 = categorical_pipeline_simple()(input)
         p3 = DataFrameMapper(default=default, input_df=True, df_out=True)([p1, p2])  # passthrough
+        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
     return space
 
@@ -78,7 +82,9 @@ def get_space_num_cat_pipeline_complex(default=False):
         input = HyperInput(name='input1')
         p1 = numeric_pipeline_complex()(input)
         p2 = categorical_pipeline_complex()(input)
-        p3 = DataFrameMapper(default=default, input_df=True, df_out=True)([p1, p2])  # passthrough
+        p3 = DataFrameMapper(default=default, input_df=True, df_out=True,
+                             df_out_dtype_transforms=[(column_object, 'category')])([p1, p2])  # passthrough
+        est = LightGBMEstimator(task='binary', fit_kwargs={})(p3)
         space.set_inputs(input)
     return space
 
@@ -114,7 +120,7 @@ class Test_CommonOps():
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_simple_0_input', 'ID_categorical_imputer_0',
                        'ID_categorical_label_encoder_0', 'ID_categorical_pipeline_simple_0_output',
-                       'Module_DataFrameMapper_1']
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -132,7 +138,7 @@ class Test_CommonOps():
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
                        'ID_categorical_label_encoder_0', 'ID_categorical_pipeline_complex_0_output',
-                       'Module_DataFrameMapper_1']
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -146,8 +152,8 @@ class Test_CommonOps():
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
-                       'ID_categorical_onehot_0',
-                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_categorical_onehot_0', 'ID_categorical_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -161,8 +167,8 @@ class Test_CommonOps():
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
-                       'ID_categorical_onehot_0',
-                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_categorical_onehot_0', 'ID_categorical_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -177,8 +183,8 @@ class Test_CommonOps():
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
-                       'ID_categorical_onehot_0',
-                       'ID_categorical_svd_0', 'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_categorical_onehot_0', 'ID_categorical_svd_0', 'ID_categorical_pipeline_complex_0_output',
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -194,8 +200,8 @@ class Test_CommonOps():
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_simple_0_input', 'ID_numeric_imputer_0',
-                       'ID_numeric_standard_scaler_0',
-                       'ID_numeric_pipeline_simple_0_output', 'Module_DataFrameMapper_1']
+                       'ID_numeric_standard_scaler_0', 'ID_numeric_pipeline_simple_0_output',
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -212,7 +218,7 @@ class Test_CommonOps():
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
-                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -227,7 +233,7 @@ class Test_CommonOps():
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
                        'ID_numeric_standard_scaler_0', 'ID_numeric_pipeline_complex_0_output',
-                       'Module_DataFrameMapper_1']
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -242,7 +248,7 @@ class Test_CommonOps():
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
                        'ID_numeric_minmax_scaler_0', 'ID_numeric_pipeline_complex_0_output',
-                       'Module_DataFrameMapper_1']
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -257,7 +263,7 @@ class Test_CommonOps():
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
                        'ID_numeric_maxabs_scaler_0', 'ID_numeric_pipeline_complex_0_output',
-                       'Module_DataFrameMapper_1']
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -272,7 +278,7 @@ class Test_CommonOps():
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
                        'ID_numeric_robust_scaler_0', 'ID_numeric_pipeline_complex_0_output',
-                       'Module_DataFrameMapper_1']
+                       'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -290,7 +296,7 @@ class Test_CommonOps():
         assert ids == ['ID_input1', 'ID_categorical_pipeline_simple_0_input', 'ID_numeric_pipeline_simple_0_input',
                        'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_label_encoder_0',
                        'ID_numeric_standard_scaler_0', 'ID_categorical_pipeline_simple_0_output',
-                       'ID_numeric_pipeline_simple_0_output', 'Module_DataFrameMapper_1']
+                       'ID_numeric_pipeline_simple_0_output', 'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -323,7 +329,8 @@ class Test_CommonOps():
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
                        'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_onehot_0',
                        'ID_numeric_minmax_scaler_0', 'ID_categorical_svd_0', 'ID_numeric_pipeline_complex_0_output',
-                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_categorical_pipeline_complex_0_output', 'Module_DataFrameMapper_1',
+                       'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -339,7 +346,7 @@ class Test_CommonOps():
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
                        'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_onehot_0',
                        'ID_numeric_minmax_scaler_0', 'ID_categorical_pipeline_complex_0_output',
-                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
@@ -355,7 +362,7 @@ class Test_CommonOps():
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
                        'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_label_encoder_0',
                        'ID_numeric_minmax_scaler_0', 'ID_categorical_pipeline_complex_0_output',
-                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1']
+                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
 
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
