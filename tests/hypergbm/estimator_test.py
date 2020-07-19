@@ -8,7 +8,7 @@ import pandas as pd
 from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
 from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, numeric_pipeline, \
     categorical_pipeline_complex, numeric_pipeline_complex
-from hypernets.frameworks.ml.estimators import LightGBMEstimator
+from hypernets.frameworks.ml.estimators import LightGBMEstimator, XGBoostEstimator
 from hypernets.frameworks.ml.hyper_gbm import HyperGBMEstimator
 from hypernets.frameworks.ml.column_selector import column_object
 from hypernets.core.ops import *
@@ -33,7 +33,9 @@ def get_space_multi_dataframemapper(default=False):
     return space
 
 
-def get_space_num_cat_pipeline_multi_complex(dataframe_mapper_default=False, lightgbm_fit_kwargs={}):
+def get_space_num_cat_pipeline_multi_complex(dataframe_mapper_default=False,
+                                             lightgbm_fit_kwargs={},
+                                             xgb_fit_kwargs={}):
     space = HyperSpace()
     with space.as_default():
         input = HyperInput(name='input1')
@@ -57,7 +59,14 @@ def get_space_num_cat_pipeline_multi_complex(dataframe_mapper_default=False, lig
             #  min_split_gain = 0., min_child_weight = 1e-3, min_child_samples = 20,
         }
 
-        est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)(p6)
+        lightgbm_est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)
+
+        xgb_init_kwargs = {
+
+        }
+        xgb_est = XGBoostEstimator(task='binary', fit_kwargs=xgb_fit_kwargs, **xgb_init_kwargs)
+
+        or_est = Or([lightgbm_est, xgb_est])(p6)
         space.set_inputs(input)
     return space
 
@@ -115,15 +124,15 @@ class Test_Estimator():
         space = get_space_num_cat_pipeline_multi_complex(
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
-        space.assign_by_vectors([0, 3, 0.01, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1])
+        space.assign_by_vectors([0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 3, 0.01, 1, 1])
         estimator = HyperGBMEstimator('binary', space)
         assert estimator.get_pipeline_signature(estimator.pipeline) == 'f587f30db8357e13531ca2dbb38fec7d'
 
-    def test_bankdata(self):
+    def test_bankdata_lightgbm(self):
         space = get_space_num_cat_pipeline_complex(
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
-        space.assign_by_vectors([0, 3, 0.01, 1, 1, 0, 1, 1])
+        space.assign_by_vectors([0, 1, 1, 0, 1, 0, 3, 0.01, 1])
         estimator = HyperGBMEstimator('binary', space)
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
@@ -134,3 +143,38 @@ class Test_Estimator():
         estimator.fit(X_train, y_train)
         scores = estimator.evaluate(X_test, y_test, metrics=['accuracy'])
         assert scores
+        print(scores)
+
+    def test_bankdata_xgb(self):
+        space = get_space_num_cat_pipeline_complex(
+            lightgbm_fit_kwargs=lightgbm_fit_kwargs,
+        )
+        space.assign_by_vectors([1, 1, 1, 0, 1, 1])
+        estimator = HyperGBMEstimator('binary', space)
+        df = dsutils.load_bank()
+        df.drop(['id'], axis=1, inplace=True)
+        X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
+        y_train = X_train.pop('y')
+        y_test = X_test.pop('y')
+
+        estimator.fit(X_train, y_train)
+        scores = estimator.evaluate(X_test, y_test, metrics=['accuracy'])
+        assert scores
+        print(scores)
+
+    def test_bankdata_catboost(self):
+        space = get_space_num_cat_pipeline_complex(
+            lightgbm_fit_kwargs=lightgbm_fit_kwargs,
+        )
+        space.assign_by_vectors([2, 1, 1, 0, 1, 1])
+        estimator = HyperGBMEstimator('binary', space)
+        df = dsutils.load_bank()
+        df.drop(['id'], axis=1, inplace=True)
+        X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
+        y_train = X_train.pop('y')
+        y_test = X_test.pop('y')
+
+        estimator.fit(X_train, y_train)
+        scores = estimator.evaluate(X_test, y_test, metrics=['accuracy'])
+        assert scores
+        print(scores)

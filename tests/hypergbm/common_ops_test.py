@@ -8,10 +8,10 @@ import pandas as pd
 import numpy as np
 from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
 from hypernets.frameworks.ml.column_selector import column_number, column_object_category_bool, column_object
-from hypernets.frameworks.ml.estimators import LightGBMEstimator
+from hypernets.frameworks.ml.estimators import LightGBMEstimator, XGBoostEstimator, CatBoostEstimator
 from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, categorical_pipeline_complex, \
     numeric_pipeline, numeric_pipeline_complex
-from hypernets.core.ops import Choice, Int, Real, HyperSpace, HyperInput
+from hypernets.core.ops import Choice, Or, Int, Real, HyperSpace, HyperInput
 
 ids = []
 
@@ -77,14 +77,17 @@ def get_space_num_cat_pipeline(default=False):
     return space
 
 
-def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False, lightgbm_fit_kwargs={}):
+def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False,
+                                       lightgbm_fit_kwargs={},
+                                       xgb_fit_kwargs={},
+                                       catboost_fit_kwargs={}):
     space = HyperSpace()
     with space.as_default():
         input = HyperInput(name='input1')
         p1 = numeric_pipeline_complex()(input)
         p2 = categorical_pipeline_complex()(input)
         p3 = DataFrameMapper(default=dataframe_mapper_default, input_df=True, df_out=True,
-                             df_out_dtype_transforms=[(column_object, 'category')])([p1, p2])
+                             df_out_dtype_transforms=[(column_object, 'int')])([p1, p2])
 
         lightgbm_init_kwargs = {
             'boosting_type': Choice(['gbdt', 'dart', 'goss']),
@@ -95,8 +98,13 @@ def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False, lightgbm_
             # subsample_for_bin = 200000, objective = None, class_weight = None,
             #  min_split_gain = 0., min_child_weight = 1e-3, min_child_samples = 20,
         }
+        lightgbm_est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)
+        xgb_init_kwargs = {}
+        xgb_est = XGBoostEstimator(task='binary', fit_kwargs=xgb_fit_kwargs, **xgb_init_kwargs)
 
-        est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)(p3)
+        catboost_init_kwargs = {}
+        catboost_est = CatBoostEstimator(task='binary', fit_kwargs=catboost_fit_kwargs, **catboost_init_kwargs)
+        or_est = Or([lightgbm_est, xgb_est, catboost_est])(p3)
         space.set_inputs(input)
     return space
 
@@ -334,7 +342,8 @@ class Test_CommonOps():
         global ids
 
         space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([0, 0, 0.1, 1, 1, 1, 1, 1, 1])
+        space.assign_by_vectors([0, 1, 1, 1, 1, 0, 0, 0.1, 1, 1])
+        # [0, 1, 1, 0, 1, 0, 3, 0.01, 1]
         space = space.compile_space()
         ids = []
         space.traverse(get_id)
@@ -351,7 +360,7 @@ class Test_CommonOps():
         assert df_1.shape == (3, 7)
 
         space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([0, 0, 0.1, 1, 1, 1, 1, 1, 0])
+        space.assign_by_vectors([0, 1, 1, 1, 1, 0, 0, 0.1, 1, 0])
         space = space.compile_space()
         ids = []
         space.traverse(get_id)
@@ -365,19 +374,3 @@ class Test_CommonOps():
         df_1 = p.fit_transform(X, y)
         assert list(df_1.columns) == ['a_a', 'a_b', 'e_False', 'e_True', 'f_c', 'f_d', 'b', 'c', 'd', 'l']
         assert df_1.shape == (3, 10)
-
-        space = get_space_num_cat_pipeline_complex()
-        space.assign_by_vectors([0, 0, 0.1, 1, 1, 0, 1, 1])
-        space = space.compile_space()
-        ids = []
-        space.traverse(get_id)
-        assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
-                       'ID_categorical_imputer_0', 'ID_numeric_imputer_0', 'ID_categorical_label_encoder_0',
-                       'ID_numeric_minmax_scaler_0', 'ID_categorical_pipeline_complex_0_output',
-                       'ID_numeric_pipeline_complex_0_output', 'Module_DataFrameMapper_1', 'Module_LightGBMEstimator_1']
-
-        next, (name, p) = space.Module_DataFrameMapper_1.compose()
-        X, y = get_df()
-        df_1 = p.fit_transform(X, y)
-        assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l']
-        assert df_1.shape == (3, 7)
