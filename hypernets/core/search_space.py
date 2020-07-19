@@ -55,7 +55,7 @@ class HyperSpace(Mutable):
     @property
     def assigned_params_stack(self):
         return self._assigned_params_stack
-    
+
     def push_assigned_param(self, param):
         self._assigned_params_stack.append(param)
 
@@ -679,9 +679,14 @@ class Real(ParameterSpace):
         if self.step is not None:
             if self.prior == 'log_uniform':
                 all = np.arange(np.exp(self.low), np.exp(self.high) + self.step, step=self.step)
+                value = all[np.abs(all - value).argmin()]
+                if value > np.exp(self.high):
+                    value = np.exp(self.high)
             else:
                 all = np.arange(self.low, self.high + self.step, step=self.step)
-            value = all[np.abs(all - value).argmin()]
+                value = all[np.abs(all - value).argmin()]
+                if value > self.high:
+                    value = self.high
         return value
 
     def _check(self, value):

@@ -3,6 +3,7 @@
 
 """
 from hypernets.model.estimator import Estimator
+from hypernets.model.hyper_model import HyperModel
 from .transformers import *
 from .estimators import HyperEstimator
 from sklearn import pipeline as sk_pipeline
@@ -124,6 +125,10 @@ class HyperGBMModel():
             if os.path.exists(filepath):
                 os.remove(filepath)
 
+    def summary(self):
+        s = f"{self.data_pipeline.__repr__(1000000)}\r\n{self.estimator.__repr__()}"
+        return s
+
 
 class HyperGBMEstimator(Estimator):
     def __init__(self, task, space_sample, cache_dir=None):
@@ -187,5 +192,19 @@ class HyperGBMEstimator(Estimator):
 
     def evaluate(self, X, y, **kwargs):
         scores = self.model.evaluate(X, y, **kwargs)
-        # result = {k: v for k, v in zip(self.model.metrics_names, scores)}
         return scores
+
+
+class HyperGBM(HyperModel):
+    def __init__(self, searcher, task='classification', dispatcher=None, callbacks=[], reward_metric='accuracy',
+                 cache_dir=None):
+        self.task = task
+        self.cache_dir = cache_dir
+        HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, reward_metric=reward_metric)
+
+    def _get_estimator(self, space_sample):
+        estimator = HyperGBMEstimator(task=self.task, space_sample=space_sample, cache_dir=self.cache_dir)
+        return estimator
+
+    def export_trail_configuration(self, trail):
+        return '`export_trail_configuration` does not implemented'

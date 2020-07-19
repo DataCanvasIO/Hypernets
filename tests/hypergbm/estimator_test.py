@@ -11,9 +11,10 @@ from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, nume
 from hypernets.frameworks.ml.estimators import LightGBMEstimator, XGBoostEstimator
 from hypernets.frameworks.ml.hyper_gbm import HyperGBMEstimator
 from hypernets.frameworks.ml.column_selector import column_object
+from hypernets.frameworks.ml.common_ops import get_space_num_cat_pipeline_complex
 from hypernets.core.ops import *
 
-from .common_ops_test import get_space_categorical_pipeline, get_space_num_cat_pipeline_complex
+from .common_ops_test import get_space_categorical_pipeline
 from sklearn.model_selection import train_test_split
 
 

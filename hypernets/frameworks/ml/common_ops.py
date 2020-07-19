@@ -7,7 +7,9 @@ from .column_selector import *
 from .transformers import *
 import numpy as np
 from hypernets.core.search_space import Choice
-from hypernets.core.ops import Or, Optional
+from hypernets.core.ops import Or, Optional, HyperInput, Real
+from hypernets.core.search_space import HyperSpace
+from hypernets.frameworks.ml.estimators import LightGBMEstimator, XGBoostEstimator, CatBoostEstimator
 
 
 def categorical_pipeline_simple(impute_strategy='constant', seq_no=0):
@@ -78,3 +80,35 @@ def numeric_pipeline_complex(impute_strategy=None, seq_no=0):
                         name=f'numeric_pipeline_complex_{seq_no}',
                         columns=column_number_exclude_timedelta)
     return pipeline
+
+
+def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False,
+                                       lightgbm_fit_kwargs={},
+                                       xgb_fit_kwargs={},
+                                       catboost_fit_kwargs={}):
+    space = HyperSpace()
+    with space.as_default():
+        input = HyperInput(name='input1')
+        p1 = numeric_pipeline_complex()(input)
+        p2 = categorical_pipeline_complex()(input)
+        p3 = DataFrameMapper(default=dataframe_mapper_default, input_df=True, df_out=True,
+                             df_out_dtype_transforms=[(column_object, 'int')])([p1, p2])
+
+        lightgbm_init_kwargs = {
+            'boosting_type': Choice(['gbdt', 'dart', 'goss']),
+            'num_leaves': Choice([11, 31, 101, 301, 501]),
+            'learning_rate': Real(0.001, 0.1, step=0.005),
+            'n_estimators': 100,
+            'max_depth': -1,
+            # subsample_for_bin = 200000, objective = None, class_weight = None,
+            #  min_split_gain = 0., min_child_weight = 1e-3, min_child_samples = 20,
+        }
+        lightgbm_est = LightGBMEstimator(task='binary', fit_kwargs=lightgbm_fit_kwargs, **lightgbm_init_kwargs)
+        xgb_init_kwargs = {}
+        xgb_est = XGBoostEstimator(task='binary', fit_kwargs=xgb_fit_kwargs, **xgb_init_kwargs)
+
+        catboost_init_kwargs = {}
+        catboost_est = CatBoostEstimator(task='binary', fit_kwargs=catboost_fit_kwargs, **catboost_init_kwargs)
+        or_est = Or([lightgbm_est, xgb_est, catboost_est])(p3)
+        space.set_inputs(input)
+    return space
