@@ -40,7 +40,7 @@ class KerasEstimator(Estimator):
     def predict(self, X, **kwargs):
         return self.model.predict(X, **kwargs)
 
-    def evaluate(self, X, y, **kwargs):
+    def evaluate(self, X, y, metrics=None, **kwargs):
         scores = self.model.evaluate(X, y, **kwargs)
         result = {k: v for k, v in zip(self.model.metrics_names, scores)}
         return result
@@ -64,6 +64,7 @@ class HyperKeras(HyperModel):
 
     def export_trail_configuration(self, trail):
         return None
+
 
 def compute_params_count(model):
     assert model.built, ''

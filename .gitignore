@@ -134,3 +134,4 @@ dmypy.json
 dt_output/
 log/
 trail_store/
+tmp/
