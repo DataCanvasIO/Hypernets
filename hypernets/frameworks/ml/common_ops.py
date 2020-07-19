@@ -107,8 +107,10 @@ def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False,
         xgb_init_kwargs = {}
         xgb_est = XGBoostEstimator(task='binary', fit_kwargs=xgb_fit_kwargs, **xgb_init_kwargs)
 
-        catboost_init_kwargs = {}
+        catboost_init_kwargs = {
+            'silent': True
+        }
         catboost_est = CatBoostEstimator(task='binary', fit_kwargs=catboost_fit_kwargs, **catboost_init_kwargs)
-        or_est = Or([lightgbm_est, xgb_est, catboost_est])(p3)
+        or_est = Or([lightgbm_est, xgb_est, catboost_est], name='estimator_options')(p3)
         space.set_inputs(input)
     return space

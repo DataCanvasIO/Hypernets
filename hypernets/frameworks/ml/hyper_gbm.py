@@ -12,18 +12,20 @@ import pickle
 import datetime
 import re
 import os
+import shutil
 import hashlib
 import pandas as pd
 
 
 class HyperGBMModel():
-    def __init__(self, data_pipeline, pipeline_signature, estimator, task, cache_dir, fit_kwargs=None):
+    def __init__(self, data_pipeline, pipeline_signature, estimator, task, cache_dir, clear_cache=True,
+                 fit_kwargs=None):
         self.data_pipeline = data_pipeline
         self.pipeline_signature = pipeline_signature
         self.estimator = estimator
         self.task = task
         self.fit_kwargs = fit_kwargs
-        self.cache_dir = self._prepare_cache_dir(cache_dir)
+        self.cache_dir = self._prepare_cache_dir(cache_dir, clear_cache)
 
     def fit(self, X, y, **kwargs):
         X_cache = self.get_X_from_cache(X, load_pipeline=True)
@@ -55,7 +57,10 @@ class HyperGBMModel():
         else:
             X = X_cache
         proba = self.estimator.predict_proba(X, **kwargs)
-        return proba
+        if len(proba.shape) == 2:
+            return proba[:, 1]
+        else:
+            return proba
 
     def evaluate(self, X, y, metrics=['accuracy'], **kwargs):
         proba = self.predict_proba(X, **kwargs)
@@ -63,7 +68,7 @@ class HyperGBMModel():
         scores = calc_score(y, preds, proba, metrics, self.task)
         return scores
 
-    def _prepare_cache_dir(self, cache_dir):
+    def _prepare_cache_dir(self, cache_dir, clear_cache):
         if cache_dir is None:
             cache_dir = 'tmp/cache'
         if cache_dir[-1] == '/':
@@ -72,6 +77,10 @@ class HyperGBMModel():
         cache_dir = os.path.expanduser(f'{cache_dir}')
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
+        else:
+            if clear_cache:
+                shutil.rmtree(cache_dir)
+                os.makedirs(cache_dir)
         return cache_dir
 
     def get_X_filepath(self, X):
@@ -131,9 +140,10 @@ class HyperGBMModel():
 
 
 class HyperGBMEstimator(Estimator):
-    def __init__(self, task, space_sample, cache_dir=None):
+    def __init__(self, task, space_sample, cache_dir=None, clear_cache=True):
         self.pipeline = None
         self.cache_dir = cache_dir
+        self.clear_cache = clear_cache
         self.task = task
         Estimator.__init__(self, space=space_sample)
 
@@ -153,7 +163,8 @@ class HyperGBMEstimator(Estimator):
         # next, (name, p) = pipeline_module[0].compose()
         self.pipeline = self.build_pipeline(space, pipeline_module[0])
         pipeline_signature = self.get_pipeline_signature(self.pipeline)
-        model = HyperGBMModel(self.pipeline, pipeline_signature, estimator, self.task, self.cache_dir, fit_kwargs)
+        model = HyperGBMModel(self.pipeline, pipeline_signature, estimator, self.task, self.cache_dir, self.clear_cache,
+                              fit_kwargs)
         return model
 
     def get_pipeline_signature(self, pipeline):
@@ -197,13 +208,15 @@ class HyperGBMEstimator(Estimator):
 
 class HyperGBM(HyperModel):
     def __init__(self, searcher, task='classification', dispatcher=None, callbacks=[], reward_metric='accuracy',
-                 cache_dir=None):
+                 cache_dir=None, clear_cache=True):
         self.task = task
         self.cache_dir = cache_dir
+        self.clear_cache = clear_cache
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, reward_metric=reward_metric)
 
     def _get_estimator(self, space_sample):
-        estimator = HyperGBMEstimator(task=self.task, space_sample=space_sample, cache_dir=self.cache_dir)
+        estimator = HyperGBMEstimator(task=self.task, space_sample=space_sample, cache_dir=self.cache_dir,
+                                      clear_cache=self.clear_cache)
         return estimator
 
     def export_trail_configuration(self, trail):

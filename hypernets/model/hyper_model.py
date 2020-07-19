@@ -32,7 +32,7 @@ class HyperModel():
             callback.on_trail_begin(self, space_sample, trail_no)
 
         estimator.fit(X, y, **fit_kwargs)
-        metrics = estimator.evaluate(X_val, y_val)
+        metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
         reward = self._get_reward(metrics, self.reward_metric)
         elapsed = time.time() - start_time
         trail = Trail(space_sample, trail_no, reward, elapsed)
