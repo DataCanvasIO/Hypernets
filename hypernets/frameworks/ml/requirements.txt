@@ -2,3 +2,4 @@ tables
 lightgbm
 xgboost
 catboost
+featuretools
