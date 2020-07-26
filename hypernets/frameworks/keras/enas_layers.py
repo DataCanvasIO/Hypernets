@@ -7,8 +7,7 @@ from ...core.search_space import ModuleSpace
 
 
 class EnasHyperLayer(ModuleSpace):
-    def __init__(self, compile_fn, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
-        self.compile_fn = compile_fn
+    def __init__(self, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
         self.filters = filters
         self.name_prefix = name_prefix
         self.data_format = data_format
@@ -17,8 +16,11 @@ class EnasHyperLayer(ModuleSpace):
     def _build(self):
         self.is_built = True
 
+    def _call(self, inputs):
+        raise NotImplementedError
+
     def _compile(self, inputs):
-        return self.compile_fn(inputs)
+        return self._call(inputs)
 
     def _on_params_ready(self):
         pass
@@ -86,7 +88,7 @@ class EnasHyperLayer(ModuleSpace):
 
 class Identity(EnasHyperLayer):
     def __init__(self, space=None, name=None, **hyperparams):
-        EnasHyperLayer.__init__(self, self._call, None, None, None, space, name, **hyperparams)
+        EnasHyperLayer.__init__(self, None, None, None, space, name, **hyperparams)
 
     def _call(self, x):
         return x
@@ -94,7 +96,7 @@ class Identity(EnasHyperLayer):
 
 class FactorizedReduction(EnasHyperLayer):
     def __init__(self, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
-        EnasHyperLayer.__init__(self, self._call, filters, name_prefix, data_format, space, name,
+        EnasHyperLayer.__init__(self, filters, name_prefix, data_format, space, name,
                                 **hyperparams)
 
     def _call(self, x):
@@ -104,10 +106,10 @@ class FactorizedReduction(EnasHyperLayer):
 class CalibrateSize(EnasHyperLayer):
     def __init__(self, no, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
         self.no = no
-        EnasHyperLayer.__init__(self, self.calibrate_size, filters, name_prefix, data_format, space, name,
+        EnasHyperLayer.__init__(self, filters, name_prefix, data_format, space, name,
                                 **hyperparams)
 
-    def calibrate_size(self, inputs):
+    def _call(self, inputs):
         if isinstance(inputs, list):
             assert len(inputs) == 2
             hw = [self.get_height_or_width(l) for l in inputs]
@@ -134,7 +136,7 @@ class CalibrateSize(EnasHyperLayer):
 
 class SafeConcatenate(EnasHyperLayer):
     def __init__(self, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
-        EnasHyperLayer.__init__(self, self._call, filters, name_prefix, data_format, space, name, **hyperparams)
+        EnasHyperLayer.__init__(self, filters, name_prefix, data_format, space, name, **hyperparams)
 
     def _call(self, x):
         if isinstance(x, list):

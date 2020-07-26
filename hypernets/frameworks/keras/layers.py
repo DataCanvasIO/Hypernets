@@ -8,19 +8,19 @@ from hypernets.core.search_space import *
 
 
 class HyperLayer(ModuleSpace):
-    def __init__(self, keras_layer, space=None, name=None, **hyperparams):
-        self.keras_layer = keras_layer
+    def __init__(self, keras_layer_class, space=None, name=None, **hyperparams):
+        self.keras_layer_class = keras_layer_class
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
     def _build(self):
         pv = self.param_values
         if pv.get('name') is None:
             pv['name'] = self.name
-        self.compile_fn = self.keras_layer(**pv)
+        self.keras_layer = self.keras_layer_class(**pv)
         self.is_built = True
 
     def _compile(self, inputs):
-        return self.compile_fn(inputs)
+        return self.keras_layer(inputs)
 
     def _on_params_ready(self):
         pass
@@ -41,7 +41,7 @@ class Input(HyperLayer):
         HyperLayer.__init__(self, kl.Input, space, name, **kwargs)
 
     def _compile(self, inputs):
-        return self.compile_fn
+        return self.keras_layer
 
 
 class Dense(HyperLayer):
