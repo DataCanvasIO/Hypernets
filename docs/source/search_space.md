@@ -28,6 +28,20 @@ ParameterSpace is diveded into two types: mutable and immutable. The mutable is 
 ConnectionSpace is used to represent possible connections between modules.
 
 * Optional:  Whether to insert a module between two modules.
+
+![](images/connection_space_optional.png)
+
+```python
+from hypernets.frameworks.keras.layers import Dense, Input, Dropout
+from hypernets.core.ops import Optional
+
+module_a = Input()
+module_b = Dropout()
+optional_dropout = Optional(module_b, keep_link=True)(module_a)
+module_c = Dense()(optional_dropout)
+```
+
+
 * Or:  There are several optional modules on a node, choose one of them.
 * Sequential: A series of modules connected in order.
 * Permutation: Choose one of permutations of a module list and connected in order.
