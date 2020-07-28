@@ -43,11 +43,92 @@ module_c = Dense()(optional_dropout)
 
 
 * Or:  There are several optional modules on a node, choose one of them.
+
+![](images/connection_space_or.png)
+
+```python
+from hypernets.frameworks.keras.layers import Input, BatchNormalization
+from hypernets.core.ops import Or
+
+module_a = Input()
+or_conv_pool = Or([sepconv5x5(),sepconv3x3(),avgpooling3x3()])(module_a)
+module_c = BatchNormalization()(or_conv_pool)
+```
+
 * Sequential: A series of modules connected in order.
+
+![](images/connection_space_or.png)
+
+```python
+from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization
+from hypernets.core.ops import Sequential
+
+module_a = Input()
+module_b = Dense()
+module_c = BatchNormalization()
+Sequential([module_a,module_b,module_c])
+```
+
 * Permutation: Choose one of permutations of a module list and connected in order.
+
+![](images/connection_space_permuation.png)
+
+```python
+from hypernets.frameworks.keras.layers import Dense, BatchNormalization, Dropout, Activation
+from hypernets.core.search_space import Choice
+from hypernets.core.ops import Permutation, Sequential, Optional
+
+dense = Dense(units=Choice([100, 300, 500, 1000]))
+act = Activation(activation=Choice(['relu', 'tanh']))
+optional_bn = Optional(BatchNormalization(), keep_link=True)
+dropout = Dropout(rate=Choice([0, 0.1, 0.2, 0.3, 0.5]))
+
+# Use `Permutation` to try different arrangements of act, optional_bn, dropout
+# optional_bn is optional module and will be skipped when hp_use_bn is False
+perm_act_bn_dropout = Permutation([act, optional_bn, dropout])
+
+# Use `Sequential` to connect dense and perm_act_bn_dropout in order
+seq = Sequential([dense, perm_act_bn_dropout])
+```
+
 * Repeat: The module is repeated n times and connected in order.
+
+
+![](images/connection_space_repeat.png)
+
+```python
+from hypernets.frameworks.keras.layers import Dense, BatchNormalization, Dropout, Activation
+from hypernets.core.search_space import Choice
+from hypernets.core.ops import Permutation, Sequential, Optional, Repeat
+
+dense = Dense(units=Choice([100, 300, 500, 1000]))
+act = Activation(activation=Choice(['relu', 'tanh']))
+optional_bn = Optional(BatchNormalization(), keep_link=True)
+dropout = Dropout(rate=Choice([0, 0.1, 0.2, 0.3, 0.5]))
+
+# Use `Permutation` to try different arrangements of act, optional_bn, dropout
+# optional_bn is optional module and will be skipped when hp_use_bn is False
+perm_act_bn_dropout = Permutation([act, optional_bn, dropout])
+
+repeat_seq = Repeat(module_fn=lambda :Sequential([dense, perm_act_bn_dropout]), repeat_times=Choice([2,3,4]))
+```
+
 * InputChoice: A modules has n upstream modules, choose one or more connections.
 
+
+![](images/connection_space_inputchoice.png)
+
+```python
+from hypernets.frameworks.keras.layers import Input,Dense, BatchNormalization, Dropout, Activation
+from hypernets.core.search_space import Choice
+from hypernets.core.ops import Permutation, Sequential, Optional, Repeat, InputChoice
+
+module_a = Input()
+module_b = Input()
+module_c = Input()
+ic = InputChoice(inputs=[module_a,module_b,module_a], max_chosen_num=2)([module_a,module_b,module_c])
+add = Add()(ic)
+```
 
 ## Module Space
 

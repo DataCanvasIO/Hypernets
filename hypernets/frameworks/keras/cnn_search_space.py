@@ -29,7 +29,7 @@ def conv_block(block_no, hp_pooling, hp_filters, hp_kernel_size, hp_bn_act, hp_u
         multiplier = 2 ** (block_no - 1)
 
     conv_filters = Dynamic(lambda filters: filters * multiplier, filters=hp_filters)
-    conv = Repeat(conv_bn, repeat_num_choices=repeat_num_choices)
+    conv = Repeat(conv_bn, repeat_times=repeat_num_choices)
     pooling = Or([MaxPooling2D(padding='same'), AveragePooling2D(padding='same')], hp_or=hp_pooling)
     block = Sequential([conv, pooling])
     return block
@@ -60,7 +60,7 @@ def cnn_search_space(input_shape, output_units, output_activation='softmax', blo
                 hp_use_bn=hp_use_bn,
                 hp_activation=hp_activation,
                 hp_bn_act=hp_bn_act),
-            repeat_num_choices=block_num_choices)(input)
+            repeat_times=block_num_choices)(input)
         x = Flatten()(blocks)
         x = Dense(units=hp_fc_units, activation=hp_activation, name='fc1')(x)
         x = Dense(units=hp_fc_units, activation=hp_activation, name='fc2')(x)

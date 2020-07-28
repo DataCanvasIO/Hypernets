@@ -46,6 +46,6 @@ def dnn_search_space(input_shape, output_units, output_activation, units_choices
         input = Input(shape=input_shape)
         backbone = Repeat(
             lambda step: dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_activation, step),
-            repeat_num_choices=layer_num_choices)(input)
+            repeat_times=layer_num_choices)(input)
         output = Dense(units=output_units, activation=output_activation)(backbone)
     return space

@@ -189,20 +189,20 @@ class Permutation(ConnectionSpace):
 
 
 class Repeat(ConnectionSpace):
-    def __init__(self, module_fn, keep_link=False, space=None, name=None, repeat_num_choices=[1]):
+    def __init__(self, module_fn, keep_link=False, space=None, name=None, repeat_times=[1]):
         assert callable(module_fn), f'{module_fn} is not a callable object. '
-        assert isinstance(repeat_num_choices, list), f'`repeat_num_choices` must be a list.'
+        assert isinstance(repeat_times, list), f'`repeat_num_choices` must be a list.'
         assert all([isinstance(c, int) for c in
-                    repeat_num_choices]), f'All of the element in `repeat_num_choices` must be integer.'
+                    repeat_times]), f'All of the element in `repeat_num_choices` must be integer.'
         assert all(
-            [c > 0 for c in repeat_num_choices]), f'All of the element in `repeat_num_choices` must be greater than 0.'
+            [c > 0 for c in repeat_times]), f'All of the element in `repeat_num_choices` must be greater than 0.'
         self.module_fn = module_fn
-        self.hp_repeat_num = Choice(repeat_num_choices)
-        ConnectionSpace.__init__(self, self.repeat_fn, keep_link, space, name, hp_repeat_num=self.hp_repeat_num)
+        self.hp_repeat_times = Choice(repeat_times)
+        ConnectionSpace.__init__(self, self.repeat_fn, keep_link, space, name, hp_repeat_times=self.hp_repeat_times)
 
     def repeat_fn(self, m):
-        repeat_num = self.hp_repeat_num.value
-        module_list = [self.module_fn(step) for step in range(repeat_num)]
+        repeat_times = self.hp_repeat_times.value
+        module_list = [self.module_fn(step) for step in range(repeat_times)]
         last = module_list[0]
         for i in range(1, len(module_list)):
             self.connect_module_or_subgraph(last, module_list[i])

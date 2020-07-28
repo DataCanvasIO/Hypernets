@@ -284,7 +284,7 @@ class Test_ConnectionSpace:
             space = HyperSpace()
             with space.as_default():
                 in1 = HyperInput()
-                rep = Repeat(module_fn=lambda step: Identity(p1=Choice([1, 2, 3])), repeat_num_choices=[2, 3, 4])(in1)
+                rep = Repeat(module_fn=lambda step: Identity(p1=Choice([1, 2, 3])), repeat_times=[2, 3, 4])(in1)
                 id3 = Identity()(rep)
             return space
 
@@ -314,7 +314,7 @@ class Test_ConnectionSpace:
             space = HyperSpace()
             with space.as_default():
                 in1 = HyperInput()
-                rep = Repeat(module_fn=seq_fn, repeat_num_choices=[2, 3, 4])(in1)
+                rep = Repeat(module_fn=seq_fn, repeat_times=[2, 3, 4])(in1)
                 id3 = Identity()(rep)
             return space
 
@@ -343,7 +343,7 @@ class Test_ConnectionSpace:
             space = HyperSpace()
             with space.as_default():
                 in1 = HyperInput()
-                rep = Repeat(module_fn=block1, repeat_num_choices=[2, 3, 4])(in1)
+                rep = Repeat(module_fn=block1, repeat_times=[2, 3, 4])(in1)
                 id3 = Identity()(rep)
             return space
 
