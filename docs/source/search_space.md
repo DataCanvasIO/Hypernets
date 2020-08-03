@@ -57,7 +57,7 @@ module_c = BatchNormalization()(or_conv_pool)
 
 * Sequential: A series of modules connected in order.
 
-![](images/connection_space_or.png)
+![](images/connection_space_sequential.png)
 
 ```python
 from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization
