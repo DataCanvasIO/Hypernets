@@ -5,11 +5,11 @@
 
 
 class Estimator():
-    def __init__(self, space):
-        self.space = space
-        self.model = self._build_model(space)
+    def __init__(self, space_sample):
+        self.space_sample = space_sample
+        self.model = self._build_model(space_sample)
 
-    def _build_model(self, space):
+    def _build_model(self, space_sample):
         raise NotImplementedError
 
     def summary(self):
@@ -21,5 +21,5 @@ class Estimator():
     def predict(self, X, **kwargs):
         raise NotImplementedError
 
-    def evaluate(self, X, y, **kwargs):
+    def evaluate(self, X, y, metrics=None, **kwargs):
         raise NotImplementedError

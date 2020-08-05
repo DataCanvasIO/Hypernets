@@ -145,7 +145,7 @@ class HyperGBMEstimator(Estimator):
         self.cache_dir = cache_dir
         self.clear_cache = clear_cache
         self.task = task
-        Estimator.__init__(self, space=space_sample)
+        Estimator.__init__(self, space_sample=space_sample)
 
     def _build_model(self, space_sample):
         space = space_sample.compile_space()

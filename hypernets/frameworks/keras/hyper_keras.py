@@ -17,7 +17,7 @@ class KerasEstimator(Estimator):
         self.loss = loss
         self.metrics = metrics
         self.max_model_size = max_model_size
-        Estimator.__init__(self, space=space_sample)
+        Estimator.__init__(self, space_sample=space_sample)
 
     def _build_model(self, space_sample):
         K.clear_session()

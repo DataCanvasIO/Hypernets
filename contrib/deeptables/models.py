@@ -106,12 +106,12 @@ class DnnModule(ModuleSpace):
 
 
 class DTEstimator(Estimator):
-    def __init__(self, space, **config_kwargs):
+    def __init__(self, space_sample, **config_kwargs):
         self.config_kwargs = config_kwargs
-        Estimator.__init__(self, space=space)
+        Estimator.__init__(self, space_sample=space_sample)
 
-    def _build_model(self, space):
-        config = space.DT_Module.config._replace(**self.config_kwargs)
+    def _build_model(self, space_sample):
+        config = space_sample.DT_Module.config._replace(**self.config_kwargs)
         model = DeepTable(config)
         return model
 
@@ -125,7 +125,7 @@ class DTEstimator(Estimator):
             print(ex)
 
     def fit(self, X, y, **kwargs):
-        fit_params = self.space.__dict__.get('fit_params')
+        fit_params = self.space_sample.__dict__.get('fit_params')
         if fit_params is not None:
             kwargs.update(fit_params.param_values)
         self.model.fit(X, y, **kwargs)
@@ -133,7 +133,7 @@ class DTEstimator(Estimator):
     def predict(self, X, **kwargs):
         return self.model.predict(X, **kwargs)
 
-    def evaluate(self, X, y, **kwargs):
+    def evaluate(self, X, y, metrics=None, **kwargs):
         result = self.model.evaluate(X, y, **kwargs)
         return result
 
