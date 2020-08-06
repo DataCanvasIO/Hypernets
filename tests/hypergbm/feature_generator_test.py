@@ -20,7 +20,6 @@ class Test_FeatureGenerator():
 
     def test_feature_tools_transformer(self):
 
-
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)

@@ -93,6 +93,10 @@ class EvolutionSearcher(Searcher):
         self.regularized = regularized
         self.candidate_size = candidates_size
 
+    @property
+    def allow_parallelized(self):
+        return True
+
     def sample(self):
         if self.population.initializing:
             space_sample = self.space_fn()

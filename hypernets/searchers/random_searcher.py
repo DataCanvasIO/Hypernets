@@ -9,6 +9,10 @@ class RandomSearcher(Searcher):
     def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize):
         Searcher.__init__(self, space_fn, optimize_direction)
 
+    @property
+    def allow_parallelized(self):
+        return True
+
     def sample(self):
         space = self.space_fn()
         space.random_sample()

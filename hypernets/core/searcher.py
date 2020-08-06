@@ -21,6 +21,10 @@ class Searcher(Stateful):
     def set_meta_learner(self, meta_learner):
         self.meta_learner = meta_learner
 
+    @property
+    def allow_parallelized(self):
+        return False
+
     def sample(self):
         raise NotImplementedError
 
