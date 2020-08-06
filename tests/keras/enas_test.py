@@ -3,7 +3,7 @@
 
 """
 from tensorflow.keras.utils import plot_model
-
+import tensorflow as tf
 from hypernets.core.ops import *
 from hypernets.core.search_space import HyperSpace
 from hypernets.frameworks.keras.enas_common_ops import sepconv3x3, sepconv5x5, avgpooling3x3, \
@@ -164,7 +164,7 @@ class Test_Enas():
             space = HyperSpace()
             with space.as_default():
                 filters = 64
-                in1 = Input(shape=(28, 28, 1,))
+                in1 = Input(shape=(28, 28, 1,), dtype='float32')
                 conv_node(hp_dict, 'normal', 0, 0, [in1, in1], filters)
                 space.set_inputs(in1)
                 return space

@@ -83,23 +83,27 @@ class HyperSpace(Mutable):
             raise ValueError(f"Not supported node:{node}")
         self.__dict__[node.id] = node
 
-    def compile_space(self):
-        space_copy = copy.deepcopy(self)
-        space_copy._compile_space()
-        return space_copy
+    def compile_space(self, inputs=None, just_build=False, deepcopy=True):
+        if deepcopy:
+            space = copy.deepcopy(self)
+        else:
+            space = self
+        space._compile_space(inputs=inputs, just_build=just_build)
+        return space
 
-    def _compile_space(self):
-        assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
+    def _compile_space(self, inputs=None, just_build=False):
+        # assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
         space_out = []
 
         def compile_module(module):
-            inputs = self.get_inputs(module)
-            if len(inputs) <= 0:
-                module.compile()
-            elif len(inputs) == 1:
-                module.compile(inputs[0].output)
+            input_modules = self.get_inputs(module)
+            if len(input_modules) <= 0:
+                # input module of space
+                module.compile(inputs=inputs, just_build=just_build)
+            elif len(input_modules) == 1:
+                module.compile(inputs=input_modules[0].output, just_build=just_build)
             else:
-                module.compile([m.output for m in inputs])
+                module.compile(inputs=[m.output for m in input_modules], just_build=just_build)
 
             outputs = self.get_outputs(module)
             if len(outputs) <= 0:
@@ -107,7 +111,8 @@ class HyperSpace(Mutable):
             return True
 
         self.traverse(compile_module, direction='forward')
-        self._is_compiled = True
+        if not just_build:
+            self._is_compiled = True
         self._outputs = set(space_out)
 
     def traverse(self, fn, direction='forward', start_modules=[], discard_isolated_node=True):
@@ -1014,13 +1019,16 @@ class ModuleSpace(HyperNode):
                 return False
         return True
 
-    def compile(self, inputs=None):
+    def compile(self, inputs=None, just_build=False):
         if not self.is_built:
             self._build()
             self.is_built = True
-        self._output = self._compile(inputs)
-        self._is_compiled = True
-        return self._output
+        if just_build:
+            return None
+        else:
+            self._output = self._compile(inputs)
+            self._is_compiled = True
+            return self._output
 
     def _compile(self, inputs):
         raise NotImplementedError

@@ -11,11 +11,14 @@ from hypernets.core.search_space import HyperSpace
 
 def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=64, node_num=4, data_format=None,
                             classes=10, classification_dropout=0,
-                            hp_dict={}):
+                            hp_dict={}, use_input_placeholder=True):
     space = HyperSpace()
     with space.as_default():
-        input = Input(shape=input_shape, name='0_input')
-        stem = stem_op(input, init_filters, data_format)
+        if use_input_placeholder:
+            input = Input(shape=input_shape, name='0_input')
+        else:
+            input = None
+        stem, input = stem_op(input, init_filters, data_format)
         node0 = stem
         node1 = stem
         reduction_no = 0
@@ -44,4 +47,5 @@ def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=6
             node1 = x
         logit = classification(x, classes, classification_dropout, data_format)
         space.set_inputs(input)
+
     return space

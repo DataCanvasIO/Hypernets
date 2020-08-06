@@ -126,9 +126,13 @@ def stem_op(input, filters, data_format=None):
         padding='same',
         data_format=data_format,
         name=f'0_stem_conv2d'
-    )(input)
+    )
+    if input is None:
+        input = conv
+    else:
+        conv(input)
     bn = BatchNormalization(name=f'0_stem_bn')(conv)
-    return bn
+    return bn, input
 
 
 def auxiliary_head(x, data_format=None):
