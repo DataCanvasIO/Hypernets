@@ -94,7 +94,7 @@ class EvolutionSearcher(Searcher):
         self.candidate_size = candidates_size
 
     @property
-    def allow_parallelized(self):
+    def parallelizable(self):
         return True
 
     def sample(self):

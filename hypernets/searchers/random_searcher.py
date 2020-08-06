@@ -10,7 +10,7 @@ class RandomSearcher(Searcher):
         Searcher.__init__(self, space_fn, optimize_direction)
 
     @property
-    def allow_parallelized(self):
+    def parallelizable(self):
         return True
 
     def sample(self):

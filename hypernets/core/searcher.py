@@ -22,7 +22,7 @@ class Searcher(Stateful):
         self.meta_learner = meta_learner
 
     @property
-    def allow_parallelized(self):
+    def parallelizable(self):
         return False
 
     def sample(self):
