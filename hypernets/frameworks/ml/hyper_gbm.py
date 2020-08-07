@@ -148,7 +148,7 @@ class HyperGBMEstimator(Estimator):
         Estimator.__init__(self, space_sample=space_sample)
 
     def _build_model(self, space_sample):
-        space = space_sample.compile_space()
+        space, _ = space_sample.compile_and_forward()
 
         outputs = space.get_outputs()
         assert len(outputs) == 1, 'The space can only contains 1 output.'

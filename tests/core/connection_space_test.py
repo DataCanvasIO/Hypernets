@@ -38,7 +38,7 @@ def get_id(m):
 class Test_ConnectionSpace:
     def test_identity(self):
         id = Identity()
-        id.compile([1, 2, 3])
+        id.compile_and_forward([1,2,3])
         assert id.output, [1, 2, 3]
 
     def test_parameters(self):

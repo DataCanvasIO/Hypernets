@@ -104,7 +104,7 @@ class Test_CommonOps():
     def test_categorical_pipeline(self):
         space = get_space_categorical_pipeline()
         space.random_sample()
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         global ids
         ids = []
         space.traverse(get_id)
@@ -123,7 +123,7 @@ class Test_CommonOps():
 
         space = get_space_categorical_pipeline_complex()
         space.assign_by_vectors([1, 0])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
@@ -138,7 +138,7 @@ class Test_CommonOps():
 
         space = get_space_categorical_pipeline_complex()
         space.assign_by_vectors([1, 1, 0])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
@@ -153,7 +153,7 @@ class Test_CommonOps():
 
         space = get_space_categorical_pipeline_complex()
         space.assign_by_vectors([0, 1, 0])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
@@ -169,7 +169,7 @@ class Test_CommonOps():
 
         space = get_space_categorical_pipeline_complex()
         space.assign_by_vectors([1, 1, 1])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_categorical_imputer_0',
@@ -185,7 +185,7 @@ class Test_CommonOps():
     def test_numeric_pipeline(self):
         space = get_space_numeric_pipeline()
         space.random_sample()
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         global ids
         ids = []
         space.traverse(get_id)
@@ -204,7 +204,7 @@ class Test_CommonOps():
 
         space = get_space_numeric_pipeline_complex()
         space.assign_by_vectors([1, 0])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
@@ -218,7 +218,7 @@ class Test_CommonOps():
 
         space = get_space_numeric_pipeline_complex()
         space.assign_by_vectors([0, 1, 0])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
@@ -233,7 +233,7 @@ class Test_CommonOps():
 
         space = get_space_numeric_pipeline_complex()
         space.assign_by_vectors([0, 1, 1])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
@@ -248,7 +248,7 @@ class Test_CommonOps():
 
         space = get_space_numeric_pipeline_complex()
         space.assign_by_vectors([0, 1, 2])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
@@ -263,7 +263,7 @@ class Test_CommonOps():
 
         space = get_space_numeric_pipeline_complex()
         space.assign_by_vectors([0, 1, 3])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_numeric_pipeline_complex_0_input', 'ID_numeric_imputer_0',
@@ -279,7 +279,7 @@ class Test_CommonOps():
     def test_num_cat_pipeline(self):
         space = get_space_num_cat_pipeline()
         space.random_sample()
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         global ids
         ids = []
         space.traverse(get_id)
@@ -301,7 +301,7 @@ class Test_CommonOps():
 
         space = get_space_num_cat_pipeline(default=None)
         space.random_sample()
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         next, (name, p) = space.Module_DataFrameMapper_1.compose()
         X, y = get_df()
         df_1 = p.fit_transform(X, y)
@@ -314,7 +314,7 @@ class Test_CommonOps():
         space = get_space_num_cat_pipeline_complex()
         space.assign_by_vectors([0, 1, 1, 1, 1, 0, 0, 0.1, 1, 1])
         # [0, 1, 1, 0, 1, 0, 3, 0.01, 1]
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',
@@ -331,7 +331,7 @@ class Test_CommonOps():
 
         space = get_space_num_cat_pipeline_complex()
         space.assign_by_vectors([0, 1, 1, 1, 1, 0, 0, 0.1, 1, 0])
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input1', 'ID_categorical_pipeline_complex_0_input', 'ID_numeric_pipeline_complex_0_input',

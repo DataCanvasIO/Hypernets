@@ -12,10 +12,10 @@ class HyperInput(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
-    def _build(self):
+    def _compile(self):
         pass
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return inputs
 
 
@@ -23,10 +23,10 @@ class Identity(ModuleSpace):
     def __init__(self, space=None, name=None, **hyperparams):
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
-    def _build(self):
+    def _compile(self):
         pass
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return inputs
 
 
@@ -266,15 +266,15 @@ class Reduction(ModuleSpace):
         ModuleSpace.__init__(self, space, name, **hyperparams)
         self.reduction_op = reduction_op
 
-    def _build(self):
+    def _compile(self):
         pv = self.param_values
         if pv.get('name') is None:
             pv['name'] = self.name
         self.compile_fn = self.reduction_op(**pv)
         self.is_built = True
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return self.compile_fn(inputs)
 
     def _on_params_ready(self):
-        self._build()
+        self._compile()

@@ -13,13 +13,13 @@ class EnasHyperLayer(ModuleSpace):
         self.data_format = data_format
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
-    def _build(self):
+    def _compile(self):
         self.is_built = True
 
     def _call(self, inputs):
         raise NotImplementedError
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return self._call(inputs)
 
     def _on_params_ready(self):

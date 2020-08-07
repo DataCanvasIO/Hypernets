@@ -17,11 +17,11 @@ class HyperEstimator(ModuleSpace):
     def _build_estimator(self, kwargs):
         raise NotImplementedError
 
-    def _build(self):
+    def _compile(self):
         pv = self.param_values
         self.estimator = self._build_estimator(pv)
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return self.estimator
 
     def _on_params_ready(self):

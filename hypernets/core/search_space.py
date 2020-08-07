@@ -83,37 +83,48 @@ class HyperSpace(Mutable):
             raise ValueError(f"Not supported node:{node}")
         self.__dict__[node.id] = node
 
-    def compile_space(self, inputs=None, just_build=False, deepcopy=True):
+    def compile(self, deepcopy=True):
         if deepcopy:
             space = copy.deepcopy(self)
         else:
             space = self
-        space._compile_space(inputs=inputs, just_build=just_build)
+        space._compile_space()
         return space
 
-    def _compile_space(self, inputs=None, just_build=False):
-        # assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
+    def _compile_space(self):
+        assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
         space_out = []
 
         def compile_module(module):
-            input_modules = self.get_inputs(module)
-            if len(input_modules) <= 0:
-                # input module of space
-                module.compile(inputs=inputs, just_build=just_build)
-            elif len(input_modules) == 1:
-                module.compile(inputs=input_modules[0].output, just_build=just_build)
-            else:
-                module.compile(inputs=[m.output for m in input_modules], just_build=just_build)
-
-            outputs = self.get_outputs(module)
-            if len(outputs) <= 0:
+            module.compile()
+            if len(self.get_outputs(module)) <= 0:
                 space_out.append(module)
             return True
 
         self.traverse(compile_module, direction='forward')
-        if not just_build:
-            self._is_compiled = True
+        self._is_compiled = True
         self._outputs = set(space_out)
+
+    def forward(self, inputs=None):
+        def forward_module(module):
+            input_modules = self.get_inputs(module)
+            if len(input_modules) <= 0:
+                # The input module of space
+                module.forward(inputs)
+            elif len(input_modules) == 1:
+                module.forward(inputs=input_modules[0].output)
+            else:
+                module.forward(inputs=[m.output for m in input_modules])
+            return True
+
+        self.traverse(forward_module, direction='forward')
+        outputs = [output.output for output in self.get_outputs()]
+        return outputs
+
+    def compile_and_forward(self, inputs=None, deepcopy=True):
+        space = self.compile(deepcopy)
+        outputs = space.forward(inputs)
+        return space, outputs
 
     def traverse(self, fn, direction='forward', start_modules=[], discard_isolated_node=True):
         if direction == 'forward':
@@ -1019,22 +1030,24 @@ class ModuleSpace(HyperNode):
                 return False
         return True
 
-    def compile(self, inputs=None, just_build=False):
-        if not self.is_built:
-            self._build()
-            self.is_built = True
-        if just_build:
-            return None
-        else:
-            self._output = self._compile(inputs)
+    def compile(self):
+        if not self.is_compiled:
+            self._compile()
             self._is_compiled = True
-            return self._output
 
-    def _compile(self, inputs):
+    def _compile(self):
         raise NotImplementedError
 
-    def _build(self):
+    def forward(self, inputs=None):
+        self._output = self._forward(inputs)
+        return self._output
+
+    def _forward(self, inputs):
         raise NotImplementedError
+
+    def compile_and_forward(self, inputs=None):
+        self.compile()
+        return self.forward(inputs)
 
     def _on_params_ready(self):
         pass

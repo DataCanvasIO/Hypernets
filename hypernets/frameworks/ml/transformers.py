@@ -16,14 +16,14 @@ class HyperTransformer(ModuleSpace):
         self.transformer = transformer
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
-    def _build(self):
+    def _compile(self):
         if self.transformer is not None:
             pv = self.param_values
             self.compile_fn = self.transformer(**pv)
         else:
             self.compile_fn = None
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return self.compile_fn
 
     def _on_params_ready(self):

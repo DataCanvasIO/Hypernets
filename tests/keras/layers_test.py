@@ -16,7 +16,7 @@ class Test_KerasLayers():
             assert space.Param_Constant_1.alias == 'Module_Input_1.shape'
             assert space.Param_Choice_1.alias == 'Module_Input_2.shape'
             assert space.Param_Bool_1.alias == 'Module_Input_2.sparse'
-            output = input1.compile()
+            output = input1.compile_and_forward()
             assert output.shape, (None, 3000)
 
     def test_hyper_dense(self):
@@ -27,10 +27,9 @@ class Test_KerasLayers():
             dense(input)
             space.random_sample()
             assert dense.is_params_ready == True
-            x = input.compile()
+            x = input.compile_and_forward()
             assert x.shape, (None, 3000)
-            x = dense.compile(x)
-            # tensor = dense.forward(input)
+            x = dense.compile_and_forward(x)
             assert x.shape, (None, dense.param_values['units'])
 
     def test_model_no_hp(self):
@@ -95,7 +94,7 @@ class Test_KerasLayers():
 
         space.random_sample()
         assert dense.is_params_ready == True
-        compiled_space = space.compile_space()
+        compiled_space, _ = space.compile_and_forward()
         assert compiled_space.space_id == space.space_id
 
         outputs = compiled_space.get_outputs()

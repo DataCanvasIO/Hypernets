@@ -9,7 +9,7 @@ from tensorflow.keras.models import Model
 
 
 def keras_model(self):
-    compiled_space = self.compile_space()
+    compiled_space, _ = self.compile_and_forward()
     inputs = compiled_space.get_inputs()
     outputs = compiled_space.get_outputs()
     model = Model(inputs=[input.output for input in inputs],

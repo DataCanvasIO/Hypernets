@@ -13,7 +13,7 @@ import gc
 
 
 def keras_model(self):
-    compiled_space = self.compile_space()
+    compiled_space, _ = self.compile_and_forward()
     inputs = compiled_space.get_inputs()
     outputs = compiled_space.get_outputs()
     model = models.Model(inputs=[input.output for input in inputs],
@@ -47,12 +47,10 @@ class ss:
 class SharingWeightModel(models.Model):
     def __init__(self, space_sample):
         super().__init__()
-        self.compiled_space = space_sample.compile_space(just_build=True)
+        self.compiled_space = space_sample.compile()
 
     def call(self, inputs, training=None, mask=None):
-        self.compiled_space.compile_space(inputs=inputs, just_build=False, deepcopy=False)
-        outputs = self.compiled_space.get_outputs()
-        logits = [output.output for output in outputs]
+        logits = self.compiled_space.forward(inputs=inputs)
         return logits
 
 class KerasEstimator(Estimator):

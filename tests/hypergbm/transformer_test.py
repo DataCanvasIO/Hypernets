@@ -105,7 +105,7 @@ class Test_HyperGBM:
     def test_pipeline_compose(self):
         space = get_space_p_in_p()
         space.random_sample()
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         global ids
         ids = []
         space.traverse(get_id)
@@ -121,7 +121,7 @@ class Test_HyperGBM:
     def test_column_transformer_compose(self):
         space = get_space_column_transformer()
         space.random_sample()
-        space = space.compile_space()
+        space, _ = space.compile_and_forward()
         global ids
         ids = []
         space.traverse(get_id)

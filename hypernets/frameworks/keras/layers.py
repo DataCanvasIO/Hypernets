@@ -12,14 +12,14 @@ class HyperLayer(ModuleSpace):
         self.keras_layer_class = keras_layer_class
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
-    def _build(self):
+    def _compile(self):
         pv = self.param_values
         if pv.get('name') is None:
             pv['name'] = self.name
         self.keras_layer = self.keras_layer_class(**pv)
         self.is_built = True
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return self.keras_layer(inputs)
 
     def _on_params_ready(self):
@@ -40,7 +40,7 @@ class Input(HyperLayer):
             kwargs['dtype'] = dtype
         HyperLayer.__init__(self, kl.Input, space, name, **kwargs)
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return self.keras_layer
 
 

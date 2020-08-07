@@ -19,15 +19,15 @@ class DTModuleSpace(ModuleSpace):
         self.space.DT_Module = self
         self.config = None
 
-    def _build(self):
+    def _compile(self):
         self.config = ModelConfig(**self.param_values)
         self.is_built = True
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return inputs
 
     def _on_params_ready(self):
-        self._build()
+        self._compile()
 
 
 class DTFit(ModuleSpace):
@@ -43,14 +43,14 @@ class DTFit(ModuleSpace):
         ModuleSpace.__init__(self, space, name, **hyperparams)
         self.space.fit_params = self
 
-    def _build(self):
+    def _compile(self):
         self.is_built = True
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return inputs
 
     def _on_params_ready(self):
-        self._build()
+        self._compile()
 
 
 class DnnModule(ModuleSpace):
@@ -82,7 +82,7 @@ class DnnModule(ModuleSpace):
 
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
-    def _build(self):
+    def _compile(self):
         dnn_layers = self.param_values['dnn_layers']
         dnn_units = []
         for i in range(0, dnn_layers):
@@ -98,11 +98,11 @@ class DnnModule(ModuleSpace):
         self.space.DT_Module.config = self.space.DT_Module.config._replace(dnn_params=dnn_params)
         self.is_built = True
 
-    def _compile(self, inputs):
+    def _forward(self, inputs):
         return inputs
 
     def _on_params_ready(self):
-        self._build()
+        self._compile()
 
 
 class DTEstimator(Estimator):
