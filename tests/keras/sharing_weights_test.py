@@ -6,6 +6,16 @@ __author__ = 'yangjian'
 from tensorflow.keras import layers, models, utils
 import tensorflow as tf
 import numpy as np
+from hypernets.frameworks.keras.layer_weights_cache import LayerWeightsCache
+from hypernets.core.search_space import HyperSpace
+from tensorflow.keras.utils import plot_model
+import tensorflow as tf
+from hypernets.core.ops import *
+from hypernets.core.search_space import HyperSpace
+from hypernets.frameworks.keras.enas_common_ops import sepconv3x3, sepconv5x5, avgpooling3x3, \
+    maxpooling3x3, identity, conv_cell, conv_node, conv_layer
+from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
+from hypernets.frameworks.keras.layers import Input
 
 selection = 0
 
@@ -50,18 +60,46 @@ class SW_Model(models.Model):
 
 class Test_SharingWeights():
 
-    # def test_call(self):
-    #     global selection
-    #     selection = 0
-    #     options = [layers.Dense(20, activation='relu', name='d1'),
-    #                layers.Dense(20, activation='relu', name='d2'),
-    #                layers.Dense(20, activation='relu', name='d3')]
-    #     x = np.random.normal(0.0, 1.0, size=(100, 10))
-    #     lc = LayerChoice(options)(x)
-    #     d1 = layers.Dense(20, activation='relu', name='d1')
-    #     out_ = layers.Dense(2, activation='softmax')(lc)
-    #     model = models.Model(inputs=lc.i, outputs=out_)
-    #     assert model
+    def test_layer_cache(self):
+        cache = LayerWeightsCache()
+
+        def get_space(cache):
+            space = HyperSpace()
+            with space.as_default():
+                name_prefix = 'test_'
+                filters = 64
+                in1 = Input(shape=(28, 28, 1,))
+                in2 = Input(shape=(28, 28, 1,))
+                ic1 = InputChoice([in1, in2], 1)([in1, in2])
+                or1 = Or([sepconv5x5(name_prefix, filters),
+                          sepconv3x3(name_prefix, filters),
+                          avgpooling3x3(name_prefix, filters),
+                          maxpooling3x3(name_prefix, filters),
+                          identity(name_prefix)])(ic1)
+                space.set_inputs([in1, in2])
+                space.weights_cache = cache
+                return space
+
+        space = get_space(cache)
+        space.assign_by_vectors([1, 0])
+        space = space.compile(deepcopy=False)
+        assert len(space.weights_cache.cache.items()) == 8
+        assert cache.hit_counter == 0
+        assert cache.miss_counter == 8
+
+        space = get_space(cache)
+        space.assign_by_vectors([1, 1])
+        space = space.compile(deepcopy=False)
+        assert len(space.weights_cache.cache.items()) == 14
+        assert cache.hit_counter == 2
+        assert cache.miss_counter == 14
+
+        space = get_space(cache)
+        space.assign_by_vectors([1, 0])
+        space = space.compile(deepcopy=False)
+        assert len(space.weights_cache.cache.items()) == 14
+        assert cache.hit_counter == 10
+        assert cache.miss_counter == 14
 
     def test_model(self):
         model = SW_Model()
@@ -87,4 +125,3 @@ class Test_SharingWeights():
         model.fit(x, y)
         result = model.evaluate(x, y)
         assert out.shape == (1000, 2)
-        # assert model.layers[1].output.shape[1] == 20

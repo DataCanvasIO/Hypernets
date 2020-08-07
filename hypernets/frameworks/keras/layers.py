@@ -16,7 +16,16 @@ class HyperLayer(ModuleSpace):
         pv = self.param_values
         if pv.get('name') is None:
             pv['name'] = self.name
-        self.keras_layer = self.keras_layer_class(**pv)
+
+        # In the weights sharing mode, the instance is first retrieved from the cache
+        cache = self.space.__dict__.get('weights_cache')
+        if cache is not None:
+            self.keras_layer = cache.retrieve(pv['name'])
+            if self.keras_layer is None:
+                self.keras_layer = self.keras_layer_class(**pv)
+                cache.put(pv['name'], self.keras_layer)
+        else:
+            self.keras_layer = self.keras_layer_class(**pv)
 
     def _forward(self, inputs):
         return self.keras_layer(inputs)
