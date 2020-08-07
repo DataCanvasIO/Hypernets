@@ -4,6 +4,7 @@
 """
 from tensorflow.keras import layers as kl
 from ...core.search_space import ModuleSpace
+from .utils import compile_layer
 
 
 class FilterAlignment(kl.Layer):
@@ -119,8 +120,12 @@ class FactorizedReduction(EnasHyperLayer):
                                 **hyperparams)
 
     def _compile(self):
-        self.factorized_reduction = FactorizedReduction_K(f'{self.name_prefix}reduction_', self.filters // 2,
-                                                          self.data_format)
+        self.factorized_reduction = compile_layer(search_space=self.space,
+                                                  layer_class=FactorizedReduction_K,
+                                                  name=f'{self.name_prefix}reduction_',
+                                                  name_prefix=f'{self.name_prefix}reduction_',
+                                                  filters=self.filters // 2,
+                                                  data_format=self.data_format)
 
     def _forward(self, inputs):
         return self.factorized_reduction(inputs)
@@ -133,13 +138,24 @@ class CalibrateSize(EnasHyperLayer):
                                 **hyperparams)
 
     def _compile(self):
-        self.filter_alignment_input0 = FilterAlignment(self.name_prefix + 'input0', self.filters, self.data_format,
-                                                       name=f'{self.name_prefix}input0_filter_alignment')
-        self.filter_alignment_input1 = FilterAlignment(self.name_prefix + 'input1', self.filters, self.data_format,
-                                                       name=f'{self.name_prefix}input1_filter_alignment')
-        self.factorized_reduction = FactorizedReduction_K(self.name_prefix + 'input0_factorized_reduction_',
-                                                          self.filters // 2, self.data_format,
-                                                          name=self.name_prefix + 'input0_factorized_reduction_')
+        self.filter_alignment_input0 = compile_layer(search_space=self.space,
+                                                     layer_class=FilterAlignment,
+                                                     name=f'{self.name_prefix}input0_filter_alignment',
+                                                     name_prefix=self.name_prefix + 'input0',
+                                                     filters=self.filters,
+                                                     data_format=self.data_format)
+        self.filter_alignment_input1 = compile_layer(search_space=self.space,
+                                                     layer_class=FilterAlignment,
+                                                     name=f'{self.name_prefix}input1_filter_alignment',
+                                                     name_prefix=self.name_prefix + 'input1',
+                                                     filters=self.filters,
+                                                     data_format=self.data_format)
+        self.factorized_reduction = compile_layer(search_space=self.space,
+                                                  layer_class=FactorizedReduction_K,
+                                                  name=self.name_prefix + 'input0_factorized_reduction_',
+                                                  name_prefix=self.name_prefix + 'input0_factorized_reduction_',
+                                                  filters=self.filters // 2,
+                                                  data_format=self.data_format)
 
     def get_height_or_width(self, x):
         return x.get_shape().as_list()[2]

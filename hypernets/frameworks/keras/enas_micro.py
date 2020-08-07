@@ -11,7 +11,8 @@ from hypernets.core.search_space import HyperSpace
 
 def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=64, node_num=4, data_format=None,
                             classes=10, classification_dropout=0,
-                            hp_dict={}, use_input_placeholder=True):
+                            hp_dict={}, use_input_placeholder=True,
+                            weights_cache=None):
     space = HyperSpace()
     with space.as_default():
         if use_input_placeholder:
@@ -47,5 +48,7 @@ def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=6
             node1 = x
         logit = classification(x, classes, classification_dropout, data_format)
         space.set_inputs(input)
+        if weights_cache is not None:
+            space.weights_cache = weights_cache
 
     return space

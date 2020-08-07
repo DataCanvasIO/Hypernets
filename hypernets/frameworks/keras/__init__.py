@@ -8,12 +8,11 @@ from hypernets.core.search_space import HyperSpace
 from tensorflow.keras.models import Model
 
 
-def keras_model(self):
-    compiled_space, _ = self.compile_and_forward()
+def keras_model(self, deepcopy=True):
+    compiled_space, outputs = self.compile_and_forward(deepcopy=deepcopy)
     inputs = compiled_space.get_inputs()
-    outputs = compiled_space.get_outputs()
     model = Model(inputs=[input.output for input in inputs],
-                  outputs=[output.output for output in outputs])
+                  outputs=outputs)
     return model
 
 

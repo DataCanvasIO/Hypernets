@@ -5,6 +5,7 @@
 
 from tensorflow.keras import layers as kl
 from hypernets.core.search_space import *
+from .utils import compile_layer
 
 
 class HyperLayer(ModuleSpace):
@@ -13,19 +14,7 @@ class HyperLayer(ModuleSpace):
         ModuleSpace.__init__(self, space, name, **hyperparams)
 
     def _compile(self):
-        pv = self.param_values
-        if pv.get('name') is None:
-            pv['name'] = self.name
-
-        # In the weights sharing mode, the instance is first retrieved from the cache
-        cache = self.space.__dict__.get('weights_cache')
-        if cache is not None:
-            self.keras_layer = cache.retrieve(pv['name'])
-            if self.keras_layer is None:
-                self.keras_layer = self.keras_layer_class(**pv)
-                cache.put(pv['name'], self.keras_layer)
-        else:
-            self.keras_layer = self.keras_layer_class(**pv)
+        self.keras_layer = compile_layer(self.space, self.keras_layer_class, self.name, **self.param_values)
 
     def _forward(self, inputs):
         return self.keras_layer(inputs)
