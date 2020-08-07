@@ -941,7 +941,6 @@ class ModuleSpace(HyperNode):
     def __init__(self, space=None, name=None, **hyperparams):
         HyperNode.__init__(self, space, name)
         self._hyper_params = OrderedDict()
-        self.is_built = False
         self._is_params_ready = False
         self._is_compiled = False
         self._output = None

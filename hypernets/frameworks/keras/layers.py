@@ -17,7 +17,6 @@ class HyperLayer(ModuleSpace):
         if pv.get('name') is None:
             pv['name'] = self.name
         self.keras_layer = self.keras_layer_class(**pv)
-        self.is_built = True
 
     def _forward(self, inputs):
         return self.keras_layer(inputs)

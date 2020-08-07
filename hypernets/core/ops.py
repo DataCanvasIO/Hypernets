@@ -271,7 +271,6 @@ class Reduction(ModuleSpace):
         if pv.get('name') is None:
             pv['name'] = self.name
         self.compile_fn = self.reduction_op(**pv)
-        self.is_built = True
 
     def _forward(self, inputs):
         return self.compile_fn(inputs)

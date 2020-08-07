@@ -18,16 +18,15 @@ class Test_FeatureGenerator():
         tps = ft.primitives.get_transform_primitives()
         assert tps
 
-    def test_feature_tools_transformer(self):
-
-        df = dsutils.load_bank()
-        df.drop(['id'], axis=1, inplace=True)
-        X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
-        y_train = X_train.pop('y')
-        y_test = X_test.pop('y')
-
-        ftt = FeatureToolsTransformer()
-        ftt.fit(X_train)
-        x_t = ftt.transform(X_train)
-        assert x_t
-
+    # def test_feature_tools_transformer(self):
+    #
+    #     df = dsutils.load_bank()
+    #     df.drop(['id'], axis=1, inplace=True)
+    #     X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
+    #     y_train = X_train.pop('y')
+    #     y_test = X_test.pop('y')
+    #
+    #     ftt = FeatureToolsTransformer()
+    #     ftt.fit(X_train)
+    #     x_t = ftt.transform(X_train)
+    #     assert x_t

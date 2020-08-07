@@ -21,7 +21,6 @@ class DTModuleSpace(ModuleSpace):
 
     def _compile(self):
         self.config = ModelConfig(**self.param_values)
-        self.is_built = True
 
     def _forward(self, inputs):
         return inputs
@@ -44,7 +43,7 @@ class DTFit(ModuleSpace):
         self.space.fit_params = self
 
     def _compile(self):
-        self.is_built = True
+        pass
 
     def _forward(self, inputs):
         return inputs
@@ -96,7 +95,6 @@ class DnnModule(ModuleSpace):
             'dnn_activation': self.param_values['activation'],
         }
         self.space.DT_Module.config = self.space.DT_Module.config._replace(dnn_params=dnn_params)
-        self.is_built = True
 
     def _forward(self, inputs):
         return inputs
