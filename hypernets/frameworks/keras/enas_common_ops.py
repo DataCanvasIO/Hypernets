@@ -8,6 +8,7 @@ from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Ad
     SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import Or, InputChoice, ConnectLooseEnd
 from hypernets.core.search_space import ModuleSpace
+from tensorflow.python.keras import utils
 
 
 def sepconv2d_bn(no, name_prefix, kernel_size, filters, strides=(1, 1), data_format=None, x=None):
@@ -114,7 +115,10 @@ def conv_layer(hp_dict, type, cell_no, inputs, filters, node_num, is_reduction=F
         inputs.append(node)
         all_nodes.append(node)
     cle = ConnectLooseEnd(all_nodes)(all_nodes)
-    concat = SafeConcatenate(filters, name_prefix, name=name_prefix + 'concat_')(cle)
+
+    df = utils.conv_utils.normalize_data_format(data_format)
+    channel_axis = 1 if df == 'channels_first' else 3
+    concat = SafeConcatenate(filters, name_prefix, name=name_prefix + 'concat_', axis=channel_axis)(cle)
     return concat
 
 

@@ -2,7 +2,7 @@
 """
 
 """
-from tensorflow.keras import layers as kl
+from tensorflow.keras import layers as kl, utils
 from ...core.search_space import ModuleSpace
 from .utils import compile_layer
 
@@ -200,6 +200,7 @@ class SafeConcatenate(EnasHyperLayer):
             pv = self.param_values
             if pv.get('name') is None:
                 pv['name'] = self.name
-            return kl.Concatenate(**pv)(inputs)
+            return kl.Add(name=pv['name'])(inputs)
+            #return kl.Concatenate(**pv)(inputs)
         else:
             return inputs

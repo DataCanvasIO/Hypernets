@@ -39,8 +39,9 @@ def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=6
             filters = (2 ** reduction_no) * init_filters
 
             if is_reduction:
-                node0 = node1
-                node1 = FactorizedReduction(filters, f'{normal_no + reduction_no}_{type}_C{cell_no}_', data_format)(
+                node0 = FactorizedReduction(filters, f'{normal_no + reduction_no}_{type}_C{cell_no}_0', data_format)(
+                    node0)
+                node1 = FactorizedReduction(filters, f'{normal_no + reduction_no}_{type}_C{cell_no}_1', data_format)(
                     node1)
             x = conv_layer(hp_dict, f'{normal_no + reduction_no}_{type}', cell_no, [node0, node1], filters, node_num,
                            is_reduction)

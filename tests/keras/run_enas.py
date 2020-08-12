@@ -60,5 +60,5 @@ hk = HyperKeras(rs, optimizer='adam', loss='categorical_crossentropy', metrics=[
                 callbacks=[SummaryCallback()], one_shot_mode=True, visualization=True)
 
 hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
-          max_trails=10, epochs=1)
+          max_trails=100, epochs=1)
 assert hk.best_model
