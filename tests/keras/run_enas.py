@@ -3,6 +3,7 @@
 
 """
 import tensorflow as tf
+from tensorflow.keras.callbacks import TensorBoard
 
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import *
@@ -59,6 +60,7 @@ rs = RandomSearcher(
 hk = HyperKeras(rs, optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'],
                 callbacks=[SummaryCallback()], one_shot_mode=True, visualization=True)
 
+# tenserboard = TensorBoard('./tensorboard/run_enas')
 hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
-          max_trails=100, epochs=1)
+          max_trails=100, epochs=1, callbacks=[])
 assert hk.best_model

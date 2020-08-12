@@ -9,6 +9,7 @@ import threading
 import contextlib
 import queue
 import copy
+import time
 from collections import OrderedDict
 from .mutables import Mutable, MutableScope
 from ..utils.common import generate_id, combinations
@@ -94,18 +95,26 @@ class HyperSpace(Mutable):
     def _compile_space(self):
         assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
         space_out = []
+        counter = []
+        start_ts = time.time()
 
         def compile_module(module):
             module.compile()
+            counter.append(0)
             if len(self.get_outputs(module)) <= 0:
                 space_out.append(module)
             return True
 
         self.traverse(compile_module, direction='forward')
+        end_ts = time.time()
+        print(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
         self._is_compiled = True
         self._outputs = set(space_out)
 
     def forward(self, inputs=None):
+        counter = []
+        start_ts = time.time()
+
         def forward_module(module):
             input_modules = self.get_inputs(module)
             if len(input_modules) <= 0:
@@ -115,9 +124,12 @@ class HyperSpace(Mutable):
                 module.forward(inputs=input_modules[0].output)
             else:
                 module.forward(inputs=[m.output for m in input_modules])
+            counter.append(0)
             return True
 
         self.traverse(forward_module, direction='forward')
+        end_ts = time.time()
+        print(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
         outputs = [output.output for output in self.get_outputs()]
         return outputs
 
