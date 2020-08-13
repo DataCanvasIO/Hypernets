@@ -226,7 +226,7 @@ class Test_ConnectionSpace:
                 in1 = HyperInput()
                 id1 = Identity()
                 id2 = Identity()
-                orop = Or([id1, id2])
+                orop = ModuleChoice([id1, id2])
                 id3 = Identity()
                 orop(in1)
                 id3(orop)
@@ -238,15 +238,15 @@ class Test_ConnectionSpace:
         ids = []
 
         space.traverse(get_id)
-        assert ids == ['Module_HyperInput_1', 'Module_Or_1', 'Module_Identity_3']
+        assert ids == ['Module_HyperInput_1', 'Module_ModuleChoice_1', 'Module_Identity_3']
 
-        space.Module_Or_1.hp_or.assign(0)
+        space.Module_ModuleChoice_1.hp_or.assign(0)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_1', 'Module_Identity_3']
 
         space = get_space()
-        space.Module_Or_1.hp_or.assign(1)
+        space.Module_ModuleChoice_1.hp_or.assign(1)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_HyperInput_1', 'Module_Identity_2', 'Module_Identity_3']
@@ -256,7 +256,7 @@ class Test_ConnectionSpace:
             space = HyperSpace()
             with space.as_default():
                 in1 = HyperInput(name='input')
-                orop = Or([block1(1), block2(1)])(in1)
+                orop = ModuleChoice([block1(1), block2(1)])(in1)
                 output = Identity(name='output')(orop)
                 space.set_inputs(in1)
             return space
@@ -266,15 +266,15 @@ class Test_ConnectionSpace:
         ids = []
 
         space.traverse(get_id)
-        assert ids == ['ID_input', 'Module_Or_1', 'ID_output']
+        assert ids == ['ID_input', 'Module_ModuleChoice_1', 'ID_output']
 
-        space.Module_Or_1.hp_or.assign(0)
+        space.Module_ModuleChoice_1.hp_or.assign(0)
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input', 'ID_1_block1_id_1', 'ID_1_block1_id_2', 'ID_output']
 
         space = get_space()
-        space.Module_Or_1.hp_or.assign(1)
+        space.Module_ModuleChoice_1.hp_or.assign(1)
         ids = []
         space.traverse(get_id)
         assert ids == ['ID_input', 'ID_1_block2_id_1_1', 'ID_1_block2_id_1_2', 'ID_1_block2_id_2', 'ID_output']

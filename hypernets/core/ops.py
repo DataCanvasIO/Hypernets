@@ -2,8 +2,6 @@
 """
 
 """
-from abc import ABC
-
 from .search_space import *
 import itertools
 
@@ -116,7 +114,7 @@ class Optional(ConnectionSpace):
             return None, None
 
 
-class Or(ConnectionSpace):
+class ModuleChoice(ConnectionSpace):
     def __init__(self, module_list, keep_link=False, space=None, name=None, hp_or=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'

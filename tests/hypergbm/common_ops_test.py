@@ -11,7 +11,7 @@ from hypernets.frameworks.ml.column_selector import column_number, column_object
 from hypernets.frameworks.ml.estimators import LightGBMEstimator, XGBoostEstimator, CatBoostEstimator
 from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, categorical_pipeline_complex, \
     numeric_pipeline, numeric_pipeline_complex,get_space_num_cat_pipeline_complex
-from hypernets.core.ops import Choice, Or, Int, Real, HyperSpace, HyperInput
+from hypernets.core.ops import Choice, ModuleChoice, Int, Real, HyperSpace, HyperInput
 
 ids = []
 

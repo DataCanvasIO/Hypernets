@@ -6,7 +6,7 @@
 from hypernets.frameworks.keras.enas_layers import SafeConcatenate, Identity, CalibrateSize
 from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
     SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
-from hypernets.core.ops import Or, InputChoice, ConnectLooseEnd
+from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd
 from hypernets.core.search_space import ModuleSpace
 from tensorflow.python.keras import utils
 
@@ -61,8 +61,8 @@ def identity(name_prefix):
     return Identity(name=f'{name_prefix}identity')
 
 
-def add(x1, x2, name_prefix, filters):
-    return Add(name=f'{name_prefix}add_')([x1, x2])
+def add(name_prefix, inputs):
+    return Add(name=f'{name_prefix}add_')(inputs)
 
 
 def conv_cell(hp_dict, type, cell_no, node_no, left_or_right, inputs, filters, is_reduction=False, data_format=None):
@@ -81,11 +81,11 @@ def conv_cell(hp_dict, type, cell_no, node_no, left_or_right, inputs, filters, i
     #                      choice=ic1.hp_choice)
     hp_strides = (1, 1)
     hp_or = hp_dict.get(op_choice_key)
-    or1 = Or([sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              identity(name_prefix)], hp_or=hp_or)(ic1)
+    or1 = ModuleChoice([sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        identity(name_prefix)], hp_or=hp_or)(ic1)
 
     if hp_or is None:
         hp_dict[op_choice_key] = or1.hp_or
@@ -97,7 +97,7 @@ def conv_node(hp_dict, type, cell_no, node_no, inputs, filters, is_reduction=Fal
     op_left = conv_cell(hp_dict, type, cell_no, node_no, 'L', inputs, filters, is_reduction, data_format)
     op_right = conv_cell(hp_dict, type, cell_no, node_no, 'R', inputs, filters, is_reduction, data_format)
     name_prefix = f'{type}_C{cell_no}_N{node_no}_'
-    return add(op_left, op_right, name_prefix, filters)
+    return add(name_prefix, [op_left, op_right])
 
 
 def conv_layer(hp_dict, type, cell_no, inputs, filters, node_num, is_reduction=False, data_format=None):
@@ -117,9 +117,10 @@ def conv_layer(hp_dict, type, cell_no, inputs, filters, node_num, is_reduction=F
     cle = ConnectLooseEnd(all_nodes)(all_nodes)
 
     df = utils.conv_utils.normalize_data_format(data_format)
-    channel_axis = 1 if df == 'channels_first' else 3
-    concat = SafeConcatenate(filters, name_prefix, name=name_prefix + 'concat_', axis=channel_axis)(cle)
-    return concat
+    # channel_axis = 1 if df == 'channels_first' else 3
+    output = add(name_prefix, cle)
+    # SafeConcatenate(filters, name_prefix, name=name_prefix + 'concat_', axis=channel_axis)(cle)
+    return output
 
 
 def stem_op(input, filters, data_format=None):

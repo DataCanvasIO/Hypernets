@@ -7,7 +7,7 @@ from .column_selector import *
 from .transformers import *
 import numpy as np
 from hypernets.core.search_space import Choice
-from hypernets.core.ops import Or, Optional, HyperInput, Real
+from hypernets.core.ops import ModuleChoice, Optional, HyperInput, Real
 from hypernets.core.search_space import HyperSpace
 from hypernets.frameworks.ml.estimators import LightGBMEstimator, XGBoostEstimator, CatBoostEstimator
 
@@ -41,7 +41,7 @@ def categorical_pipeline_complex(impute_strategy=None, svd_components=3, seq_no=
     imputer = SimpleImputer(missing_values=np.nan, strategy=impute_strategy, name=f'categorical_imputer_{seq_no}')
     label_encoder = MultiLabelEncoder(name=f'categorical_label_encoder_{seq_no}')
     onehot = onehot_svd()
-    le_or_onehot_pca = Or([label_encoder, onehot], name=f'categorical_le_or_onehot_pca_{seq_no}')
+    le_or_onehot_pca = ModuleChoice([label_encoder, onehot], name=f'categorical_le_or_onehot_pca_{seq_no}')
     pipeline = Pipeline([imputer, le_or_onehot_pca],
                         name=f'categorical_pipeline_complex_{seq_no}',
                         columns=column_object_category_bool)
@@ -66,7 +66,7 @@ def numeric_pipeline_complex(impute_strategy=None, seq_no=0):
         impute_strategy = Choice(impute_strategy)
 
     imputer = SimpleImputer(missing_values=np.nan, strategy=impute_strategy, name=f'numeric_imputer_{seq_no}')
-    scaler_options = Or(
+    scaler_options = ModuleChoice(
         [
             StandardScaler(name=f'numeric_standard_scaler_{seq_no}'),
             MinMaxScaler(name=f'numeric_minmax_scaler_{seq_no}'),
@@ -111,6 +111,6 @@ def get_space_num_cat_pipeline_complex(dataframe_mapper_default=False,
             'silent': True
         }
         catboost_est = CatBoostEstimator(task='binary', fit_kwargs=catboost_fit_kwargs, **catboost_init_kwargs)
-        or_est = Or([lightgbm_est, xgb_est, catboost_est], name='estimator_options')(p3)
+        or_est = ModuleChoice([lightgbm_est, xgb_est, catboost_est], name='estimator_options')(p3)
         space.set_inputs(input)
     return space

@@ -61,7 +61,7 @@ class HyperSpace(Mutable):
         self._assigned_params_stack.append(param)
 
     @property
-    def unassigned_iterator(self):
+    def params_iterator(self):
         visited = {}
         while not self.all_assigned:
             for p in self.get_unassigned_params():
@@ -387,7 +387,7 @@ class HyperSpace(Mutable):
         return sorted(outputs, key=lambda m: m.id)
 
     def random_sample(self):
-        for hp in self.unassigned_iterator:
+        for hp in self.params_iterator:
             hp.random_sample()
 
     def get_unassigned_params(self, traverse_direction='forward'):
@@ -445,7 +445,7 @@ class HyperSpace(Mutable):
 
     def assign_by_vectors(self, vectors):
         i = 0
-        for p in self.unassigned_iterator:
+        for p in self.params_iterator:
             if not p.is_mutable:
                 p.random_sample()
                 continue

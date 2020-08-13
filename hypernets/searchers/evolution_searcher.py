@@ -69,7 +69,7 @@ class Population(object):
         assert parent_space.all_assigned
         parent_params = parent_space.get_assigned_params()
         pos = np.random.randint(0, len(parent_params))
-        for i, hp in enumerate(offspring_space.unassigned_iterator):
+        for i, hp in enumerate(offspring_space.params_iterator):
             if i > (len(parent_params) - 1) or not parent_params[i].same_config(hp):
                 hp.random_sample()
             else:

@@ -93,7 +93,7 @@ assert hk.best_model
 from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization, Activation, \
     Conv2D, MaxPooling2D, AveragePooling2D, Flatten
 from hypernets.core.search_space import HyperSpace, Bool, Choice, Dynamic
-from hypernets.core.ops import Permutation, Sequential, Optional, Repeat, Or
+from hypernets.core.ops import Permutation, Sequential, Optional, Repeat, ModuleChoice
 import itertools
 
 
@@ -118,7 +118,7 @@ def conv_block(block_no, hp_pooling, hp_filters, hp_kernel_size, hp_bn_act, hp_u
 
     conv_filters = Dynamic(lambda filters: filters * multiplier, filters=hp_filters)
     conv = Repeat(conv_bn, repeat_times=repeat_num_choices)
-    pooling = Or([MaxPooling2D(padding='same'), AveragePooling2D(padding='same')], hp_or=hp_pooling)
+    pooling = ModuleChoice([MaxPooling2D(padding='same'), AveragePooling2D(padding='same')], hp_or=hp_pooling)
     block = Sequential([conv, pooling])
     return block
 
@@ -204,7 +204,7 @@ assert hk.best_model
 from hypernets.frameworks.keras.enas_layers import SafeConcatenate, Identity, CalibrateSize
 from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
     SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
-from hypernets.core.ops import Or, InputChoice, ConnectLooseEnd
+from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd
 from hypernets.core.search_space import ModuleSpace
 
 
@@ -278,7 +278,7 @@ def conv_cell(hp_dict, type, cell_no, node_no, left_or_right, inputs, filters, i
     #                      choice=ic1.hp_choice)
     hp_strides = (1, 1)
     hp_or = hp_dict.get(op_choice_key)
-    or1 = Or([sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
+    or1 = ModuleChoice([sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
               sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
               avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
               maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
@@ -438,36 +438,36 @@ Trail No:1
 --------------------------------------------------------------
 (0) Module_InputChoice_1.hp_choice:                       [0]
 (1) Module_InputChoice_2.hp_choice:                       [0]
-(2) Module_Or_1.hp_or:                                      1
-(3) Module_Or_2.hp_or:                                      1
+(2) Module_ModuleChoice_1.hp_or:                                      1
+(3) Module_ModuleChoice_2.hp_or:                                      1
 (4) Module_InputChoice_3.hp_choice:                       [1]
 (5) Module_InputChoice_4.hp_choice:                       [2]
-(6) Module_Or_3.hp_or:                                      1
-(7) Module_Or_4.hp_or:                                      3
+(6) Module_ModuleChoice_3.hp_or:                                      1
+(7) Module_ModuleChoice_4.hp_or:                                      3
 (8) Module_InputChoice_5.hp_choice:                       [1]
 (9) Module_InputChoice_6.hp_choice:                       [2]
-(10) Module_Or_5.hp_or:                                     1
-(11) Module_Or_6.hp_or:                                     2
+(10) Module_ModuleChoice_5.hp_or:                                     1
+(11) Module_ModuleChoice_6.hp_or:                                     2
 (12) Module_InputChoice_7.hp_choice:                      [1]
 (13) Module_InputChoice_8.hp_choice:                      [0]
-(14) Module_Or_7.hp_or:                                     3
-(15) Module_Or_8.hp_or:                                     1
+(14) Module_ModuleChoice_7.hp_or:                                     3
+(15) Module_ModuleChoice_8.hp_or:                                     1
 (16) Module_InputChoice_10.hp_choice:                     [1]
 (17) Module_InputChoice_9.hp_choice:                      [0]
-(18) Module_Or_10.hp_or:                                    0
-(19) Module_Or_9.hp_or:                                     4
+(18) Module_ModuleChoice_10.hp_or:                                    0
+(19) Module_ModuleChoice_9.hp_or:                                     4
 (20) Module_InputChoice_11.hp_choice:                     [2]
 (21) Module_InputChoice_12.hp_choice:                     [0]
-(22) Module_Or_11.hp_or:                                    1
-(23) Module_Or_12.hp_or:                                    4
+(22) Module_ModuleChoice_11.hp_or:                                    1
+(23) Module_ModuleChoice_12.hp_or:                                    4
 (24) Module_InputChoice_13.hp_choice:                     [2]
 (25) Module_InputChoice_14.hp_choice:                     [3]
-(26) Module_Or_13.hp_or:                                    1
-(27) Module_Or_14.hp_or:                                    3
+(26) Module_ModuleChoice_13.hp_or:                                    1
+(27) Module_ModuleChoice_14.hp_or:                                    3
 (28) Module_InputChoice_15.hp_choice:                     [2]
 (29) Module_InputChoice_16.hp_choice:                     [1]
-(30) Module_Or_15.hp_or:                                    3
-(31) Module_Or_16.hp_or:                                    0
+(30) Module_ModuleChoice_15.hp_or:                                    3
+(31) Module_ModuleChoice_16.hp_or:                                    0
 --------------------------------------------------------------
 Model: "model"
 __________________________________________________________________________________________________

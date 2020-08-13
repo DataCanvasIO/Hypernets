@@ -67,7 +67,7 @@ def get_space_num_cat_pipeline_multi_complex(dataframe_mapper_default=False,
         }
         xgb_est = XGBoostEstimator(task='binary', fit_kwargs=xgb_fit_kwargs, **xgb_init_kwargs)
 
-        or_est = Or([lightgbm_est, xgb_est])(p6)
+        or_est = ModuleChoice([lightgbm_est, xgb_est])(p6)
         space.set_inputs(input)
     return space
 

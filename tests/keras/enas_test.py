@@ -29,11 +29,11 @@ class Test_Enas():
                 in1 = Input(shape=(28, 28, 1,))
                 in2 = Input(shape=(28, 28, 1,))
                 ic1 = InputChoice([in1, in2], 1)([in1, in2])
-                or1 = Or([sepconv5x5(name_prefix, filters),
-                          sepconv3x3(name_prefix, filters),
-                          avgpooling3x3(name_prefix, filters),
-                          maxpooling3x3(name_prefix, filters),
-                          identity(name_prefix)])(ic1)
+                or1 = ModuleChoice([sepconv5x5(name_prefix, filters),
+                                    sepconv3x3(name_prefix, filters),
+                                    avgpooling3x3(name_prefix, filters),
+                                    maxpooling3x3(name_prefix, filters),
+                                    identity(name_prefix)])(ic1)
                 space.set_inputs([in1, in2])
                 return space
 
@@ -41,17 +41,17 @@ class Test_Enas():
         global ids
         ids = []
         space.traverse(get_id)
-        assert ids == ['Module_Input_1', 'Module_Input_2', 'Module_InputChoice_1', 'Module_Or_1']
+        assert ids == ['Module_Input_1', 'Module_Input_2', 'Module_InputChoice_1', 'Module_ModuleChoice_1']
 
         assert len(space.edges & {(space.Module_Input_1, space.Module_InputChoice_1),
                                   (space.Module_Input_2, space.Module_InputChoice_1)}) == 2
         space.Module_InputChoice_1.hp_choice.assign([0])
         assert len(space.edges & {(space.Module_Input_1, space.Module_InputChoice_1),
                                   (space.Module_Input_2, space.Module_InputChoice_1)}) == 0
-        assert len(space.edges & {(space.Module_Input_1, space.Module_Or_1)}) == 1
-        assert len(space.edges & {(space.Module_Input_2, space.Module_Or_1)}) == 0
+        assert len(space.edges & {(space.Module_Input_1, space.Module_ModuleChoice_1)}) == 1
+        assert len(space.edges & {(space.Module_Input_2, space.Module_ModuleChoice_1)}) == 0
 
-        space.Module_Or_1.hp_or.assign(0)
+        space.Module_ModuleChoice_1.hp_or.assign(0)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_sepconv5x5_relu_0_',
@@ -61,7 +61,7 @@ class Test_Enas():
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(1)
+        space.Module_ModuleChoice_1.hp_or.assign(1)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_sepconv3x3_relu_0_',
@@ -70,21 +70,21 @@ class Test_Enas():
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(2)
+        space.Module_ModuleChoice_1.hp_or.assign(2)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_avgpooling3x3_pool_']
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(3)
+        space.Module_ModuleChoice_1.hp_or.assign(3)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_maxpooling3x3_pool_']
 
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(4)
+        space.Module_ModuleChoice_1.hp_or.assign(4)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_Input_2', 'ID_test_identity']
@@ -107,14 +107,14 @@ class Test_Enas():
         global ids
         ids = []
         space.traverse(get_id)
-        assert ids == ['Module_Input_1', 'Module_InputChoice_1', 'Module_Or_1']
+        assert ids == ['Module_Input_1', 'Module_InputChoice_1', 'Module_ModuleChoice_1']
 
         assert len(space.edges & {(space.Module_Input_1, space.Module_InputChoice_1)}) == 1
         space.Module_InputChoice_1.hp_choice.assign([0])
         assert len(space.edges & {(space.Module_Input_1, space.Module_InputChoice_1)}) == 0
-        assert len(space.edges & {(space.Module_Input_1, space.Module_Or_1)}) == 1
+        assert len(space.edges & {(space.Module_Input_1, space.Module_ModuleChoice_1)}) == 1
 
-        space.Module_Or_1.hp_or.assign(0)
+        space.Module_ModuleChoice_1.hp_or.assign(0)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_sepconv5x5_relu_0_',
@@ -124,7 +124,7 @@ class Test_Enas():
         hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(1)
+        space.Module_ModuleChoice_1.hp_or.assign(1)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_sepconv3x3_relu_0_',
@@ -137,14 +137,14 @@ class Test_Enas():
         hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(2)
+        space.Module_ModuleChoice_1.hp_or.assign(2)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_avgpooling3x3_pool_']
         hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(3)
+        space.Module_ModuleChoice_1.hp_or.assign(3)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_maxpooling3x3_pool_']
@@ -152,7 +152,7 @@ class Test_Enas():
         hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(4)
+        space.Module_ModuleChoice_1.hp_or.assign(4)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_identity']
@@ -177,14 +177,14 @@ class Test_Enas():
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'Module_InputChoice_1', 'Module_InputChoice_2',
-                       'Module_Or_1', 'Module_Or_2', 'ID_normal_C0_N0_add_']
+                       'Module_ModuleChoice_1', 'Module_ModuleChoice_2', 'ID_normal_C0_N0_add_']
         hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(0)
+        space.Module_ModuleChoice_1.hp_or.assign(0)
 
         space.Module_InputChoice_2.hp_choice.assign([1])
-        space.Module_Or_2.hp_or.assign(1)
+        space.Module_ModuleChoice_2.hp_or.assign(1)
         ids = []
         space.traverse(get_id)
         assert ids == ['Module_Input_1', 'ID_normal_C0_N0_L_sepconv5x5_relu_0_',
@@ -197,15 +197,15 @@ class Test_Enas():
         hp_dict = {}
         space = get_space()
         space.Module_InputChoice_1.hp_choice.assign([0])
-        space.Module_Or_1.hp_or.assign(0)
+        space.Module_ModuleChoice_1.hp_or.assign(0)
 
         space.Module_InputChoice_2.hp_choice.assign([1])
-        space.Module_Or_2.hp_or.assign(3)
+        space.Module_ModuleChoice_2.hp_or.assign(3)
 
         model = space.keras_model()
         plot_model(model, to_file='test_enas_node.png', show_shapes=True)
 
-    def test_enas_cell(self):
+    def test_enas_layer(self):
         hp_dict = {}
 
         def get_space():

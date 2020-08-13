@@ -149,29 +149,29 @@ class Test_HyperSpace():
         ps = space.get_assigned_params()
         assert ps == [space.Param_Real_1, space.Param_Choice_1, space.Param_Int_1, space.Param_Choice_2]
 
-    def test_unassigned_iterator(self):
+    def test_params_iterator(self):
         space = self.get_space()
         ps = []
-        for p in space.unassigned_iterator:
+        for p in space.params_iterator:
             ps.append(p)
         assert ps == [space.Param_Real_1, space.Param_Choice_1, space.Param_Int_1, space.Param_Choice_2]
         space.Param_Choice_1.random_sample()
 
         ps = []
-        for p in space.unassigned_iterator:
+        for p in space.params_iterator:
             ps.append(p)
         assert ps == [space.Param_Real_1, space.Param_Int_1, space.Param_Choice_2]
 
         space = self.get_space_with_dynamic()
         ps = []
-        for p in space.unassigned_iterator:
+        for p in space.params_iterator:
             ps.append(p)
         assert ps == [space.Param_Real_1, space.Param_Choice_3, space.Param_Choice_1, space.Param_Int_1,
                       space.Param_Choice_2]
 
         space.Param_Choice_3.random_sample()
         ps = []
-        for p in space.unassigned_iterator:
+        for p in space.params_iterator:
             ps.append(p)
         assert ps == [space.Param_Real_1, space.Param_Choice_4, space.Param_Choice_1, space.Param_Int_1,
                       space.Param_Choice_2]
@@ -184,7 +184,7 @@ class Test_HyperSpace():
         assert len(space.get_all_params()) == 7
 
         assert space.all_assigned
-        for p in space.unassigned_iterator:
+        for p in space.params_iterator:
             ps.append(p)
         assert ps == []
 

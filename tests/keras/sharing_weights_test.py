@@ -71,11 +71,11 @@ class Test_SharingWeights():
                 in1 = Input(shape=(28, 28, 1,))
                 in2 = Input(shape=(28, 28, 1,))
                 ic1 = InputChoice([in1, in2], 1)([in1, in2])
-                or1 = Or([sepconv5x5(name_prefix, filters),
-                          sepconv3x3(name_prefix, filters),
-                          avgpooling3x3(name_prefix, filters),
-                          maxpooling3x3(name_prefix, filters),
-                          identity(name_prefix)])(ic1)
+                or1 = ModuleChoice([sepconv5x5(name_prefix, filters),
+                                    sepconv3x3(name_prefix, filters),
+                                    avgpooling3x3(name_prefix, filters),
+                                    maxpooling3x3(name_prefix, filters),
+                                    identity(name_prefix)])(ic1)
                 space.set_inputs([in1, in2])
                 space.weights_cache = cache
                 return space

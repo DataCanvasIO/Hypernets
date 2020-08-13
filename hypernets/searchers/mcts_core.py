@@ -128,7 +128,7 @@ class MCTree(object):
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
-        for hp in space_sample.unassigned_iterator:
+        for hp in space_sample.params_iterator:
             if i >= len(nodes):
                 break
             hp.assign(nodes[i].param_sample.value)
@@ -140,7 +140,7 @@ class MCTree(object):
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
-        for hp in space_sample.unassigned_iterator:
+        for hp in space_sample.params_iterator:
             if i < len(nodes):
                 hp.assign(nodes[i].param_sample.value)
             else:
@@ -163,7 +163,7 @@ class MCTree(object):
     def roll_out(self, space_sample, node):
         print(f'Tree roll out:{node.info()}')
         terminal = True
-        for hp in space_sample.unassigned_iterator:
+        for hp in space_sample.params_iterator:
             terminal = False
             hp.random_sample()
         if terminal:

@@ -42,16 +42,16 @@ module_c = Dense()(optional_dropout)
 ```
 
 
-* Or:  There are several optional modules on a node, choose one of them.
+* ModuleChoice:  There are several optional modules on a node, choose one of them.
 
 ![](images/connection_space_or.png)
 
 ```python
 from hypernets.frameworks.keras.layers import Input, BatchNormalization
-from hypernets.core.ops import Or
+from hypernets.core.ops import ModuleChoice
 
 module_a = Input()
-or_conv_pool = Or([sepconv5x5(),sepconv3x3(),avgpooling3x3()])(module_a)
+or_conv_pool = ModuleChoice([sepconv5x5(),sepconv3x3(),avgpooling3x3()])(module_a)
 module_c = BatchNormalization()(or_conv_pool)
 ```
 

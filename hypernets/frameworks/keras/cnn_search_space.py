@@ -5,7 +5,7 @@
 from .layers import Dense, Input, BatchNormalization, Activation, \
     Conv2D, MaxPooling2D, AveragePooling2D, Flatten
 from ...core.search_space import HyperSpace, Bool, Choice, Dynamic
-from ...core.ops import Permutation, Sequential, Optional, Repeat, Or
+from ...core.ops import Permutation, Sequential, Optional, Repeat, ModuleChoice
 import itertools
 
 
@@ -30,7 +30,7 @@ def conv_block(block_no, hp_pooling, hp_filters, hp_kernel_size, hp_bn_act, hp_u
 
     conv_filters = Dynamic(lambda filters: filters * multiplier, filters=hp_filters)
     conv = Repeat(conv_bn, repeat_times=repeat_num_choices)
-    pooling = Or([MaxPooling2D(padding='same'), AveragePooling2D(padding='same')], hp_or=hp_pooling)
+    pooling = ModuleChoice([MaxPooling2D(padding='same'), AveragePooling2D(padding='same')], hp_or=hp_pooling)
     block = Sequential([conv, pooling])
     return block
 
