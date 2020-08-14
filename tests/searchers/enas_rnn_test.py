@@ -9,7 +9,8 @@ from tensorflow.keras.optimizers import Adam
 from hypernets.core.search_space import HyperSpace
 from hypernets.frameworks.keras.enas_common_ops import conv_layer
 from hypernets.frameworks.keras.layers import Input
-from hypernets.searchers.enas_rl_searcher import RnnController
+from hypernets.searchers.enas_rl_searcher import RnnController, EnasSearcher
+from tensorflow.python.ops import clip_ops
 
 baseline_decay = 0.999
 
@@ -25,7 +26,7 @@ class Test_EnasRnnController():
             space.set_inputs(in1)
             return space
 
-    def test_call(self):
+    def test_sample(self):
         rc = RnnController(search_space_fn=self.get_space)
         rc.reset()
         out1 = rc.sample()
@@ -33,22 +34,9 @@ class Test_EnasRnnController():
         assert out1
         assert out2
 
-    def test_train(self):
-        self.reward = 0.6
-        self.baseline = 0.
-        self.rc = RnnController(search_space_fn=self.get_space)
-        self.optim = Adam()
+    def test_searcher(self):
+        enas_searcher = EnasSearcher(space_fn=self.get_space)
+        sample = enas_searcher.sample()
+        loss = enas_searcher.update_result(sample, 0.9)
+        assert loss
 
-        grads_list = []
-        for step in range(10):
-            with tf.GradientTape() as tape:
-                self.rc.reset()
-                out1 = self.rc.sample()
-                self.reward += 0.01
-                self.baseline = self.baseline * baseline_decay + self.reward * (1 - baseline_decay)
-                loss = self.rc.sample_log_prob * (self.reward - self.baseline)
-                # loss += skip_weight * self.mutator.sample_skip_penalty
-            grads = tape.gradient(loss, self.rc.trainable_variables)
-            self.optim.apply_gradients(zip(grads, self.rc.trainable_variables))
-
-        assert self.rc
