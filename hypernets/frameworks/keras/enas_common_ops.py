@@ -7,7 +7,7 @@ from hypernets.frameworks.keras.enas_layers import SafeConcatenate, Identity, Ca
 from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
     SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd
-from hypernets.core.search_space import ModuleSpace
+from hypernets.core.search_space import ModuleSpace, MultipleChoice, Choice
 from tensorflow.python.keras import utils
 
 
@@ -73,6 +73,9 @@ def conv_cell(hp_dict, type, cell_no, node_no, left_or_right, inputs, filters, i
     input_choice_key = f'{type[2:]}_N{node_no}_{left_or_right}_input_choice'
     op_choice_key = f'{type[2:]}_N{node_no}_{left_or_right}_op_choice'
     hp_choice = hp_dict.get(input_choice_key)
+    if hp_choice is None:
+        hp_choice = MultipleChoice(list(range(len(inputs))), 1, name=input_choice_key)
+        hp_dict[input_choice_key] = hp_choice
     ic1 = InputChoice(inputs, 1, hp_choice=hp_choice)(inputs)
     if hp_choice is None:
         hp_dict[input_choice_key] = ic1.hp_choice
@@ -80,17 +83,18 @@ def conv_cell(hp_dict, type, cell_no, node_no, left_or_right, inputs, filters, i
     # hp_strides = Dynamic(lambda_fn=lambda choice: (2, 2) if is_reduction and choice[0] <= 1 else (1, 1),
     #                      choice=ic1.hp_choice)
     hp_strides = (1, 1)
-    hp_or = hp_dict.get(op_choice_key)
-    or1 = ModuleChoice([sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
-                        sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-                        avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-                        maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-                        identity(name_prefix)], hp_or=hp_or)(ic1)
+    hp_op_choice = hp_dict.get(op_choice_key)
+    module_candidates = [sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                         sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                         avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                         maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                         identity(name_prefix)]
+    if hp_op_choice is None:
+        hp_op_choice = Choice(list(range(len(module_candidates))), name=op_choice_key)
+        hp_dict[op_choice_key] = hp_op_choice
+    op_choice = ModuleChoice(module_candidates, hp_or=hp_op_choice)(ic1)
 
-    if hp_or is None:
-        hp_dict[op_choice_key] = or1.hp_or
-
-    return or1
+    return op_choice
 
 
 def conv_node(hp_dict, type, cell_no, node_no, inputs, filters, is_reduction=False, data_format=None):

@@ -71,6 +71,12 @@ class HyperModel():
     def get_best_trail(self):
         return self.history.get_best()
 
+    def _before_search(self):
+        pass
+
+    def _after_search(self, last_trail_no):
+        pass
+
     def search(self, X, y, X_val, y_val, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
         self.start_search_time = time.time()
 
@@ -78,6 +84,8 @@ class HyperModel():
             dataset_id = self.generate_dataset_id(X, y)
         if self.searcher.use_meta_learner:
             self.searcher.set_meta_learner(MetaLearner(self.history, dataset_id, trail_store))
+
+        self._before_search()
 
         trail_no = 1
         retry_counter = 0
@@ -126,6 +134,8 @@ class HyperModel():
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
+
+        self._after_search(trail_no)
 
     def generate_dataset_id(self, X, y):
         if isinstance(X, list):

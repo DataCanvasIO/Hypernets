@@ -69,13 +69,15 @@ class RnnController(Model):
         op_id = op_id.numpy()[0]
         return op_id
 
-    def _input_choice(self, n_inputs, index_true=None):
+    def _input_choice(self, n_inputs, choice_id='ID_default', index_true=None):
         q, anchors = [], []
-        for label in range(n_inputs):
-            if label not in self.attn_2:
-                self.attn_2[label] = self.lstm_rnn(self._inputs)
-            q.append(self.anchor(self.attn_2[label]))
-            anchors.append(self.attn_2[label])
+        cell_type = '_'.join(choice_id.split('_')[:2])
+        for id in range(n_inputs):
+            key = f'{cell_type}_{id}'
+            if key not in self.attn_2:
+                self.attn_2[key] = self.lstm_rnn(self._inputs)
+            q.append(self.anchor(self.attn_2[key]))
+            anchors.append(self.attn_2[key])
         q = tf.concat(q, axis=0)
         q = tf.tanh(q + self.q(anchors[-1]))
         q = self.v(q)
@@ -97,7 +99,7 @@ class RnnController(Model):
         self.entropy += cur_entropy
         self._inputs = tf.reshape(anchors[tf.reduce_sum(index)], [1, 1, -1])
 
-        return [index]
+        return list(index.numpy())
 
     def sample(self):
         self.reset()
@@ -110,13 +112,13 @@ class RnnController(Model):
                 continue
             if isinstance(hp, MultipleChoice):  # Param of InputChoice
                 n_inputs = len(hp.options)
-                input_id = self._input_choice(n_inputs, 1)
+                input_id = self._input_choice(n_inputs, hp.id)
                 hp.assign(input_id)
             else:  # Param of ModuleChoice
                 n_ops = len(hp.options)
                 if n_ops != self.num_ops:
                     raise ValueError('The number of modules in ModuleChoice is not equal to `num_ops`.')
-                op_id = self._op_choice(2)
+                op_id = self._op_choice()
                 hp.assign(op_id)
         return space_sample
 
@@ -130,12 +132,12 @@ class RnnController(Model):
                 continue
             if isinstance(hp, MultipleChoice):  # Param of InputChoice
                 n_inputs = len(hp.options)
-                self._input_choice(n_inputs, 1)
+                self._input_choice(n_inputs, hp.id, hp.value[0])
             else:  # Param of ModuleChoice
                 n_ops = len(hp.options)
                 if n_ops != self.num_ops:
                     raise ValueError('The number of modules in ModuleChoice is not equal to `num_ops`.')
-                self._op_choice(2)
+                self._op_choice(hp.value)
 
     def train_one_sample(self, space_sample, reward):
         self.reset()

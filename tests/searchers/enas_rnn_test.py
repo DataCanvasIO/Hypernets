@@ -5,6 +5,7 @@ __author__ = 'yangjian'
 """
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
+from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
 
 from hypernets.core.search_space import HyperSpace
 from hypernets.frameworks.keras.enas_common_ops import conv_layer
@@ -35,8 +36,11 @@ class Test_EnasRnnController():
         assert out2
 
     def test_searcher(self):
-        enas_searcher = EnasSearcher(space_fn=self.get_space)
+        def enas_space_fn():
+            hp_dict = {}
+            return enas_micro_search_space(arch='NNRNNR', hp_dict=hp_dict)
+
+        enas_searcher = EnasSearcher(space_fn=enas_space_fn)
         sample = enas_searcher.sample()
         loss = enas_searcher.update_result(sample, 0.9)
         assert loss
-
