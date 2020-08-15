@@ -3,89 +3,28 @@ __author__ = 'yangjian'
 """
 
 """
-
 from hypernets.model.hyper_model import HyperModel
 from hypernets.model.estimator import Estimator
+from hypernets.core.search_space import HyperSpace
+
 from tensorflow.keras import backend as K
-from tensorflow.keras import models, layers, utils
+from tensorflow.keras import utils
+from tensorflow.keras.models import Model
+
 import numpy as np
 import gc
 from .layer_weights_cache import LayerWeightsCache
 
 
-def keras_model(self):
-    compiled_space, _ = self.compile_and_forward()
+def keras_model(self, deepcopy=True):
+    compiled_space, outputs = self.compile_and_forward(deepcopy=deepcopy)
     inputs = compiled_space.get_inputs()
-    outputs = compiled_space.get_outputs()
-    model = models.Model(inputs=[input.output for input in inputs],
-                         outputs=[output.output for output in outputs])
+    model = Model(inputs=[input.output for input in inputs],
+                  outputs=outputs)
     return model
 
 
-class ss:
-    def __init__(self):
-        self.conv = layers.Conv2D(
-            filters=64,
-            kernel_size=(3, 3),
-            strides=(1, 1),
-            padding='same',
-            name=f'0_stem_conv2d'
-        )
-        self.bn = layers.BatchNormalization(name=f'0_stem_bn')
-        name_prefix = 'output'
-
-        self.act = layers.Activation('relu', name=f'{name_prefix}_relu')
-        self.gap = layers.GlobalAveragePooling2D(name=f'{name_prefix}_global_avgpool')
-        self.dense = layers.Dense(10, activation='softmax', name=f'{name_prefix}_logit')
-
-    def call(self, inputs):
-        x = self.conv(inputs)
-        x = self.bn(x)
-        x = self.act(x)
-        x = self.gap(x)
-        x = self.dense(x)
-        return x
-
-
-class SharingWeightModel(models.Model):
-    def __init__(self, space_sample):
-        super(SharingWeightModel, self).__init__()
-        self.s = ss()
-        self.layers.append(self.s.bn)
-        self.dd = layers.Dense(5)
-        # self.layers.append(self.s.act)
-        # self.layers.append(self.s.gap)
-        # self.layers.append(self.s.dense)
-        # self.conv = layers.Conv2D(
-        #     filters=64,
-        #     kernel_size=(3, 3),
-        #     strides=(1, 1),
-        #     padding='same',
-        #     name=f'0_stem_conv2d'
-        # )
-        # self.bn = layers.BatchNormalization(name=f'0_stem_bn')
-        # name_prefix = 'output'
-        #
-        # self.act = layers.Activation('relu', name=f'{name_prefix}_relu')
-        # self.gap = layers.GlobalAveragePooling2D(name=f'{name_prefix}_global_avgpool')
-        # self.dense = layers.Dense(10, activation='softmax', name=f'{name_prefix}_logit')
-        # self.compiled_space = space_sample.compile(deepcopy=False)
-
-    def update_search_space(self, space_sample):
-        space_sample.compile(deepcopy=False)
-        self.compiled_space = space_sample
-
-    def call(self, inputs, training=None, mask=None):
-        # x = self.conv(inputs)
-        # x = self.bn(x)
-        # x = self.act(x)
-        # x = self.gap(x)
-        # x = self.dense(x)
-        # return x
-        logits = self.s.call(inputs)
-        return logits
-        # logits = self.compiled_space.forward(inputs=inputs)
-        # return logits
+HyperSpace.keras_model = keras_model
 
 
 class KerasEstimator(Estimator):

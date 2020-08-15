@@ -7,7 +7,7 @@ __author__ = 'yangjian'
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import *
 from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
-from hypernets.frameworks.keras.hyper_keras import HyperKeras, SharingWeightModel
+from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.frameworks.keras.layer_weights_cache import LayerWeightsCache
 from hypernets.searchers.random_searcher import RandomSearcher
 
