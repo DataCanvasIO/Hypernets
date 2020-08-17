@@ -5,26 +5,13 @@ __author__ = 'yangjian'
 """
 from hypernets.model.hyper_model import HyperModel
 from hypernets.model.estimator import Estimator
-from hypernets.core.search_space import HyperSpace
 
 from tensorflow.keras import backend as K
 from tensorflow.keras import utils
-from tensorflow.keras.models import Model
 
 import numpy as np
 import gc
 from .layer_weights_cache import LayerWeightsCache
-
-
-def keras_model(self, deepcopy=True):
-    compiled_space, outputs = self.compile_and_forward(deepcopy=deepcopy)
-    inputs = compiled_space.get_inputs()
-    model = Model(inputs=[input.output for input in inputs],
-                  outputs=outputs)
-    return model
-
-
-HyperSpace.keras_model = keras_model
 
 
 class KerasEstimator(Estimator):
