@@ -13,7 +13,8 @@ requirements = [
     'tensorflow==2.1.0',
     'numpy>=1.17.4',
     'pytest==5.3.2',
-    'lightgbm'
+    'lightgbm',
+    'deeptables'
 ]
 
 MIN_PYTHON_VERSION = '>=3.6.*'
