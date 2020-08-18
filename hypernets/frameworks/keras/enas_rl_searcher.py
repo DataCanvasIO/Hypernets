@@ -9,7 +9,7 @@ from tensorflow.keras.layers import LSTMCell, RNN, Dense, Embedding
 from tensorflow.python.ops import clip_ops
 import tensorflow as tf
 from hypernets.core.search_space import MultipleChoice, Choice
-from ..core.searcher import Searcher, OptimizeDirection
+from hypernets.core.searcher import Searcher, OptimizeDirection
 
 
 class RnnController(Model):

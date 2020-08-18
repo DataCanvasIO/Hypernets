@@ -92,7 +92,7 @@ class HyperKeras(HyperModel):
 
         return iter(dataset)
 
-    def fit_one_shot_model_epoch(self, X, y, batch_size=32, steps=None, epoch_no=0):
+    def fit_one_shot_model_epoch(self, X, y, batch_size=32, steps=None, epoch=0):
         step = 0
         dataset_iter = self.build_dataset_iter(X, y, batch_size=batch_size)
         for X_batch, y_batch in dataset_iter:
@@ -100,10 +100,10 @@ class HyperKeras(HyperModel):
             est = self._get_estimator(space_sample=sample)
             est.fit(X_batch, y_batch, batch_size=batch_size, epochs=1)
             step += 1
-            print(f'One-shot model training, Epoch[{epoch_no}], Step[{step}]')
+            print(f'One-shot model training, Epoch[{epoch}], Step[{step}]')
             if steps is not None and step >= steps:
                 break
-        print(f'One-shot model training finished. Epoch[{epoch_no}], Step[{step}]')
+        print(f'One-shot model training finished. Epoch[{epoch}], Step[{step}]')
 
     def export_trail_configuration(self, trail):
         return None
