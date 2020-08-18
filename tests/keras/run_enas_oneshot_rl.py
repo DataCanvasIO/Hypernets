@@ -18,7 +18,7 @@ y_test = tf.keras.utils.to_categorical(y_test)
 print("Number of original training examples:", len(x_train))
 print("Number of original test examples:", len(x_test))
 # sample for speed up
-samples = 10000
+samples = 100
 
 searcher = EnasSearcher(lambda: enas_micro_search_space(arch='NNRNNR', hp_dict={}), optimize_direction='max')
 
@@ -28,7 +28,7 @@ model = OneShotModel(searcher,
                      metrics=['accuracy'],
                      epochs=3,
                      batch_size=64,
-                     controller_train_steps=50,
+                     controller_train_steps=2,
                      callbacks=[SummaryCallback()],
                      visualization=False)
 
