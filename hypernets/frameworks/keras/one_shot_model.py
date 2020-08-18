@@ -21,7 +21,7 @@ class OneShotModel(HyperKeras):
                  callbacks=[],
                  reward_metric=None,
                  max_model_size=0,
-                 one_shot_training_sampler=None,
+                 one_shot_train_sampler=None,
                  visualization=False):
         self.epochs = epochs
         self.batch_size = batch_size
@@ -33,7 +33,7 @@ class OneShotModel(HyperKeras):
                                            reward_metric=reward_metric,
                                            max_model_size=max_model_size,
                                            one_shot_mode=True,
-                                           one_shot_training_sampler=one_shot_training_sampler,
+                                           one_shot_train_sampler=one_shot_train_sampler,
                                            visualization=visualization)
 
     def search(self, X, y, X_val, y_val, max_trails=None, dataset_id=None, trail_store=None, **fit_kwargs):
@@ -82,11 +82,12 @@ class OneShotModel(HyperKeras):
         return trail_no
 
     def derive_arch(self, X_test, y_test, num=10):
-        space_sample = self.searcher.sample()
-        estimator = self._get_estimator()
-        metrics = estimator.evaluate(X_test, y_test, batch_size=self.batch_size, metrics=[self.reward_metric])
-        reward = self._get_reward(metrics, self.reward_metric)
-        print('>' * 50)
-        estimator.summary()
-        print(f'Reward on test set: {reward}')
-        print('>' * 50)
+        for i in range(num):
+            space_sample = self.searcher.sample()
+            estimator = self._get_estimator(space_sample)
+            metrics = estimator.evaluate(X_test, y_test, batch_size=self.batch_size, metrics=[self.reward_metric])
+            reward = self._get_reward(metrics, self.reward_metric)
+            print('>' * 50)
+            estimator.summary()
+            print(f'Reward on test set: {reward}')
+            print('>' * 50)

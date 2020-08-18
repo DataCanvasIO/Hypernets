@@ -115,6 +115,6 @@ class Test_HyperKeras():
                         metrics=['accuracy'],
                         callbacks=[SummaryCallback()],
                         one_shot_mode=True,
-                        one_shot_training_sampler=rs)
+                        one_shot_train_sampler=rs)
         x, y = self.get_x_y_1()
         hk.fit_one_shot_model_epoch(x, y)

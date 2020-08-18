@@ -58,7 +58,7 @@ class KerasEstimator(Estimator):
 
 class HyperKeras(HyperModel):
     def __init__(self, searcher, optimizer, loss, metrics, dispatcher=None, callbacks=[],
-                 reward_metric=None, max_model_size=0, one_shot_mode=False, one_shot_training_sampler=None,
+                 reward_metric=None, max_model_size=0, one_shot_mode=False, one_shot_train_sampler=None,
                  visualization=False):
         self.optimizer = optimizer
         self.loss = loss
@@ -71,7 +71,7 @@ class HyperKeras(HyperModel):
         else:
             self.weights_cache = None
         self.one_shot_mode = one_shot_mode
-        self.one_shot_training_sampler = one_shot_training_sampler if one_shot_training_sampler is not None else searcher
+        self.one_shot_train_sampler = one_shot_train_sampler if one_shot_train_sampler is not None else searcher
         self.visualization = visualization
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, reward_metric=reward_metric)
 
@@ -96,7 +96,7 @@ class HyperKeras(HyperModel):
         step = 0
         dataset_iter = self.build_dataset_iter(X, y, batch_size=batch_size)
         for X_batch, y_batch in dataset_iter:
-            sample = self.one_shot_training_sampler.sample()
+            sample = self.one_shot_train_sampler.sample()
             est = self._get_estimator(space_sample=sample)
             est.fit(X_batch, y_batch, batch_size=batch_size, epochs=1)
             step += 1
