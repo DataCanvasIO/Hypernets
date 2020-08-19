@@ -6,7 +6,7 @@ import time
 from ..core.callbacks import EarlyStoppingError
 from ..core.trial import *
 from ..core.meta_learner import MetaLearner
-
+import collections
 
 class HyperModel():
     def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None):
@@ -61,7 +61,7 @@ class HyperModel():
         fv = cast_float(value)
         if fv is not None:
             reward = fv
-        elif isinstance(value, dict) and key in value and cast_float(value[key]) is not None:
+        elif (isinstance(value, dict) or isinstance(value, collections.UserDict)) and key in value and cast_float(value[key]) is not None:
             reward = cast_float(value[key])
         else:
             raise ValueError(
