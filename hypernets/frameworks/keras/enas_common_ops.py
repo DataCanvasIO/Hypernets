@@ -3,7 +3,7 @@
 
 """
 
-from hypernets.frameworks.keras.enas_layers import SafeConcatenate, Identity, CalibrateSize
+from hypernets.frameworks.keras.enas_layers import SafeMerge, Identity, CalibrateSize
 from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
     SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd
@@ -120,10 +120,9 @@ def conv_layer(hp_dict, type, cell_no, inputs, filters, node_num, is_reduction=F
         all_nodes.append(node)
     cle = ConnectLooseEnd(all_nodes)(all_nodes)
 
-    df = utils.conv_utils.normalize_data_format(data_format)
+    # df = utils.conv_utils.normalize_data_format(data_format)
     # channel_axis = 1 if df == 'channels_first' else 3
-    output = add(name_prefix, cle)
-    # SafeConcatenate(filters, name_prefix, name=name_prefix + 'concat_', axis=channel_axis)(cle)
+    output = SafeMerge('add', filters, name_prefix, name=name_prefix + 'add_')(cle)
     return output
 
 

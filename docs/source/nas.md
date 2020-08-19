@@ -201,7 +201,7 @@ assert hk.best_model
 ```python
 # define an ENAS micro search space
 
-from hypernets.frameworks.keras.enas_layers import SafeConcatenate, Identity, CalibrateSize
+from hypernets.frameworks.keras.enas_layers import SafeMerge, Identity, CalibrateSize
 from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
     SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd

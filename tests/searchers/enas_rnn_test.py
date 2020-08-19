@@ -3,15 +3,12 @@ __author__ = 'yangjian'
 """
 
 """
-import tensorflow as tf
-from tensorflow.keras.optimizers import Adam
 from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
 
 from hypernets.core.search_space import HyperSpace
 from hypernets.frameworks.keras.enas_common_ops import conv_layer
 from hypernets.frameworks.keras.layers import Input
-from hypernets.searchers.enas_rl_searcher import RnnController, EnasSearcher
-from tensorflow.python.ops import clip_ops
+from hypernets.frameworks.keras.enas_rl_searcher import RnnController, EnasSearcher
 
 baseline_decay = 0.999
 

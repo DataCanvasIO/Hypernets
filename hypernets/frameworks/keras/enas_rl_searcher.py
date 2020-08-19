@@ -9,7 +9,7 @@ from tensorflow.keras.layers import LSTMCell, RNN, Dense, Embedding
 from tensorflow.python.ops import clip_ops
 import tensorflow as tf
 from hypernets.core.search_space import MultipleChoice, Choice
-from ..core.searcher import Searcher, OptimizeDirection
+from hypernets.core.searcher import Searcher, OptimizeDirection
 
 
 class RnnController(Model):
@@ -55,11 +55,13 @@ class RnnController(Model):
         if self.tanh_constant is not None:
             logits = self.tanh_constant * tf.tanh(logits)
 
-        op_id = tf.reshape(tf.random.categorical(tf.math.log(logits), num_samples=1), [1])
+        op_id = tf.reshape(tf.random.categorical(logits, num_samples=1), [1])
         if op_id_true:
             op_id_true = tf.reshape(op_id_true, [1])
             cur_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=op_id_true)
         else:
+            if op_id[0] == 5:
+                print(op_id)
             cur_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=op_id)
 
         self.log_prob += cur_log_prob
@@ -148,6 +150,7 @@ class RnnController(Model):
                 self.reward += self.entropy_weight * self.entropy
             self.baseline = self.baseline * self.baseline_decay + reward * (1 - self.baseline_decay)
             loss = self.log_prob * (reward - self.baseline)
+            print(f'Reward: {reward}, Loss: {loss}')
             # loss += skip_weight * self.sample_skip_penalty
         grads = tape.gradient(loss, self.trainable_variables)
 

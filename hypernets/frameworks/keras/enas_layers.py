@@ -191,8 +191,9 @@ class CalibrateSize(EnasHyperLayer):
             return x
 
 
-class SafeConcatenate(EnasHyperLayer):
-    def __init__(self, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
+class SafeMerge(EnasHyperLayer):
+    def __init__(self, operation, filters, name_prefix, data_format=None, space=None, name=None, **hyperparams):
+        self.operation = operation.lower()
         EnasHyperLayer.__init__(self, filters, name_prefix, data_format, space, name, **hyperparams)
 
     def _forward(self, inputs):
@@ -200,7 +201,11 @@ class SafeConcatenate(EnasHyperLayer):
             pv = self.param_values
             if pv.get('name') is None:
                 pv['name'] = self.name
-            return kl.Add(name=pv['name'])(inputs)
-            #return kl.Concatenate(**pv)(inputs)
+            if self.operation == 'add':
+                return kl.Add(name=pv['name'])(inputs)
+            elif self.operation == 'concat':
+                return kl.Concatenate(**pv)(inputs)
+            else:
+                raise ValueError(f'Not supported operation:{self.operation}')
         else:
             return inputs
