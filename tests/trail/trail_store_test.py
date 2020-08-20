@@ -5,6 +5,7 @@
 from hypernets.core.trial import *
 from hypernets.core.search_space import *
 from hypernets.core.ops import *
+from tests import test_output_dir
 
 
 class Test_TrailStore():
@@ -17,7 +18,7 @@ class Test_TrailStore():
         return space
 
     def test_basic(self):
-        store = DiskTrailStore()
+        store = DiskTrailStore(f'{test_output_dir}/trail_store')
         dataset_id = 'test_dataset'
         sample = self.get_space()
         sample.random_sample()

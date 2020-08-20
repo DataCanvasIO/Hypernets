@@ -9,10 +9,12 @@ from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
+from tests import test_output_dir
 
 rs = RandomSearcher(get_space_num_cat_pipeline_complex, optimize_direction=OptimizeDirection.Maximize)
 hk = HyperGBM(rs, task='classification', reward_metric='auc',
-              callbacks=[SummaryCallback(), FileLoggingCallback(rs)])
+              cache_dir=f'{test_output_dir}/hypergbm_cache',
+              callbacks=[SummaryCallback(), FileLoggingCallback(rs, output_dir=f'{test_output_dir}/hyn_logs')])
 
 df = dsutils.load_bank()
 df.drop(['id'], axis=1, inplace=True)

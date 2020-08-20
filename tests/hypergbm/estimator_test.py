@@ -16,6 +16,7 @@ from hypernets.core.ops import *
 
 from .common_ops_test import get_space_categorical_pipeline
 from sklearn.model_selection import train_test_split
+from tests import test_output_dir
 
 
 def get_space_multi_dataframemapper(default=False):
@@ -107,7 +108,7 @@ class Test_Estimator():
     def test_build_pipeline(self):
         space = get_space_categorical_pipeline()
         space.random_sample()
-        estimator = HyperGBMEstimator('binary', space)
+        estimator = HyperGBMEstimator('binary', space, cache_dir=f'{test_output_dir}/hypergbm_cache')
         X, y = get_df()
         df_1 = estimator.pipeline.fit_transform(X, y)
         assert list(df_1.columns) == ['a', 'e', 'f']
@@ -115,7 +116,7 @@ class Test_Estimator():
 
         space = get_space_multi_dataframemapper()
         space.random_sample()
-        estimator = HyperGBMEstimator('binary', space)
+        estimator = HyperGBMEstimator('binary', space, cache_dir=f'{test_output_dir}/hypergbm_cache')
         X, y = get_df()
         df_1 = estimator.pipeline.fit_transform(X, y)
         assert list(df_1.columns) == ['a', 'e', 'f', 'b', 'c', 'd', 'l']
@@ -126,7 +127,7 @@ class Test_Estimator():
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
         space.assign_by_vectors([0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 3, 0.01, 1, 1])
-        estimator = HyperGBMEstimator('binary', space)
+        estimator = HyperGBMEstimator('binary', space, cache_dir=f'{test_output_dir}/hypergbm_cache')
         assert estimator.get_pipeline_signature(estimator.pipeline) == 'f587f30db8357e13531ca2dbb38fec7d'
 
     def test_bankdata_lightgbm(self):
@@ -134,7 +135,7 @@ class Test_Estimator():
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
         space.assign_by_vectors([0, 1, 1, 0, 1, 0, 3, 0.01, 1])
-        estimator = HyperGBMEstimator('binary', space)
+        estimator = HyperGBMEstimator('binary', space, cache_dir=f'{test_output_dir}/hypergbm_cache')
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
@@ -151,7 +152,7 @@ class Test_Estimator():
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
         space.assign_by_vectors([1, 1, 1, 0, 1, 1])
-        estimator = HyperGBMEstimator('binary', space)
+        estimator = HyperGBMEstimator('binary', space, cache_dir=f'{test_output_dir}/hypergbm_cache')
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
@@ -168,7 +169,7 @@ class Test_Estimator():
             lightgbm_fit_kwargs=lightgbm_fit_kwargs,
         )
         space.assign_by_vectors([2, 1, 1, 0, 1, 1])
-        estimator = HyperGBMEstimator('binary', space)
+        estimator = HyperGBMEstimator('binary', space, cache_dir=f'{test_output_dir}/hypergbm_cache')
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)

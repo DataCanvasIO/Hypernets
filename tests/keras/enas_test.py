@@ -10,7 +10,7 @@ from hypernets.frameworks.keras.enas_common_ops import sepconv3x3, sepconv5x5, a
     maxpooling3x3, identity, conv_cell, conv_node, conv_layer
 from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
 from hypernets.frameworks.keras.layers import Input
-
+from tests import test_output_dir
 ids = []
 
 
@@ -203,7 +203,7 @@ class Test_Enas():
         space.Module_ModuleChoice_2.hp_or.assign(3)
 
         model = space.keras_model()
-        plot_model(model, to_file='test_enas_node.png', show_shapes=True)
+        plot_model(model, to_file=f'{test_output_dir}/test_enas_node.png', show_shapes=True)
 
     def test_enas_layer(self):
         hp_dict = {}
@@ -221,7 +221,7 @@ class Test_Enas():
         assert len(hp_dict.items()) == 20
         space.random_sample()
         model = space.keras_model()
-        plot_model(model, to_file='test_enas_cell.png', show_shapes=True)
+        plot_model(model, to_file=f'{test_output_dir}/test_enas_cell.png', show_shapes=True)
 
     def test_enas_micro(self):
         hp_dict = {}
@@ -231,4 +231,4 @@ class Test_Enas():
 
         space.random_sample()
         model = space.keras_model()
-        plot_model(model, to_file='test_enas_micro.png', show_shapes=True)
+        plot_model(model, to_file=f'{test_output_dir}/test_enas_micro.png', show_shapes=True)

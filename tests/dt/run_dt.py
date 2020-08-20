@@ -15,16 +15,19 @@ from hypernets.searchers.evolution_searcher import EvolutionSearcher
 from hypernets.core.trial import DiskTrailStore
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
+from tests import test_output_dir
 
-disk_trail_store = DiskTrailStore('~/jack/trail_store')
+disk_trail_store = DiskTrailStore(f'{test_output_dir}/trail_store')
 
 # searcher = MCTSSearcher(mini_dt_space, max_node_space=0,optimize_direction=OptimizeDirection.Maximize)
 # searcher = RandomSearcher(mini_dt_space, optimize_direction=OptimizeDirection.Maximize)
 searcher = EvolutionSearcher(mini_dt_space, 200, 100, regularized=True, candidates_size=30,
                              optimize_direction=OptimizeDirection.Maximize)
 
-hdt = HyperDT(searcher, callbacks=[SummaryCallback(), FileLoggingCallback(searcher)], reward_metric='AUC',
-              earlystopping_patience=1, )
+hdt = HyperDT(searcher,
+              callbacks=[SummaryCallback(), FileLoggingCallback(searcher, output_dir=f'{test_output_dir}/hyn_logs')],
+              reward_metric='AUC',
+              earlystopping_patience=1)
 
 space = mini_dt_space()
 assert space.combinations == 589824

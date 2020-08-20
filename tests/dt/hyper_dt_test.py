@@ -13,13 +13,13 @@ import numpy as np
 import pandas as pd
 from deeptables.datasets import dsutils
 from sklearn.model_selection import train_test_split
-
+from tests import test_output_dir
 
 class Test_HyperDT():
     def bankdata(self):
         rs = RandomSearcher(mini_dt_space, optimize_direction=OptimizeDirection.Maximize, )
         hdt = HyperDT(rs,
-                      callbacks=[SummaryCallback(), FileLoggingCallback(rs)],
+                      callbacks=[SummaryCallback(), FileLoggingCallback(rs, output_dir=f'{test_output_dir}/hyn_logs')],
                       reward_metric='accuracy',
                       max_trails=3,
                       dnn_params={

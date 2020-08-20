@@ -4,18 +4,13 @@ __author__ = 'yangjian'
 
 """
 from tensorflow.keras import layers, models, utils
-import tensorflow as tf
-import numpy as np
-from hypernets.frameworks.keras.layer_weights_cache import LayerWeightsCache
-from hypernets.core.search_space import HyperSpace
-from tensorflow.keras.utils import plot_model
-import tensorflow as tf
 from hypernets.core.ops import *
 from hypernets.core.search_space import HyperSpace
 from hypernets.frameworks.keras.enas_common_ops import sepconv3x3, sepconv5x5, avgpooling3x3, \
-    maxpooling3x3, identity, conv_cell, conv_node, conv_layer
-from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
+    maxpooling3x3, identity
+from hypernets.frameworks.keras.layer_weights_cache import LayerWeightsCache
 from hypernets.frameworks.keras.layers import Input
+from tests import test_output_dir
 
 selection = 0
 
@@ -103,7 +98,7 @@ class Test_SharingWeights():
 
     def test_model(self):
         model = SW_Model()
-        utils.plot_model(model, to_file='test_ops_0.png', show_shapes=True, expand_nested=True)
+        utils.plot_model(model, to_file=f'{test_output_dir}/test_ops_0.png', show_shapes=True, expand_nested=True)
         x = np.random.normal(0.0, 1.0, size=(100, 10))
         y = np.random.randint(0, 2, size=(100), dtype='int')
 
