@@ -208,7 +208,11 @@ class UCT(BasePolicy):
             node.rewards.append(reward)
             # return np.average(node.rewards), len(node.rewards)
         avg_reward = np.average(node.rewards) if len(node.rewards) > 0 else 0.0
-        avg_sim_reward = np.average(node.simulation_rewards) if len(node.simulation_rewards) > 0 else 0.0
-        new_reward = (avg_reward + avg_sim_reward) / 2
-        visits = len(node.simulation_rewards)
+        if len(node.simulation_rewards) > 0:
+            avg_sim_reward = np.average(node.simulation_rewards)
+            new_reward = (avg_reward + avg_sim_reward) / 2
+            visits = len(node.simulation_rewards)
+        else:
+            new_reward = avg_reward
+            visits = len(node.rewards)
         return new_reward, visits
