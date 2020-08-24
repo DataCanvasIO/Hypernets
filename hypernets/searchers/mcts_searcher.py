@@ -5,8 +5,6 @@ __author__ = 'yangjian'
 """
 from .mcts_core import *
 from ..core.searcher import Searcher, OptimizeDirection
-from ..core.meta_learner import MetaLearner
-from ..core.trial import get_default_trail_store
 
 
 class MCTSSearcher(Searcher):
@@ -16,8 +14,11 @@ class MCTSSearcher(Searcher):
             policy = UCT()
         self.tree = MCTree(space_fn, policy, max_node_space=max_node_space)
         Searcher.__init__(self, space_fn, optimize_direction, use_meta_learner=use_meta_learner)
-        self.best_nodes = {}
+        self.nodes_map = {}
         self.candidate_size = candidates_size
+
+    def parallelizable(self):
+        return self.use_meta_learner and self.meta_learner is not None
 
     def sample(self):
         print('Sample')
@@ -25,10 +26,12 @@ class MCTSSearcher(Searcher):
         print(f'Sample: {best_node.info()}')
 
         if self.use_meta_learner and self.meta_learner is not None:
-            space_sample = self._select_best_candidate(best_node)
+            space_sample, candidate_sim_score, candidates_avg_score = self._select_best_candidate(best_node)
+            # support for parallelize sampling
+            self.tree.back_propagation(best_node, candidates_avg_score, is_simulation=True)
         else:
             space_sample = self.tree.roll_out(space_sample, best_node)
-        self.best_nodes[space_sample.space_id] = best_node
+        self.nodes_map[space_sample.space_id] = best_node
         return space_sample
 
     def _select_best_candidate(self, node):
@@ -38,16 +41,18 @@ class MCTSSearcher(Searcher):
             space_sample = self.tree.node_to_space(node)
             candidate = self.tree.roll_out(space_sample, node)
             candidates.append(candidate)
-            scores.append(self.meta_learner.predict(candidate))
+            scores.append(self.meta_learner.predict(candidate, 0.5))
         index = np.argmax(scores)
+        candidate_sim_score = scores[index]
+        candidates_avg_score = np.average(scores)
         print(f'selected candidates scores:{scores}, argmax:{index}')
-        return candidates[index]
+        return candidates[index], candidate_sim_score, candidates_avg_score
 
     def get_best(self):
         raise NotImplementedError
 
     def update_result(self, space_sample, result):
-        best_node = self.best_nodes[space_sample.space_id]
+        best_node = self.nodes_map[space_sample.space_id]
         print(f'Update result: space:{space_sample.space_id}, result:{result}, node:{best_node.info()}')
         self.tree.back_propagation(best_node, result)
         print(f'After back propagation: {best_node.info()}')

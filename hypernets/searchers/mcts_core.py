@@ -13,6 +13,7 @@ class MCNode(object):
         self.visits = 0
         self.reward = 0.0
         self.rewards = []
+        self.simulation_rewards = []
 
         assert name is not None
         if name != 'ROOT':
@@ -155,9 +156,9 @@ class MCTree(object):
     def simulation(self, node):
         raise NotImplementedError
 
-    def back_propagation(self, node, reward):
+    def back_propagation(self, node, reward, is_simulation=False):
         while node is not None:
-            node.reward, node.visits = self.policy.back_propagation(node, reward)
+            node.reward, node.visits = self.policy.back_propagation(node, reward, is_simulation)
             node = node.parent
 
     def roll_out(self, space_sample, node):
@@ -199,7 +200,15 @@ class UCT(BasePolicy):
 
         return selected
 
-    def back_propagation(self, node, reward):
-        new_reward = node.reward + (reward - node.reward) / (node.visits + 1)
-        node.rewards.append(reward)
-        return new_reward, node.visits + 1
+    def back_propagation(self, node, reward, is_simulation=False):
+        if is_simulation:
+            node.simulation_rewards.append(reward)
+            # return np.average(node.rewards + [reward]), len(node.rewards) + 1
+        else:
+            node.rewards.append(reward)
+            # return np.average(node.rewards), len(node.rewards)
+        avg_reward = np.average(node.rewards) if len(node.rewards) > 0 else 0.0
+        avg_sim_reward = np.average(node.simulation_rewards) if len(node.simulation_rewards) > 0 else 0.0
+        new_reward = (avg_reward + avg_sim_reward) / 2
+        visits = len(node.simulation_rewards)
+        return new_reward, visits

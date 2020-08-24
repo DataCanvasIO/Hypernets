@@ -13,6 +13,10 @@ from hypernets.frameworks.keras.layers import *
 from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.core.callbacks import SummaryCallback
 
+from hypernets.core.meta_learner import MetaLearner
+from hypernets.core.trial import get_default_trail_store, TrailHistory, DiskTrailStore, Trail
+from tests import test_output_dir
+
 import numpy as np
 
 
@@ -74,14 +78,49 @@ class Test_MCTS():
     def test_mcts_searcher(self):
         searcher = MCTSSearcher(self.get_space, max_node_space=10)
 
-        for i in range(100):
+        for i in range(1000):
             space_sample = searcher.sample()
             assert space_sample.all_assigned == True
             print(space_sample.params_summary())
             searcher.update_result(space_sample, np.random.uniform(0.1, 0.9))
 
-        assert searcher.tree.root.visits == 100
-        assert len(searcher.best_nodes.items()) == 100
+        assert searcher.tree.root.visits == 1000
+        assert len(searcher.nodes_map.items()) == 1000
+
+    def test_mcts_searcher_parallelize(self):
+        searcher = MCTSSearcher(self.get_space, max_node_space=10)
+        history = TrailHistory(OptimizeDirection.Maximize)
+        disk_trail_store = DiskTrailStore(f'{test_output_dir}/trail_store')
+        meta_learner = MetaLearner(history, 'test_mcts_searcher_parallelize', disk_trail_store)
+        searcher.set_meta_learner(meta_learner)
+        trail_no = 1
+        running_samples = []
+        for i in range(10):
+            space_sample = searcher.sample()
+            running_samples.append(space_sample)
+        assert searcher.tree.root.visits == 10
+        for sample in running_samples:
+            reward = np.random.uniform(0.1, 0.9)
+            trail = Trail(sample, trail_no, reward, 10)
+            history.append(trail)
+            searcher.update_result(sample, reward)
+            trail_no += 1
+
+        assert searcher.tree.root.visits == 10
+        assert len(searcher.nodes_map.items()) == 10
+        running_samples = []
+        for i in range(10):
+            space_sample = searcher.sample()
+            running_samples.append(space_sample)
+        assert searcher.tree.root.visits == 20
+
+        for sample in running_samples:
+            reward = np.random.uniform(0.1, 0.9)
+            trail = Trail(sample, trail_no, reward, 10)
+            history.append(trail)
+            searcher.update_result(sample, reward)
+
+        assert searcher.tree.root.visits == 20
 
     def test_searcher_with_hp(self):
         def get_space():
