@@ -49,7 +49,7 @@ class MetaLearner(object):
         if len(x) >= 2:
             regressor = LGBMRegressor()
             regressor.fit(x, y)
-            print(regressor.predict(x))
+            #print(regressor.predict(x))
             self.regressors[space_signature] = regressor
 
     def predict(self, space_sample, default_value=np.inf):

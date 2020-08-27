@@ -30,7 +30,9 @@ class NasBench101():
             inputs = [input0]
             last = input0
             for node_no in range(1, self.num_nodes):
-                input_i = InputChoice(inputs, num_chosen_most=len(inputs), num_chosen_least=0, keep_link=True)(last)
+                input_i = Identity(hp_inputs=MultipleChoice(list(range(len(inputs))),
+                                                            num_chosen_most=len(inputs),
+                                                            num_chosen_least=0))(last)
                 if node_no < self.num_nodes - 1:
                     node_i = ModuleChoice(self.get_ops(node_no))
                     node_i(input_i)
@@ -56,7 +58,7 @@ class NasBench101():
         assert len(edges_choice) == self.num_nodes - 1
         assert len(ops_choice) == self.num_nodes - 2
 
-        matrix = np.zeros(shape=(self.num_nodes, self.num_nodes),dtype=int)
+        matrix = np.zeros(shape=(self.num_nodes, self.num_nodes), dtype=int)
         col = 1
         for rows in edges_choice:
             for row in rows:

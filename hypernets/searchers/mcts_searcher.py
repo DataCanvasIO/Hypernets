@@ -23,7 +23,7 @@ class MCTSSearcher(Searcher):
 
     def sample(self):
         print('Sample')
-        space_sample, best_node = self.tree.selection_and_expansion()
+        _, best_node = self.tree.selection_and_expansion()
         print(f'Sample: {best_node.info()}')
 
         if self.use_meta_learner and self.meta_learner is not None:
@@ -31,21 +31,25 @@ class MCTSSearcher(Searcher):
             # support for parallelize sampling
             self.tree.back_propagation(best_node, candidates_avg_score, is_simulation=True)
         else:
-            space_sample = self._roll_out(space_sample, best_node)
+            space_sample = self._roll_out(best_node)
 
         self.nodes_map[space_sample.space_id] = best_node
         return space_sample
 
-    def _roll_out(self, space_sample, node):
-        sample = self._sample_and_check(lambda: self.tree.roll_out(space_sample, node))
-        return sample
+    def _roll_out(self, node):
+        def sample():
+            space_sample = self.tree.node_to_space(node)
+            space_sample = self.tree.roll_out(space_sample, node)
+            return space_sample
+
+        space_sample = self._sample_and_check(sample_fn=sample)
+        return space_sample
 
     def _select_best_candidate(self, node):
         candidates = []
         scores = []
         for i in range(self.candidate_size):
-            space_sample = self.tree.node_to_space(node)
-            candidate = self._roll_out(space_sample, node)
+            candidate = self._roll_out(node)
             candidates.append(candidate)
             scores.append(self.meta_learner.predict(candidate, 0.5))
         index = np.argmax(scores)

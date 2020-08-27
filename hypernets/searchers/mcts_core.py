@@ -167,6 +167,8 @@ class MCTree(object):
         for hp in space_sample.params_iterator:
             terminal = False
             hp.random_sample()
+        if len(space_sample.vectors) < 11:
+            print(space_sample)
         if terminal:
             node.set_terminal()
         return space_sample
