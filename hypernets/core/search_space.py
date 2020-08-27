@@ -822,7 +822,7 @@ class MultipleChoice(ParameterSpace):
 
     def _check(self, value):
         assert isinstance(value, list)
-        assert len(value) > 0, 'value contains at least 1 item.'
+        assert len(value) >= self.num_chosen_least, f'value contains at least {self.num_chosen_least} item.'
         assert (self.num_chosen_most == 0 or self.num_chosen_most <= len(self.options))
         assert all([v in self.options for v in value])
 

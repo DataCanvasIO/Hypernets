@@ -126,7 +126,7 @@ from hypernets.core.ops import Permutation, Sequential, Optional, Repeat, InputC
 module_a = Input()
 module_b = Input()
 module_c = Input()
-ic = InputChoice(inputs=[module_a,module_b,module_a], max_chosen_num=2)([module_a,module_b,module_c])
+ic = InputChoice(inputs=[module_a,module_b,module_a], num_chosen_most=2)([module_a,module_b,module_c])
 add = Add()(ic)
 ```
 
