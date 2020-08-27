@@ -85,9 +85,10 @@ class Population(object):
 
 class EvolutionSearcher(Searcher):
     def __init__(self, space_fn, population_size, sample_size, regularized=False,
-                 candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True):
+                 candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
+                 space_sample_validation_fn=None):
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
-                          use_meta_learner=use_meta_learner)
+                          use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
         self.population = Population(size=population_size, optimize_direction=optimize_direction)
         self.sample_size = sample_size
         self.regularized = regularized
@@ -99,12 +100,11 @@ class EvolutionSearcher(Searcher):
 
     def sample(self):
         if self.population.initializing:
-            space_sample = self.space_fn()
-            space_sample.random_sample()
+            space_sample = self._sample_and_check(self._random_sample)
             return space_sample
         else:
             best = self.population.sample_best(self.sample_size)
-            offspring = self._get_offspring(best.space_sample)
+            offspring = self._sample_and_check(lambda: self._get_offspring(best.space_sample))
             return offspring
 
     def _get_offspring(self, space_sample):
