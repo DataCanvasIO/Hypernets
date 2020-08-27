@@ -6,17 +6,16 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class RandomSearcher(Searcher):
-    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize):
-        Searcher.__init__(self, space_fn, optimize_direction)
+    def __init__(self, space_fn, optimize_direction=OptimizeDirection.Minimize, space_sample_validation_fn=None):
+        Searcher.__init__(self, space_fn, optimize_direction, space_sample_validation_fn=space_sample_validation_fn)
 
     @property
     def parallelizable(self):
         return True
 
     def sample(self):
-        space = self.space_fn()
-        space.random_sample()
-        return space
+        sample = self._sample_and_check(self._random_sample)
+        return sample
 
     def get_best(self):
         raise NotImplementedError

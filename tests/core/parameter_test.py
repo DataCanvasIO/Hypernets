@@ -92,8 +92,8 @@ class Test_Parameter:
     def test_multiple_choice(self):
         mc1 = MultipleChoice(['a', 'b', 'c', 'd', 'e', 'f'], random_state=np.random.RandomState(1))
         mc2 = MultipleChoice(['a', 'b', 'c', 'd', 'e', 'f'], random_state=np.random.RandomState(2))
-        mc3 = MultipleChoice([1, 2, 3, 4, 5], max_chosen_num=2, random_state=np.random.RandomState(3))
-        mc4 = MultipleChoice(['a', 1, True, 'test', 5.6], max_chosen_num=1, random_state=np.random.RandomState(4))
+        mc3 = MultipleChoice([1, 2, 3, 4, 5], num_chosen_most=2, random_state=np.random.RandomState(3))
+        mc4 = MultipleChoice(['a', 1, True, 'test', 5.6], num_chosen_most=1, random_state=np.random.RandomState(4))
 
         v1 = mc1.random_sample()
         v2 = mc2.random_sample()
@@ -106,9 +106,9 @@ class Test_Parameter:
         assert v4 == ['a']
 
         with pytest.raises(AssertionError):
-            MultipleChoice([1])
+            MultipleChoice([1],num_chosen_least=2)
 
-        mc5 = MultipleChoice([1, 2, 3, 4, 5], max_chosen_num=2, random_state=np.random.RandomState(3))
+        mc5 = MultipleChoice([1, 2, 3, 4, 5], num_chosen_most=2, random_state=np.random.RandomState(3))
         with pytest.raises(AssertionError):
             mc5.assign([])
 
@@ -275,7 +275,7 @@ class Test_Parameter:
             choice1 = Choice(['a', 'b', 'c', 'd'])
             assert choice1.label == 'Param_Choice_1-[\'a\', \'b\', \'c\', \'d\']'
             mutiple_choice1 = MultipleChoice(['a', 'b', 'c', 'd'])
-            assert mutiple_choice1.label == 'Param_MultipleChoice_1-[\'a\', \'b\', \'c\', \'d\']-0'
+            assert mutiple_choice1.label == 'Param_MultipleChoice_1-[\'a\', \'b\', \'c\', \'d\']-0-1'
 
     def test_expansion(self):
         int1 = Int(1, 100)
@@ -305,7 +305,7 @@ class Test_Parameter:
         vs = mutiple_choice1.expansion(0)
         assert len(vs) == 15
 
-        mutiple_choice2 = MultipleChoice(['a', 'b', 'c', 'd'], max_chosen_num=1)
+        mutiple_choice2 = MultipleChoice(['a', 'b', 'c', 'd'], num_chosen_most=1)
         vs = mutiple_choice2.expansion(4)
         assert len(vs) == 4
         vs = mutiple_choice2.expansion(20)

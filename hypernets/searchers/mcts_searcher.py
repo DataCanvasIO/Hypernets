@@ -9,11 +9,12 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 class MCTSSearcher(Searcher):
     def __init__(self, space_fn, policy=None, max_node_space=10, candidates_size=10,
-                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True):
+                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True, space_sample_validation_fn=None):
         if policy is None:
             policy = UCT()
         self.tree = MCTree(space_fn, policy, max_node_space=max_node_space)
-        Searcher.__init__(self, space_fn, optimize_direction, use_meta_learner=use_meta_learner)
+        Searcher.__init__(self, space_fn, optimize_direction, use_meta_learner=use_meta_learner,
+                          space_sample_validation_fn=space_sample_validation_fn)
         self.nodes_map = {}
         self.candidate_size = candidates_size
 
@@ -30,16 +31,21 @@ class MCTSSearcher(Searcher):
             # support for parallelize sampling
             self.tree.back_propagation(best_node, candidates_avg_score, is_simulation=True)
         else:
-            space_sample = self.tree.roll_out(space_sample, best_node)
+            space_sample = self._roll_out(space_sample, best_node)
+
         self.nodes_map[space_sample.space_id] = best_node
         return space_sample
+
+    def _roll_out(self, space_sample, node):
+        sample = self._sample_and_check(lambda: self.tree.roll_out(space_sample, node))
+        return sample
 
     def _select_best_candidate(self, node):
         candidates = []
         scores = []
         for i in range(self.candidate_size):
             space_sample = self.tree.node_to_space(node)
-            candidate = self.tree.roll_out(space_sample, node)
+            candidate = self._roll_out(space_sample, node)
             candidates.append(candidate)
             scores.append(self.meta_learner.predict(candidate, 0.5))
         index = np.argmax(scores)
