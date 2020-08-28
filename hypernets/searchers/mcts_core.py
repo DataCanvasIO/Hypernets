@@ -68,7 +68,7 @@ class MCNode(object):
         self.parent = parent
 
     def expansion(self, param_space, max_space):
-        print(f'Node expanssion: param_space:{param_space.label}')
+        #print(f'Node expanssion: param_space:{param_space.label}')
         assert not param_space.assigned
         samples = param_space.expansion(sample_num=max_space)
         for param_sample in samples:
@@ -110,7 +110,7 @@ class MCTree(object):
                 if child != node:
                     return space_sample, child
             else:
-                print(f'Tree selection:{node.info()}')
+                #print(f'Tree selection:{node.info()}')
                 node = self.policy.selection(node)
                 if node.visits <= 0:
                     break
@@ -137,7 +137,7 @@ class MCTree(object):
         return space_sample
 
     def expansion(self, node):
-        print(f'Tree expansion:{node.info()}')
+        #print(f'Tree expansion:{node.info()}')
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
@@ -162,13 +162,11 @@ class MCTree(object):
             node = node.parent
 
     def roll_out(self, space_sample, node):
-        print(f'Tree roll out:{node.info()}')
+        #print(f'Tree roll out:{node.info()}')
         terminal = True
         for hp in space_sample.params_iterator:
             terminal = False
             hp.random_sample()
-        if len(space_sample.vectors) < 11:
-            print(space_sample)
         if terminal:
             node.set_terminal()
         return space_sample
@@ -196,9 +194,9 @@ class UCT(BasePolicy):
                    node.children]
         index = np.argmax(scores)
         selected = node.children[index]
-        print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
-        print(f'Detials: {details}')
-        print('*******************************************************************************')
+        #print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
+        #print(f'Detials: {details}')
+        #print('*******************************************************************************')
 
         return selected
 
