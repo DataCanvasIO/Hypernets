@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 import featuretools as ft
 import math
 from datetime import datetime
+import pytest
 
 
 class Test_FeatureGenerator():
@@ -21,29 +22,46 @@ class Test_FeatureGenerator():
         tps = ft.primitives.get_transform_primitives()
         assert tps
 
-    # def test_feature_tools_transformer(self):
-    #
-    #     df = dsutils.load_bank()
-    #     df.drop(['id'], axis=1, inplace=True)
-    #     X_train, X_test = train_test_split(df.head(10000), test_size=0.2, random_state=42)
-    #     y_train = X_train.pop('y')
-    #     y_test = X_test.pop('y')
-    #
-    #     ftt = FeatureToolsTransformer()
-    #     ftt.fit(X_train)
-    #     x_t = ftt.transform(X_train)
-    #
-    #     print(x_t)
-
-    def test_infinity_result(self):
-        df = pd.DataFrame(data={"x1": [1,2,3], 'x2': [0, 5, 6]})
+    def test_feature_tools_transformer(self):
+        df = dsutils.load_bank()
+        df.drop(['id'], axis=1, inplace=True)
+        X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
         ftt = FeatureToolsTransformer(trans_primitives=['add_numeric', 'divide_numeric'])
+        ftt.fit(X_train)
+        x_t = ftt.transform(X_train)
+        assert x_t is not None
+
+    @pytest.mark.parametrize('fix_input', [True, False])
+    def test_fix_input(self, fix_input: bool):
+        df = pd.DataFrame(data={"x1": [None, 2, 3], 'x2': [4, 5, 6]})
+        ftt = FeatureToolsTransformer(trans_primitives=['add_numeric', 'divide_numeric'], fix_input=fix_input, fix_output=False)
         ftt.fit(df)
         x_t = ftt.transform(df)
         assert "x1 + x2" in x_t
         assert "x1 / x2" in x_t
 
-        assert not math.isinf(x_t["x1 / x2"][0])
+        if fix_input is True:
+            # should no NaN value not only input nor output
+            assert not math.isnan(x_t["x1"][0])
+            assert not math.isnan(x_t["x1 / x2"][0])
+        else:
+            # x1 is NaN, it's children is NaN too.
+            assert math.isnan(x_t["x1"][0])
+            assert math.isnan(x_t["x1 / x2"][0])
+
+    @pytest.mark.parametrize('fix_output', [True, False])
+    def test_fix_output(self, fix_output: bool):
+        df = pd.DataFrame(data={"x1": [1, 2, 3], 'x2': [0, 5, 6]})
+        ftt = FeatureToolsTransformer(trans_primitives=['add_numeric', 'divide_numeric'], fix_output=fix_output)
+        ftt.fit(df)
+        x_t = ftt.transform(df)
+        assert "x1 + x2" in x_t
+        assert "x1 / x2" in x_t
+
+        if fix_output is True:
+            assert not math.isinf(x_t["x1 / x2"][0])
+        else:
+            assert math.isinf(x_t["x1 / x2"][0])
 
     def test_datetime_derivation(self):
 
@@ -75,3 +93,4 @@ class Test_FeatureGenerator():
         assert "YEAR(x1)" in x_t
         assert "MONTH(x1)" in x_t
         assert "WEEK(x1)" in x_t
+

@@ -2,14 +2,23 @@
 """
 
 """
+import sys
+
 import numpy as np
 import featuretools as ft
-from featuretools import IdentityFeature
+from featuretools import IdentityFeature, variable_types
+from datetime import datetime
+import pandas as pd
 
 
 class FeatureToolsTransformer():
 
-    def __init__(self, trans_primitives=None, max_depth=1):
+    def __init__(self, trans_primitives=None,
+                 fix_input=True,
+                 fix_output=True,
+                 continuous_cols=None,
+                 datetime_cols=None,
+                 max_depth=1):
         """
 
         Args:
@@ -23,14 +32,56 @@ class FeatureToolsTransformer():
         self.max_depth = max_depth
         self._feature_defs = None
 
-        self._imputed = None
+        self._imputed_output = None
+        self._imputed_input = None
+        self._valid_cols = None
+
+        self.fix_input = fix_input
+        self.fix_output = fix_output
+        if self.fix_input is False and self.fix_output is True:
+            sys.stderr.write("May fill out of place values after derivation.")
+
+        self.continuous_cols = continuous_cols
+        self.datetime_cols = datetime_cols
+
+    def _filter_by_type(self, fields, types):
+        result = []
+        for f, t in fields:
+            for _t in types:
+                if t.type == _t:
+                    result.append(f)
+        return result
+
+    def _merge_dict(self, dest_dict, *dicts):
+        for d in dicts:
+            for k, v in d.items():
+                dest_dict.setdefault(k, v)
 
     def fit(self, X, **kwargs):
-        # NaN,Inf,-Inf is not allowed.
-        self._check_values(X)
+        # self._check_values(X)
+        fields = X.dtypes.to_dict().items()
+
+        if self.continuous_cols is None:
+            self.continuous_cols = self._filter_by_type(fields, [np.int, np.int32, np.int64, np.float, np.float32, np.float64, np.float128])
+
+        if self.datetime_cols is None:
+            self.datetime_cols = self._filter_by_type(fields, [datetime, pd.datetime])
+
+        if self.fix_input:
+            _mean = X[self.continuous_cols].mean().to_dict()
+            _mode = X[self.datetime_cols].mode().to_dict()
+            self._imputed_input = {}
+            self._merge_dict(self._imputed_input, _mean, _mode)
+            self._replace_invalid_values(X, self._imputed_input)
+
+        feature_type_dict = {}
+        self._merge_dict(feature_type_dict,
+                         {c: variable_types.Numeric for c in self.continuous_cols},
+                         {c: variable_types.Datetime for c in self.datetime_cols})
 
         es = ft.EntitySet(id='es_hypernets_fit')
-        es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X,  make_index=True, index='e_hypernets_ft_index')
+        es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
+                                 make_index=True, index='e_hypernets_ft_index')
         feature_matrix, feature_defs = ft.dfs(entityset=es, target_entity="e_hypernets_ft",
                                               ignore_variables={"e_hypernets_ft": []},
                                               return_variable_types="all",
@@ -40,27 +91,35 @@ class FeatureToolsTransformer():
                                               max_features=-1)
         self._feature_defs = feature_defs
 
-        derived_cols = list(map(lambda _: _._name, filter(lambda _: not isinstance(_, IdentityFeature), feature_defs)))
-        invalid_cols = self._checkout_invalid_cols(feature_matrix)
-
-        valid_cols = set(derived_cols) - set(invalid_cols)
-        self._imputed = feature_matrix[valid_cols].replace([np.inf, -np.inf], np.nan).mean()
+        if self.fix_output:
+            derived_cols = list(map(lambda _: _._name, filter(lambda _: not isinstance(_, IdentityFeature), feature_defs)))
+            invalid_cols = self._checkout_invalid_cols(feature_matrix)
+            self._valid_cols = set(derived_cols) - set(invalid_cols)
+            # td:  check no valid cols
+            self._imputed_output = feature_matrix[self._valid_cols].replace([np.inf, -np.inf], np.nan).mean().to_dict()
 
         return self
+
+    def _replace_invalid_values(self, df: pd.DataFrame, imputed_dict):
+        df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        df.fillna(imputed_dict, inplace=True)
 
     def transform(self, X):
         # 1. check is fitted and values
         assert self._feature_defs is not None, 'Please fit it first.'
-        self._check_values(X)
 
-        # 2. transform
+        # 2. fix input
+        if self.fix_input:
+            self._replace_invalid_values(X, self._imputed_input)
+
+        # 3. transform
         es = ft.EntitySet(id='es_hypernets_transform')
         es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, make_index=False)
         feature_matrix = ft.calculate_feature_matrix(self._feature_defs, entityset=es, n_jobs=1, verbose=10)
 
-        # 3. fill exception values
-        feature_matrix.replace([np.inf, -np.inf], np.nan, inplace=True)
-        feature_matrix.fillna(self._imputed, inplace=True)  # datetime never filled
+        # 4. fix output
+        if self.fix_output:
+            self._replace_invalid_values(feature_matrix, self._imputed_output)
 
         return feature_matrix
 
