@@ -6,6 +6,7 @@ from ..core.searcher import OptimizeDirection
 import datetime
 import os
 import pickle
+import shutil
 
 
 class Trail():
@@ -175,6 +176,11 @@ class DiskTrailStore(TrailStore):
 
     def load(self):
         pass
+
+    def clear_history(self):
+        shutil.rmtree(self.home_dir)
+        self.prepare_home_dir(self.home_dir)
+        self.reset()
 
     def reset(self):
         self._cache = {}
