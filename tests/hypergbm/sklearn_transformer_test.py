@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from hypernets.frameworks.ml.column_selector import *
 from hypernets.frameworks.ml.sklearn_ex import MultiLabelEncoder
+from sklearn import preprocessing
+import pytest
 
 
 def get_df():
@@ -35,6 +37,7 @@ def get_df():
 
 
 class Test_Transformer():
+
     def test_func_transformer(self):
         dfm = DataFrameMapper(
             [(column_object_category_bool, [
@@ -74,3 +77,26 @@ class Test_Transformer():
         assert x_new.columns.to_list() == ['b_c_d_l_0', 'b_c_d_l_1', 'a_a', 'a_b', 'a_missing_value', 'e_False',
                                            'e_True', 'f_c', 'f_d', 'f_missing_value', '1', 'b', 'c', 'd', 'l',
                                            'b^2', 'b c', 'b d', 'b l', 'c^2', 'c d', 'c l', 'd^2', 'd l', 'l^2']
+
+    def test_no_feature(self):
+        df = get_df()[0]
+        dfm = DataFrameMapper(
+            [([], preprocessing.LabelEncoder())],
+            input_df=True,
+            df_out=True)
+
+        with pytest.raises(ValueError):  # ValueError: No data output, maybe it's because your input feature is empty.
+            dfm.fit_transform(df, None)
+
+    def test_no_categorical_feature(self):
+        df = get_df()[0][['b', 'd']]
+
+        dfm = DataFrameMapper(
+            [(column_object_category_bool, preprocessing.LabelEncoder())],
+            input_df=True,
+            df_out=True, default=None)
+
+        x_new = dfm.fit_transform(df, None)
+
+        assert 'b' in x_new
+        assert 'd' in x_new
