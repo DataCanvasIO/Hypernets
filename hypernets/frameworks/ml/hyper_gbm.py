@@ -62,7 +62,9 @@ class HyperGBMModel():
         else:
             return proba
 
-    def evaluate(self, X, y, metrics=['accuracy'], **kwargs):
+    def evaluate(self, X, y, metrics=None, **kwargs):
+        if metrics is None:
+            metrics = ['accuracy']
         proba = self.predict_proba(X, **kwargs)
         preds = self.predict(X, **kwargs)
         scores = calc_score(y, preds, proba, metrics, self.task)
@@ -117,6 +119,7 @@ class HyperGBMModel():
                 pickle.dump(self.data_pipeline, output, protocol=2)
 
     def load_df(self, filepath):
+        global h5
         try:
             h5 = pd.HDFStore(filepath)
             df = h5['data']
@@ -207,8 +210,10 @@ class HyperGBMEstimator(Estimator):
 
 
 class HyperGBM(HyperModel):
-    def __init__(self, searcher, task='classification', dispatcher=None, callbacks=[], reward_metric='accuracy',
+    def __init__(self, searcher, task='classification', dispatcher=None, callbacks=None, reward_metric='accuracy',
                  cache_dir=None, clear_cache=True):
+        if callbacks is None:
+            callbacks = []
         self.task = task
         self.cache_dir = cache_dir
         self.clear_cache = clear_cache
