@@ -395,7 +395,8 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
             if callable(columns):
                 columns = columns(X)
             input_df = options.get('input_df', self.input_df)
-
+            if columns is None or len(columns) < 1:
+                continue
             # columns could be a string or list of
             # strings; we don't care because pandas
             # will handle either.
@@ -438,6 +439,19 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
         # at this point we lose track of which features
         # were created from which input columns, so it's
         # assumed that that doesn't matter to the model.
+
+        # no data transformed, raise a error
+        if extracted is None or len(extracted) == 0:
+            columns = []
+            input_cols = []
+            for columns, transformers, options in self.built_features:
+                if callable(columns):
+                    columns = columns(X)
+            input_cols.extend(columns)
+            if len(input_cols) > 0:
+                raise ValueError("No data output, ??? ")
+            else:
+                raise ValueError("No data output, maybe it's because your input feature is empty. ")
 
         # If any of the extracted features is sparse, combine sparsely.
         # Otherwise, combine as normal arrays.
