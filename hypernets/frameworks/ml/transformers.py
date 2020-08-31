@@ -226,7 +226,7 @@ class MultiLabelEncoder(HyperTransformer):
 
 
 class OneHotEncoder(HyperTransformer):
-    def __init__(self, categories='auto', drop=None, sparse=True, dtype=np.float64, handle_unknown='error', space=None,
+    def __init__(self, categories='auto', drop=None, sparse=True, dtype=np.float64, space=None,
                  name=None, **kwargs):
         if categories is not None and categories != 'auto':
             kwargs['categories'] = categories
@@ -236,8 +236,8 @@ class OneHotEncoder(HyperTransformer):
             kwargs['sparse'] = sparse
         if dtype is not None and dtype != True:
             kwargs['dtype'] = dtype
-        if handle_unknown is not None and handle_unknown != 'error':
-            kwargs['handle_unknown'] = handle_unknown
+        # if handle_unknown is not None and handle_unknown != 'error':
+        kwargs['handle_unknown'] = 'ignore'
 
         HyperTransformer.__init__(self, sk_pre.OneHotEncoder, space, name, **kwargs)
 

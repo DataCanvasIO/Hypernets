@@ -80,3 +80,15 @@ class Test_HyperGBM():
             return X_train, X_test, y_train, y_test
 
         self.train_bankdata(f)
+
+    def test_onehot_handle_unknown(self):
+        import sklearn, pandas as pd
+        from sklearn_pandas import DataFrameMapper
+        dfm = DataFrameMapper([(['name'], sklearn.preprocessing.OneHotEncoder(handle_unknown='ignore'))], df_out=True)
+
+        df_train = pd.DataFrame(data={"name": ["a", "b", "c"]})
+        df_test = pd.DataFrame(data={"name": ["a", "b", "d"]})
+        dfm.fit(df_train)
+        ret = dfm.transform(df_test)
+        assert ret is not None
+        assert ret.shape == (3, 3)
