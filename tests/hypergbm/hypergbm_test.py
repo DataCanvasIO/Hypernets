@@ -13,7 +13,9 @@ from tests import test_output_dir
 
 
 class Test_HyperGBM():
-    def test_model(self):
+
+
+    def train_bankdata(self, data_partition):
         rs = RandomSearcher(get_space_num_cat_pipeline_complex, optimize_direction=OptimizeDirection.Maximize)
         hk = HyperGBM(rs, task='classification', reward_metric='accuracy',
                       cache_dir=f'{test_output_dir}/hypergbm_cache',
@@ -21,9 +23,8 @@ class Test_HyperGBM():
 
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        X_train, X_test = train_test_split(df.head(1000), test_size=0.2, random_state=42)
-        y_train = X_train.pop('y')
-        y_test = X_test.pop('y')
+
+        X_train, X_test, y_train, y_test = data_partition()
 
         hk.search(X_train, y_train, X_test, y_test, max_trails=30)
         assert hk.best_model
@@ -34,3 +35,60 @@ class Test_HyperGBM():
         result = estimator.evaluate(X_test, y_test)
         assert len(score) == 200
         assert result
+
+
+    def test_model(self):
+        df = dsutils.load_bank()
+        df.drop(['id'], axis=1, inplace=True)
+        X_train, X_test = train_test_split(df.head(1000), test_size=0.2, random_state=42)
+        y_train = X_train.pop('y')
+        y_test = X_test.pop('y')
+
+        def f():
+            return X_train, X_test, y_train, y_test
+
+        self.train_bankdata(f)
+
+    def test_no_categorical(self):
+
+        df = dsutils.load_bank()
+
+        df.drop(['id'], axis=1, inplace=True)
+        df = df[['age', 'duration', 'previous', 'y']]
+
+        X_train, X_test = train_test_split(df.head(1000), test_size=0.2, random_state=42)
+        y_train = X_train.pop('y')
+        y_test = X_test.pop('y')
+
+        def f():
+            return X_train, X_test, y_train, y_test
+
+        self.train_bankdata(f)
+
+    def test_no_continuous(self):
+
+        df = dsutils.load_bank()
+
+        df.drop(['id'], axis=1, inplace=True)
+        df = df[['job', 'education', 'loan', 'y']]
+
+        X_train, X_test = train_test_split(df.head(1000), test_size=0.2, random_state=42)
+        y_train = X_train.pop('y')
+        y_test = X_test.pop('y')
+
+        def f():
+            return X_train, X_test, y_train, y_test
+
+        self.train_bankdata(f)
+
+    def test_onehot_handle_unknown(self):
+        import sklearn, pandas as pd
+        from sklearn_pandas import DataFrameMapper
+        dfm = DataFrameMapper([(['name'], sklearn.preprocessing.OneHotEncoder(handle_unknown='ignore'))], df_out=True)
+
+        df_train = pd.DataFrame(data={"name": ["a", "b", "c"]})
+        df_test = pd.DataFrame(data={"name": ["a", "b", "d"]})
+        dfm.fit(df_train)
+        ret = dfm.transform(df_test)
+        assert ret is not None
+        assert ret.shape == (3, 3)
