@@ -6,6 +6,7 @@ import time
 import os
 import datetime
 import json
+import numpy as np
 
 
 class Callback():
@@ -26,22 +27,46 @@ class Callback():
 
 
 class EarlyStoppingError(RuntimeError):
-    def __init__(self, *args, **kwargs):  # real signature unknown
-        pass
-
-    @staticmethod  # known case of __new__
-    def __new__(*args, **kwargs):  # real signature unknown
-        """ Create and return a new object.  See help(type) for accurate signature. """
-        pass
+    def __init__(self, *arg):
+        self.args = arg
 
 
-class EarlyStopping(Callback):
-    def __init__(self):
-        pass
+class EarlyStoppingCallback(Callback):
+    def __init__(self, max_no_improvement_trails=0, mode='min', min_delta=0):
+        super(Callback, self).__init__()
+        self.max_no_improvement_trails = max_no_improvement_trails
+        self.mode = mode
+        self.min_delta = min_delta
+        self.best_reward = None
+        self.best_trail_no = None
+        self.counter_no_improvement_trails = 0
+        if mode == 'min':
+            self.op = np.less
+        elif mode == 'max':
+            self.op = np.greater
+        else:
+            raise ValueError(f'Unsupported mode:{mode}')
+
+    def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
+        if self.best_reward is None:
+            self.best_reward = reward
+            self.best_trail_no = trail_no
+        else:
+            if self.op(reward, self.best_reward - self.min_delta):
+                self.best_reward = reward
+                self.best_trail_no = trail_no
+                self.counter_no_improvement_trails = 0
+            else:
+                self.counter_no_improvement_trails += 1
+                if self.counter_no_improvement_trails >= self.max_no_improvement_trails:
+                    msg = f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                    print(msg)
+                    raise EarlyStoppingError(msg)
 
 
 class FileLoggingCallback(Callback):
     def __init__(self, searcher, output_dir=None):
+        super(FileLoggingCallback, self).__init__()
         self.output_dir = self._prepare_output_dir(output_dir, searcher)
 
     def _prepare_output_dir(self, log_dir, searcher):
