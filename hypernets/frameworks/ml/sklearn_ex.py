@@ -8,7 +8,8 @@ from sklearn.utils import column_or_1d
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 from sklearn.metrics import roc_auc_score, mean_squared_log_error, accuracy_score, \
-    mean_squared_error, mean_absolute_error, r2_score, precision_score, recall_score, f1_score
+    mean_squared_error, mean_absolute_error, r2_score, precision_score, recall_score, f1_score, log_loss
+
 
 # class DtypeCastTransformer(TransformerMixin, BaseEstimator):
 #     def __init__(self):
@@ -66,7 +67,8 @@ def calc_score(y_true, y_preds, y_proba=None, metrics=['accuracy'], task='binary
 
             if metric == 'auc':
                 if len(y_proba.shape) == 2:
-                    score['auc'] = roc_auc_score(y_true, y_proba, multi_class='ovo')
+
+                    score['auc'] = roc_auc_score(y_true, y_proba[:, 1], multi_class='ovo')
                 else:
                     score['auc'] = roc_auc_score(y_true, y_proba)
 
@@ -94,5 +96,7 @@ def calc_score(y_true, y_preds, y_proba=None, metrics=['accuracy'], task='binary
                 score['rootmeansquarederror'] = np.sqrt(mean_squared_error(y_true, y_preds))
             elif metric == 'r2':
                 score['r2'] = r2_score(y_true, y_preds)
+            elif metric == 'logloss':
+                score['logloss'] = log_loss(y_true, y_proba)
 
     return score

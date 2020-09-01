@@ -57,10 +57,7 @@ class HyperGBMModel():
         else:
             X = X_cache
         proba = self.estimator.predict_proba(X, **kwargs)
-        if len(proba.shape) == 2:
-            return proba[:, 1]
-        else:
-            return proba
+        return proba
 
     def evaluate(self, X, y, metrics=None, **kwargs):
         if metrics is None:
