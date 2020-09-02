@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from setuptools import find_packages
 from setuptools import setup
 
-version = '0.1.1'
+version = '0.1.2'
 
 requirements = [
     'pandas>=0.25.3',
