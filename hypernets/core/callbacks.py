@@ -22,6 +22,9 @@ class Callback():
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
         pass
 
+    def on_trail_error(self, hyper_model, space, trail_no):
+        pass
+
     def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
         pass
 

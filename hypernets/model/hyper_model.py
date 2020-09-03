@@ -31,20 +31,34 @@ class HyperModel():
         for callback in self.callbacks:
             callback.on_build_estimator(self, space_sample, estimator, trail_no)
             callback.on_trail_begin(self, space_sample, trail_no)
+        fit_succeed = False
+        try:
+            estimator.fit(X, y, **fit_kwargs)
+            fit_succeed = True
+        except Exception as e:
+            print('Estimator fit failed!')
+            print(e)
 
-        estimator.fit(X, y, **fit_kwargs)
-        metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
-        reward = self._get_reward(metrics, self.reward_metric)
-        elapsed = time.time() - start_time
-        trail = Trail(space_sample, trail_no, reward, elapsed)
-        improved = self.history.append(trail)
-        if improved:
-            self.best_model = estimator.model
+        if fit_succeed:
+            metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
+            reward = self._get_reward(metrics, self.reward_metric)
+            elapsed = time.time() - start_time
+            trail = Trail(space_sample, trail_no, reward, elapsed)
+            improved = self.history.append(trail)
 
-        self.searcher.update_result(space_sample, reward)
+            if improved:
+                self.best_model = estimator.model
 
-        for callback in self.callbacks:
-            callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
+            self.searcher.update_result(space_sample, reward)
+
+            for callback in self.callbacks:
+                callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
+        else:
+            for callback in self.callbacks:
+                callback.on_trail_error(self, space_sample, trail_no)
+
+            elapsed = time.time() - start_time
+            trail = Trail(space_sample, trail_no, 0, elapsed)
 
         return trail
 
@@ -62,7 +76,8 @@ class HyperModel():
         fv = cast_float(value)
         if fv is not None:
             reward = fv
-        elif (isinstance(value, dict) or isinstance(value, UserDict)) and key in value and cast_float(value[key]) is not None:
+        elif (isinstance(value, dict) or isinstance(value, UserDict)) and key in value and cast_float(
+                value[key]) is not None:
             reward = cast_float(value[key])
         else:
             raise ValueError(
@@ -130,11 +145,17 @@ class HyperModel():
                 print(f'----------------------------------------------------------------')
                 if trail_store is not None:
                     trail_store.put(dataset_id, trail)
-                trail_no += 1
-                retry_counter = 0
+
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
+            except Exception as e:
+                print(f'{">" * 20} Trail failed! {"<" * 20}')
+                print(e)
+                print('*' * 50)
+            finally:
+                trail_no += 1
+                retry_counter
 
         self._after_search(trail_no)
 
