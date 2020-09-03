@@ -2,7 +2,7 @@
 """
 
 """
-from hypernets.searchers.evolution_searcher import *
+from hypernets.searchers.evolution_searcher import EvolutionSearcher,Population
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.ops import *
 from hypernets.frameworks.keras.layers import *
