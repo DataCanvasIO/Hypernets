@@ -3,6 +3,7 @@
 
 """
 import time
+import hashlib
 from ..core.callbacks import EarlyStoppingError
 from ..core.trial import *
 from ..core.meta_learner import MetaLearner
@@ -158,15 +159,31 @@ class HyperModel():
                 print('*' * 50)
             finally:
                 trail_no += 1
-                retry_counter
+                retry_counter = 0
 
         self._after_search(trail_no)
 
     def generate_dataset_id(self, X, y):
-        if isinstance(X, list):
-            return ','.join([str(i) for i in X[0]])
-        else:
-            return str(X.shape)
+        repr = ''
+        if X is not None:
+            if isinstance(X, list):
+                repr += f'X len({len(X)})|'
+            if hasattr(X, 'shape'):
+                repr += f'X shape{X.shape}|'
+            if hasattr(X, 'dtypes'):
+                repr += f'x.dtypes({list(X.dtypes)})|'
+
+        if y is not None:
+            if isinstance(y, list):
+                repr += f'y len({len(y)})|'
+            if hasattr(y, 'shape'):
+                repr += f'y shape{y.shape}|'
+
+            if hasattr(y, 'dtype'):
+                repr += f'y.dtype({y.dtype})|'
+
+        sign = hashlib.md5(repr.encode('utf-8')).hexdigest()
+        return sign
 
     def final_train(self, space_sample, X, y, **kwargs):
         estimator = self._get_estimator(space_sample)
