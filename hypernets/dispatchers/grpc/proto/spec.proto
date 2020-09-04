@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+/*
+option java_multiple_files = true;
+option java_package = "com.zetdata.modelservice.proto";
+option java_outer_classname = "ModelServiceProto";
+*/
+
+package hypernets.dispatchers.proto;
+
+
+service SearchDriver {
+  //  rpc fetch(DataRequest) returns (stream DataChunk) {}
+  rpc next(NextRequest) returns (TrailItem){}
+  rpc report(TrailStatus) returns (RpcCode){}
+}
+
+message RpcCode{
+  int32 code = 1;
+}
+
+message NextRequest{
+  string executor_id = 1;
+}
+
+message TrailItem {
+  int32 trail_no = 1;
+  string space_file_path = 2;
+}
+
+message TrailStatus {
+  int32 code = 1;
+  int32 trail_no = 2;
+  float reward = 3;
+}
+//
+//message DataRequest {
+//  string key = 1;
+//  string options = 2;
+//}
+//
+//message DataChunk {
+//  enum DataKind {
+//    DATA = 0;
+//    EOF = 9;
+//    ERR = 99;
+//  }
+//  DataKind kind = 1;
+//  bytes data = 2;
+//}
