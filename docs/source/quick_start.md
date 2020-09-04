@@ -74,14 +74,14 @@ pip install deeptables
 ```
 
 ```python
-from contrib.deeptables.models import *
+from deeptables.models.hyper_dt import mini_dt_space, HyperDT
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.callbacks import SummaryCallback, FileLoggingCallback
 from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.evolution_searcher import EvolutionSearcher
 from hypernets.core.trial import DiskTrailStore
-from deeptables.datasets import dsutils
+from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
 disk_trail_store = DiskTrailStore('~/trail_store')

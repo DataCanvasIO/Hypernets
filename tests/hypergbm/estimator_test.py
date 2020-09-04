@@ -2,9 +2,9 @@
 """
 
 """
-from deeptables.datasets import dsutils
 from pandas import DataFrame
 import pandas as pd
+from hypernets.frameworks.ml.datasets import dsutils
 from hypernets.frameworks.ml.transformers import ColumnTransformer, DataFrameMapper
 from hypernets.frameworks.ml.common_ops import categorical_pipeline_simple, numeric_pipeline, \
     categorical_pipeline_complex, numeric_pipeline_complex

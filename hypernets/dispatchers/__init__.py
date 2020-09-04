@@ -1,6 +1,5 @@
 # -*- coding:utf-8 -*-
 import os
-from hypernets.dispatchers.config import DispatchConfig
 import argparse
 
 

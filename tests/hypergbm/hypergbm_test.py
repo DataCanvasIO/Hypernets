@@ -7,7 +7,7 @@ from hypernets.frameworks.ml.common_ops import get_space_num_cat_pipeline_comple
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection
-from deeptables.datasets import dsutils
+from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 from tests import test_output_dir
 

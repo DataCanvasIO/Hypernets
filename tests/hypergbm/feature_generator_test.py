@@ -3,7 +3,7 @@
 
 """
 from hypernets.frameworks.ml.feature_generators import FeatureToolsTransformer
-from deeptables.datasets import dsutils
+from hypernets.frameworks.ml.datasets import dsutils
 from pandas import DataFrame
 import pandas as pd
 from hypernets.core.ops import *
