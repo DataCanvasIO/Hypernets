@@ -10,6 +10,7 @@ def get_dispatcher(hyper_model, **kwargs):
                         help='process role, one of driver/executor/standalone')
     parser.add_argument('--driver',
                         help='address and port of the driver process, in format: "<hostname>:<port>"')
+    parser.add_argument('others', nargs='*')
     args = parser.parse_args()
 
     if hyper_model.searcher.parallelizable:
