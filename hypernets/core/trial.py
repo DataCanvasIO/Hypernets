@@ -86,6 +86,24 @@ class TrailHistory():
 
         return diffs
 
+    def get_trajectories(self):
+        times, best_rewards, rewards = [0.0], [0.0], [0.0]
+        his = sorted(self.history, key=lambda t: t.trail_no)
+        best_trail_no = 0
+        best_elapsed = 0
+        for t in his:
+            rewards.append(t.reward)
+            times.append(t.elapsed + times[-1])
+
+            if t.reward > best_rewards[-1]:
+                best_rewards.append(t.reward)
+                best_trail_no = t.trail_no
+                best_elapsed = times[-1]
+            else:
+                best_rewards.append(best_rewards[-1])
+
+        return times, best_rewards, rewards, best_trail_no, best_elapsed
+
 
 class TrailStore(object):
     def __init__(self):
