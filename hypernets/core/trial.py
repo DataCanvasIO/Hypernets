@@ -104,6 +104,33 @@ class TrailHistory():
 
         return times, best_rewards, rewards, best_trail_no, best_elapsed
 
+    def save(self, filepath):
+        with open(filepath, 'w') as output:
+            for trail in self.history:
+                output.write(f'{trail.trail_no}|{trail.space_sample.vectors}|{trail.reward}|{trail.elapsed}\r\n')
+        return True
+
+    @staticmethod
+    def load_history(space_fn, filepath):
+        history = []
+        with open(filepath, 'r') as input:
+            while True:
+                line = input.readline()
+                if line is None or line == '':
+                    break
+                if line.strip() == '':
+                    continue
+                fields = line.split('|')
+                assert len(fields) == 4, f'Trail format is not correct. \r\nline:[{line}]'
+                sample = space_fn()
+                vector = [float(n) if n.__contains__('.') else int(n) for n in fields[1].replace('[','').replace(']','').split(',')]
+                sample.assign_by_vectors(vector)
+                trail = Trail(space_sample=sample, trail_no=int(fields[0]), reward=float(fields[2]),
+                              elapsed=float(fields[3]))
+                history.append(trail)
+
+        return history
+
 
 class TrailStore(object):
     def __init__(self):
