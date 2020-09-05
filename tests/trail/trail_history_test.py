@@ -65,11 +65,15 @@ class Test_TrialHistory():
 
         with open(filepath) as f:
             lines = f.readlines()
-            assert lines == ['1|[0, 1, 0.1]|0.99|100\n', '2|[1, 2, 0.2]|0.9|50\n', '3|[0, 3, 0.3]|0.7|200\n']
+            assert lines == ['min\n', '1|[0, 1, 0.1]|0.99|100\n', '2|[1, 2, 0.2]|0.9|50\n', '3|[0, 3, 0.3]|0.7|200\n']
 
         history = TrailHistory.load_history(get_space, filepath)
-        assert len(history) == 3
-        assert history[0].space_sample.vectors == [0, 1, 0.1]
-        assert history[0].elapsed == 100.0
-        assert history[0].reward == 0.99
-        assert history[0].trail_no == 1
+        assert history.optimize_direction == 'min'
+        assert len(history.history) == 3
+        assert history.history[0].space_sample.vectors == [0, 1, 0.1]
+        assert history.history[0].elapsed == 100.0
+        assert history.history[0].reward == 0.99
+        assert history.history[0].trail_no == 1
+
+        trajectories = history.get_trajectories()
+        assert trajectories == ([0.0, 100.0, 150.0, 350.0], [0.0, 0.99, 0.99, 0.99], [0.0, 0.99, 0.9, 0.7], 1, 100.0)
