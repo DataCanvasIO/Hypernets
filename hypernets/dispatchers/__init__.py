@@ -1,5 +1,4 @@
 # -*- coding:utf-8 -*-
-import os
 import argparse
 
 
@@ -11,7 +10,7 @@ def get_dispatcher(hyper_model, **kwargs):
     parser.add_argument('--driver',
                         help='address and port of the driver process, in format: "<hostname>:<port>"')
     parser.add_argument('others', nargs='*')
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     if hyper_model.searcher.parallelizable:
         role = args.role
