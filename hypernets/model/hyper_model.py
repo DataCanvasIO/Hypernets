@@ -30,9 +30,9 @@ class HyperModel():
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
 
-        for callback in self.callbacks:
-            callback.on_build_estimator(self, space_sample, estimator, trail_no)
-            callback.on_trail_begin(self, space_sample, trail_no)
+        # for callback in self.callbacks:
+        #     callback.on_build_estimator(self, space_sample, estimator, trail_no)
+        #     callback.on_trail_begin(self, space_sample, trail_no)
         fit_succeed = False
         try:
             estimator.fit(X, y, **fit_kwargs)
@@ -45,19 +45,21 @@ class HyperModel():
             metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
             reward = self._get_reward(metrics, self.reward_metric)
             elapsed = time.time() - start_time
-            trail = Trail(space_sample, trail_no, reward, elapsed)
-            improved = self.history.append(trail)
 
-            if improved:
-                self.best_model = estimator.model
+            self.last_model = estimator.model
+            trail = Trail(space_sample, trail_no, reward, elapsed)
+
+            # improved = self.history.append(trail)
+            # if improved:
+            #     self.best_model = estimator.model
 
             self.searcher.update_result(space_sample, reward)
 
-            for callback in self.callbacks:
-                callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
+            # for callback in self.callbacks:
+            #     callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
         else:
-            for callback in self.callbacks:
-                callback.on_trail_error(self, space_sample, trail_no)
+            # for callback in self.callbacks:
+            #     callback.on_trail_error(self, space_sample, trail_no)
 
             elapsed = time.time() - start_time
             trail = Trail(space_sample, trail_no, 0, elapsed)

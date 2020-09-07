@@ -21,39 +21,43 @@ def get_ip_for(peer_address):
 
 
 class SshCluster(object):
-    def __init__(self, driver, driver_port, executors, log_dir, *args, **kwargs):
+    def __init__(self, experiment, driver, driver_port, executors, spaces_dir, logs_dir, *args, **kwargs):
         super(SshCluster, self).__init__()
         assert isinstance(executors, (list, tuple)) and len(executors) > 0
         assert driver_port
 
+        self.experiment = experiment if experiment else time.strftime('%Y%m%d%H%M%S')
         self.driver = driver
         self.driver_port = driver_port
         self.executors = executors
-        self.log_dir = log_dir
+        self.spaces_dir = spaces_dir
+        self.logs_dir = logs_dir
         self.args = args
         self.kwargs = kwargs
 
     def start(self):
-        os.makedirs(self.log_dir, exist_ok=True)
-        tag = time.strftime('%Y%m%d%H%M%S')
+        tag = self.experiment
+        os.makedirs(f'{self.logs_dir}/{tag}', exist_ok=True)
 
         def to_driver_process():
             cmd = self._driver_cmd
             ssh_host = self.driver
             if ssh_host:
-                out_file = f'{self.log_dir}/{tag}-driver-{ssh_host}.out'
-                err_file = f'{self.log_dir}/{tag}-driver-{ssh_host}.err'
-                return SshProcess(ssh_host, cmd, None, out_file, err_file)
+                # out_file = f'{self.log_dir}/{tag}-driver-{ssh_host}.out'
+                # err_file = f'{self.log_dir}/{tag}-driver-{ssh_host}.err'
+                # return SshProcess(ssh_host, cmd, None, out_file, err_file)
+                return SshProcess(ssh_host, cmd, None, None, None)
             else:
-                out_file = f'{self.log_dir}/{tag}-driver-localhost.out'
-                err_file = f'{self.log_dir}/{tag}-driver-localhost.err'
-                return LocalProcess(cmd, None, out_file, err_file)
+                # out_file = f'{self.log_dir}/{tag}-driver-localhost.out'
+                # err_file = f'{self.log_dir}/{tag}-driver-localhost.err'
+                # return LocalProcess(cmd, None, out_file, err_file)
+                return LocalProcess(cmd, None, None, None)
 
         def to_executor_process(index):
             ssh_host = self.executors[index]
             cmd = self._executor_cmd
-            out_file = f'{self.log_dir}/{tag}-executor-{index}-{ssh_host}.out'
-            err_file = f'{self.log_dir}/{tag}-executor-{index}-{ssh_host}.err'
+            out_file = f'{self.logs_dir}/{tag}/executor-{index}-{ssh_host}.out'
+            err_file = f'{self.logs_dir}/{tag}/executor-{index}-{ssh_host}.err'
             if ssh_host == 'localhost' or ssh_host.startswith('127.0.'):
                 return LocalProcess(cmd, None, out_file, err_file)
             else:
@@ -69,7 +73,8 @@ class SshCluster(object):
     def _driver_cmd(self):
         cmds = ' '.join(self.args)
         driver = self.driver if self.driver else '0.0.0.0'
-        ssh_cmd = f'python {cmds} --driver={driver}:{self.driver_port} --role=driver'
+        spaces_dir = f'{self.spaces_dir}/{self.experiment}'
+        ssh_cmd = f'{cmds} --driver {driver}:{self.driver_port} --role driver --spaces-dir {spaces_dir}'
         return ssh_cmd
 
     @property
@@ -77,5 +82,5 @@ class SshCluster(object):
         cmds = ' '.join(self.args)
         driver = self.driver if self.driver else get_ip_for(self.executors[0])
         # ssh_cmd = f'echo python --driver={driver}:{self.driver_port} --role=executor {cmds}'
-        ssh_cmd = f'python {cmds} --driver={driver}:{self.driver_port} --role=executor'
+        ssh_cmd = f'{cmds} --driver {driver}:{self.driver_port} --role executor'
         return ssh_cmd

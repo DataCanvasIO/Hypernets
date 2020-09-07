@@ -4,23 +4,25 @@ import argparse
 
 def get_dispatcher(hyper_model, **kwargs):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--role', default='standalone',
-                        choices=['driver', 'executor', 'standalone'],
+    parser.add_argument('--role', '-role',
+                        default='standalone', choices=['driver', 'executor', 'standalone'],
                         help='process role, one of driver/executor/standalone')
-    parser.add_argument('--driver',
-                        help='address and port of the driver process, in format: "<hostname>:<port>"')
-    parser.add_argument('others', nargs='*')
+    parser.add_argument('--driver', '-driver',
+                        help='address and port of the driver process, with format: "<hostname>:<port>"')
+    parser.add_argument('--spaces-dir', '-spaces-dir',
+                        default='spaces',
+                        help='[driver only] director to store space sample file, default "spaces"')
     args, _ = parser.parse_known_args()
 
     if hyper_model.searcher.parallelizable:
         role = args.role
         driver_address = args.driver
         if role == 'driver':
-            from .parallel_dispatcher import ParallelDriverDispatcher
-            return ParallelDriverDispatcher(driver_address)
+            from .driver_dispatcher import DriverDispatcher
+            return DriverDispatcher(driver_address, args.spaces_dir)
         elif role == 'executor':
-            from .parallel_dispatcher import ParallelExecutorDispatcher
-            return ParallelExecutorDispatcher(driver_address)
+            from .executor_dispatcher import ExecutorDispatcher
+            return ExecutorDispatcher(driver_address)
 
     return default_dispatcher()
 
@@ -41,19 +43,22 @@ def ssh_run():
     parser.add_argument('--executors', '-executors',
                         required=True,
                         help='addresses of the executor nodes')
-    parser.add_argument('--log-dir', '-log-dir',
+    parser.add_argument('--experiment', '-experiment',
+                        help='driver directory to store space files')
+    parser.add_argument('--spaces-dir', '-spaces-dir',
+                        default='spaces',
+                        help='driver directory to store space files')
+    parser.add_argument('--logs-dir', '-logs-dir',
                         default='logs',
                         help='local directory to store log files')
-    parser.add_argument('commands',
-                        nargs='+',
-                        help='command to run')
-    args = parser.parse_args()
-    # conf = DispatchConfig.load_config()
+    args, argv = parser.parse_known_args()
 
-    cluster = SshCluster(args.driver, args.driver_port,
+    cluster = SshCluster(args.experiment,
+                         args.driver, args.driver_port,
                          args.executors.split(','),
-                         args.log_dir,
-                         *args.commands)
+                         args.spaces_dir,
+                         args.logs_dir,
+                         *argv)
     cluster.start()
 
 
