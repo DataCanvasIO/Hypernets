@@ -112,7 +112,7 @@ class DriverDispatcher(Dispatcher):
                 trail_no += 1
                 retry_counter = 0
 
-        print("-" * 20, 'no more space to push, waiting...')
+        print("-" * 20, 'no more space to push, start waiting...')
         while search_service.running_size() > 0:
             # print(f"wait ... {search_service.running_size()} samples found.")
             time.sleep(0.1)
