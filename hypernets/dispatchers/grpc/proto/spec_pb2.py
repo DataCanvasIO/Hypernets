@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/spec.proto\x12\x1bhypernets.dispatchers.proto\"\x17\n\x07RpcCode\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\"\"\n\x0bNextRequest\x12\x13\n\x0b\x65xecutor_id\x18\x01 \x01(\t\"6\n\tTrailItem\x12\x10\n\x08trail_no\x18\x01 \x01(\x05\x12\x17\n\x0fspace_file_path\x18\x02 \x01(\t\"=\n\x0bTrailStatus\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x10\n\x08trail_no\x18\x02 \x01(\x05\x12\x0e\n\x06reward\x18\x03 \x01(\x02\x32\xc6\x01\n\x0cSearchDriver\x12Z\n\x04next\x12(.hypernets.dispatchers.proto.NextRequest\x1a&.hypernets.dispatchers.proto.TrailItem\"\x00\x12Z\n\x06report\x12(.hypernets.dispatchers.proto.TrailStatus\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x62\x06proto3'
+  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/spec.proto\x12\x1bhypernets.dispatchers.proto\"\x17\n\x07RpcCode\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\"\x18\n\nExecutorId\x12\n\n\x02id\x18\x01 \x01(\t\"6\n\tTrailItem\x12\x10\n\x08space_id\x18\x01 \x01(\t\x12\x17\n\x0fspace_file_path\x18\x02 \x01(\t\"\x80\x01\n\x0bTrailReport\x12\n\n\x02id\x18\x01 \x01(\t\x12\x32\n\x04\x63ode\x18\x02 \x01(\x0b\x32$.hypernets.dispatchers.proto.RpcCode\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0e\n\x06reward\x18\x04 \x01(\x02\x12\x0f\n\x07message\x18\x05 \x01(\t2\x9e\x02\n\x0cSearchDriver\x12W\n\x04\x62\x65\x61t\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x12Y\n\x04next\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a&.hypernets.dispatchers.proto.TrailItem\"\x00\x12Z\n\x06report\x12(.hypernets.dispatchers.proto.TrailReport\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x62\x06proto3'
 )
 
 
@@ -57,16 +57,16 @@ _RPCCODE = _descriptor.Descriptor(
 )
 
 
-_NEXTREQUEST = _descriptor.Descriptor(
-  name='NextRequest',
-  full_name='hypernets.dispatchers.proto.NextRequest',
+_EXECUTORID = _descriptor.Descriptor(
+  name='ExecutorId',
+  full_name='hypernets.dispatchers.proto.ExecutorId',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='executor_id', full_name='hypernets.dispatchers.proto.NextRequest.executor_id', index=0,
+      name='id', full_name='hypernets.dispatchers.proto.ExecutorId.id', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -85,7 +85,7 @@ _NEXTREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=101,
-  serialized_end=135,
+  serialized_end=125,
 )
 
 
@@ -98,9 +98,9 @@ _TRAILITEM = _descriptor.Descriptor(
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='trail_no', full_name='hypernets.dispatchers.proto.TrailItem.trail_no', index=0,
-      number=1, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='space_id', full_name='hypernets.dispatchers.proto.TrailItem.space_id', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -123,37 +123,51 @@ _TRAILITEM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=137,
-  serialized_end=191,
+  serialized_start=127,
+  serialized_end=181,
 )
 
 
-_TRAILSTATUS = _descriptor.Descriptor(
-  name='TrailStatus',
-  full_name='hypernets.dispatchers.proto.TrailStatus',
+_TRAILREPORT = _descriptor.Descriptor(
+  name='TrailReport',
+  full_name='hypernets.dispatchers.proto.TrailReport',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='code', full_name='hypernets.dispatchers.proto.TrailStatus.code', index=0,
-      number=1, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='id', full_name='hypernets.dispatchers.proto.TrailReport.id', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='trail_no', full_name='hypernets.dispatchers.proto.TrailStatus.trail_no', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='code', full_name='hypernets.dispatchers.proto.TrailReport.code', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='reward', full_name='hypernets.dispatchers.proto.TrailStatus.reward', index=2,
-      number=3, type=2, cpp_type=6, label=1,
+      name='space_id', full_name='hypernets.dispatchers.proto.TrailReport.space_id', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='reward', full_name='hypernets.dispatchers.proto.TrailReport.reward', index=3,
+      number=4, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='message', full_name='hypernets.dispatchers.proto.TrailReport.message', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -169,14 +183,15 @@ _TRAILSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=193,
-  serialized_end=254,
+  serialized_start=184,
+  serialized_end=312,
 )
 
+_TRAILREPORT.fields_by_name['code'].message_type = _RPCCODE
 DESCRIPTOR.message_types_by_name['RpcCode'] = _RPCCODE
-DESCRIPTOR.message_types_by_name['NextRequest'] = _NEXTREQUEST
+DESCRIPTOR.message_types_by_name['ExecutorId'] = _EXECUTORID
 DESCRIPTOR.message_types_by_name['TrailItem'] = _TRAILITEM
-DESCRIPTOR.message_types_by_name['TrailStatus'] = _TRAILSTATUS
+DESCRIPTOR.message_types_by_name['TrailReport'] = _TRAILREPORT
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 RpcCode = _reflection.GeneratedProtocolMessageType('RpcCode', (_message.Message,), {
@@ -186,12 +201,12 @@ RpcCode = _reflection.GeneratedProtocolMessageType('RpcCode', (_message.Message,
   })
 _sym_db.RegisterMessage(RpcCode)
 
-NextRequest = _reflection.GeneratedProtocolMessageType('NextRequest', (_message.Message,), {
-  'DESCRIPTOR' : _NEXTREQUEST,
+ExecutorId = _reflection.GeneratedProtocolMessageType('ExecutorId', (_message.Message,), {
+  'DESCRIPTOR' : _EXECUTORID,
   '__module__' : 'hypernets.dispatchers.grpc.proto.spec_pb2'
-  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.NextRequest)
+  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.ExecutorId)
   })
-_sym_db.RegisterMessage(NextRequest)
+_sym_db.RegisterMessage(ExecutorId)
 
 TrailItem = _reflection.GeneratedProtocolMessageType('TrailItem', (_message.Message,), {
   'DESCRIPTOR' : _TRAILITEM,
@@ -200,12 +215,12 @@ TrailItem = _reflection.GeneratedProtocolMessageType('TrailItem', (_message.Mess
   })
 _sym_db.RegisterMessage(TrailItem)
 
-TrailStatus = _reflection.GeneratedProtocolMessageType('TrailStatus', (_message.Message,), {
-  'DESCRIPTOR' : _TRAILSTATUS,
+TrailReport = _reflection.GeneratedProtocolMessageType('TrailReport', (_message.Message,), {
+  'DESCRIPTOR' : _TRAILREPORT,
   '__module__' : 'hypernets.dispatchers.grpc.proto.spec_pb2'
-  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.TrailStatus)
+  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.TrailReport)
   })
-_sym_db.RegisterMessage(TrailStatus)
+_sym_db.RegisterMessage(TrailReport)
 
 
 
@@ -216,15 +231,25 @@ _SEARCHDRIVER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=257,
-  serialized_end=455,
+  serialized_start=315,
+  serialized_end=601,
   methods=[
+  _descriptor.MethodDescriptor(
+    name='beat',
+    full_name='hypernets.dispatchers.proto.SearchDriver.beat',
+    index=0,
+    containing_service=None,
+    input_type=_EXECUTORID,
+    output_type=_RPCCODE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
   _descriptor.MethodDescriptor(
     name='next',
     full_name='hypernets.dispatchers.proto.SearchDriver.next',
-    index=0,
+    index=1,
     containing_service=None,
-    input_type=_NEXTREQUEST,
+    input_type=_EXECUTORID,
     output_type=_TRAILITEM,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
@@ -232,9 +257,9 @@ _SEARCHDRIVER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='report',
     full_name='hypernets.dispatchers.proto.SearchDriver.report',
-    index=1,
+    index=2,
     containing_service=None,
-    input_type=_TRAILSTATUS,
+    input_type=_TRAILREPORT,
     output_type=_RPCCODE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,

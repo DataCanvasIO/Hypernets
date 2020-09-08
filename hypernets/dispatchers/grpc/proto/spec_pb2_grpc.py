@@ -14,14 +14,19 @@ class SearchDriverStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.beat = channel.unary_unary(
+                '/hypernets.dispatchers.proto.SearchDriver/beat',
+                request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
+                response_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.RpcCode.FromString,
+                )
         self.next = channel.unary_unary(
                 '/hypernets.dispatchers.proto.SearchDriver/next',
-                request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.NextRequest.SerializeToString,
+                request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
                 response_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailItem.FromString,
                 )
         self.report = channel.unary_unary(
                 '/hypernets.dispatchers.proto.SearchDriver/report',
-                request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailStatus.SerializeToString,
+                request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailReport.SerializeToString,
                 response_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.RpcCode.FromString,
                 )
 
@@ -29,9 +34,14 @@ class SearchDriverStub(object):
 class SearchDriverServicer(object):
     """Missing associated documentation comment in .proto file."""
 
+    def beat(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def next(self, request, context):
-        """rpc fetch(DataRequest) returns (stream DataChunk) {}
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -45,14 +55,19 @@ class SearchDriverServicer(object):
 
 def add_SearchDriverServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'beat': grpc.unary_unary_rpc_method_handler(
+                    servicer.beat,
+                    request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.FromString,
+                    response_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.RpcCode.SerializeToString,
+            ),
             'next': grpc.unary_unary_rpc_method_handler(
                     servicer.next,
-                    request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.NextRequest.FromString,
+                    request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.FromString,
                     response_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailItem.SerializeToString,
             ),
             'report': grpc.unary_unary_rpc_method_handler(
                     servicer.report,
-                    request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailStatus.FromString,
+                    request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailReport.FromString,
                     response_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.RpcCode.SerializeToString,
             ),
     }
@@ -66,6 +81,22 @@ class SearchDriver(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
+    def beat(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/hypernets.dispatchers.proto.SearchDriver/beat',
+            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
+            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.RpcCode.FromString,
+            options, channel_credentials,
+            call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def next(request,
             target,
             options=(),
@@ -76,7 +107,7 @@ class SearchDriver(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/hypernets.dispatchers.proto.SearchDriver/next',
-            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.NextRequest.SerializeToString,
+            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
             hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailItem.FromString,
             options, channel_credentials,
             call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -92,7 +123,7 @@ class SearchDriver(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/hypernets.dispatchers.proto.SearchDriver/report',
-            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailStatus.SerializeToString,
+            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.TrailReport.SerializeToString,
             hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.RpcCode.FromString,
             options, channel_credentials,
             call_credentials, compression, wait_for_ready, timeout, metadata)

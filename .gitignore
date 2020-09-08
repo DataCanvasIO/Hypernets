@@ -136,3 +136,6 @@ log/
 trail_store/
 tmp/
 catboost_info/
+
+#dispatchers
+logs/

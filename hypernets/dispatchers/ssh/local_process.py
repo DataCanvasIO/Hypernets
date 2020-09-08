@@ -2,6 +2,7 @@
 
 from multiprocessing import Process, Value as PValue
 import subprocess
+import sys
 
 
 class LocalProcess(Process):
@@ -15,12 +16,20 @@ class LocalProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
-        with open(self.out_file, 'wb')as o, open(self.err_file, 'wb') as e:
+        if self.out_file and self.err_file:
+            with open(self.out_file, 'wb')as o, open(self.err_file, 'wb') as e:
+                p = subprocess.run(self.cmd.split(' '),
+                                   shell=True,
+                                   stdin=None,
+                                   stdout=o,
+                                   stderr=e)
+                code = p.returncode
+        else:
             p = subprocess.run(self.cmd.split(' '),
                                shell=True,
                                stdin=None,
-                               stdout=o,
-                               stderr=e)
+                               stdout=sys.stdout,
+                               stderr=sys.stderr)
             code = p.returncode
 
         self._exit_code.value = code

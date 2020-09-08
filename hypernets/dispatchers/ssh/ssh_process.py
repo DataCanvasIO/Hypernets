@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 
 from os.path import getsize
+import sys
 from threading import Thread, Lock
 from multiprocessing import Process, Value as PValue, current_process
 from paramiko import SSHClient, AutoAddPolicy
@@ -88,8 +89,13 @@ class SshProcess(Process):
             channel = stdout.channel
             # channel.settimeout(0.1)
 
-            with open(out_file, 'wb')as o, open(err_file, 'wb') as e:
-                threads = [DumpFileThread(stdout, o), DumpFileThread(stderr, e)]
+            if out_file and err_file:
+                with open(out_file, 'wb')as o, open(err_file, 'wb') as e:
+                    threads = [DumpFileThread(stdout, o), DumpFileThread(stderr, e)]
+                    for p in threads: p.start()
+                    for p in threads: p.join()
+            else:
+                threads = [DumpFileThread(stdout, sys.stdout), DumpFileThread(stderr, sys.stderr)]
                 for p in threads: p.start()
                 for p in threads: p.join()
 

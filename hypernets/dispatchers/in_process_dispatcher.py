@@ -47,7 +47,25 @@ class InProcessDispatcher(Dispatcher):
                                                    elapsed)
                         trail_no += 1
                         continue
+
+                for callback in hyper_model.callbacks:
+                    # callback.on_build_estimator(hyper_model, space_sample, estimator, trail_no) #fixme
+                    callback.on_trail_begin(hyper_model, space_sample, trail_no)
+
                 trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
+
+                if trail.reward != 0:
+                    improved = hyper_model.history.append(trail)
+                    if improved:
+                        hyper_model.best_model = hyper_model.last_model
+
+                    for callback in hyper_model.callbacks:
+                        callback.on_trail_end(hyper_model, space_sample, trail_no, trail.reward,
+                                              improved, trail.elapsed)
+                else:
+                    for callback in hyper_model.callbacks:
+                        callback.on_trail_error(hyper_model, space_sample, trail_no)
+
                 print(f'----------------------------------------------------------------')
                 print(f'space signatures: {hyper_model.history.get_space_signatures()}')
                 print(f'----------------------------------------------------------------')
