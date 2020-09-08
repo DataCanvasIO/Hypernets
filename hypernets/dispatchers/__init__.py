@@ -1,26 +1,18 @@
 # -*- coding:utf-8 -*-
-import argparse
+
+from ..utils.common import config
 
 
 def get_dispatcher(hyper_model, **kwargs):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--role', '-role',
-                        default='standalone', choices=['driver', 'executor', 'standalone'],
-                        help='process role, one of driver/executor/standalone')
-    parser.add_argument('--driver', '-driver',
-                        help='address and port of the driver process, with format: "<hostname>:<port>"')
-    parser.add_argument('--spaces-dir', '-spaces-dir',
-                        default='spaces',
-                        help='[driver only] director to store space sample file, default "spaces"')
-    args, _ = parser.parse_known_args()
-
     if hyper_model.searcher.parallelizable:
-        role = args.role
-        driver_address = args.driver
+        role = config('role', 'standalone')
+        driver_address = config('driver')
         if role == 'driver':
             from .driver_dispatcher import DriverDispatcher
-            return DriverDispatcher(driver_address, args.spaces_dir)
+            return DriverDispatcher(driver_address, config('spaces_dir', 'spaces'))
         elif role == 'executor':
+            if driver_address is None:
+                raise Exception('Not found setting "driver" for executor role.')
             from .executor_dispatcher import ExecutorDispatcher
             return ExecutorDispatcher(driver_address)
 
