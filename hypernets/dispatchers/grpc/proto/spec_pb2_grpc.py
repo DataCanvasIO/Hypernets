@@ -14,6 +14,11 @@ class SearchDriverStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.register = channel.unary_unary(
+                '/hypernets.dispatchers.proto.SearchDriver/register',
+                request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
+                response_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.FromString,
+                )
         self.beat = channel.unary_unary(
                 '/hypernets.dispatchers.proto.SearchDriver/beat',
                 request_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
@@ -33,6 +38,12 @@ class SearchDriverStub(object):
 
 class SearchDriverServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def register(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def beat(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -55,6 +66,11 @@ class SearchDriverServicer(object):
 
 def add_SearchDriverServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'register': grpc.unary_unary_rpc_method_handler(
+                    servicer.register,
+                    request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.FromString,
+                    response_serializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
+            ),
             'beat': grpc.unary_unary_rpc_method_handler(
                     servicer.beat,
                     request_deserializer=hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.FromString,
@@ -79,6 +95,22 @@ def add_SearchDriverServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class SearchDriver(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def register(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/hypernets.dispatchers.proto.SearchDriver/register',
+            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.SerializeToString,
+            hypernets_dot_dispatchers_dot_grpc_dot_proto_dot_spec__pb2.ExecutorId.FromString,
+            options, channel_credentials,
+            call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def beat(request,

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/spec.proto\x12\x1bhypernets.dispatchers.proto\"\x17\n\x07RpcCode\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\"\x18\n\nExecutorId\x12\n\n\x02id\x18\x01 \x01(\t\"6\n\tTrailItem\x12\x10\n\x08space_id\x18\x01 \x01(\t\x12\x17\n\x0fspace_file_path\x18\x02 \x01(\t\"\x80\x01\n\x0bTrailReport\x12\n\n\x02id\x18\x01 \x01(\t\x12\x32\n\x04\x63ode\x18\x02 \x01(\x0b\x32$.hypernets.dispatchers.proto.RpcCode\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0e\n\x06reward\x18\x04 \x01(\x02\x12\x0f\n\x07message\x18\x05 \x01(\t2\x9e\x02\n\x0cSearchDriver\x12W\n\x04\x62\x65\x61t\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x12Y\n\x04next\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a&.hypernets.dispatchers.proto.TrailItem\"\x00\x12Z\n\x06report\x12(.hypernets.dispatchers.proto.TrailReport\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x62\x06proto3'
+  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/spec.proto\x12\x1bhypernets.dispatchers.proto\"\x17\n\x07RpcCode\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\"\x18\n\nExecutorId\x12\n\n\x02id\x18\x01 \x01(\t\"6\n\tTrailItem\x12\x10\n\x08space_id\x18\x01 \x01(\t\x12\x17\n\x0fspace_file_path\x18\x02 \x01(\t\"\x80\x01\n\x0bTrailReport\x12\n\n\x02id\x18\x01 \x01(\t\x12\x32\n\x04\x63ode\x18\x02 \x01(\x0b\x32$.hypernets.dispatchers.proto.RpcCode\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0e\n\x06reward\x18\x04 \x01(\x02\x12\x0f\n\x07message\x18\x05 \x01(\t2\xfe\x02\n\x0cSearchDriver\x12^\n\x08register\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a\'.hypernets.dispatchers.proto.ExecutorId\"\x00\x12W\n\x04\x62\x65\x61t\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x12Y\n\x04next\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a&.hypernets.dispatchers.proto.TrailItem\"\x00\x12Z\n\x06report\x12(.hypernets.dispatchers.proto.TrailReport\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x62\x06proto3'
 )
 
 
@@ -232,12 +232,22 @@ _SEARCHDRIVER = _descriptor.ServiceDescriptor(
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
   serialized_start=315,
-  serialized_end=601,
+  serialized_end=697,
   methods=[
+  _descriptor.MethodDescriptor(
+    name='register',
+    full_name='hypernets.dispatchers.proto.SearchDriver.register',
+    index=0,
+    containing_service=None,
+    input_type=_EXECUTORID,
+    output_type=_EXECUTORID,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
   _descriptor.MethodDescriptor(
     name='beat',
     full_name='hypernets.dispatchers.proto.SearchDriver.beat',
-    index=0,
+    index=1,
     containing_service=None,
     input_type=_EXECUTORID,
     output_type=_RPCCODE,
@@ -247,7 +257,7 @@ _SEARCHDRIVER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='next',
     full_name='hypernets.dispatchers.proto.SearchDriver.next',
-    index=1,
+    index=2,
     containing_service=None,
     input_type=_EXECUTORID,
     output_type=_TRAILITEM,
@@ -257,7 +267,7 @@ _SEARCHDRIVER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='report',
     full_name='hypernets.dispatchers.proto.SearchDriver.report',
-    index=2,
+    index=3,
     containing_service=None,
     input_type=_TRAILREPORT,
     output_type=_RPCCODE,

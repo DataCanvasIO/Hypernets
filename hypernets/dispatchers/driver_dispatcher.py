@@ -22,7 +22,7 @@ class DriverDispatcher(Dispatcher):
 
         def on_report_space(item):
             if item.code == 0:
-                elapsed = item.reported_at - item.start_at
+                elapsed = item.report_at - item.start_at
                 trail = Trail(item.space_sample, item.trail_no, item.reward, elapsed)
                 # print(f'trail result:{trail}')
 
@@ -43,9 +43,20 @@ class DriverDispatcher(Dispatcher):
                 for cb in hyper_model.callbacks:
                     cb.on_trail_error(hyper_model, space_sample, trail_no)
 
+        def on_summary():
+            t = hyper_model.get_best_trail()
+            if t:
+                detail = f'reward={t.reward}, trail_no={t.trail_no}, space_id={t.space_sample.space_id}'
+                return f'best: {detail}'
+            else:
+                return None
+
         print(f'start driver server at {self.address}')
         from .grpc.SearchDriverService import serve
-        server, search_service = serve(self.address, self.spaces_dir, on_next=on_next_space, on_report=on_report_space)
+        server, search_service = serve(self.address, self.spaces_dir,
+                                       on_next=on_next_space,
+                                       on_report=on_report_space,
+                                       on_summary=on_summary)
 
         search_start_at = time.time()
 
@@ -116,8 +127,13 @@ class DriverDispatcher(Dispatcher):
         while search_service.running_size() > 0:
             # print(f"wait ... {search_service.running_size()} samples found.")
             time.sleep(0.1)
-        print("-" * 20, 'no more trail')
+        print("-" * 20, 'all trails done')
 
+        # shutdown grpc server
+        server.stop(grace=1.0)
+        del search_service
+
+        # run best trail
         if hyper_model.best_space:
             space_sample = hyper_model.best_space
             print(f'run trial with best space {space_sample.space_id} in driver')

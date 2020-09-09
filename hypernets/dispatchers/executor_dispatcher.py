@@ -1,27 +1,30 @@
 # -*- coding:utf-8 -*-
-import os
-import signal
 import sys
 import time
-from threading import Thread
 
 from grpc import RpcError
 
 from ..core.dispatcher import Dispatcher
-
-
-# from ..core.trial import *
+from ..utils.common import config
 
 
 class ExecutorDispatcher(Dispatcher):
     def __init__(self, driver_address):
         super(ExecutorDispatcher, self).__init__()
         self.driver_address = driver_address
-        self.executor_id = os.environ.get("ID", None)
-        if self.executor_id is None:
+
+    @staticmethod
+    def _get_executor_prefix():
+        prefix = config('executor_prefix')
+        if prefix:
+            return prefix
+
+        try:
             import socket
             hostname = socket.gethostname()
-            self.executor_id = f'executor-{hostname}'
+            return f'executor-{hostname}'
+        except Exception:
+            return f'executor'
 
     def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
@@ -29,12 +32,12 @@ class ExecutorDispatcher(Dispatcher):
         import pickle
 
         print(f'connect to driver {self.driver_address}', end='')
-        client = SearchDriverClient.instance(self.driver_address, self.executor_id)
-        self.wait_server(client)
-        self.start_beat(client)
+        client = SearchDriverClient(self.driver_address, self._get_executor_prefix())
+        client.register(wait=True)
+        beat_thread = client.start_beat_thread()
 
         trail_no = 1
-        while True:
+        while beat_thread.is_alive():
             try:
                 item = client.next()
             except RpcError as e:
@@ -74,51 +77,13 @@ class ExecutorDispatcher(Dispatcher):
                 if trail_store is not None:
                     trail_store.put(dataset_id, trail)
 
-                code = 0 if trail.reward != 0 else -1
+                code = 0 if trail.reward != 0.0 else -1
                 client.report(item.space_id, code, trail.reward)
             except Exception as e:
                 msg = f'{e.__class__.__name__}: {e}'
                 print(msg, file=sys.stderr)
-                client.report(item.space_id, -1, 0.0, msg)
+                client.report(item.space_id, -9, 0.0, msg)
             finally:
                 trail_no += 1
 
         return trail_no
-
-    @staticmethod
-    def wait_server(client):
-        start_at = time.time()
-
-        def fn():
-            while True:
-                try:
-                    client.beat()
-                    done_at = time.time()
-                    print(' connected (%.3f seconds).' % (done_at - start_at,))
-                    break
-                except RpcError as e:
-                    # print('failed to connect to driver', e, 'try again after 3 seconds')
-                    print('.', end='', flush=True)
-                    time.sleep(3.0)
-
-        t = Thread(target=fn, name='grpc-connect-thread')
-        t.start()
-        t.join()
-
-    @staticmethod
-    def start_beat(client):
-        def fn():
-            try:
-                while True:
-                    client.beat()
-                    # print('-' * 20, 'beat ok')
-                    time.sleep(3.0)
-            except RpcError as e:
-                print('beat error', e, 'terminating process...', file=sys.stderr)
-                os.kill(os.getpid(), signal.SIGTERM)
-
-        t = Thread(target=fn, name='grpc-beat-thread')
-        t.daemon = True
-        t.start()
-
-        return t
