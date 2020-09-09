@@ -36,7 +36,7 @@ class Counter(object):
 class DumpFileThread(Thread):
     counter = Counter()
 
-    def __init__(self, in_file_handle, out_file_handle, buf_size=4096):
+    def __init__(self, in_file_handle, out_file_handle, buf_size=16):
         super(DumpFileThread, self).__init__()
         assert in_file_handle and out_file_handle
 
@@ -65,13 +65,14 @@ class SshProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
+        print(f'[SSH {self.ssh_host}]: {self.cmd}')
         code = self.ssh_run(self.ssh_host,
                             self.cmd,
                             self.in_file,
                             self.out_file,
                             self.err_file,
                             self.environment)
-        print(f'exit with {code}')
+        print(f'[SSH] exit with {code}')
         self._exit_code.value = code
 
     @staticmethod
@@ -90,7 +91,7 @@ class SshProcess(Process):
             # channel.settimeout(0.1)
 
             if out_file and err_file:
-                with open(out_file, 'wb')as o, open(err_file, 'wb') as e:
+                with open(out_file, 'wb', buffering=0)as o, open(err_file, 'wb', buffering=0) as e:
                     threads = [DumpFileThread(stdout, o), DumpFileThread(stderr, e)]
                     for p in threads: p.start()
                     for p in threads: p.join()
@@ -107,18 +108,3 @@ class SshProcess(Process):
     def exitcode(self):
         code = self._exit_code.value
         return code if code >= 0 else None
-
-
-if __name__ == "__main__":
-    p = SshProcess('192.168.137.100', 'ls ; date', None, "out.txt", "err.txt")
-    # p.daemon = True
-    p.start()
-    p2 = SshProcess('192.168.137.100',
-                    'bash -c "export XX_XX=123; set ; date;echo $PATH; ZZ_ZZ=123 echo $ZZ_ZZ; echo done; exit 1"',
-                    None, "out2.txt", "err2.txt",
-                    environment={'ZZ_ZZ': '1234'})
-    # p.daemon = True
-    p2.start()
-    p2.join()
-    print(p2.cmd, 'exit with', p2.exitcode)
-    print('main exit.')

@@ -43,13 +43,13 @@ class SshCluster(object):
             cmd = self._driver_cmd
             ssh_host = self.driver
             if ssh_host:
-                # out_file = f'{self.log_dir}/{tag}-driver-{ssh_host}.out'
-                # err_file = f'{self.log_dir}/{tag}-driver-{ssh_host}.err'
+                # out_file = f'{self.logs_dir}/{tag}/driver-{ssh_host}.out'
+                # err_file = f'{self.logs_dir}/{tag}/driver-{ssh_host}.err'
                 # return SshProcess(ssh_host, cmd, None, out_file, err_file)
                 return SshProcess(ssh_host, cmd, None, None, None)
             else:
-                # out_file = f'{self.log_dir}/{tag}-driver-localhost.out'
-                # err_file = f'{self.log_dir}/{tag}-driver-localhost.err'
+                # out_file = f'{self.logs_dir}/{tag}/driver-localhost.out'
+                # err_file = f'{self.logs_dir}/{tag}/driver-localhost.err'
                 # return LocalProcess(cmd, None, out_file, err_file)
                 return LocalProcess(cmd, None, None, None)
 
@@ -66,8 +66,12 @@ class SshCluster(object):
         driver_process = to_driver_process()
         executor_processes = [to_executor_process(i) for i in range(0, len(self.executors))]
         all_processes = [driver_process, ] + executor_processes
-        for p in all_processes: p.start()
-        for p in all_processes: p.join()
+
+        [p.start() for p in all_processes]
+        [p.join() for p in all_processes]
+
+        # codes = [p.exitcode for p in all_processes]
+        # print('process exit code:', codes)
 
     @property
     def _driver_cmd(self):

@@ -127,11 +127,12 @@ class DriverDispatcher(Dispatcher):
         while search_service.running_size() > 0:
             # print(f"wait ... {search_service.running_size()} samples found.")
             time.sleep(0.1)
-        print("-" * 20, 'all trails done')
+        print("-" * 20, 'all trails done', '-' * 20)
 
         # shutdown grpc server
         server.stop(grace=1.0)
-        del search_service
+        search_service.status_thread.stop()
+        search_service.status_thread.report_summary()
 
         # run best trail
         if hyper_model.best_space:
