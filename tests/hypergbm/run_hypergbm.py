@@ -22,7 +22,7 @@ X_train, X_test = train_test_split(df, test_size=0.8, random_state=42)
 y_train = X_train.pop('y')
 y_test = X_test.pop('y')
 
-hk.search(X_train, y_train, X_test, y_test, max_trails=5)
+hk.search(X_train, y_train, X_test, y_test, max_trails=500)
 assert hk.best_model
 best_trial = hk.get_best_trail()
 print(f'best_train:{best_trial}')

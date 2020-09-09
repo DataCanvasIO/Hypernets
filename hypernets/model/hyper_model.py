@@ -9,7 +9,7 @@ from ..core.trial import *
 from ..core.meta_learner import MetaLearner
 from ..dispatchers import get_dispatcher
 from collections import UserDict
-
+import traceback
 
 class HyperModel():
     def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None):
@@ -40,6 +40,8 @@ class HyperModel():
         except Exception as e:
             print('Estimator fit failed!')
             print(e)
+            track = traceback.format_exc()
+            print(track)
 
         if fit_succeed:
             metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
