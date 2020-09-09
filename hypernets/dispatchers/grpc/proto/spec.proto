@@ -10,7 +10,8 @@ package hypernets.dispatchers.proto;
 
 
 service SearchDriver {
-  rpc beat(ExecutorId) returns  (RpcCode){}
+  rpc register(ExecutorId) returns (ExecutorId){}
+  rpc beat(ExecutorId) returns (RpcCode){}
   rpc next(ExecutorId) returns (TrailItem){}
   rpc report(TrailReport) returns (RpcCode){}
 }
