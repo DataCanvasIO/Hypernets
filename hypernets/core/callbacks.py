@@ -127,11 +127,13 @@ class FileLoggingCallback(Callback):
 
 class SummaryCallback(Callback):
     def on_build_estimator(self, hyper_model, space, estimator, trail_no):
-        print(f'\nTrail No:{trail_no}')
-        print(space.params_summary())
+        #print(f'\nTrail No:{trail_no}')
+        #print(space.params_summary())
         estimator.summary()
 
     def on_trail_begin(self, hyper_model, space, trail_no):
+        print(f'\nTrail No:{trail_no}')
+        print(space.params_summary())
         print('trail begin')
 
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
