@@ -5,6 +5,7 @@ import time
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trail
+from ..utils.common import config
 
 
 class DriverDispatcher(Dispatcher):
@@ -62,7 +63,8 @@ class DriverDispatcher(Dispatcher):
 
         trail_no = 1
         retry_counter = 0
-        queue_size = 3
+        queue_size = int(config('search_queue', '3'))
+
         while trail_no <= max_trails:
             space_sample = hyper_model.searcher.sample()
             if hyper_model.history.is_existed(space_sample):
@@ -110,14 +112,17 @@ class DriverDispatcher(Dispatcher):
                 # print(f'push trail {trail_no} to queue')
 
                 # wait for queued trail
-                while search_service.running_size() >= queue_size:
+                while search_service.queue_size() >= queue_size:
                     time.sleep(1)
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
             except Exception as e:
+                import sys
+                import traceback
+                msg = f'{e.__class__.__name__}: {e}'
                 print(f'{">" * 20} Trail failed! {"<" * 20}')
-                print(e)
+                print(msg + '\n' + traceback.format_exc(), file=sys.stderr)
                 print('*' * 50)
             finally:
                 trail_no += 1

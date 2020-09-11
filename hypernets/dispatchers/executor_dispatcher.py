@@ -80,8 +80,9 @@ class ExecutorDispatcher(Dispatcher):
                 code = 0 if trail.reward != 0.0 else -1
                 client.report(item.space_id, code, trail.reward)
             except Exception as e:
+                import traceback
                 msg = f'{e.__class__.__name__}: {e}'
-                print(msg, file=sys.stderr)
+                print(msg + '\n' + traceback.format_exc(), file=sys.stderr)
                 client.report(item.space_id, -9, 0.0, msg)
             finally:
                 trail_no += 1

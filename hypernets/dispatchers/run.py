@@ -4,18 +4,24 @@ from .ssh.ssh_cluster import SshCluster
 
 
 def main():
-    parser = argparse.ArgumentParser('run HyperNets in ssh cluster.')
+    parser = argparse.ArgumentParser('run HyperNets experiment in cluster.')
     parser.add_argument('--experiment', '-experiment',
                         default=None,
                         help='experiment id, default current timestamp')
-    parser.add_argument('--driver', '-driver',
-                        help='address of the driver node')
+    parser.add_argument('--driver-broker', '-driver-broker',
+                        help='address of the driver broker' +
+                             ', eg: grpc://<hostname>:<broker_port> to use grpc broker'
+                             + ', or <hostname> to use ssh broker')
     parser.add_argument('--driver-port', '-driver-port',
                         type=int, default=8001,
-                        help='tcp port of the driver, the executors will connect to this port with grpc, default 8081')
-    parser.add_argument('--executors', '-executors',
+                        help='tcp port of the driver'
+                             + ', the executors will connect to this port with grpc'
+                             + ', default 8001')
+    parser.add_argument('--executor-brokers', '-executor-brokers',
                         required=True,
-                        help='addresses of the executor nodes, separated by comma')
+                        help='addresses of the executor nodes, separated by comma'
+                             + ' eg: "grpc://<executor1_hostname>:<broker_port>' +
+                             ',grpc://<executor2_hostname>:<broker_port>"')
     parser.add_argument('--spaces-dir', '-spaces-dir',
                         default='tmp',
                         help='driver directory to store space files, default "tmp"')
@@ -25,8 +31,8 @@ def main():
     args, argv = parser.parse_known_args()
 
     cluster = SshCluster(args.experiment,
-                         args.driver, args.driver_port,
-                         args.executors.split(','),
+                         args.driver_broker, args.driver_port,
+                         args.executor_brokers.split(','),
                          args.spaces_dir,
                          args.logs_dir,
                          *argv)

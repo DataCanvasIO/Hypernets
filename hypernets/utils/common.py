@@ -32,7 +32,8 @@ def combinations(n, m_max, m_min=1):
 def config(key, default=None):
     # parse config from command line
     argv = sys.argv
-    accept_items = {f'--{key}', f'-{key}'}
+    key_alias = key.replace('_', '-')
+    accept_items = {f'--{key}', f'-{key}', f'--{key_alias}', f'-{key_alias}'}
     for i in range(len(argv) - 1):
         if argv[i] in accept_items:
             return argv[i + 1]

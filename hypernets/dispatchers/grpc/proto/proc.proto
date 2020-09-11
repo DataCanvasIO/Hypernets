@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+
+package hypernets.dispatchers.proto;
+
+
+service ProcessBroker {
+  rpc run(ProcessRequest) returns (stream DataChunk) {}
+}
+
+message ProcessRequest {
+  string program = 1;
+  repeated string args = 2;
+  string cwd = 3;
+  int32  buffer_size = 4;
+  string encoding = 5;
+}
+
+message DataChunk {
+  enum DataKind {
+    IN = 0;
+    OUT = 1;
+    ERR = 2;
+    DATA = 10;
+    END = 99;
+  }
+  DataKind kind = 1;
+  bytes data = 2;
+}
