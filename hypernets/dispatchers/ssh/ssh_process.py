@@ -54,9 +54,10 @@ class DumpFileThread(Thread):
 
 
 class SshProcess(Process):
-    def __init__(self, ssh_host, cmd, in_file, out_file, err_file, environment=None):
+    def __init__(self, ssh_host, ssh_port, cmd, in_file, out_file, err_file, environment=None):
         super(SshProcess, self).__init__()
         self.ssh_host = ssh_host
+        self.ssh_port = ssh_port
         self.cmd = cmd
         self.in_file = in_file
         self.out_file = out_file
@@ -66,20 +67,20 @@ class SshProcess(Process):
 
     def run(self):
         print(f'[SSH {self.ssh_host}]: {self.cmd}')
-        code = self.ssh_run(self.ssh_host,
+        code = self.ssh_run(self.ssh_host, self.ssh_port,
                             self.cmd,
                             self.in_file,
                             self.out_file,
                             self.err_file,
                             self.environment)
-        print(f'[SSH] exit with {code}')
+        print(f'[SSH {self.ssh_host}] {self.cmd} done with {code}')
         self._exit_code.value = code
 
     @staticmethod
-    def ssh_run(ssh_host, cmd, in_file, out_file, err_file, environment):
+    def ssh_run(ssh_host, ssh_port, cmd, in_file, out_file, err_file, environment):
         with SSHClient() as ssh:
             ssh.set_missing_host_key_policy(AutoAddPolicy())
-            ssh.connect(ssh_host)
+            ssh.connect(ssh_host, ssh_port)
             stdin, stdout, stderr = ssh.exec_command(cmd, bufsize=10, environment=environment)
             if in_file and getsize(in_file) > 0:
                 with open(in_file, 'rb') as f:

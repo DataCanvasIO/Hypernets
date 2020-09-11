@@ -76,8 +76,11 @@ class InProcessDispatcher(Dispatcher):
                 break
                 # TODO: early stopping
             except Exception as e:
+                import sys
+                import traceback
+                msg = f'{e.__class__.__name__}: {e}'
                 print(f'{">" * 20} Trail failed! {"<" * 20}')
-                print(e)
+                print(msg + '\n' + traceback.format_exc(), file=sys.stderr)
                 print('*' * 50)
             finally:
                 trail_no += 1

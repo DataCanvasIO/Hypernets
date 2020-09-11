@@ -30,8 +30,8 @@ class HyperModel():
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
 
-        # for callback in self.callbacks:
-        #     callback.on_build_estimator(self, space_sample, estimator, trail_no)
+        for callback in self.callbacks:
+            callback.on_build_estimator(self, space_sample, estimator, trail_no)
         #     callback.on_trail_begin(self, space_sample, trail_no)
         fit_succeed = False
         try:

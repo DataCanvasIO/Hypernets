@@ -34,7 +34,7 @@ class LocalProcess(Process):
                                stderr=sys.stderr)
             code = p.returncode
 
-        print(f'[CMD] done with {code}')
+        print(f'[CMD] {self.cmd} done with {code}')
         self._exit_code.value = code
 
     @property

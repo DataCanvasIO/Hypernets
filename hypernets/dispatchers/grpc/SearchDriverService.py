@@ -137,7 +137,8 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
 
         item = self.all_items[space_id]
         detail = f'trail_no={item.trail_no}, space_id={space_id}' \
-                 + f', reward={request.reward}, code={request.code.code}'
+                 + f', reward={request.reward}, code={request.code.code}' \
+                 + f', message={request.message}'
 
         if space_id not in self.running_items.keys():
             msg = f'[ignored-not running-report] [{executor_id}] {detail}'
@@ -184,7 +185,8 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         space_file = item.space_file
         assert space_id in self.all_items.keys()
 
-        detail = f'trail_no={item.trail_no}, space_id={item.space_id}, space_file={space_file}'
+        detail = f'trail_no={item.trail_no}, executor_id={item.executor_id}' \
+                 + f', space_id={item.space_id}, space_file={space_file}'
         print(f'[re-push] {detail}')
 
         if space_id in self.running_items.keys():
@@ -200,6 +202,9 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
     def running_size(self):
         return len(self.all_items) - len(self.reported_items)
 
+    def queue_size(self):
+        return self.queued_pool.qsize()
+
 
 class DriverStatusThread(Thread):
     def __init__(self, service):
@@ -208,7 +213,7 @@ class DriverStatusThread(Thread):
         self.service = service
         self.daemon = True
         self.running = False
-        self.summary_interval = 10.0
+        self.summary_interval = float(config('summary_interval', '60'))
 
     def run(self) -> None:
         self.running = True
@@ -252,6 +257,10 @@ class DriverStatusThread(Thread):
         queued = total - running - reported
 
         msg = f'[summary] queued={queued}, running={running}, reported={reported}, total={total}'
+        if running > 0:
+            detail = [lambda x: f'trail {x.trail_no}:{x.executor_id}', service.running_items]
+            msg += '\nrunning: ' + ','.join(detail)
+
         if service.on_summary:
             service_summary = service.on_summary()
             if service_summary:
