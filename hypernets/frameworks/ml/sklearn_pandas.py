@@ -259,6 +259,7 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
         self.built_features = state.get('built_features', self.features)
         self.built_default = state.get('built_default', self.default)
         self.transformed_names_ = state.get('transformed_names_', [])
+        self.df_out_dtype_transforms = state.get('df_out_dtype_transforms', None)
 
     def _get_col_subset(self, X, cols, input_df=False):
         """
