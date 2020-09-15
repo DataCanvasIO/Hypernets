@@ -2,7 +2,7 @@
 """
 
 """
-from hypernets.frameworks.ml.hyper_gbm import HyperGBM
+from hypernets.frameworks.ml.hyper_gbm import HyperGBM, HyperGBMModel
 from hypernets.frameworks.ml.common_ops import get_space_num_cat_pipeline_complex
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import *
@@ -10,10 +10,9 @@ from hypernets.core.searcher import OptimizeDirection
 from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 from tests import test_output_dir
-
+import os
 
 class Test_HyperGBM():
-
 
     def train_bankdata(self, data_partition):
         rs = RandomSearcher(get_space_num_cat_pipeline_complex, optimize_direction=OptimizeDirection.Maximize)
@@ -26,7 +25,7 @@ class Test_HyperGBM():
 
         X_train, X_test, y_train, y_test = data_partition()
 
-        hk.search(X_train, y_train, X_test, y_test, max_trails=30)
+        hk.search(X_train, y_train, X_test, y_test, max_trails=3)
         assert hk.best_model
         best_trial = hk.get_best_trail()
 
@@ -34,8 +33,25 @@ class Test_HyperGBM():
         score = estimator.predict(X_test)
         result = estimator.evaluate(X_test, y_test)
         assert len(score) == 200
-        assert result
+        return result, estimator
 
+    def test_save_load(self):
+        df = dsutils.load_bank()
+        df.drop(['id'], axis=1, inplace=True)
+        X_train, X_test = train_test_split(df.head(1000), test_size=0.2, random_state=42)
+        y_train = X_train.pop('y')
+        y_test = X_test.pop('y')
+
+        def f():
+            return X_train, X_test, y_train, y_test
+
+        _,est = self.train_bankdata(f)
+        filepath = test_output_dir+'/hypergbm_model.pkl'
+        est.model.save_model(filepath)
+        assert os.path.isfile(filepath)==True
+        model = HyperGBMModel.load_model(filepath)
+        score = model.evaluate(X_test,y_test,['AUC'])
+        assert score
 
     def test_model(self):
         df = dsutils.load_bank()
@@ -50,7 +66,6 @@ class Test_HyperGBM():
         self.train_bankdata(f)
 
     def test_no_categorical(self):
-
         df = dsutils.load_bank()
 
         df.drop(['id'], axis=1, inplace=True)
@@ -66,7 +81,6 @@ class Test_HyperGBM():
         self.train_bankdata(f)
 
     def test_no_continuous(self):
-
         df = dsutils.load_bank()
 
         df.drop(['id'], axis=1, inplace=True)

@@ -138,6 +138,16 @@ class HyperGBMModel():
         s = f"{self.data_pipeline.__repr__(1000000)}\r\n{self.estimator.__repr__()}"
         return s
 
+    def save_model(self, filepath):
+        with open(f'{filepath}', 'wb') as output:
+            pickle.dump(self, output, protocol=2)
+
+    @staticmethod
+    def load_model(filepath):
+        with open(f'{filepath}', 'rb') as input:
+            model = pickle.load(input)
+            return model
+
 
 class HyperGBMEstimator(Estimator):
     def __init__(self, task, space_sample, cache_dir=None, clear_cache=True):
