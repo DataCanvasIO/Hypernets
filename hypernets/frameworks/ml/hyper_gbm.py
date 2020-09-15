@@ -233,3 +233,61 @@ class HyperGBM(HyperModel):
 
     def export_trail_configuration(self, trail):
         return '`export_trail_configuration` does not implemented'
+
+    def blend_models(self, samples, X, y, **kwargs):
+        models = []
+        for sample in samples:
+            estimator = self.final_train(sample, X, y, **kwargs)
+            models.append(estimator.model)
+        blends = BlendModel(models)
+        return blends
+
+
+class BlendModel():
+    def __init__(self, gbm_models):
+        self.gbm_models = gbm_models
+
+    def predict_proba(self, X):
+        proba_avg = None
+        count = 0
+        for gbm_model in self.gbm_models:
+            proba = gbm_model.predict_proba(X)
+            if proba is not None:
+                if len(proba.shape) == 1:
+                    proba = proba.reshape((-1, 1))
+                if proba_avg is None:
+                    proba_avg = proba
+                else:
+                    proba_avg += proba
+                count = count + 1
+        proba_avg = proba_avg / count
+        return proba_avg
+
+    def predict(self, X):
+        proba = self.predict_proba(X)
+        return self._proba2predict(proba)
+
+    def _proba2predict(self, proba):
+        if proba.shape[-1] > 1:
+            predict = proba.argmax(axis=-1)
+        else:
+            predict = (proba > 0.5).astype('int32')
+        return predict
+
+    def evaluate(self, X, y, metrics=None, **kwargs):
+        if metrics is None:
+            metrics = ['accuracy']
+        proba = self.predict_proba(X, **kwargs)
+        preds = self._proba2predict(proba)
+        scores = calc_score(y, preds, proba, metrics)
+        return scores
+
+    def save_model(self, filepath):
+        with open(f'{filepath}', 'wb') as output:
+            pickle.dump(self, output)
+
+    @staticmethod
+    def load_model(filepath):
+        with open(f'{filepath}', 'rb') as input:
+            model = pickle.load(input)
+            return model
