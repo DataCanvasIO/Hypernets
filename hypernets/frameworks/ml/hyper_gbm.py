@@ -4,12 +4,15 @@
 """
 from hypernets.model.estimator import Estimator
 from hypernets.model.hyper_model import HyperModel
+from hypernets.frameworks.ml.sklearn_ex import DataCleaner
 from .transformers import *
 from .estimators import HyperEstimator
 from sklearn import pipeline as sk_pipeline
 from .sklearn_ex import calc_score
+import traceback
 import pickle
-import datetime
+import time
+
 import re
 import os
 import shutil
@@ -18,45 +21,105 @@ import pandas as pd
 
 
 class HyperGBMModel():
-    def __init__(self, data_pipeline, pipeline_signature, estimator, task, cache_dir, clear_cache=True,
-                 fit_kwargs=None):
+    def __init__(self, data_pipeline, pipeline_signature, estimator, task, cache_dir,
+                 clear_cache=True, data_cleaner=None, fit_kwargs=None):
         self.data_pipeline = data_pipeline
         self.pipeline_signature = pipeline_signature
         self.estimator = estimator
         self.task = task
+        self.data_cleaner = data_cleaner
         self.fit_kwargs = fit_kwargs
         self.cache_dir = self._prepare_cache_dir(cache_dir, clear_cache)
 
     def fit(self, X, y, **kwargs):
-        X_cache = self.get_X_from_cache(X, load_pipeline=True)
+        use_cache = kwargs.get('use_cache')
+        if use_cache is None:
+            use_cache = True
+        if use_cache:
+            X_cache = self.get_X_from_cache(X, load_pipeline=True)
+        else:
+            X_cache = None
+
         if X_cache is None:
+            starttime = time.time()
+            print('Preprocessor is fitting and transforming the data')
+            if self.data_cleaner is not None:
+                X, y = self.data_cleaner.fit_transform(X, y)
             X = self.data_pipeline.fit_transform(X, y)
-            self.save_X_to_cache(X, save_pipeline=True)
+            print(f'Taken {time.time() - starttime}s')
+            if use_cache:
+                self.save_X_to_cache(X, save_pipeline=True)
         else:
             X = X_cache
         if self.fit_kwargs is not None:
             kwargs = self.fit_kwargs
+
+        starttime = time.time()
+        print('Estimator is fitting the data')
         self.estimator.fit(X, y, **kwargs)
+        print(f'Taken {time.time() - starttime}s')
 
     def predict(self, X, **kwargs):
-        X_cache = self.get_X_from_cache(X)
+        use_cache = kwargs.get('use_cache')
+        if use_cache is None:
+            use_cache = True
+        if use_cache:
+            X_cache = self.get_X_from_cache(X)
+        else:
+            X_cache = None
         if X_cache is None:
+            starttime = time.time()
+            print('Preprocessor is transforming the data')
+            if self.data_cleaner is not None:
+                X, y = self.data_cleaner.transform(X)
             X = self.data_pipeline.transform(X)
-            self.save_X_to_cache(X)
+            print(f'Taken {time.time() - starttime}s')
+            if use_cache:
+                self.save_X_to_cache(X)
         else:
             X = X_cache
 
+        starttime = time.time()
+        print('Estimator is predicting the data')
         preds = self.estimator.predict(X, **kwargs)
+        print(f'Taken {time.time() - starttime}s')
         return preds
 
+    def proba2predict(self, proba, proba_threshold=0.5):
+        if self.task != 'classification':
+            return proba
+        if proba.shape[-1] > 2:
+            predict = proba.argmax(axis=-1)
+        elif proba.shape[-1] == 2:
+            predict = (proba[:, 1] > proba_threshold).astype('int32')
+        else:
+            predict = (proba > proba_threshold).astype('int32')
+        return predict
+
     def predict_proba(self, X, **kwargs):
-        X_cache = self.get_X_from_cache(X)
+        use_cache = kwargs.get('use_cache')
+        if use_cache is None:
+            use_cache = True
+        if use_cache:
+            X_cache = self.get_X_from_cache(X)
+        else:
+            X_cache = None
         if X_cache is None:
+            starttime = time.time()
+            print('Preprocessor is transforming the data')
+            if self.data_cleaner is not None:
+                X, y = self.data_cleaner.transform(X)
             X = self.data_pipeline.transform(X)
-            self.save_X_to_cache(X)
+            print(f'Taken {time.time() - starttime}s')
+            if use_cache:
+                self.save_X_to_cache(X)
         else:
             X = X_cache
+
+        starttime = time.time()
+        print('Estimator is predicting probability')
         proba = self.estimator.predict_proba(X, **kwargs)
+        print(f'Taken {time.time() - starttime}s')
         return proba
 
     def evaluate(self, X, y, metrics=None, **kwargs):
@@ -98,7 +161,7 @@ class HyperGBMModel():
                 pipeline_filepath = self.get_pipeline_filepath(X)
                 try:
                     with open(f'{pipeline_filepath}', 'rb') as input:
-                        self.data_pipeline = pickle.load(input)
+                        self.data_pipeline, self.data_cleaner = pickle.load(input)
                 except:
                     if os.path.exists(file_path):
                         os.remove(file_path)
@@ -113,7 +176,7 @@ class HyperGBMModel():
         if save_pipeline:
             pipeline_file_path = self.get_pipeline_filepath(X)
             with open(f'{pipeline_file_path}', 'wb') as output:
-                pickle.dump(self.data_pipeline, output, protocol=2)
+                pickle.dump((self.data_pipeline, self.data_cleaner), output, protocol=2)
 
     def load_df(self, filepath):
         global h5
@@ -130,7 +193,9 @@ class HyperGBMModel():
     def save_df(self, filepath, df):
         try:
             df.to_hdf(filepath, key='data', mode='w', format='t')
-        except:
+        except Exception as e:
+            print(e)
+            # traceback.print_exc()
             if os.path.exists(filepath):
                 os.remove(filepath)
 
@@ -150,11 +215,12 @@ class HyperGBMModel():
 
 
 class HyperGBMEstimator(Estimator):
-    def __init__(self, task, space_sample, cache_dir=None, clear_cache=True):
+    def __init__(self, task, space_sample, data_cleaner_params=None, cache_dir=None, clear_cache=True):
         self.pipeline = None
         self.cache_dir = cache_dir
         self.clear_cache = clear_cache
         self.task = task
+        self.data_cleaner_params = data_cleaner_params
         Estimator.__init__(self, space_sample=space_sample)
 
     def _build_model(self, space_sample):
@@ -173,8 +239,12 @@ class HyperGBMEstimator(Estimator):
         # next, (name, p) = pipeline_module[0].compose()
         self.pipeline = self.build_pipeline(space, pipeline_module[0])
         pipeline_signature = self.get_pipeline_signature(self.pipeline)
+        if self.data_cleaner_params is not None:
+            data_cleaner = DataCleaner(**self.data_cleaner_params)
+        else:
+            data_cleaner = None
         model = HyperGBMModel(self.pipeline, pipeline_signature, estimator, self.task, self.cache_dir, self.clear_cache,
-                              fit_kwargs)
+                              data_cleaner, fit_kwargs)
         return model
 
     def get_pipeline_signature(self, pipeline):
@@ -218,17 +288,19 @@ class HyperGBMEstimator(Estimator):
 
 class HyperGBM(HyperModel):
     def __init__(self, searcher, task='classification', dispatcher=None, callbacks=None, reward_metric='accuracy',
-                 cache_dir=None, clear_cache=True):
+                 data_cleaner_params=None, cache_dir=None, clear_cache=True):
         if callbacks is None:
             callbacks = []
         self.task = task
+        self.data_cleaner_params = data_cleaner_params
         self.cache_dir = cache_dir
         self.clear_cache = clear_cache
         HyperModel.__init__(self, searcher, dispatcher=dispatcher, callbacks=callbacks, reward_metric=reward_metric)
 
     def _get_estimator(self, space_sample):
-        estimator = HyperGBMEstimator(task=self.task, space_sample=space_sample, cache_dir=self.cache_dir,
-                                      clear_cache=self.clear_cache)
+        estimator = HyperGBMEstimator(task=self.task, space_sample=space_sample,
+                                      data_cleaner_params=self.data_cleaner_params,
+                                      cache_dir=self.cache_dir, clear_cache=self.clear_cache)
         return estimator
 
     def export_trail_configuration(self, trail):
@@ -239,19 +311,20 @@ class HyperGBM(HyperModel):
         for sample in samples:
             estimator = self.final_train(sample, X, y, **kwargs)
             models.append(estimator.model)
-        blends = BlendModel(models)
+        blends = BlendModel(models, self.task)
         return blends
 
 
 class BlendModel():
-    def __init__(self, gbm_models):
+    def __init__(self, gbm_models, task):
         self.gbm_models = gbm_models
+        self.task = task
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, **kwargs):
         proba_avg = None
         count = 0
         for gbm_model in self.gbm_models:
-            proba = gbm_model.predict_proba(X)
+            proba = gbm_model.predict_proba(X, **kwargs)
             if proba is not None:
                 if len(proba.shape) == 1:
                     proba = proba.reshape((-1, 1))
@@ -261,24 +334,29 @@ class BlendModel():
                     proba_avg += proba
                 count = count + 1
         proba_avg = proba_avg / count
+        np.random.uniform()
         return proba_avg
 
-    def predict(self, X):
+    def predict(self, X, proba_threshold=0.5):
         proba = self.predict_proba(X)
-        return self._proba2predict(proba)
+        return self.proba2predict(proba)
 
-    def _proba2predict(self, proba):
-        if proba.shape[-1] > 1:
+    def proba2predict(self, proba, proba_threshold=0.5):
+        if self.task != 'classification':
+            return proba
+        if proba.shape[-1] > 2:
             predict = proba.argmax(axis=-1)
+        elif proba.shape[-1] == 2:
+            predict = (proba[:, 1] > proba_threshold).astype('int32')
         else:
-            predict = (proba > 0.5).astype('int32')
+            predict = (proba > proba_threshold).astype('int32')
         return predict
 
     def evaluate(self, X, y, metrics=None, **kwargs):
         if metrics is None:
             metrics = ['accuracy']
         proba = self.predict_proba(X, **kwargs)
-        preds = self._proba2predict(proba)
+        preds = self.proba2predict(proba)
         scores = calc_score(y, preds, proba, metrics)
         return scores
 
