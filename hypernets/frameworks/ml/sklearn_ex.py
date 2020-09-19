@@ -124,11 +124,11 @@ class DataCleaner:
             int_cols = column_int(X)
             X[int_cols] = X[int_cols].astype(self.int_convert_to)
 
-        if self.clean_label_nan_rows:
-            print('Clean the rows which label is NaN')
-            X = X.dropna(subset=['hypergbm__Y__'])
 
         if y is not None:
+            if self.clean_label_nan_rows:
+                print('Clean the rows which label is NaN')
+                X = X.dropna(subset=['hypergbm__Y__'])
             y = X.pop('hypergbm__Y__')
 
         if self.drop_columns is not None:

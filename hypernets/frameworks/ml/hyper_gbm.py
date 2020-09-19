@@ -19,6 +19,14 @@ import shutil
 import hashlib
 import pandas as pd
 
+try:
+    import shap
+    from shap import TreeExplainer
+
+    has_shap = True
+except:
+    has_shap = False
+
 
 class HyperGBMModel():
     def __init__(self, data_pipeline, pipeline_signature, estimator, task, cache_dir,
@@ -32,6 +40,16 @@ class HyperGBMModel():
         self.cache_dir = self._prepare_cache_dir(cache_dir, clear_cache)
 
     def fit(self, X, y, **kwargs):
+        X = self.transform_data(X, y, fit=True, **kwargs)
+        if self.fit_kwargs is not None:
+            kwargs = self.fit_kwargs
+
+        starttime = time.time()
+        print('Estimator is fitting the data')
+        self.estimator.fit(X, y, **kwargs)
+        print(f'Taken {time.time() - starttime}s')
+
+    def transform_data(self, X, y=None, fit=False, **kwargs):
         use_cache = kwargs.get('use_cache')
         if use_cache is None:
             use_cache = True
@@ -42,43 +60,28 @@ class HyperGBMModel():
 
         if X_cache is None:
             starttime = time.time()
-            print('Preprocessor is fitting and transforming the data')
+
             if self.data_cleaner is not None:
-                X, y = self.data_cleaner.fit_transform(X, y)
-            X = self.data_pipeline.fit_transform(X, y)
+                if fit:
+                    print('Cleaning')
+                    X, y = self.data_cleaner.fit_transform(X, y)
+                    print('Fitting and transforming')
+                    X = self.data_pipeline.fit_transform(X, y)
+                else:
+                    print('Cleaning')
+                    X, _ = self.data_cleaner.transform(X)
+                    print('Transforming')
+                    X = self.data_pipeline.transform(X)
             print(f'Taken {time.time() - starttime}s')
             if use_cache:
                 self.save_X_to_cache(X, save_pipeline=True)
         else:
             X = X_cache
-        if self.fit_kwargs is not None:
-            kwargs = self.fit_kwargs
 
-        starttime = time.time()
-        print('Estimator is fitting the data')
-        self.estimator.fit(X, y, **kwargs)
-        print(f'Taken {time.time() - starttime}s')
+        return X
 
     def predict(self, X, **kwargs):
-        use_cache = kwargs.get('use_cache')
-        if use_cache is None:
-            use_cache = True
-        if use_cache:
-            X_cache = self.get_X_from_cache(X)
-        else:
-            X_cache = None
-        if X_cache is None:
-            starttime = time.time()
-            print('Preprocessor is transforming the data')
-            if self.data_cleaner is not None:
-                X, y = self.data_cleaner.transform(X)
-            X = self.data_pipeline.transform(X)
-            print(f'Taken {time.time() - starttime}s')
-            if use_cache:
-                self.save_X_to_cache(X)
-        else:
-            X = X_cache
-
+        X = self.transform_data(X, **kwargs)
         starttime = time.time()
         print('Estimator is predicting the data')
         preds = self.estimator.predict(X, **kwargs)
@@ -97,25 +100,7 @@ class HyperGBMModel():
         return predict
 
     def predict_proba(self, X, **kwargs):
-        use_cache = kwargs.get('use_cache')
-        if use_cache is None:
-            use_cache = True
-        if use_cache:
-            X_cache = self.get_X_from_cache(X)
-        else:
-            X_cache = None
-        if X_cache is None:
-            starttime = time.time()
-            print('Preprocessor is transforming the data')
-            if self.data_cleaner is not None:
-                X, y = self.data_cleaner.transform(X)
-            X = self.data_pipeline.transform(X)
-            print(f'Taken {time.time() - starttime}s')
-            if use_cache:
-                self.save_X_to_cache(X)
-        else:
-            X = X_cache
-
+        X = self.transform_data(X, **kwargs)
         starttime = time.time()
         print('Estimator is predicting probability')
         proba = self.estimator.predict_proba(X, **kwargs)
@@ -212,6 +197,38 @@ class HyperGBMModel():
         with open(f'{filepath}', 'rb') as input:
             model = pickle.load(input)
             return model
+
+    def get_explainer(self, data=None):
+        explainer = HyperGBMExplainer(self, data=data)
+        return explainer
+
+
+class HyperGBMExplainer:
+    def __init__(self, hypergbm_model, data=None):
+        if not has_shap:
+            raise RuntimeError('Please install `shap` package first. command: pip install shap')
+        self.hypergbm_model = hypergbm_model
+        if data is not None:
+            data = self.hypergbm_model.transform_data(data)
+        self.explainer = TreeExplainer(self.hypergbm_model.estimator, data)
+
+    @property
+    def expected_value(self):
+        return self.explainer.expected_value
+
+    def shap_values(self, X, y=None, tree_limit=None, approximate=False, check_additivity=True, from_call=False,
+                    **kwargs):
+        X = self.hypergbm_model.transform_data(X, **kwargs)
+        return self.explainer.shap_values(X, y, tree_limit=tree_limit, approximate=approximate,
+                                          check_additivity=check_additivity, from_call=from_call)
+
+    def shap_interaction_values(self, X, y=None, tree_limit=None, **kwargs):
+        X = self.hypergbm_model.transform_data(X, **kwargs)
+        return self.explainer.shap_interaction_values(X, y, tree_limit)
+
+    def transform_data(self, X, **kwargs):
+        X = self.hypergbm_model.transform_data(X, **kwargs)
+        return X
 
 
 class HyperGBMEstimator(Estimator):
@@ -337,9 +354,9 @@ class BlendModel():
         np.random.uniform()
         return proba_avg
 
-    def predict(self, X, proba_threshold=0.5):
-        proba = self.predict_proba(X)
-        return self.proba2predict(proba)
+    def predict(self, X, proba_threshold=0.5, **kwargs):
+        proba = self.predict_proba(X, **kwargs)
+        return self.proba2predict(proba, proba_threshold)
 
     def proba2predict(self, proba, proba_threshold=0.5):
         if self.task != 'classification':
