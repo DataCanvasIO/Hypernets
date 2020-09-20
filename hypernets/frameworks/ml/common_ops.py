@@ -64,6 +64,9 @@ def numeric_pipeline_complex(impute_strategy=None, seq_no=0):
         impute_strategy = Choice(['mean', 'median', 'constant', 'most_frequent'])
     elif isinstance(impute_strategy, list):
         impute_strategy = Choice(impute_strategy)
+    reduce_skewness_kurtosis = SkewnessKurtosisTransformer(transform_fn=Choice([np.log, np.log10, np.log1p]))
+    reduce_skewness_kurtosis_optional = Optional(reduce_skewness_kurtosis, keep_link=True,
+                                                 name=f'numeric_reduce_skewness_kurtosis_optional_{seq_no}')
 
     imputer = SimpleImputer(missing_values=np.nan, strategy=impute_strategy, name=f'numeric_imputer_{seq_no}')
     scaler_options = ModuleChoice(
@@ -76,7 +79,7 @@ def numeric_pipeline_complex(impute_strategy=None, seq_no=0):
     )
     scaler_optional = Optional(scaler_options, keep_link=True, name=f'numeric_scaler_optional_{seq_no}')
 
-    pipeline = Pipeline([imputer, scaler_optional],
+    pipeline = Pipeline([reduce_skewness_kurtosis_optional, imputer, scaler_optional],
                         name=f'numeric_pipeline_complex_{seq_no}',
                         columns=column_number_exclude_timedelta)
     return pipeline

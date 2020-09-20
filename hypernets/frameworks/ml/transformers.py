@@ -430,3 +430,11 @@ class TruncatedSVD(HyperTransformer):
             kwargs['random_state'] = random_state
 
         HyperTransformer.__init__(self, decomposition.TruncatedSVD, space, name, **kwargs)
+
+
+class SkewnessKurtosisTransformer(HyperTransformer):
+    def __init__(self, transform_fn=None, space=None, name=None, **kwargs):
+        if transform_fn is not None:
+            kwargs['transform_fn'] = transform_fn
+
+        HyperTransformer.__init__(self, sklearn_ex.SkewnessKurtosisTransformer, space, name, **kwargs)
