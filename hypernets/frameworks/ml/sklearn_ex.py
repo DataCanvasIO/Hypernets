@@ -12,7 +12,7 @@ from sklearn.metrics import roc_auc_score, mean_squared_log_error, accuracy_scor
     mean_squared_error, mean_absolute_error, r2_score, precision_score, recall_score, f1_score, log_loss
 from sklearn.compose import make_column_selector
 import copy
-from .column_selector import column_skew_kurtosis, column_object, column_int
+from .column_selector import column_skewness_kurtosis, column_object, column_int
 
 
 # class DtypeCastTransformer(TransformerMixin, BaseEstimator):
@@ -60,7 +60,7 @@ class SkewnessKurtosisTransformer:
 
     def fit(self, X, y=None):
         assert len(X.shape) == 2
-        self.columns_ = column_skew_kurtosis(X)
+        self.columns_ = column_skewness_kurtosis(X)
         return self
 
     def transform(self, X):

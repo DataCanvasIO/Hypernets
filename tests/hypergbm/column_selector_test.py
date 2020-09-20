@@ -58,7 +58,7 @@ class Test_ColumnSelector():
         all_d = column_all_datetime(df)
         assert all_d == ['g', 'h', 'i']
 
-        skewed = column_skew_kurtosis(df, 0.5)
+        skewed = column_skewness_kurtosis(df, 0.5)
         assert skewed == []
 
     def test_skew(self):
@@ -78,11 +78,11 @@ class Test_ColumnSelector():
 
         df = pd.DataFrame(np.stack([x0, x1, x2, x3], axis=1))
         df.columns = ['x0', 'x1', 'x2', 'x3']
-        skewed = column_skew_kurtosis(df, skew_threshold=0.5, kurtosis_threshold=2)
+        skewed = column_skewness_kurtosis(df, skew_threshold=0.5, kurtosis_threshold=2)
         assert skewed == ['x1', 'x3']
 
         df1 = copy.deepcopy(df)
         v = np.log(df1[skewed])
         df1[skewed] = v
-        skewed = column_skew_kurtosis(df1, 0.5, kurtosis_threshold=2)
+        skewed = column_skewness_kurtosis(df1, 0.5, kurtosis_threshold=2)
         assert skewed == ['x3']

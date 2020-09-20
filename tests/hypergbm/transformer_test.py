@@ -6,7 +6,7 @@
 from hypernets.core.ops import *
 from hypernets.frameworks.ml.transformers import Pipeline, SimpleImputer, StandardScaler, ColumnTransformer
 from hypernets.frameworks.ml.sklearn_ex import SkewnessKurtosisTransformer
-from hypernets.frameworks.ml.column_selector import column_skew_kurtosis
+from hypernets.frameworks.ml.column_selector import column_skewness_kurtosis
 import pytest
 from sklearn import pipeline
 from sklearn import preprocessing
@@ -161,23 +161,23 @@ class Test_HyperGBM:
 
         df = pd.DataFrame(np.stack([x0, x1, x2, x3], axis=1))
         df.columns = ['x0', 'x1', 'x2', 'x3']
-        skewed = column_skew_kurtosis(df, skew_threshold=0.5, kurtosis_threshold=2)
+        skewed = column_skewness_kurtosis(df, skew_threshold=0.5, kurtosis_threshold=2)
         assert skewed == ['x1', 'x3']
 
         df1 = copy.deepcopy(df)
         v = np.log(df1[skewed])
         df1[skewed] = v
-        skewed = column_skew_kurtosis(df1, 0.5, kurtosis_threshold=2)
+        skewed = column_skewness_kurtosis(df1, 0.5, kurtosis_threshold=2)
         assert skewed == ['x3']
 
         df2 = copy.deepcopy(df)
         skt = SkewnessKurtosisTransformer()
         df2 = skt.fit(df2).transform(df2)
-        skewed = column_skew_kurtosis(df1, 0.5, kurtosis_threshold=2)
+        skewed = column_skewness_kurtosis(df1, 0.5, kurtosis_threshold=2)
         assert skewed == ['x3']
 
         df3 = copy.deepcopy(df)
         skt = SkewnessKurtosisTransformer(transform_fn=np.log10)
         df3 = skt.fit(df3).transform(df3)
-        skewed = column_skew_kurtosis(df3, 0.5, kurtosis_threshold=2)
+        skewed = column_skewness_kurtosis(df3, 0.5, kurtosis_threshold=2)
         assert skewed == ['x0', 'x3']
