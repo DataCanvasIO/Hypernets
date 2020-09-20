@@ -8,6 +8,8 @@ from pandas import DataFrame
 import numpy as np
 import pandas as pd
 from hypernets.frameworks.ml.column_selector import *
+from hypernets.frameworks.ml.sklearn_ex import SkewnessKurtosisTransformer
+import copy
 
 
 class Test_ColumnSelector():
@@ -56,5 +58,31 @@ class Test_ColumnSelector():
         all_d = column_all_datetime(df)
         assert all_d == ['g', 'h', 'i']
 
-        skewed = column_skewed(df, 0.5)
+        skewed = column_skew_kurtosis(df, 0.5)
         assert skewed == []
+
+    def test_skew(self):
+        np.random.seed(1)
+        x0 = np.random.uniform(0, 1, 100)
+
+        x1 = np.random.uniform(0, 1, 100)
+        x1.sort()
+        x1[79:99] = x1[79:99] * 4
+        x2 = np.random.uniform(0, 1, 100)
+        x2.sort()
+        x2[:20] = x2[:20] * 4
+
+        x3 = np.random.uniform(0, 1, 100)
+        x3.sort()
+        x3[40:60] = x3[40:60] * 100
+
+        df = pd.DataFrame(np.stack([x0, x1, x2, x3], axis=1))
+        df.columns = ['x0', 'x1', 'x2', 'x3']
+        skewed = column_skew_kurtosis(df, skew_threshold=0.5, kurtosis_threshold=2)
+        assert skewed == ['x1', 'x3']
+
+        df1 = copy.deepcopy(df)
+        v = np.log(df1[skewed])
+        df1[skewed] = v
+        skewed = column_skew_kurtosis(df1, 0.5, kurtosis_threshold=2)
+        assert skewed == ['x3']

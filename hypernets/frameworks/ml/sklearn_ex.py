@@ -12,6 +12,7 @@ from sklearn.metrics import roc_auc_score, mean_squared_log_error, accuracy_scor
     mean_squared_error, mean_absolute_error, r2_score, precision_score, recall_score, f1_score, log_loss
 from sklearn.compose import make_column_selector
 import copy
+from .column_selector import column_skew_kurtosis, column_object, column_int
 
 
 # class DtypeCastTransformer(TransformerMixin, BaseEstimator):
@@ -50,8 +51,23 @@ class MultiLabelEncoder:
         return X
 
 
-column_object = make_column_selector(dtype_include=['object'])
-column_int = make_column_selector(dtype_include=['int16', 'int32', 'int64'])
+class SkewnessKurtosisTransformer:
+    def __init__(self, transform_fn=None):
+        self.columns_ = []
+        if transform_fn is None:
+            transform_fn = np.log
+        self.transform_fn = transform_fn
+
+    def fit(self, X, y=None):
+        assert len(X.shape) == 2
+        self.columns_ = column_skew_kurtosis(X)
+        return self
+
+    def transform(self, X):
+        assert len(X.shape) == 2
+        if len(self.columns_) > 0:
+            X[self.columns_] = self.transform_fn(X[self.columns_])
+        return X
 
 
 def reduce_mem_usage(df, verbose=True):
@@ -108,7 +124,7 @@ class DataCleaner:
             X.insert(0, 'hypergbm__Y__', y)
 
         if self.nan_chars is not None:
-            print(f'Replace chars[{self.nan_chars}] to NaN')
+            print(f'Replace chars{self.nan_chars} to NaN')
             X = X.replace(self.nan_chars, np.nan)
 
         if self.deduce_object_dtype:
@@ -123,7 +139,6 @@ class DataCleaner:
             print(f'Convert int type to {self.int_convert_to}')
             int_cols = column_int(X)
             X[int_cols] = X[int_cols].astype(self.int_convert_to)
-
 
         if y is not None:
             if self.clean_label_nan_rows:
