@@ -59,7 +59,7 @@ class Test_ColumnSelector():
         assert all_d == ['g', 'h', 'i']
 
         skewed = column_skewness_kurtosis(df, 0.5)
-        assert skewed == []
+        assert skewed == ['b', 'c', 'd']
 
     def test_skew(self):
         np.random.seed(1)
