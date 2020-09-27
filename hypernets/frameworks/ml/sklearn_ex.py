@@ -52,21 +52,28 @@ class MultiLabelEncoder:
 
 
 class SkewnessKurtosisTransformer:
-    def __init__(self, transform_fn=None):
+    def __init__(self, transform_fn=None, skew_threshold=0.5, kurtosis_threshold=0.5):
         self.columns_ = []
+        self.skewness_threshold = skew_threshold
+        self.kurtosis_threshold = kurtosis_threshold
         if transform_fn is None:
             transform_fn = np.log
         self.transform_fn = transform_fn
 
     def fit(self, X, y=None):
         assert len(X.shape) == 2
-        self.columns_ = column_skewness_kurtosis(X)
+        self.columns_ = column_skewness_kurtosis(X, skew_threshold=self.skewness_threshold,
+                                                 kurtosis_threshold=self.kurtosis_threshold)
+        print(f'Selected columns:{self.columns_}')
         return self
 
     def transform(self, X):
         assert len(X.shape) == 2
         if len(self.columns_) > 0:
-            X[self.columns_] = self.transform_fn(X[self.columns_])
+            try:
+                X[self.columns_] = self.transform_fn(X[self.columns_])
+            except Exception as e:
+                print(e)
         return X
 
 

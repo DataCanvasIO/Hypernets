@@ -60,18 +60,19 @@ class HyperGBMModel():
 
         if X_cache is None:
             starttime = time.time()
-
-            if self.data_cleaner is not None:
-                if fit:
+            if fit:
+                if self.data_cleaner is not None:
                     print('Cleaning')
                     X, y = self.data_cleaner.fit_transform(X, y)
-                    print('Fitting and transforming')
-                    X = self.data_pipeline.fit_transform(X, y)
-                else:
+                print('Fitting and transforming')
+                X = self.data_pipeline.fit_transform(X, y)
+            else:
+                if self.data_cleaner is not None:
                     print('Cleaning')
                     X, _ = self.data_cleaner.transform(X)
-                    print('Transforming')
-                    X = self.data_pipeline.transform(X)
+                print('Transforming')
+                X = self.data_pipeline.transform(X)
+
             print(f'Taken {time.time() - starttime}s')
             if use_cache:
                 self.save_X_to_cache(X, save_pipeline=True)
@@ -160,8 +161,13 @@ class HyperGBMModel():
         self.save_df(file_path, X)
         if save_pipeline:
             pipeline_file_path = self.get_pipeline_filepath(X)
-            with open(f'{pipeline_file_path}', 'wb') as output:
-                pickle.dump((self.data_pipeline, self.data_cleaner), output, protocol=2)
+            try:
+                with open(f'{pipeline_file_path}', 'wb') as output:
+                    pickle.dump((self.data_pipeline, self.data_cleaner), output, protocol=2)
+            except Exception as e:
+                print(e)
+                if os.path.exists(pipeline_file_path):
+                    os.remove(pipeline_file_path)
 
     def load_df(self, filepath):
         global h5
