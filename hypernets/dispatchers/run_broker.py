@@ -16,14 +16,13 @@ def main():
 
     args = parser.parse_args()
 
-    try:
-        server, _ = serve(f'{args.host}:{args.port}')
-        server.wait_for_termination()
-    except KeyboardInterrupt:
-        print('shutdown by keyboard interrupt')
+    server, _ = serve(f'{args.host}:{args.port}')
+    server.wait_for_termination()
 
 
 if __name__ == '__main__':
-    main()
-
-    print('exit')
+    try:
+        main()
+        print('done')
+    except KeyboardInterrupt as e:
+        print(e)

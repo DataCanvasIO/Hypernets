@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/proc.proto\x12\x1bhypernets.dispatchers.proto\"c\n\x0eProcessRequest\x12\x0f\n\x07program\x18\x01 \x01(\t\x12\x0c\n\x04\x61rgs\x18\x02 \x03(\t\x12\x0b\n\x03\x63wd\x18\x03 \x01(\t\x12\x13\n\x0b\x62uffer_size\x18\x04 \x01(\x05\x12\x10\n\x08\x65ncoding\x18\x05 \x01(\t\"\x91\x01\n\tDataChunk\x12=\n\x04kind\x18\x01 \x01(\x0e\x32/.hypernets.dispatchers.proto.DataChunk.DataKind\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"7\n\x08\x44\x61taKind\x12\x06\n\x02IN\x10\x00\x12\x07\n\x03OUT\x10\x01\x12\x07\n\x03\x45RR\x10\x02\x12\x08\n\x04\x44\x41TA\x10\n\x12\x07\n\x03\x45ND\x10\x63\x32o\n\rProcessBroker\x12^\n\x03run\x12+.hypernets.dispatchers.proto.ProcessRequest\x1a&.hypernets.dispatchers.proto.DataChunk\"\x00\x30\x01\x62\x06proto3'
+  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/proc.proto\x12\x1bhypernets.dispatchers.proto\"c\n\x0eProcessRequest\x12\x0f\n\x07program\x18\x01 \x01(\t\x12\x0c\n\x04\x61rgs\x18\x02 \x03(\t\x12\x0b\n\x03\x63wd\x18\x03 \x01(\t\x12\x13\n\x0b\x62uffer_size\x18\x04 \x01(\x05\x12\x10\n\x08\x65ncoding\x18\x05 \x01(\t\"T\n\x0f\x44ownloadRequest\x12\x0c\n\x04peer\x18\x01 \x01(\t\x12\x0c\n\x04path\x18\x02 \x01(\t\x12\x13\n\x0b\x62uffer_size\x18\x03 \x01(\x05\x12\x10\n\x08\x65ncoding\x18\x04 \x01(\t\"\xa1\x01\n\tDataChunk\x12=\n\x04kind\x18\x01 \x01(\x0e\x32/.hypernets.dispatchers.proto.DataChunk.DataKind\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\"G\n\x08\x44\x61taKind\x12\x06\n\x02IN\x10\x00\x12\x07\n\x03OUT\x10\x01\x12\x07\n\x03\x45RR\x10\x02\x12\x08\n\x04\x44\x41TA\x10\n\x12\x07\n\x03\x45ND\x10\x63\x12\x0e\n\tEXCEPTION\x10\x90\x03\x32\xd7\x01\n\rProcessBroker\x12`\n\x03run\x12+.hypernets.dispatchers.proto.ProcessRequest\x1a&.hypernets.dispatchers.proto.DataChunk\"\x00(\x01\x30\x01\x12\x64\n\x08\x64ownload\x12,.hypernets.dispatchers.proto.DownloadRequest\x1a&.hypernets.dispatchers.proto.DataChunk\"\x00\x30\x01\x62\x06proto3'
 )
 
 
@@ -56,11 +56,16 @@ _DATACHUNK_DATAKIND = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='EXCEPTION', index=5, number=400,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=268,
-  serialized_end=323,
+  serialized_start=354,
+  serialized_end=425,
 )
 _sym_db.RegisterEnumDescriptor(_DATACHUNK_DATAKIND)
 
@@ -125,6 +130,59 @@ _PROCESSREQUEST = _descriptor.Descriptor(
 )
 
 
+_DOWNLOADREQUEST = _descriptor.Descriptor(
+  name='DownloadRequest',
+  full_name='hypernets.dispatchers.proto.DownloadRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='peer', full_name='hypernets.dispatchers.proto.DownloadRequest.peer', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='path', full_name='hypernets.dispatchers.proto.DownloadRequest.path', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='buffer_size', full_name='hypernets.dispatchers.proto.DownloadRequest.buffer_size', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='encoding', full_name='hypernets.dispatchers.proto.DownloadRequest.encoding', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=177,
+  serialized_end=261,
+)
+
+
 _DATACHUNK = _descriptor.Descriptor(
   name='DataChunk',
   full_name='hypernets.dispatchers.proto.DataChunk',
@@ -160,13 +218,14 @@ _DATACHUNK = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=178,
-  serialized_end=323,
+  serialized_start=264,
+  serialized_end=425,
 )
 
 _DATACHUNK.fields_by_name['kind'].enum_type = _DATACHUNK_DATAKIND
 _DATACHUNK_DATAKIND.containing_type = _DATACHUNK
 DESCRIPTOR.message_types_by_name['ProcessRequest'] = _PROCESSREQUEST
+DESCRIPTOR.message_types_by_name['DownloadRequest'] = _DOWNLOADREQUEST
 DESCRIPTOR.message_types_by_name['DataChunk'] = _DATACHUNK
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -176,6 +235,13 @@ ProcessRequest = _reflection.GeneratedProtocolMessageType('ProcessRequest', (_me
   # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.ProcessRequest)
   })
 _sym_db.RegisterMessage(ProcessRequest)
+
+DownloadRequest = _reflection.GeneratedProtocolMessageType('DownloadRequest', (_message.Message,), {
+  'DESCRIPTOR' : _DOWNLOADREQUEST,
+  '__module__' : 'hypernets.dispatchers.grpc.proto.proc_pb2'
+  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.DownloadRequest)
+  })
+_sym_db.RegisterMessage(DownloadRequest)
 
 DataChunk = _reflection.GeneratedProtocolMessageType('DataChunk', (_message.Message,), {
   'DESCRIPTOR' : _DATACHUNK,
@@ -193,8 +259,8 @@ _PROCESSBROKER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=325,
-  serialized_end=436,
+  serialized_start=428,
+  serialized_end=643,
   methods=[
   _descriptor.MethodDescriptor(
     name='run',
@@ -202,6 +268,16 @@ _PROCESSBROKER = _descriptor.ServiceDescriptor(
     index=0,
     containing_service=None,
     input_type=_PROCESSREQUEST,
+    output_type=_DATACHUNK,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='download',
+    full_name='hypernets.dispatchers.proto.ProcessBroker.download',
+    index=1,
+    containing_service=None,
+    input_type=_DOWNLOADREQUEST,
     output_type=_DATACHUNK,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
