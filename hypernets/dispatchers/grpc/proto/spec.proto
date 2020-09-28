@@ -1,38 +1,39 @@
 syntax = "proto3";
 
-/*
-option java_multiple_files = true;
-option java_package = "com.zetdata.modelservice.proto";
-option java_outer_classname = "ModelServiceProto";
-*/
-
 package hypernets.dispatchers.proto;
 
 
 service SearchDriver {
-  rpc register(ExecutorId) returns (ExecutorId){}
-  rpc beat(ExecutorId) returns (RpcCode){}
-  rpc next(ExecutorId) returns (TrailItem){}
-  rpc report(TrailReport) returns (RpcCode){}
+  rpc ping(PingMessage) returns (PingMessage){}
+  rpc search(stream SearchRequest) returns (stream SearchResponse){}
 }
 
-message RpcCode{
-  int32 code = 1;
+message PingMessage{
+  string  message = 1;
 }
 
-message ExecutorId{
-  string id = 1;
-}
-
-message TrailItem {
-  string space_id = 1;
-  string space_file_path = 2;
-}
-
-message TrailReport {
-  string id = 1;  // executor id
-  RpcCode code = 2;
+message SearchRequest {
+  string search_id = 1;
+  string trail_no = 2;
   string space_id = 3;
-  float reward = 4;
-  string message = 5;
+  bool success = 4;
+  float reward = 5;
+  string message = 6;
 }
+
+
+message SearchResponse {
+  enum SearchResponseCode{
+    OK = 0;
+    WAITING = 11;
+    FINISHED = 12;
+    FAILED = 99;
+  }
+
+  SearchResponseCode code = 1;
+  string search_id = 2;
+  string trail_no = 3;
+  string space_id = 4;
+  string space_file = 5;
+}
+

@@ -5,7 +5,8 @@ package hypernets.dispatchers.proto;
 
 
 service ProcessBroker {
-  rpc run(ProcessRequest) returns (stream DataChunk) {}
+  rpc run(stream ProcessRequest) returns (stream DataChunk) {}
+  rpc download(DownloadRequest) returns (stream DataChunk) {}
 }
 
 message ProcessRequest {
@@ -16,6 +17,13 @@ message ProcessRequest {
   string encoding = 5;
 }
 
+message DownloadRequest {
+  string peer = 1;
+  string path = 2;
+  int32  buffer_size = 3;
+  string encoding = 4;
+}
+
 message DataChunk {
   enum DataKind {
     IN = 0;
@@ -23,6 +31,7 @@ message DataChunk {
     ERR = 2;
     DATA = 10;
     END = 99;
+    EXCEPTION = 400;
   }
   DataKind kind = 1;
   bytes data = 2;

@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import argparse
+
 from .ssh.ssh_cluster import SshCluster
 
 
@@ -22,24 +23,35 @@ def main():
                         help='addresses of the executor nodes, separated by comma'
                              + ' eg: "grpc://<executor1_hostname>:<broker_port>' +
                              ',grpc://<executor2_hostname>:<broker_port>"')
+    parser.add_argument('--with-driver', '-with-driver',
+                        type=int, default=1,
+                        help='start driver progress or not, default 1')
     parser.add_argument('--spaces-dir', '-spaces-dir',
                         default='tmp',
                         help='driver directory to store space files, default "tmp"')
     parser.add_argument('--logs-dir', '-logs-dir',
                         default='logs',
                         help='local directory to store log files')
+    parser.add_argument('--report-interval', '-report-interval',
+                        type=int, default=60,
+                        help='report cluster processes, default 60')
     args, argv = parser.parse_known_args()
 
     cluster = SshCluster(args.experiment,
-                         args.driver_broker, args.driver_port,
+                         args.driver_broker,
+                         args.driver_port,
+                         args.with_driver,
                          args.executor_brokers.split(','),
                          args.spaces_dir,
                          args.logs_dir,
+                         args.report_interval,
                          *argv)
-    cluster.start()
+    cluster.run()
 
 
 if __name__ == '__main__':
-    main()
-
-    print('done')
+    try:
+        main()
+        print('done')
+    except KeyboardInterrupt as e:
+        print('KeyboardInterrupt')

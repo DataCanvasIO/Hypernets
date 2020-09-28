@@ -19,24 +19,59 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/spec.proto\x12\x1bhypernets.dispatchers.proto\"\x17\n\x07RpcCode\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\"\x18\n\nExecutorId\x12\n\n\x02id\x18\x01 \x01(\t\"6\n\tTrailItem\x12\x10\n\x08space_id\x18\x01 \x01(\t\x12\x17\n\x0fspace_file_path\x18\x02 \x01(\t\"\x80\x01\n\x0bTrailReport\x12\n\n\x02id\x18\x01 \x01(\t\x12\x32\n\x04\x63ode\x18\x02 \x01(\x0b\x32$.hypernets.dispatchers.proto.RpcCode\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0e\n\x06reward\x18\x04 \x01(\x02\x12\x0f\n\x07message\x18\x05 \x01(\t2\xfe\x02\n\x0cSearchDriver\x12^\n\x08register\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a\'.hypernets.dispatchers.proto.ExecutorId\"\x00\x12W\n\x04\x62\x65\x61t\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x12Y\n\x04next\x12\'.hypernets.dispatchers.proto.ExecutorId\x1a&.hypernets.dispatchers.proto.TrailItem\"\x00\x12Z\n\x06report\x12(.hypernets.dispatchers.proto.TrailReport\x1a$.hypernets.dispatchers.proto.RpcCode\"\x00\x62\x06proto3'
+  serialized_pb=b'\n+hypernets/dispatchers/grpc/proto/spec.proto\x12\x1bhypernets.dispatchers.proto\"\x1e\n\x0bPingMessage\x12\x0f\n\x07message\x18\x01 \x01(\t\"x\n\rSearchRequest\x12\x11\n\tsearch_id\x18\x01 \x01(\t\x12\x10\n\x08trail_no\x18\x02 \x01(\t\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0f\n\x07success\x18\x04 \x01(\x08\x12\x0e\n\x06reward\x18\x05 \x01(\x02\x12\x0f\n\x07message\x18\x06 \x01(\t\"\xee\x01\n\x0eSearchResponse\x12L\n\x04\x63ode\x18\x01 \x01(\x0e\x32>.hypernets.dispatchers.proto.SearchResponse.SearchResponseCode\x12\x11\n\tsearch_id\x18\x02 \x01(\t\x12\x10\n\x08trail_no\x18\x03 \x01(\t\x12\x10\n\x08space_id\x18\x04 \x01(\t\x12\x12\n\nspace_file\x18\x05 \x01(\t\"C\n\x12SearchResponseCode\x12\x06\n\x02OK\x10\x00\x12\x0b\n\x07WAITING\x10\x0b\x12\x0c\n\x08\x46INISHED\x10\x0c\x12\n\n\x06\x46\x41ILED\x10\x63\x32\xd5\x01\n\x0cSearchDriver\x12\\\n\x04ping\x12(.hypernets.dispatchers.proto.PingMessage\x1a(.hypernets.dispatchers.proto.PingMessage\"\x00\x12g\n\x06search\x12*.hypernets.dispatchers.proto.SearchRequest\x1a+.hypernets.dispatchers.proto.SearchResponse\"\x00(\x01\x30\x01\x62\x06proto3'
 )
 
 
 
+_SEARCHRESPONSE_SEARCHRESPONSECODE = _descriptor.EnumDescriptor(
+  name='SearchResponseCode',
+  full_name='hypernets.dispatchers.proto.SearchResponse.SearchResponseCode',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='OK', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='WAITING', index=1, number=11,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='FINISHED', index=2, number=12,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='FAILED', index=3, number=99,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=402,
+  serialized_end=469,
+)
+_sym_db.RegisterEnumDescriptor(_SEARCHRESPONSE_SEARCHRESPONSECODE)
 
-_RPCCODE = _descriptor.Descriptor(
-  name='RpcCode',
-  full_name='hypernets.dispatchers.proto.RpcCode',
+
+_PINGMESSAGE = _descriptor.Descriptor(
+  name='PingMessage',
+  full_name='hypernets.dispatchers.proto.PingMessage',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='code', full_name='hypernets.dispatchers.proto.RpcCode.code', index=0,
-      number=1, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='message', full_name='hypernets.dispatchers.proto.PingMessage.message', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -53,119 +88,115 @@ _RPCCODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=76,
-  serialized_end=99,
+  serialized_end=106,
 )
 
 
-_EXECUTORID = _descriptor.Descriptor(
-  name='ExecutorId',
-  full_name='hypernets.dispatchers.proto.ExecutorId',
+_SEARCHREQUEST = _descriptor.Descriptor(
+  name='SearchRequest',
+  full_name='hypernets.dispatchers.proto.SearchRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   create_key=_descriptor._internal_create_key,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='hypernets.dispatchers.proto.ExecutorId.id', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=101,
-  serialized_end=125,
-)
-
-
-_TRAILITEM = _descriptor.Descriptor(
-  name='TrailItem',
-  full_name='hypernets.dispatchers.proto.TrailItem',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='space_id', full_name='hypernets.dispatchers.proto.TrailItem.space_id', index=0,
+      name='search_id', full_name='hypernets.dispatchers.proto.SearchRequest.search_id', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='space_file_path', full_name='hypernets.dispatchers.proto.TrailItem.space_file_path', index=1,
+      name='trail_no', full_name='hypernets.dispatchers.proto.SearchRequest.trail_no', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=127,
-  serialized_end=181,
-)
-
-
-_TRAILREPORT = _descriptor.Descriptor(
-  name='TrailReport',
-  full_name='hypernets.dispatchers.proto.TrailReport',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  create_key=_descriptor._internal_create_key,
-  fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='hypernets.dispatchers.proto.TrailReport.id', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='code', full_name='hypernets.dispatchers.proto.TrailReport.code', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
-    _descriptor.FieldDescriptor(
-      name='space_id', full_name='hypernets.dispatchers.proto.TrailReport.space_id', index=2,
+      name='space_id', full_name='hypernets.dispatchers.proto.SearchRequest.space_id', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='reward', full_name='hypernets.dispatchers.proto.TrailReport.reward', index=3,
-      number=4, type=2, cpp_type=6, label=1,
+      name='success', full_name='hypernets.dispatchers.proto.SearchRequest.success', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='reward', full_name='hypernets.dispatchers.proto.SearchRequest.reward', index=4,
+      number=5, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='message', full_name='hypernets.dispatchers.proto.TrailReport.message', index=4,
+      name='message', full_name='hypernets.dispatchers.proto.SearchRequest.message', index=5,
+      number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=108,
+  serialized_end=228,
+)
+
+
+_SEARCHRESPONSE = _descriptor.Descriptor(
+  name='SearchResponse',
+  full_name='hypernets.dispatchers.proto.SearchResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='code', full_name='hypernets.dispatchers.proto.SearchResponse.code', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='search_id', full_name='hypernets.dispatchers.proto.SearchResponse.search_id', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='trail_no', full_name='hypernets.dispatchers.proto.SearchResponse.trail_no', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='space_id', full_name='hypernets.dispatchers.proto.SearchResponse.space_id', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='space_file', full_name='hypernets.dispatchers.proto.SearchResponse.space_file', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -176,6 +207,7 @@ _TRAILREPORT = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
+    _SEARCHRESPONSE_SEARCHRESPONSECODE,
   ],
   serialized_options=None,
   is_extendable=False,
@@ -183,44 +215,37 @@ _TRAILREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=184,
-  serialized_end=312,
+  serialized_start=231,
+  serialized_end=469,
 )
 
-_TRAILREPORT.fields_by_name['code'].message_type = _RPCCODE
-DESCRIPTOR.message_types_by_name['RpcCode'] = _RPCCODE
-DESCRIPTOR.message_types_by_name['ExecutorId'] = _EXECUTORID
-DESCRIPTOR.message_types_by_name['TrailItem'] = _TRAILITEM
-DESCRIPTOR.message_types_by_name['TrailReport'] = _TRAILREPORT
+_SEARCHRESPONSE.fields_by_name['code'].enum_type = _SEARCHRESPONSE_SEARCHRESPONSECODE
+_SEARCHRESPONSE_SEARCHRESPONSECODE.containing_type = _SEARCHRESPONSE
+DESCRIPTOR.message_types_by_name['PingMessage'] = _PINGMESSAGE
+DESCRIPTOR.message_types_by_name['SearchRequest'] = _SEARCHREQUEST
+DESCRIPTOR.message_types_by_name['SearchResponse'] = _SEARCHRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-RpcCode = _reflection.GeneratedProtocolMessageType('RpcCode', (_message.Message,), {
-  'DESCRIPTOR' : _RPCCODE,
+PingMessage = _reflection.GeneratedProtocolMessageType('PingMessage', (_message.Message,), {
+  'DESCRIPTOR' : _PINGMESSAGE,
   '__module__' : 'hypernets.dispatchers.grpc.proto.spec_pb2'
-  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.RpcCode)
+  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.PingMessage)
   })
-_sym_db.RegisterMessage(RpcCode)
+_sym_db.RegisterMessage(PingMessage)
 
-ExecutorId = _reflection.GeneratedProtocolMessageType('ExecutorId', (_message.Message,), {
-  'DESCRIPTOR' : _EXECUTORID,
+SearchRequest = _reflection.GeneratedProtocolMessageType('SearchRequest', (_message.Message,), {
+  'DESCRIPTOR' : _SEARCHREQUEST,
   '__module__' : 'hypernets.dispatchers.grpc.proto.spec_pb2'
-  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.ExecutorId)
+  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.SearchRequest)
   })
-_sym_db.RegisterMessage(ExecutorId)
+_sym_db.RegisterMessage(SearchRequest)
 
-TrailItem = _reflection.GeneratedProtocolMessageType('TrailItem', (_message.Message,), {
-  'DESCRIPTOR' : _TRAILITEM,
+SearchResponse = _reflection.GeneratedProtocolMessageType('SearchResponse', (_message.Message,), {
+  'DESCRIPTOR' : _SEARCHRESPONSE,
   '__module__' : 'hypernets.dispatchers.grpc.proto.spec_pb2'
-  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.TrailItem)
+  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.SearchResponse)
   })
-_sym_db.RegisterMessage(TrailItem)
-
-TrailReport = _reflection.GeneratedProtocolMessageType('TrailReport', (_message.Message,), {
-  'DESCRIPTOR' : _TRAILREPORT,
-  '__module__' : 'hypernets.dispatchers.grpc.proto.spec_pb2'
-  # @@protoc_insertion_point(class_scope:hypernets.dispatchers.proto.TrailReport)
-  })
-_sym_db.RegisterMessage(TrailReport)
+_sym_db.RegisterMessage(SearchResponse)
 
 
 
@@ -231,46 +256,26 @@ _SEARCHDRIVER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=315,
-  serialized_end=697,
+  serialized_start=472,
+  serialized_end=685,
   methods=[
   _descriptor.MethodDescriptor(
-    name='register',
-    full_name='hypernets.dispatchers.proto.SearchDriver.register',
+    name='ping',
+    full_name='hypernets.dispatchers.proto.SearchDriver.ping',
     index=0,
     containing_service=None,
-    input_type=_EXECUTORID,
-    output_type=_EXECUTORID,
+    input_type=_PINGMESSAGE,
+    output_type=_PINGMESSAGE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
-    name='beat',
-    full_name='hypernets.dispatchers.proto.SearchDriver.beat',
+    name='search',
+    full_name='hypernets.dispatchers.proto.SearchDriver.search',
     index=1,
     containing_service=None,
-    input_type=_EXECUTORID,
-    output_type=_RPCCODE,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='next',
-    full_name='hypernets.dispatchers.proto.SearchDriver.next',
-    index=2,
-    containing_service=None,
-    input_type=_EXECUTORID,
-    output_type=_TRAILITEM,
-    serialized_options=None,
-    create_key=_descriptor._internal_create_key,
-  ),
-  _descriptor.MethodDescriptor(
-    name='report',
-    full_name='hypernets.dispatchers.proto.SearchDriver.report',
-    index=3,
-    containing_service=None,
-    input_type=_TRAILREPORT,
-    output_type=_RPCCODE,
+    input_type=_SEARCHREQUEST,
+    output_type=_SEARCHRESPONSE,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),

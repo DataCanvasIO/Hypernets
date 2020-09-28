@@ -2,10 +2,13 @@
 
 import time
 
+from .grpc.search_driver_service import get_or_serve
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trail
 from ..utils.common import config
+
+_search_counter = 0
 
 
 class DriverDispatcher(Dispatcher):
@@ -22,7 +25,7 @@ class DriverDispatcher(Dispatcher):
                 cb.on_trail_begin(hyper_model, item.space_sample, item.trail_no)
 
         def on_report_space(item):
-            if item.code == 0:
+            if item.success:
                 elapsed = item.report_at - item.start_at
                 trail = Trail(item.space_sample, item.trail_no, item.reward, elapsed)
                 # print(f'trail result:{trail}')
@@ -52,18 +55,32 @@ class DriverDispatcher(Dispatcher):
             else:
                 return None
 
+        def do_clean():
+            # shutdown grpc server
+            search_service.status_thread.stop()
+            search_service.status_thread.report_summary()
+            # server.stop(grace=1.0)
+
+        if 'search_id' in fit_kwargs:
+            search_id = fit_kwargs.pop('search_id')
+        else:
+            global _search_counter
+            _search_counter += 1
+            search_id = 'search-%02d' % _search_counter
+
         print(f'start driver server at {self.address}')
-        from .grpc.SearchDriverService import serve
-        server, search_service = serve(self.address, self.spaces_dir,
-                                       on_next=on_next_space,
-                                       on_report=on_report_space,
-                                       on_summary=on_summary)
+        server, search_service = get_or_serve(self.address,
+                                              search_id,
+                                              self.spaces_dir,
+                                              on_next=on_next_space,
+                                              on_report=on_report_space,
+                                              on_summary=on_summary)
 
         search_start_at = time.time()
 
         trail_no = 1
         retry_counter = 0
-        queue_size = int(config('search_queue', '3'))
+        queue_size = int(config('search_queue', '1'))
 
         while trail_no <= max_trails:
             space_sample = hyper_model.searcher.sample()
@@ -117,6 +134,9 @@ class DriverDispatcher(Dispatcher):
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
+            except KeyboardInterrupt:
+                do_clean()
+                return trail_no
             except Exception as e:
                 import sys
                 import traceback
@@ -128,16 +148,16 @@ class DriverDispatcher(Dispatcher):
                 trail_no += 1
                 retry_counter = 0
 
-        print("-" * 20, 'no more space to push, start waiting...')
-        while search_service.running_size() > 0:
-            # print(f"wait ... {search_service.running_size()} samples found.")
-            time.sleep(0.1)
+        print("-" * 20, 'no more space to search, waiting trails ...')
+        try:
+            while search_service.running_size() > 0:
+                # print(f"wait ... {search_service.running_size()} samples found.")
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            return trail_no
+        finally:
+            do_clean()
         print("-" * 20, 'all trails done', '-' * 20)
-
-        # shutdown grpc server
-        server.stop(grace=1.0)
-        search_service.status_thread.stop()
-        search_service.status_thread.report_summary()
 
         # run best trail
         if hyper_model.best_space:

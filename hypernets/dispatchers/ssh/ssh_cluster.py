@@ -2,7 +2,9 @@
 
 import os
 import re
+import sys
 import time
+from threading import Thread
 
 from .grpc_process import GrpcProcess
 from .local_process import LocalProcess
@@ -72,23 +74,28 @@ class AddressParser(object):
 class SshCluster(object):
 
     def __init__(self, experiment,
-                 driver, driver_port, executors,
+                 driver, driver_port, start_driver,
+                 executors,
                  spaces_dir, logs_dir,
+                 report_interval,
                  *args, **kwargs):
         super(SshCluster, self).__init__()
         assert isinstance(executors, (list, tuple)) and len(executors) > 0
         assert driver_port
+        assert isinstance(args, (list, tuple)) and len(args) > 0
 
         self.experiment = experiment if experiment else time.strftime('%Y%m%d%H%M%S')
         self.driver = driver
         self.driver_port = driver_port
+        self.start_driver = start_driver
         self.executors = executors
         self.spaces_dir = spaces_dir
         self.logs_dir = logs_dir
+        self.report_interval = report_interval
         self.args = args
         self.kwargs = kwargs
 
-    def start(self):
+    def run(self):
         tag = self.experiment
         os.makedirs(f'{self.logs_dir}/{tag}', exist_ok=True)
 
@@ -99,12 +106,16 @@ class SshCluster(object):
             cmd = self._driver_cmd
             a = AddressParser(self.driver if self.driver else 'localhost')
             if a.is_localhost:
-                return LocalProcess(cmd, None, None, None)
+                p = LocalProcess(cmd, None, None, None)
             elif a.is_grpc:
                 grpc_host = f'{a.host}:{a.port}'
-                return GrpcProcess(grpc_host, cmd, None, None, None)
+                p = GrpcProcess(grpc_host, cmd, None, None, None)
+                return p
             else:
-                return SshProcess(a.host, a.port, cmd, None, None, None)
+                p = SshProcess(a.host, a.port, cmd, None, None, None)
+
+            p.name = 'driver'
+            return p
 
         def to_executor_process(index):
             a = AddressParser(self.executors[index])
@@ -114,24 +125,36 @@ class SshCluster(object):
             err_file = f'{self.logs_dir}/{tag}/executor-{index}-{log_for(a)}.err'
 
             if a.is_localhost:
-                return LocalProcess(cmd, None, out_file, err_file)
+                p = LocalProcess(cmd, None, out_file, err_file)
             elif a.is_grpc:
                 grpc_host = f'{a.host}:{a.port}'
-                return GrpcProcess(grpc_host, cmd, None, out_file, err_file)
+                p = GrpcProcess(grpc_host, cmd, None, out_file, err_file)
             else:
-                return SshProcess(a.host, a.port, cmd, None, out_file, err_file)
+                p = SshProcess(a.host, a.port, cmd, None, out_file, err_file)
 
-        driver_process = to_driver_process()
+            p.name = f'executor-{index}'
+
+            return p
+
         executor_processes = [to_executor_process(i) for i in range(0, len(self.executors))]
-        all_processes = [driver_process, ] + executor_processes
+        if self.start_driver:
+            driver_process = to_driver_process()
+            all_processes = [driver_process, ] + executor_processes
+        else:
+            all_processes = executor_processes
 
         [p.start() for p in all_processes]
+
+        status_thread = None
+        if self.report_interval and self.report_interval > 0:
+            status_thread = ClusterStatusThread(all_processes, self.report_interval)
+            status_thread.start()
+
         [p.join() for p in all_processes]
 
-        # codes = [p.exitcode for p in all_processes]
-        # print('process exit code:', codes)
-
-        return driver_process.exitcode
+        if status_thread:
+            status_thread.stop()
+            status_thread.report()
 
     @property
     def _driver_cmd(self):
@@ -155,3 +178,40 @@ class SshCluster(object):
 
         ssh_cmd = f'{cmds} --driver {driver_host}:{self.driver_port} --role executor'
         return ssh_cmd
+
+
+class ClusterStatusThread(Thread):
+    def __init__(self, processes, interval=60):
+        super(ClusterStatusThread, self).__init__()
+
+        self.daemon = True
+
+        self.processes = processes
+        self.interval = interval
+        self.running = False
+
+    def run(self):
+        assert not self.running
+
+        self.running = True
+        time.sleep(self.interval)
+
+        while self.running:
+            try:
+                self.report()
+                time.sleep(self.interval)
+            except Exception as e:
+                print(e, file=sys.stderr)
+
+    def stop(self):
+        self.running = False
+
+    def report(self):
+        def summary(p):
+            if p.is_alive():
+                return f'[{p.pid}] {p.name}: running'
+            else:
+                return f'[{p.pid}] {p.name}: done with {p.exitcode}'
+
+        msg = '\n'.join([summary(p) for p in self.processes])
+        print('Cluster status: >>>\n' + msg + '\n<<<')

@@ -1,9 +1,10 @@
+import queue
 import sys
 
 import grpc
 
 from .proto import proc_pb2_grpc
-from .proto.proc_pb2 import DataChunk, ProcessRequest
+from .proto.proc_pb2 import DataChunk, ProcessRequest, DownloadRequest
 
 
 class ProcessBrokerClient(object):
@@ -26,33 +27,45 @@ class ProcessBrokerClient(object):
 
         encoding = getattr(stdout, 'encoding', None)
 
-        request = ProcessRequest(args=args,
-                                 program=program if program else b'',
-                                 buffer_size=buffer_size,
-                                 encoding=encoding if encoding else b'',
-                                 cwd=cwd if cwd else b'')
+        result = {'running': True}
+        ack_queue = queue.Queue()
 
-        result = {}
         if encoding:
             handles = {DataChunk.OUT: lambda x: stdout.write(x.decode(encoding)),
+                       DataChunk.DATA: lambda x: stdout.write(x.decode(encoding)),
                        DataChunk.ERR: lambda x: stderr.write(x.decode(encoding)),
-                       DataChunk.END: lambda x: result.update({'code': x}),
+                       DataChunk.END: lambda x: result.update({'code': x, 'running': False}),
                        }
         else:
             handles = {DataChunk.OUT: lambda x: stdout.write(x),
+                       DataChunk.DATA: lambda x: stdout.write(x),
                        DataChunk.ERR: lambda x: stderr.write(x),
-                       DataChunk.END: lambda x: result.update({'code': x}),
+                       DataChunk.END: lambda x: result.update({'code': x, 'running': False}),
                        }
 
+        def fire_request():
+            request = ProcessRequest(args=args,
+                                     program=program if program else b'',
+                                     buffer_size=buffer_size,
+                                     encoding=encoding if encoding else b'',
+                                     cwd=cwd if cwd else b'')
+            yield request
+
+            dummy = ProcessRequest()
+            while result['running']:
+                if ack_queue.get():
+                    yield dummy
+
         try:
-            response = self.stub.run(request)
+            response = self.stub.run(fire_request())
             for chunk in response:
                 fn = handles.get(chunk.kind, None)
                 if fn:
                     fn(chunk.data)
                 else:
                     print(f'unexpected chunk kind: {chunk.kind}', file=sys.stderr)
-
+                ack = chunk.kind != DataChunk.END
+                ack_queue.put(ack)
             if 'code' in result.keys():
                 try:
                     return int(result['code'])
@@ -61,8 +74,50 @@ class ProcessBrokerClient(object):
             else:
                 return 0
         except grpc.RpcError as e:
-            import traceback
-            msg = f'[GRPC {self.server}] {e.__class__.__name__}:\n'
-            print(msg + traceback.format_exc(), file=sys.stderr)
-
+            try:
+                msg = f'RpcError {e.__class__.__name__}: {e.code()}'
+                print(msg, file=sys.stderr)
+            except Exception:
+                import traceback
+                msg = f'[GRPC {self.server}] {e.__class__.__name__}:\n'
+                print(msg + traceback.format_exc(), file=sys.stderr)
             return 99
+
+    def download(self, remote_file_path, local_file_object, buffer_size=-1):
+        encoding = getattr(local_file_object, 'encoding', None)
+
+        def dump_with_encoding(data):
+            local_file_object.write(data.decode(encoding))
+
+        if encoding:
+            fn = dump_with_encoding
+        else:
+            fn = local_file_object.write
+
+        errs = []
+        try:
+            request = DownloadRequest(peer='hi',
+                                      path=remote_file_path,
+                                      encoding=encoding if encoding else '',
+                                      buffer_size=buffer_size)
+            response = self.stub.download(request)
+            for chunk in response:
+                if chunk.kind == DataChunk.DATA:
+                    fn(chunk.data)
+                elif chunk.kind == DataChunk.END:
+                    pass  #
+                else:
+                    errs.append(f'[{chunk.kind}] ' + chunk.data.decode(encoding))
+
+            if errs:
+                raise Exception('\n'.join(errs))
+        except grpc.RpcError as e:
+            try:
+                msg = f'RpcError {e.__class__.__name__}: {e.code()}'
+                print(msg, file=sys.stderr)
+            except Exception:
+                import traceback
+                msg = f'[GRPC {self.server}] {e.__class__.__name__}:\n'
+                print(msg + traceback.format_exc(), file=sys.stderr)
+
+            raise Exception(msg)

@@ -66,14 +66,18 @@ class SshProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
-        print(f'[SSH {self.ssh_host}]: {self.cmd}')
-        code = self.ssh_run(self.ssh_host, self.ssh_port,
-                            self.cmd,
-                            self.in_file,
-                            self.out_file,
-                            self.err_file,
-                            self.environment)
-        print(f'[SSH {self.ssh_host}] {self.cmd} done with {code}')
+        print(f'[{self.name}] [SSH {self.ssh_host}]: {self.cmd}')
+        try:
+            code = self.ssh_run(self.ssh_host, self.ssh_port,
+                                self.cmd,
+                                self.in_file,
+                                self.out_file,
+                                self.err_file,
+                                self.environment)
+        except KeyboardInterrupt:
+            # print('KeyboardInterrupt')
+            code = 137
+        print(f'[{self.name}] [SSH {self.ssh_host}] {self.cmd} done with {code}')
         self._exit_code.value = code
 
     @staticmethod

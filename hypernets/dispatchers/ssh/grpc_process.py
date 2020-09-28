@@ -19,17 +19,21 @@ class GrpcProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
-        print(f'[GRPC {self.grpc_broker}] {self.cmd}, out={self.out_file}, err={self.err_file}')
+        print(f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd}, out={self.out_file}, err={self.err_file}')
 
-        client = ProcessBrokerClient(self.grpc_broker)
-        buffer_size = 16
-        if self.out_file and self.err_file:
-            with open(self.out_file, 'wb', buffering=0)as o, open(self.err_file, 'wb', buffering=0) as e:
-                code = client.run(self.cmd.split(' '), stdout=o, stderr=e, buffer_size=buffer_size)
-        else:
-            code = client.run(self.cmd.split(' '), stdout=sys.stdout, stderr=sys.stderr, buffer_size=buffer_size)
+        try:
+            client = ProcessBrokerClient(self.grpc_broker)
+            buffer_size = 16
+            if self.out_file and self.err_file:
+                with open(self.out_file, 'wb', buffering=0)as o, open(self.err_file, 'wb', buffering=0) as e:
+                    code = client.run(self.cmd.split(' '), stdout=o, stderr=e, buffer_size=buffer_size)
+            else:
+                code = client.run(self.cmd.split(' '), stdout=sys.stdout, stderr=sys.stderr, buffer_size=buffer_size)
+        except KeyboardInterrupt:
+            # print('KeyboardInterrupt')
+            code = 137
 
-        print(f'[GRPC {self.grpc_broker}] {self.cmd} done with {code}')
+        print(f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd} done with {code}')
         self._exit_code.value = code
 
     @property
