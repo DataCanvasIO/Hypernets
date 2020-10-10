@@ -62,7 +62,7 @@ class FeatureToolsTransformer():
         fields = X.dtypes.to_dict().items()
 
         if self.continuous_cols is None:
-            self.continuous_cols = self._filter_by_type(fields, [np.int, np.int32, np.int64, np.float, np.float32, np.float64, np.float128])
+            self.continuous_cols = self._filter_by_type(fields, [np.int, np.int32, np.int64, np.float, np.float32, np.float64])
 
         if self.datetime_cols is None:
             self.datetime_cols = self._filter_by_type(fields, [datetime, pd.datetime])
