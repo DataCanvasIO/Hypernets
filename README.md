@@ -32,6 +32,16 @@ pip install hypernets
 python -c "from examples import smoke_testing;"
 ```
 
+## Hypernets related projects
+
+* [HyperGBM](https://github.com/DataCanvasIO/HyperGBM): A full pipeline AutoML tool integrated various GBM models.
+* [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
+* [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
+* [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
+* [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning framework.
+
+![DataCanvas AutoML Toolkit](docs/source/images/datacanvas_automl_toolkit.png)
+
 ## Neural Architecture Search
 * [Define A DNN Search Space](https://hypernets.readthedocs.io/en/latest/nas.html#define-a-dnn-search-space)
 * [Define A CNN Search Space](https://hypernets.readthedocs.io/en/latest/nas.html#define-a-cnn-search-space)
