@@ -34,7 +34,7 @@ model = OneShotModel(searcher,
                      callbacks=[SummaryCallback()],
                      one_shot_train_sampler=one_shot_sampler,  # uniform sampler
                      visualization=False)
+#model.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
 
-model.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
-             max_trails=100, epochs=1, callbacks=[])
+model.search(x_train, y_train, x_test, y_test, max_trails=1000, epochs=100, callbacks=[])
 assert model.best_model
