@@ -12,7 +12,6 @@ requirements = [
     'scikit-learn>=0.22.1',
     'tensorflow>=2.0.0',
     'numpy>=1.17.4',
-    'pytest==5.3.2',
     'lightgbm'
 ]
 
