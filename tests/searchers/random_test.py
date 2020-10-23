@@ -4,20 +4,12 @@ __author__ = 'yangjian'
 
 """
 
-from hypernets.searchers.random_searcher import RandomSearcher
-from hypernets.core.searcher import OptimizeDirection
+import pytest
+
 from hypernets.core.ops import *
 from hypernets.core.search_space import *
-from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.hyper_keras import HyperKeras
-from hypernets.core.callbacks import SummaryCallback
+from hypernets.searchers.random_searcher import RandomSearcher
 
-from hypernets.core.meta_learner import MetaLearner
-from hypernets.core.trial import get_default_trail_store, TrailHistory, DiskTrailStore, Trail
-from tests import test_output_dir
-
-import numpy as np
-import pytest
 
 class Test_MCTS():
     def get_space(self):

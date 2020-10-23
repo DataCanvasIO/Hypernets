@@ -5,8 +5,6 @@
 from hypernets.searchers.evolution_searcher import EvolutionSearcher,Population
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.ops import *
-from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.hyper_keras import *
 from hypernets.core.callbacks import SummaryCallback
 import numpy as np
 
@@ -88,36 +86,36 @@ class Test_Evolution():
         assert new_space.all_assigned
         assert np.sum([v1 != v2 for v1, v2 in zip(pv1, pv2)]) == 1
 
-    def test_searcher_with_hp(self):
-        def get_space():
-            space = HyperSpace()
-            with space.as_default():
-                in1 = Input(shape=(10,))
-                in2 = Input(shape=(20,))
-                in3 = Input(shape=(1,))
-                concat = Concatenate()([in1, in2, in3])
-                dense1 = Dense(10, activation=Choice(['relu', 'tanh', None]), use_bias=Bool())(concat)
-                bn1 = BatchNormalization()(dense1)
-                dropout1 = Dropout(Choice([0.3, 0.4, 0.5]))(bn1)
-                output = Dense(2, activation='softmax', use_bias=True)(dropout1)
-            return space
-
-        rs = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
-        hk = HyperKeras(rs, optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'],
-                        callbacks=[SummaryCallback()])
-
-        x1 = np.random.randint(0, 10000, size=(100, 10))
-        x2 = np.random.randint(0, 100, size=(100, 20))
-        x3 = np.random.normal(1.0, 100.0, size=(100))
-        y = np.random.randint(0, 2, size=(100), dtype='int')
-        x = [x1, x2, x3]
-
-        hk.search(x, y, x, y, max_trails=10)
-        assert hk.best_model
-        best_trial = hk.get_best_trail()
-
-        estimator = hk.final_train(best_trial.space_sample, x, y)
-        score = estimator.predict(x)
-        result = estimator.evaluate(x, y)
-        assert len(score) == 100
-        assert result
+    # def test_searcher_with_hp(self):
+    #     def get_space():
+    #         space = HyperSpace()
+    #         with space.as_default():
+    #             in1 = Input(shape=(10,))
+    #             in2 = Input(shape=(20,))
+    #             in3 = Input(shape=(1,))
+    #             concat = Concatenate()([in1, in2, in3])
+    #             dense1 = Dense(10, activation=Choice(['relu', 'tanh', None]), use_bias=Bool())(concat)
+    #             bn1 = BatchNormalization()(dense1)
+    #             dropout1 = Dropout(Choice([0.3, 0.4, 0.5]))(bn1)
+    #             output = Dense(2, activation='softmax', use_bias=True)(dropout1)
+    #         return space
+    #
+    #     rs = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
+    #     hk = HyperKeras(rs, optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'],
+    #                     callbacks=[SummaryCallback()])
+    #
+    #     x1 = np.random.randint(0, 10000, size=(100, 10))
+    #     x2 = np.random.randint(0, 100, size=(100, 20))
+    #     x3 = np.random.normal(1.0, 100.0, size=(100))
+    #     y = np.random.randint(0, 2, size=(100), dtype='int')
+    #     x = [x1, x2, x3]
+    #
+    #     hk.search(x, y, x, y, max_trails=10)
+    #     assert hk.best_model
+    #     best_trial = hk.get_best_trail()
+    #
+    #     estimator = hk.final_train(best_trial.space_sample, x, y)
+    #     score = estimator.predict(x)
+    #     result = estimator.evaluate(x, y)
+    #     assert len(score) == 100
+    #     assert result
