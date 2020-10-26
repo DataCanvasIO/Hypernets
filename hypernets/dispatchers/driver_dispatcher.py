@@ -17,7 +17,7 @@ class DriverDispatcher(Dispatcher):
         self.address = address
         self.spaces_dir = spaces_dir
 
-    def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
+    def dispatch(self, hyper_model, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
         def on_next_space(item):
             for cb in hyper_model.callbacks:
@@ -164,7 +164,7 @@ class DriverDispatcher(Dispatcher):
             space_sample = hyper_model.best_space
             print(f'run trial with best space {space_sample.space_id} in driver')
             start_at = time.time()
-            trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
+            trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, **fit_kwargs)
             done_at = time.time()
             elapsed = done_at - start_at
             total_elapsed = done_at - search_start_at

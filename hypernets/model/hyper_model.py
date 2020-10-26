@@ -105,7 +105,7 @@ class HyperModel():
     def _after_search(self, last_trail_no):
         pass
 
-    def search(self, X, y, X_val, y_val, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
+    def search(self, X, y, X_eval, y_eval, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
         self.start_search_time = time.time()
 
         if dataset_id is None:
@@ -116,7 +116,7 @@ class HyperModel():
         self._before_search()
 
         dispatcher = get_dispatcher(self)
-        trail_no = dispatcher.dispatch(self, X, y, X_val, y_val, max_trails, dataset_id, trail_store, **fit_kwargs)
+        trail_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store, **fit_kwargs)
 
         # trail_no = 1
         # retry_counter = 0
