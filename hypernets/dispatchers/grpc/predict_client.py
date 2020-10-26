@@ -4,6 +4,9 @@ import grpc
 
 from .proto import predict_pb2_grpc
 from .proto.predict_pb2 import PredictRequest
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class PredictClient(object):
@@ -32,6 +35,6 @@ class PredictClient(object):
         except Exception as e:
             import traceback
             msg = f'[Predict {self.server}] {e.__class__.__name__}:\n'
-            print(msg + traceback.format_exc(), file=sys.stderr)
+            logger.error(msg + traceback.format_exc())
 
             return 98 if isinstance(e, grpc.RpcError) else 99

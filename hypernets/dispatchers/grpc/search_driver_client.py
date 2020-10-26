@@ -6,6 +6,9 @@ import grpc
 
 from .proto import spec_pb2_grpc
 from .proto.spec_pb2 import SearchRequest, SearchResponse, PingMessage
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class SearchDriverClient(object):
@@ -113,7 +116,6 @@ class SearchDriverClient(object):
                                 success=False,
                                 reward=0.0,
                                 message='')
-            # print('fire>>>', msg, '<<<')
             yield msg
 
             # fire response msg and get next trail
@@ -123,7 +125,6 @@ class SearchDriverClient(object):
                     if r is None:
                         break
                     msg = r.to_request()
-                    # print('fire>>>', msg, '<<<')
                     yield msg
                 except queue.Empty:
                     time.sleep(0.1)
@@ -131,7 +132,6 @@ class SearchDriverClient(object):
                     import traceback
                     traceback.print_exc()
                     break
-            # print('fire_request', 'done')
 
         try:
             response = self.stub.search(fire_request())
@@ -142,15 +142,15 @@ class SearchDriverClient(object):
                     ack_queue.put(result)
                 except Exception as e:
                     msg = f'{e.__class__.__name__}: {e}'
-                    print(msg, file=sys.stderr)
+                    logger.error(msg)
         except grpc.RpcError as e:
             import traceback
             trace_detail = traceback.format_exc()
             try:
                 msg = f'RpcError {self.server} {e.__class__.__name__}: {e.code()}'
-                print(msg, file=sys.stderr)
+                logger.error(msg)
             except Exception:
                 msg = f'RpcError {self.server} {e.__class__.__name__}:\n'
-                print(msg + trace_detail, file=sys.stderr)
+                logger.error(msg + trace_detail)
             yield None
         running = False

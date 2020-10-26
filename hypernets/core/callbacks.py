@@ -2,11 +2,16 @@
 """
 
 """
-import time
-import os
 import datetime
 import json
+import os
+import time
+
 import numpy as np
+
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class Callback():
@@ -63,7 +68,8 @@ class EarlyStoppingCallback(Callback):
                 self.counter_no_improvement_trails += 1
                 if self.counter_no_improvement_trails >= self.max_no_improvement_trails:
                     msg = f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
-                    print(msg)
+                    if logger.is_info_enabled():
+                        logger.info(msg)
                     raise EarlyStoppingError(msg)
 
 
@@ -127,20 +133,24 @@ class FileLoggingCallback(Callback):
 
 class SummaryCallback(Callback):
     def on_build_estimator(self, hyper_model, space, estimator, trail_no):
-        #print(f'\nTrail No:{trail_no}')
-        #print(space.params_summary())
+        # if logger.is_info_enabled():
+        #     logger.info(f'\nTrail No:{trail_no}')
+        #     logger.info(space.params_summary())
         estimator.summary()
 
     def on_trail_begin(self, hyper_model, space, trail_no):
-        print(f'\nTrail No:{trail_no}')
-        print(space.params_summary())
-        print('trail begin')
+        if logger.is_info_enabled():
+            logger.info(f'\nTrail No:{trail_no}')
+            logger.info(space.params_summary())
+            logger.info('trail begin')
 
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
-        print(f'trail end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
-        print(f'Total elapsed:{time.time() - hyper_model.start_search_time}')
+        if logger.is_info_enabled():
+            logger.info(f'trail end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
+            logger.info(f'Total elapsed:{time.time() - hyper_model.start_search_time}')
 
     def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
-        print(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-        print(f'trail skip. reason:{reason},  reward:{reward}, improved:{improved}, elapsed:{elapsed}')
-        print(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+        if logger.is_info_enabled():
+            logger.info(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+            logger.info(f'trail skip. reason:{reason},  reward:{reward}, improved:{improved}, elapsed:{elapsed}')
+            logger.info(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')

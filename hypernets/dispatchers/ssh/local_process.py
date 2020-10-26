@@ -4,6 +4,10 @@ import subprocess
 import sys
 from multiprocessing import Process, Value as PValue
 
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
+
 
 class LocalProcess(Process):
     def __init__(self, cmd, in_file, out_file, err_file, environment=None):
@@ -16,7 +20,9 @@ class LocalProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
-        print(f'[{self.name}] [CMD] {self.cmd}, out={self.out_file}, err={self.err_file}')
+        if logger.is_info_enabled():
+            logger.info(f'[{self.name}] [CMD] {self.cmd}, out={self.out_file}, err={self.err_file}')
+
         try:
             if self.out_file and self.err_file:
                 with open(self.out_file, 'wb', buffering=0)as o, open(self.err_file, 'wb', buffering=0) as e:
@@ -34,10 +40,11 @@ class LocalProcess(Process):
                                    stderr=sys.stderr)
                 code = p.returncode
         except KeyboardInterrupt:
-            # print('KeyboardInterrupt')
             code = 137
 
-        print(f'[{self.name}] [CMD] {self.cmd} done with {code}')
+        if logger.is_info_enabled():
+            logger.info(f'[{self.name}] [CMD] {self.cmd} done with {code}')
+
         self._exit_code.value = code
 
     @property

@@ -2,8 +2,12 @@
 """
 
 """
-from ..core.searcher import Searcher, OptimizeDirection
 import numpy as np
+
+from ..core.searcher import Searcher, OptimizeDirection
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class Individual(object):
@@ -134,8 +138,10 @@ class EvolutionSearcher(Searcher):
                           key=lambda s: s[1] if self.optimize_direction == OptimizeDirection.Minimize else -s[1])[
                    :int(len(candidates) * 0.3)]
             best = topn[np.random.choice(range(len(topn)))]
-            print(
-                f'get_offspring scores:{best[1]}, index:{best[0]}')
+
+            if logger.is_info_enabled():
+                logger.info(f'get_offspring scores:{best[1]}, index:{best[0]}')
+
             return candidates[best[0]]
         else:
             new_space = self.space_fn()

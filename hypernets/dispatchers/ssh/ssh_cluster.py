@@ -9,6 +9,9 @@ from threading import Thread
 from .grpc_process import GrpcProcess
 from .local_process import LocalProcess
 from .ssh_process import SshProcess
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 def get_ip_for(peer_address):
@@ -201,7 +204,7 @@ class ClusterStatusThread(Thread):
                 self.report()
                 time.sleep(self.interval)
             except Exception as e:
-                print(e, file=sys.stderr)
+                logger.error(e)
 
     def stop(self):
         self.running = False
@@ -213,5 +216,6 @@ class ClusterStatusThread(Thread):
             else:
                 return f'[{p.pid}] {p.name}: done with {p.exitcode}'
 
-        msg = '\n'.join([summary(p) for p in self.processes])
-        print('Cluster status: >>>\n' + msg + '\n<<<')
+        if logger.is_info_enabled():
+            msg = '\n'.join([summary(p) for p in self.processes])
+            logger.info('Cluster status: >>>\n' + msg + '\n<<<')

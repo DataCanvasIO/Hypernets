@@ -1,10 +1,15 @@
 # -*- coding:utf-8 -*-
 
-from os.path import getsize
 import sys
-from threading import Thread, Lock
 from multiprocessing import Process, Value as PValue, current_process
+from os.path import getsize
+from threading import Thread, Lock
+
 from paramiko import SSHClient, AutoAddPolicy
+
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class Counter(object):
@@ -66,7 +71,8 @@ class SshProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
-        print(f'[{self.name}] [SSH {self.ssh_host}]: {self.cmd}')
+        if logger.is_info_enabled():
+            logger.info(f'[{self.name}] [SSH {self.ssh_host}]: {self.cmd}')
         try:
             code = self.ssh_run(self.ssh_host, self.ssh_port,
                                 self.cmd,
@@ -75,9 +81,11 @@ class SshProcess(Process):
                                 self.err_file,
                                 self.environment)
         except KeyboardInterrupt:
-            # print('KeyboardInterrupt')
             code = 137
-        print(f'[{self.name}] [SSH {self.ssh_host}] {self.cmd} done with {code}')
+
+        if logger.is_info_enabled():
+            logger.info(f'[{self.name}] [SSH {self.ssh_host}] {self.cmd} done with {code}')
+
         self._exit_code.value = code
 
     @staticmethod

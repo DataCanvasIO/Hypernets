@@ -7,6 +7,9 @@ from grpc import RpcError
 
 from .proto import proc_pb2_grpc
 from .proto.proc_pb2 import DataChunk
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class ProcessBrokerService(proc_pb2_grpc.ProcessBrokerServicer):
@@ -23,11 +26,10 @@ class ProcessBrokerService(proc_pb2_grpc.ProcessBrokerServicer):
                     chunk = DataChunk(kind=data_kind, data=data.encode(encoding))
                 else:
                     chunk = DataChunk(kind=data_kind, data=data)
-                # print(f'put: {data}')
                 q.put(chunk)
                 data = f.read(buffer_size)
         except ValueError as e:
-            print(e)
+            logger.error(e)
 
     def run(self, request_iterator, context):
         it = iter(request_iterator)
@@ -40,7 +42,6 @@ class ProcessBrokerService(proc_pb2_grpc.ProcessBrokerServicer):
         encoding = request.encoding
         if encoding is None or len(encoding) == 0:
             encoding = None
-        # print(' '.join(args), program, cwd, buffer_size, encoding)
 
         with subprocess.Popen(args, buffer_size,
                               program if len(program) > 0 else None,
@@ -53,7 +54,8 @@ class ProcessBrokerService(proc_pb2_grpc.ProcessBrokerServicer):
             pid = p.pid
             start_at = time.time()
             peer = context.peer()
-            print(f'[{pid}] started, peer: {peer}, cmd:', ' '.join(args), )
+            if logger.is_info_enabled():
+                logger.info(f'[{pid}] started, peer: {peer}, cmd:' + ' '.join(args), )
 
             data_queue = queue.Queue()
             t_out = Thread(target=self._read_data,
@@ -86,18 +88,18 @@ class ProcessBrokerService(proc_pb2_grpc.ProcessBrokerServicer):
                         yield DataChunk(kind=DataChunk.END, data=str(code).encode())
                         # break
             except StopIteration as e:
-                # print('stop',e)
                 pass
             except RpcError as e:
-                print(e)
+                logger.error(e)
                 code = 'rpc error'
             except Exception:
                 import traceback
                 traceback.print_exc()
                 code = 'exception'
 
-        print('[%s] done with code %s, elapsed %.3f seconds.'
-              % (pid, code, time.time() - start_at))
+        if logger.is_info_enabled():
+            logger.info('[%s] done with code %s, elapsed %.3f seconds.'
+                        % (pid, code, time.time() - start_at))
 
     def download(self, request, context):
         try:
@@ -135,18 +137,20 @@ class ProcessBrokerService(proc_pb2_grpc.ProcessBrokerServicer):
                         data = f.read(buffer_size)
 
             if not context.is_active():
-                print('download %s broke (peer shutdown), %s bytes sent, elapsed %.3f seconds' %
-                      (path, total, time.time() - start_at))
+                if logger.is_info_enabled():
+                    logger.info('download %s broke (peer shutdown), %s bytes sent, elapsed %.3f seconds' %
+                                (path, total, time.time() - start_at))
             else:
                 yield DataChunk(kind=DataChunk.END, data=b'')
-                print('download %s (%s bytes) in %.3f seconds, encoding=%s' %
-                      (path, total, time.time() - start_at, encoding))
+                if logger.is_info_enabled():
+                    logger.info('download %s (%s bytes) in %.3f seconds, encoding=%s' %
+                                (path, total, time.time() - start_at, encoding))
         except Exception as e:
             import traceback
             import sys
             msg = f'{e.__class__.__name__}:\n'
             msg += traceback.format_exc()
-            print(msg, file=sys.stderr)
+            logger.error(msg)
             yield DataChunk(kind=DataChunk.EXCEPTION, data=msg.encode())
 
 
@@ -154,7 +158,8 @@ def serve(addr):
     import grpc
     from concurrent import futures
 
-    print(f'start broker at {addr}')
+    if logger.is_info_enabled():
+        logger.info(f'start broker at {addr}')
     service = ProcessBrokerService()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     proc_pb2_grpc.add_ProcessBrokerServicer_to_server(service, server)
