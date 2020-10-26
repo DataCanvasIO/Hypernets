@@ -25,6 +25,9 @@ class HyperModel():
     def _get_estimator(self, space_sample):
         raise NotImplementedError
 
+    def load_estimator(self, trail):
+        raise NotImplementedError
+
     def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs):
 
         start_time = time.time()
@@ -48,7 +51,7 @@ class HyperModel():
             reward = self._get_reward(metrics, self.reward_metric)
             elapsed = time.time() - start_time
 
-            self.last_model = estimator.model
+            self.last_model = estimator
             trail = Trail(space_sample, trail_no, reward, elapsed)
 
             # improved = self.history.append(trail)

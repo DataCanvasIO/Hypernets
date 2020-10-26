@@ -10,11 +10,12 @@ import shutil
 
 
 class Trail():
-    def __init__(self, space_sample, trail_no, reward, elapsed):
+    def __init__(self, space_sample, trail_no, reward, elapsed, model_file=None):
         self.space_sample = space_sample
         self.trail_no = trail_no
         self.reward = reward
         self.elapsed = elapsed
+        self.model_file = model_file
 
 
 class TrailHistory():
