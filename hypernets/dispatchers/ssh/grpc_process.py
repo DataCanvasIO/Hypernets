@@ -4,6 +4,9 @@ import sys
 from multiprocessing import Process, Value as PValue
 
 from ..grpc.process_broker_client import ProcessBrokerClient
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class GrpcProcess(Process):
@@ -19,7 +22,9 @@ class GrpcProcess(Process):
         self._exit_code = PValue('i', -1)
 
     def run(self):
-        print(f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd}, out={self.out_file}, err={self.err_file}')
+        if logger.is_info_enabled():
+            msg = f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd}, out={self.out_file}, err={self.err_file}'
+            logger.info(msg)
 
         try:
             client = ProcessBrokerClient(self.grpc_broker)
@@ -30,10 +35,10 @@ class GrpcProcess(Process):
             else:
                 code = client.run(self.cmd.split(' '), stdout=sys.stdout, stderr=sys.stderr, buffer_size=buffer_size)
         except KeyboardInterrupt:
-            # print('KeyboardInterrupt')
             code = 137
 
-        print(f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd} done with {code}')
+        if logger.is_info_enabled():
+            logger.info(f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd} done with {code}')
         self._exit_code.value = code
 
     @property

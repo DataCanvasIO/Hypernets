@@ -6,6 +6,9 @@ import time
 
 from ..core.dispatcher import Dispatcher
 from ..dispatchers.grpc.search_driver_client import SearchDriverClient
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 _search_counter = 0
 
@@ -25,8 +28,9 @@ class ExecutorDispatcher(Dispatcher):
             _search_counter += 1
             search_id = 'search-%02d' % _search_counter
 
-        print(f'[{search_id}] started')
-        print(f'[{search_id}] connect to driver {self.driver_address}', end='')
+        if logger.is_info_enabled():
+            logger.info(f'[{search_id}] started')
+            print(f'[{search_id}] connect to driver {self.driver_address}', end='')
         client = SearchDriverClient(self.driver_address, search_id)
         client.ping(wait=True)
 
@@ -43,25 +47,28 @@ class ExecutorDispatcher(Dispatcher):
             item = next(sch)
             while item:
                 if item.is_waiting():
-                    print(f'[{search_id}] not found search, wait and continue')
+                    if logger.is_info_enabled():
+                        logger.info(f'[{search_id}] not found search, wait and continue')
                     time.sleep(1)
                     item = sch.send(response(item, True))
-                    # print('-' * 20, item)
                     continue
 
                 if item.is_finished():
-                    print(f'[{search_id}] search finished, exit.')
+                    if logger.is_info_enabled():
+                        logger.info(f'[{search_id}] search finished, exit.')
                     # sch.send(None)
                     break
 
                 if not item.is_ok():
-                    print(f'[{search_id}] dispatched with {item.code}, exit.')
+                    if logger.is_info_enabled():
+                        logger.info(f'[{search_id}] dispatched with {item.code}, exit.')
                     # sch.send(None)
                     break
 
                 trail_no = item.trail_no if item.trail_no is not None else trail_no + 1
                 detail = f'trail_no={trail_no}, space_id={item.space_id}, space_file={item.space_file}'
-                print(f'[{search_id}] new trail:', detail)
+                if logger.is_info_enabled():
+                    logger.info(f'[{search_id}] new trail:' + detail)
                 try:
                     with open(item.space_file, 'rb') as f:
                         space_sample = pickle.load(f)
@@ -83,9 +90,10 @@ class ExecutorDispatcher(Dispatcher):
                         for callback in hyper_model.callbacks:
                             callback.on_trail_error(hyper_model, space_sample, trail_no)
 
-                    print(f'----------------------------------------------------------------')
-                    print(f'space signatures: {hyper_model.history.get_space_signatures()}')
-                    print(f'----------------------------------------------------------------')
+                    if logger.is_info_enabled():
+                        logger.info(f'----------------------------------------------------------------')
+                        logger.info(f'space signatures: \n{hyper_model.history.get_space_signatures()}')
+                        logger.info(f'----------------------------------------------------------------')
                     if trail_store is not None:
                         trail_store.put(dataset_id, trail)
 
@@ -93,12 +101,13 @@ class ExecutorDispatcher(Dispatcher):
                 except StopIteration:
                     break
                 except KeyboardInterrupt:
-                    print('KeyboardInterrupt')
+                    if logger.is_info_enabled():
+                        logger.info('KeyboardInterrupt')
                     break
                 except Exception as e:
                     import traceback
                     msg = f'[{search_id}] {e.__class__.__name__}: {e}'
-                    print(msg + '\n' + traceback.format_exc(), file=sys.stderr)
+                    logger.error(msg + '\n' + traceback.format_exc())
                     item = sch.send(response(item, False, 0.0, msg))
         except StopIteration as e:
             pass
@@ -106,5 +115,6 @@ class ExecutorDispatcher(Dispatcher):
             sch.close()
             client.close()
 
-        print(f'[{search_id}] search done, last trail_no={trail_no}')
+        if logger.is_info_enabled():
+            logger.info(f'[{search_id}] search done, last trail_no={trail_no}')
         return trail_no

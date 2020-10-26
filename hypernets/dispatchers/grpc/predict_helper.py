@@ -1,13 +1,16 @@
 #
 
 import gzip
+import os
 import queue
 import time
-import os
 from os.path import exists
 from threading import Thread
 
 from .predict_client import PredictClient
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class ChunkFile(object):
@@ -75,7 +78,8 @@ class PredictHelper(object):
         status['running'] = False
         time.sleep(0.1)
 
-        print('-' * 20, 'predict done.')
+        if logger.is_info_enabled():
+            logger.info('-' * 20, 'predict done.')
 
         return 0
 
@@ -87,14 +91,17 @@ class PredictHelper(object):
         while status['running']:
             try:
                 chunk = chunk_queue.get(block=False)
-                print(f'[Predict] predict {chunk.data_file} started')
+                if logger.is_info_enabled():
+                    logger.info(f'[Predict] predict {chunk.data_file} started')
                 count += 1
                 code = client.predict(chunk.data_file, chunk.result_file)
                 if code == 0:
                     PredictHelper.touch(chunk.result_ready_tag_file)
-                    print(f'[Predict] predict {chunk.data_file} success')
+                    if logger.is_info_enabled():
+                        logger.info(f'[Predict] predict {chunk.data_file} success')
                 else:
-                    print(f'[Predict] predict {chunk.data_file} failed, code={code}, try={chunk.try_count}')
+                    if logger.is_info_enabled():
+                        logger.info(f'[Predict] predict {chunk.data_file} failed, code={code}, try={chunk.try_count}')
                     chunk.try_count += 1
                     chunk_queue.put(chunk)
             except queue.Empty:
@@ -102,7 +109,8 @@ class PredictHelper(object):
             except KeyboardInterrupt:
                 break
         client.close()
-        print(f'[Predict] do_predict done, {count} chunks predicted.')
+        if logger.is_info_enabled():
+            logger.info(f'[Predict] do_predict done, {count} chunks predicted.')
 
     @staticmethod
     def touch(file_name):
@@ -127,17 +135,21 @@ class PredictHelper(object):
                 chunk_line_number = 0
                 with op(chunk_file_name, 'wt', encoding='utf-8') as cf:
                     while line and len(line) > 0 and chunk_line_number < chunk_line_limit:
-                        # print(line,end='')
+                        #         if logger.is_info_enabled():
+                        #             logger.info(line,end='')
                         cf.write(line)
                         chunk_line_number += 1
                         line = df.readline()
                     cf.flush()
 
                 total_line_number += chunk_line_number
-                print(f'[Split] {chunk_file_name} is ready, lines = {chunk_line_number}.')
+                if logger.is_info_enabled():
+                    logger.info(f'[Split] {chunk_file_name} is ready, lines = {chunk_line_number}.')
                 yield chunk_file_name
 
-        print(f'[Split] >>> split {data_file} into {chunk_index} files, total line number is {total_line_number}.')
+        if logger.is_info_enabled():
+            msg = f'[Split] >>> split {data_file} into {chunk_index} files, total line number is {total_line_number}.'
+            logger.info(msg)
         return chunk_index
 
     @staticmethod
@@ -161,7 +173,8 @@ class PredictHelper(object):
                 chunk = chunks[chunk_index]
                 while not chunk.result_ready:  # wait ready
                     time.sleep(1)
-                # print(f'{chunk.result_file} is ready')
+                #         if logger.is_info_enabled():
+                #             logger.info(f'{chunk.result_file} is ready')
 
                 chunk_line_number = 0
                 with op(chunk.result_file, 'rt', encoding='utf-8') as cf:
@@ -170,10 +183,14 @@ class PredictHelper(object):
                         rf.write(line)
                         line = cf.readline()
                         chunk_line_number += 1
-                print(f'[Merge] merge {chunk.result_file} into {result_file}, line number is {chunk_line_number}')
+                if logger.is_info_enabled():
+                    msg = f'[Merge] merge {chunk.result_file} into {result_file}, line number is {chunk_line_number}'
+                    logger.info(msg)
                 total_line_number += chunk_line_number
 
                 chunk_index += 1
             rf.flush()
 
-        print(f'[Merge] >>> all chunk is merged into  {result_file}, total line number is {total_line_number}')
+        if logger.is_info_enabled():
+            msg = '[Merge] >>> all chunk is merged into  {result_file}, total line number is {total_line_number}'
+            logger.info(msg)

@@ -7,6 +7,9 @@ from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trail
 from ..utils.common import config
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 _search_counter = 0
 
@@ -35,7 +38,9 @@ class DriverDispatcher(Dispatcher):
                     # estimator = hyper_model._get_estimator(item.space_sample)
                     # hyper_model.best_model = estimator.model  # fixme, load model from executor disk?
                     hyper_model.best_space = item.space_sample
-                    print(f'>>>improved: reward={item.reward}, trail_no={item.trail_no}, space_id={item.space_id}')
+                    if logger.is_info_enabled():
+                        logger.info(
+                            f'>>>improved: reward={item.reward}, trail_no={item.trail_no}, space_id={item.space_id}')
                 hyper_model.searcher.update_result(item.space_sample, item.reward)
 
                 if trail_store is not None:
@@ -68,7 +73,8 @@ class DriverDispatcher(Dispatcher):
             _search_counter += 1
             search_id = 'search-%02d' % _search_counter
 
-        print(f'start driver server at {self.address}')
+        if logger.is_info_enabled():
+            logger.info(f'start driver server at {self.address}')
         server, search_service = get_or_serve(self.address,
                                               search_id,
                                               self.spaces_dir,
@@ -86,7 +92,8 @@ class DriverDispatcher(Dispatcher):
             space_sample = hyper_model.searcher.sample()
             if hyper_model.history.is_existed(space_sample):
                 if retry_counter >= 1000:
-                    print(f'Unable to take valid sample and exceed the retry limit 1000.')
+                    if logger.is_info_enabled():
+                        logger.info(f'Unable to take valid sample and exceed the retry limit 1000.')
                     break
                 trail = hyper_model.history.get_trail(space_sample)
                 for callback in hyper_model.callbacks:
@@ -138,31 +145,36 @@ class DriverDispatcher(Dispatcher):
                 do_clean()
                 return trail_no
             except Exception as e:
-                import sys
-                import traceback
-                msg = f'{e.__class__.__name__}: {e}'
-                print(f'{">" * 20} Trail failed! {"<" * 20}')
-                print(msg + '\n' + traceback.format_exc(), file=sys.stderr)
-                print('*' * 50)
+                if logger.is_warning_enabled():
+                    import sys
+                    import traceback
+                    msg = f'{e.__class__.__name__}: {e}'
+                    logger.warning(f'{">" * 20} Trail failed! {"<" * 20}')
+                    logger.warning(msg + '\n' + traceback.format_exc())
+                    logger.warning('*' * 50)
             finally:
                 trail_no += 1
                 retry_counter = 0
-
-        print("-" * 20, 'no more space to search, waiting trails ...')
+        if logger.is_info_enabled():
+            logger.info("-" * 20 + 'no more space to search, waiting trails ...')
         try:
             while search_service.running_size() > 0:
-                # print(f"wait ... {search_service.running_size()} samples found.")
+                # if logger.is_info_enabled():
+                #    logger.info(f"wait ... {search_service.running_size()} samples found.")
                 time.sleep(0.1)
         except KeyboardInterrupt:
             return trail_no
         finally:
             do_clean()
-        print("-" * 20, 'all trails done', '-' * 20)
+
+        if logger.is_info_enabled():
+            logger.info('-' * 20 + 'all trails done' + '-' * 20)
 
         # run best trail
         if hyper_model.best_space:
             space_sample = hyper_model.best_space
-            print(f'run trial with best space {space_sample.space_id} in driver')
+            if logger.is_info_enabled():
+                logger.info(f'run trial with best space {space_sample.space_id} in driver')
             start_at = time.time()
             trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, **fit_kwargs)
             done_at = time.time()
@@ -171,8 +183,10 @@ class DriverDispatcher(Dispatcher):
 
             assert hyper_model.last_model
             hyper_model.best_model = hyper_model.last_model
-            print(f'best model reward: {trail.reward}, elapsed={elapsed}, total elapsed={total_elapsed}')
+            if logger.is_info_enabled():
+                logger.info(f'best model reward: {trail.reward}, elapsed={elapsed}, total elapsed={total_elapsed}')
         else:
-            print(f'not found best space.')
+            if logger.is_info_enabled():
+                logger.info(f'not found best space.')
 
         return trail_no

@@ -10,6 +10,9 @@ import grpc
 from .proto import spec_pb2_grpc
 from .proto.spec_pb2 import SearchResponse, PingMessage
 from ...utils.common import config
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class TrailItem(object):
@@ -61,7 +64,8 @@ class SearchHolder(object):
         item = TrailItem(trail_no, space_file, space_sample)
 
         detail = f'trail_no={item.trail_no}, space_id={item.space_id}, space_file={space_file}'
-        print(f'[{self.search_id}] [search]', detail)
+        if logger.is_info_enabled():
+            logger.info(f'[{self.search_id}] [search] {detail}')
 
         self.queued_pool.put(item)
         self.all_items[space_id] = item
@@ -73,14 +77,17 @@ class SearchHolder(object):
 
         detail = f'trail_no={item.trail_no}' \
                  + f', space_id={item.space_id}, space_file={space_file}'
-        print(f'[{self.search_id}] [re-push]', detail)
+        if logger.is_info_enabled():
+            logger.info(f'[{self.search_id}] [re-push] {detail}')
 
         if space_id in self.running_items.keys():
-            print(f'[remove running] {detail}')
+            if logger.is_info_enabled():
+                logger.info(f'[remove running] {detail}')
             self.running_items.pop(space_id)
 
         if space_id in self.reported_items.keys():
-            print(f'[remove reported] {detail}')
+            if logger.is_info_enabled():
+                logger.info(f'[remove reported] {detail}')
             self.reported_items.pop(space_id)
 
         self.queued_pool.put(item)
@@ -103,7 +110,8 @@ class SearchHolder(object):
                 item.start_at = time.time()
                 detail = f'trail_no={item.trail_no}, space_id={item.space_id}' \
                          + f',space_file={item.space_file}'
-                print(f'[{self.search_id}] [dispatch] [{peer}]', detail)
+                if logger.is_info_enabled():
+                    logger.info(f'[{self.search_id}] [dispatch] [{peer}] {detail}')
                 return item
             except queue.Empty:
                 time.sleep(0.1)
@@ -125,7 +133,7 @@ class SearchHolder(object):
 
         if space_id not in self.running_items.keys():
             msg = f'[{self.search_id}] [ignored-not running-report] [{peer}] {detail}'
-            print(msg, file=sys.stderr)
+            logger.warning(msg)
         else:
             item.success = success
             item.reward = reward
@@ -135,7 +143,8 @@ class SearchHolder(object):
             self.running_items.pop(space_id)
             self.reported_items[space_id] = item
 
-            print(f'[{self.search_id}] [report] [{peer}] {detail}')
+            if logger.is_info_enabled():
+                logger.info(f'[{self.search_id}] [report] [{peer}] {detail}')
 
             if self.on_report:
                 try:
@@ -167,7 +176,8 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
     def ping(self, request, context):
         peer = context.peer()
         message = request.message
-        print(f'[ping] [{peer}] {message}')
+        if logger.is_info_enabled():
+            logger.info(f'[ping] [{peer}] {message}')
         return PingMessage(message=message)
 
     def search(self, request_iterator, context):
@@ -245,12 +255,12 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
             trace_detail = traceback.format_exc()
             try:
                 msg = f'RpcError {peer} {e.__class__.__name__}: {e.code()}'
-                print(msg, file=sys.stderr)
+                logger.warning(msg)
             except Exception:
                 msg = f'RpcError {peer} {e.__class__.__name__}:\n'
-                print(msg + trace_detail, file=sys.stderr)
+                logger.error(msg + trace_detail)
         except Exception as e:
-            print(f'{e.__class__.__name__}: {e}', file=sys.stderr)
+            logger.error(f'{e.__class__.__name__}: {e}')
             import traceback
             traceback.print_exc()
         finally:
@@ -264,7 +274,9 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         search_spaces_dir = f'{self.spaces_dir}/{search_id}'
         search = SearchHolder(search_id, search_spaces_dir, on_next, on_report, on_summary)
         self.searches.append(search)
-        print(f'>>>enter {search_id}')
+
+        if logger.is_info_enabled():
+            logger.info(f'>>>enter {search_id}')
 
     @property
     def current_search(self):
@@ -306,12 +318,16 @@ class DriverStatusThread(Thread):
                 import traceback
                 traceback.print_exc()
 
-        print('SearchDriverService shutdown')
+        if logger.is_info_enabled():
+            logger.info('SearchDriverService shutdown')
 
     def stop(self):
         self.running = False
 
     def report_summary(self):
+        if not logger.is_info_enabled():
+            return
+
         search = self.service.current_search
         search_id = search.search_id
         total = len(search.all_items)
@@ -329,7 +345,7 @@ class DriverStatusThread(Thread):
             if service_summary:
                 msg += '\n\t' + service_summary
 
-        print(msg)
+        logger.info(msg)
 
 
 _grpc_servers = {}  # add -> tuple(grpc_server, driver_service)

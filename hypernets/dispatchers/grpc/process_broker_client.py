@@ -5,6 +5,9 @@ import grpc
 
 from .proto import proc_pb2_grpc
 from .proto.proc_pb2 import DataChunk, ProcessRequest, DownloadRequest
+from ...utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class ProcessBrokerClient(object):
@@ -63,7 +66,7 @@ class ProcessBrokerClient(object):
                 if fn:
                     fn(chunk.data)
                 else:
-                    print(f'unexpected chunk kind: {chunk.kind}', file=sys.stderr)
+                    logger.warning(f'unexpected chunk kind: {chunk.kind}')
                 ack = chunk.kind != DataChunk.END
                 ack_queue.put(ack)
             if 'code' in result.keys():
@@ -76,11 +79,11 @@ class ProcessBrokerClient(object):
         except grpc.RpcError as e:
             try:
                 msg = f'RpcError {e.__class__.__name__}: {e.code()}'
-                print(msg, file=sys.stderr)
+                logger.error(msg)
             except Exception:
                 import traceback
                 msg = f'[GRPC {self.server}] {e.__class__.__name__}:\n'
-                print(msg + traceback.format_exc(), file=sys.stderr)
+                logger.error(msg + traceback.format_exc())
             return 99
 
     def download(self, remote_file_path, local_file_object, buffer_size=-1):
@@ -114,10 +117,10 @@ class ProcessBrokerClient(object):
         except grpc.RpcError as e:
             try:
                 msg = f'RpcError {e.__class__.__name__}: {e.code()}'
-                print(msg, file=sys.stderr)
+                logger.error(msg)
             except Exception:
                 import traceback
                 msg = f'[GRPC {self.server}] {e.__class__.__name__}:\n'
-                print(msg + traceback.format_exc(), file=sys.stderr)
+                logger.error(msg + traceback.format_exc())
 
             raise Exception(msg)

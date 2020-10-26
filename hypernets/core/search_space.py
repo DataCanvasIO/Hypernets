@@ -13,6 +13,9 @@ import time
 from collections import OrderedDict
 from .mutables import Mutable, MutableScope
 from ..utils.common import generate_id, combinations
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class HyperNode(Mutable):
@@ -107,7 +110,8 @@ class HyperSpace(Mutable):
 
         self.traverse(compile_module, direction='forward')
         end_ts = time.time()
-        print(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
+        if logger.is_info_enabled():
+            logger.info(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
         self._is_compiled = True
         self._outputs = set(space_out)
 
@@ -129,7 +133,8 @@ class HyperSpace(Mutable):
 
         self.traverse(forward_module, direction='forward')
         end_ts = time.time()
-        print(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
+        if logger.is_info_enabled():
+            logger.info(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
         outputs = [output.output for output in self.get_outputs()]
         return outputs
 

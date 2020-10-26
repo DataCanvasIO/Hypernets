@@ -5,6 +5,9 @@ __author__ = 'yangjian'
 """
 from lightgbm import LGBMRegressor
 import numpy as np
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class MetaLearner(object):
@@ -14,7 +17,9 @@ class MetaLearner(object):
         self.history = history
         self.regressors = {}
         self.store_history = {}
-        print(f'Initialize Meta Learner: dataset_id:{dataset_id}')
+
+        if logger.is_info_enabled():
+            logger.info(f'Initialize Meta Learner: dataset_id:{dataset_id}')
 
     def new_sample(self, space_sample):
         self.fit(space_sample.signature)
@@ -49,7 +54,8 @@ class MetaLearner(object):
         if len(x) >= 2:
             regressor = LGBMRegressor()
             regressor.fit(x, y)
-            #print(regressor.predict(x))
+            #  if logger.is_info_enabled():
+            #      logger.info(regressor.predict(x))
             self.regressors[space_signature] = regressor
 
     def predict(self, space_sample, default_value=np.inf):

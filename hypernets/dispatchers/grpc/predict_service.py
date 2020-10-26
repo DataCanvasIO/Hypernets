@@ -1,8 +1,11 @@
+import time
+
 from .proto import predict_pb2_grpc
 from .proto.predict_pb2 import PredictResponse
 from ..ssh.local_process import LocalProcess
+from ...utils import logging
 
-import time
+logger = logging.get_logger(__name__)
 
 
 class PredictService(predict_pb2_grpc.PredictServiceServicer):
@@ -18,7 +21,8 @@ class PredictService(predict_pb2_grpc.PredictServiceServicer):
 
         start_at = time.time()
 
-        print(f'predict {data_file} --> {result_file}', end='')
+        if logger.is_info_enabled():
+            print(f'predict {data_file} --> {result_file}', end='')
 
         cmd = f'{self.cmd} {data_file} {result_file}'
         p = LocalProcess(cmd, None, None, None)
@@ -29,7 +33,8 @@ class PredictService(predict_pb2_grpc.PredictServiceServicer):
         res = PredictResponse(data_file=data_file, result_file=result_file, code=code)
 
         done_at = time.time()
-        print(' done, elapsed %.3f seconds.' % (done_at - start_at))
+        if logger.is_info_enabled():
+            print(' done, elapsed %.3f seconds.' % (done_at - start_at))
         return res
 
 
@@ -37,7 +42,8 @@ def serve(addr, cmd):
     import grpc
     from concurrent import futures
 
-    print(f'start predict service at {addr}')
+    if logger.is_info_enabled():
+        logger.info(f'start predict service at {addr}')
     service = PredictService(cmd)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     predict_pb2_grpc.add_PredictServiceServicer_to_server(service, server)

@@ -3,6 +3,9 @@
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import *
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class InProcessDispatcher(Dispatcher):
@@ -66,9 +69,11 @@ class InProcessDispatcher(Dispatcher):
                     for callback in hyper_model.callbacks:
                         callback.on_trail_error(hyper_model, space_sample, trail_no)
 
-                print(f'----------------------------------------------------------------')
-                print(f'space signatures: {hyper_model.history.get_space_signatures()}')
-                print(f'----------------------------------------------------------------')
+                if logger.is_info_enabled():
+                    logger.info(f'----------------------------------------------------------------')
+                    logger.info(f'space signatures: \n{hyper_model.history.get_space_signatures()}')
+                    logger.info(f'----------------------------------------------------------------')
+
                 if trail_store is not None:
                     trail_store.put(dataset_id, trail)
 
@@ -79,9 +84,9 @@ class InProcessDispatcher(Dispatcher):
                 import sys
                 import traceback
                 msg = f'{e.__class__.__name__}: {e}'
-                print(f'{">" * 20} Trail failed! {"<" * 20}')
-                print(msg + '\n' + traceback.format_exc(), file=sys.stderr)
-                print('*' * 50)
+                logger.error(f'{">" * 20} Trail failed! {"<" * 20}')
+                logger.error(msg + '\n' + traceback.format_exc())
+                logger.error('*' * 50)
             finally:
                 trail_no += 1
                 retry_counter = 0
