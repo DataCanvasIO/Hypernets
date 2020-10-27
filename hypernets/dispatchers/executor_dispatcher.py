@@ -77,7 +77,7 @@ class ExecutorDispatcher(Dispatcher):
                         # callback.on_build_estimator(hyper_model, space_sample, estimator, trail_no)
                         callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
-                    trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
+                    trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, None, **fit_kwargs)
                     if trail.reward != 0:
                         improved = hyper_model.history.append(trail)
                         if improved:
