@@ -4,14 +4,22 @@ from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import *
 from ..utils import logging
+from ..utils.common import config
+import time
 
 logger = logging.get_logger(__name__)
+
+_model_root = config('model_path', 'models')
 
 
 class InProcessDispatcher(Dispatcher):
 
     def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
+
+        experiment = time.strftime('%Y%m%d%H%M%S')
+        experiment_model_root = f'{_model_root}/{experiment}'
+        os.makedirs(experiment_model_root, exist_ok=True)
 
         trail_no = 1
         retry_counter = 0
@@ -55,9 +63,10 @@ class InProcessDispatcher(Dispatcher):
                     # callback.on_build_estimator(hyper_model, space_sample, estimator, trail_no) #fixme
                     callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
-                trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
+                model_file = '%s/%05d_%s.pkl' % (experiment_model_root, trail_no, space_sample.space_id)
+                trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
 
-                if trail.reward != 0:
+                if trail.reward != 0:  # success
                     improved = hyper_model.history.append(trail)
                     if improved:
                         hyper_model.best_model = hyper_model.last_model

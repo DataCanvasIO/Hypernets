@@ -2,11 +2,12 @@
 """
 
 """
-from ..core.searcher import OptimizeDirection
 import datetime
 import os
 import pickle
 import shutil
+
+from ..core.searcher import OptimizeDirection
 
 
 class Trail():
@@ -109,8 +110,9 @@ class TrailHistory():
         with open(filepath, 'w') as output:
             output.write(f'{self.optimize_direction}\r\n')
             for trail in self.history:
-                output.write(f'{trail.trail_no}|{trail.space_sample.vectors}|{trail.reward}|{trail.elapsed}\r\n')
-        return True
+                data = f'{trail.trail_no}|{trail.space_sample.vectors}|{trail.reward}|{trail.elapsed}' + \
+                       f'|{trail.model_file if trail.model_file else ""}\r\n'
+                output.write(data)
 
     @staticmethod
     def load_history(space_fn, filepath):
@@ -122,13 +124,17 @@ class TrailHistory():
                 if line.strip() == '':
                     continue
                 fields = line.split('|')
-                assert len(fields) == 4, f'Trail format is not correct. \r\nline:[{line}]'
+                assert len(fields) >= 4, f'Trail format is not correct. \r\nline:[{line}]'
                 sample = space_fn()
                 vector = [float(n) if n.__contains__('.') else int(n) for n in
                           fields[1].replace('[', '').replace(']', '').split(',')]
                 sample.assign_by_vectors(vector)
+                if len(fields) > 4:
+                    model_file = fields[4]
+                else:
+                    model_file = None
                 trail = Trail(space_sample=sample, trail_no=int(fields[0]), reward=float(fields[2]),
-                              elapsed=float(fields[3]))
+                              elapsed=float(fields[3]), model_file=model_file)
                 history.append(trail)
             return history
 
@@ -252,7 +258,11 @@ class DiskTrailStore(TrailStore):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         with open(path, 'wb') as f:
-            temp = Trail(space_sample=None, trail_no=trail.trail_no, reward=trail.reward, elapsed=trail.elapsed)
+            temp = Trail(space_sample=None,
+                         trail_no=trail.trail_no,
+                         reward=trail.reward,
+                         elapsed=trail.elapsed,
+                         model_file=trail.model_file)
             temp.space_sample_vectors = trail.space_sample.vectors
             pickle.dump(temp, f)
 

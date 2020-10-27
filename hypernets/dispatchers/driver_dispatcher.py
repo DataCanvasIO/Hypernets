@@ -176,7 +176,7 @@ class DriverDispatcher(Dispatcher):
             if logger.is_info_enabled():
                 logger.info(f'run trial with best space {space_sample.space_id} in driver')
             start_at = time.time()
-            trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, **fit_kwargs)
+            trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, None, **fit_kwargs)
             done_at = time.time()
             elapsed = done_at - start_at
             total_elapsed = done_at - search_start_at

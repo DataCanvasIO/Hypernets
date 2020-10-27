@@ -29,10 +29,10 @@ class HyperModel():
     def _get_estimator(self, space_sample):
         raise NotImplementedError
 
-    def load_estimator(self, trail):
+    def load_estimator(self, model_file):
         raise NotImplementedError
 
-    def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs):
+    def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs):
 
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
@@ -53,10 +53,15 @@ class HyperModel():
         if fit_succeed:
             metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
             reward = self._get_reward(metrics, self.reward_metric)
+
+            if model_file is None or len(model_file) == 0:
+                model_file = '%05d_%s.pkl' % (trail_no, space_sample.space_id)
+            estimator.save(model_file)
+
             elapsed = time.time() - start_time
 
             self.last_model = estimator
-            trail = Trail(space_sample, trail_no, reward, elapsed)
+            trail = Trail(space_sample, trail_no, reward, elapsed, model_file)
 
             # improved = self.history.append(trail)
             # if improved:
