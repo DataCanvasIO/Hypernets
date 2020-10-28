@@ -10,7 +10,6 @@ from __future__ import division
 from __future__ import print_function
 
 import logging as _logging
-import os as _os
 import sys as _sys
 import traceback as _traceback
 from logging import DEBUG
@@ -49,6 +48,12 @@ class CustomizedLogFormatter(_logging.Formatter):
     def formatMessage(self, record):
         if self.with_simple_name:
             record.sname = self.get_simple_name(record.name)
+
+        if isinstance(record.msg, Exception):
+            ex = record.msg
+            lines = _traceback.format_exception(type(ex), ex, ex.__traceback__)
+            record.message = lines[-1] + ''.join(lines[:-1])
+
         return super(CustomizedLogFormatter, self).formatMessage(record)
 
     @staticmethod
@@ -90,6 +95,7 @@ class CustomizedLogger(_logging.Logger):
 
     def fatal(self, msg, *args, **kwargs):
         self.log(FATAL, msg, *args, **kwargs)
+        self.exception()
 
     def error(self, msg, *args, **kwargs):
         self.log(ERROR, msg, *args, **kwargs)
