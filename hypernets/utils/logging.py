@@ -1,4 +1,6 @@
-"""Logging utilities."""
+"""
+Logging utilities, adapted from tf_logging
+"""
 
 # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order
@@ -18,29 +20,36 @@ from logging import INFO
 from logging import WARN
 
 # settings
-_LOG_NAME = _os.environ.get('HYN_LOG_NAME', 'hypernets')
-_LOG_LEVEL = _os.environ.get('HYN_LOG_LEVEL', 'INFO')
-_LOG_FORMAT = _os.environ.get(
-    'HYN_LOG_FORMAT',
-    # '%(name)s %(levelname).1s%(asctime)s.%(msecs)d %(filename)s %(lineno)d - %(message)s'
-    '%(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
-    # '%(module)s %(levelname).1s %(filename)s %(lineno)d - %(message)s'
-)
+_log_level = INFO
+
+# _log_format = '%(name)s %(levelname).1s%(asctime)s.%(msecs)d %(filename)s %(lineno)d - %(message)s'
+# _log_format = '%(module)s %(levelname).1s %(filename)s %(lineno)d - %(message)s'
+_log_format = '%(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
+
 # _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-_DATE_FORMAT = _os.environ.get('HYN_LOG_DATE_FORMAT', '%m%d %H:%M:%S')
+_data_format = '%m%d %H:%M:%S'
+
+# detect code run in interactive mode or not
+_interactive = False
+try:
+    # This is only defined in interactive shells.
+    if _sys.ps1: _interactive = True
+except AttributeError:
+    # Even now, we may be in an interactive shell with `python -i`.
+    _interactive = _sys.flags.interactive
 
 
-class MyLogFormatter(_logging.Formatter):
+class CustomizedLogFormatter(_logging.Formatter):
 
     def __init__(self, fmt=None, datefmt=None, style='%'):
-        super(MyLogFormatter, self).__init__(fmt, datefmt, style)
+        super(CustomizedLogFormatter, self).__init__(fmt, datefmt, style)
 
         self.with_simple_name = fmt.find(style + '(sname)') >= 0
 
     def formatMessage(self, record):
         if self.with_simple_name:
             record.sname = self.get_simple_name(record.name)
-        return super(MyLogFormatter, self).formatMessage(record)
+        return super(CustomizedLogFormatter, self).formatMessage(record)
 
     @staticmethod
     def get_simple_name(name):
@@ -53,46 +62,31 @@ class MyLogFormatter(_logging.Formatter):
         return '.'.join(names)
 
 
-class MyLogger(_logging.getLoggerClass()):
+class CustomizedLogger(_logging.Logger):
     FATAL = FATAL
     ERROR = ERROR
     INFO = INFO
     DEBUG = DEBUG
     WARN = WARN
 
-    def __init__(self, name, level=_LOG_LEVEL) -> None:
-        super(MyLogger, self).__init__(name, level)
+    def __init__(self, name, level=_log_level) -> None:
+        super(CustomizedLogger, self).__init__(name, level)
 
         self.findCaller = _logger_find_caller
-        self.setLevel(_LOG_LEVEL)
+        self.setLevel(_log_level)
 
-        # Don't further configure the TensorFlow logger if the root logger is
+        # Don't further configure the logger if the root logger is
         # already configured. This prevents double logging in those cases.
         if not _logging.getLogger().handlers:
-            # Determine whether we are in an interactive environment
-            _interactive = False
-            try:
-                # This is only defined in interactive shells.
-                if _sys.ps1: _interactive = True
-            except AttributeError:
-                # Even now, we may be in an interactive shell with `python -i`.
-                _interactive = _sys.flags.interactive
-
-            # If we are in an interactive environment (like Jupyter), set loglevel
-            # to INFO and pipe the output to stdout.
-            if _interactive:
-                _logging_target = _sys.stdout
-            else:
-                _logging_target = _sys.stderr
-
             # Add the output handler.
-            _handler = _logging.StreamHandler(_logging_target)
+            stream = _sys.stdout if _interactive else _sys.stderr
+            handler = _logging.StreamHandler(stream)
             # _handler.setFormatter(_logging.Formatter(_logging.BASIC_FORMAT, None))
-            _handler.setFormatter(MyLogFormatter(_LOG_FORMAT, _DATE_FORMAT))
-            self.addHandler(_handler)
+            handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            self.addHandler(handler)
 
     def log(self, level, msg, *args, **kwargs):
-        super(MyLogger, self).log(level, msg, *args, **kwargs)
+        super(CustomizedLogger, self).log(level, msg, *args, **kwargs)
 
     def fatal(self, msg, *args, **kwargs):
         self.log(FATAL, msg, *args, **kwargs)
@@ -111,7 +105,10 @@ class MyLogger(_logging.getLoggerClass()):
 
     def log_if(self, level, msg, condition, *args):
         """Log 'msg % args' at level 'level' only if condition is fulfilled."""
-        if condition:
+        if callable(condition):
+            if condition():
+                self.log(level, msg, *args)
+        elif condition:
             self.log(level, msg, *args)
 
     def log_every_n(self, level, msg, n, *args):
@@ -153,27 +150,29 @@ class MyLogger(_logging.getLoggerClass()):
         return self.isEnabledFor(WARN)
 
 
-_logging.setLoggerClass(MyLogger)
+def get_logger(name):
+    original_logger_class = _logging.getLoggerClass()
+    _logging.setLoggerClass(CustomizedLogger)
+    logger = _logging.getLogger(name)
+    _logging.setLoggerClass(original_logger_class)
 
-
-def get_logger(name=_LOG_NAME):
-    return _logging.getLogger(name)
+    return logger
 
 
 # compatible with pylog
-def getLogger(name=_LOG_NAME):
-    return _logging.getLogger(name)
+def getLogger(name):
+    return get_logger(name)
 
 
 def get_level():
     """Return how much logging output will be produced for newer logger."""
-    return _LOG_LEVEL
+    return _log_level
 
 
 def set_level(v):
     """Sets newer logger threshold for what messages will be logged."""
-    global _LOG_LEVEL
-    _LOG_LEVEL = v
+    global _log_level
+    _log_level = v
 
 
 def _get_caller(offset=3):
@@ -197,7 +196,6 @@ def _get_caller(offset=3):
 if _sys.version_info.major >= 3 and _sys.version_info.minor >= 8:
 
     def _logger_find_caller(stack_info=False, stacklevel=1):  # pylint: disable=g-wrong-blank-lines
-        # code, frame = _get_caller(4)
         code, frame = _get_caller(4)
         sinfo = None
         if stack_info:
