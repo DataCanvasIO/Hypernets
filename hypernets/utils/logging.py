@@ -10,7 +10,6 @@ from __future__ import division
 from __future__ import print_function
 
 import logging as _logging
-import os as _os
 import sys as _sys
 import traceback as _traceback
 from logging import DEBUG
@@ -29,14 +28,15 @@ _log_format = '%(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
 # _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _data_format = '%m%d %H:%M:%S'
 
-# detect code run in interactive mode or not
-_interactive = False
-try:
-    # This is only defined in interactive shells.
-    if _sys.ps1: _interactive = True
-except AttributeError:
-    # Even now, we may be in an interactive shell with `python -i`.
-    _interactive = _sys.flags.interactive
+
+# # detect code run in interactive mode or not
+# _interactive = False
+# try:
+#     # This is only defined in interactive shells.
+#     if _sys.ps1: _interactive = True
+# except AttributeError:
+#     # Even now, we may be in an interactive shell with `python -i`.
+#     _interactive = _sys.flags.interactive
 
 
 class CustomizedLogFormatter(_logging.Formatter):
@@ -49,6 +49,12 @@ class CustomizedLogFormatter(_logging.Formatter):
     def formatMessage(self, record):
         if self.with_simple_name:
             record.sname = self.get_simple_name(record.name)
+
+        if isinstance(record.msg, Exception):
+            ex = record.msg
+            lines = _traceback.format_exception(type(ex), ex, ex.__traceback__)
+            record.message = lines[-1] + ''.join(lines[:-1])
+
         return super(CustomizedLogFormatter, self).formatMessage(record)
 
     @staticmethod
@@ -77,19 +83,29 @@ class CustomizedLogger(_logging.Logger):
 
         # Don't further configure the logger if the root logger is
         # already configured. This prevents double logging in those cases.
-        if not _logging.getLogger().handlers:
-            # Add the output handler.
-            stream = _sys.stdout if _interactive else _sys.stderr
-            handler = _logging.StreamHandler(stream)
-            # _handler.setFormatter(_logging.Formatter(_logging.BASIC_FORMAT, None))
-            handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
-            self.addHandler(handler)
+        if not self.handlers:
+            # # Add the output handler.
+            # stream = _sys.stdout if _interactive else _sys.stderr
+            # handler = _logging.StreamHandler(stream)
+            # handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            # self.addHandler(handler)
+
+            stdout_handler = _logging.StreamHandler(_sys.stdout)
+            stdout_handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            stdout_handler.addFilter(lambda rec: rec.levelno < WARN)
+            self.addHandler(stdout_handler)
+
+            stderr_handler = _logging.StreamHandler(_sys.stderr)
+            stderr_handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            stderr_handler.addFilter(lambda rec: rec.levelno >= WARN)
+            self.addHandler(stderr_handler)
 
     def log(self, level, msg, *args, **kwargs):
         super(CustomizedLogger, self).log(level, msg, *args, **kwargs)
 
     def fatal(self, msg, *args, **kwargs):
         self.log(FATAL, msg, *args, **kwargs)
+        self.exception()
 
     def error(self, msg, *args, **kwargs):
         self.log(ERROR, msg, *args, **kwargs)
