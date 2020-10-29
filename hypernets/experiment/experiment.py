@@ -86,9 +86,6 @@ class GeneralExperiment(Experiment):
         max_trails :
 
         """
-        if X_eval or y_eval is None:
-            X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=eval_size,
-                                                                random_state=self.random_state, stratify=y_train)
         max_trails = kwargs.get('max_trails')
         if max_trails is None:
             max_trails = 10
