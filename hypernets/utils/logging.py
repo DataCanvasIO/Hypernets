@@ -80,6 +80,7 @@ class CustomizedLogger(_logging.Logger):
 
         self.findCaller = _logger_find_caller
         self.setLevel(_log_level)
+        self.propagate = False  # disable propagate to parent
 
         # Don't further configure the logger if the root logger is
         # already configured. This prevents double logging in those cases.
