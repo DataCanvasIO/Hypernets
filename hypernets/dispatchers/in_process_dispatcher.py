@@ -79,23 +79,24 @@ class InProcessDispatcher(Dispatcher):
                         callback.on_trail_error(hyper_model, space_sample, trail_no)
 
                 if logger.is_info_enabled():
-                    logger.info(f'----------------------------------------------------------------')
-                    logger.info(f'space signatures: \n{hyper_model.history.get_space_signatures()}')
-                    logger.info(f'----------------------------------------------------------------')
-
+                    msg = f'Trail {trail_no} done\n' \
+                          + f'----------------------------------------------------------------\n' \
+                          + f'space signatures: \n{hyper_model.history.get_space_signatures()}\n' \
+                          + f'----------------------------------------------------------------'
+                    logger.info(msg)
                 if trail_store is not None:
                     trail_store.put(dataset_id, trail)
-
             except EarlyStoppingError:
                 break
                 # TODO: early stopping
             except Exception as e:
                 import sys
                 import traceback
-                msg = f'{e.__class__.__name__}: {e}'
-                logger.error(f'{">" * 20} Trail failed! {"<" * 20}')
-                logger.error(msg + '\n' + traceback.format_exc())
-                logger.error('*' * 50)
+                msg = f'{">" * 20} Trail {trail_no} failed! {"<" * 20}\n' \
+                      + f'{e.__class__.__name__}: {e}\n' \
+                      + traceback.format_exc() \
+                      + '*' * 50
+                logger.error(msg)
             finally:
                 trail_no += 1
                 retry_counter = 0
