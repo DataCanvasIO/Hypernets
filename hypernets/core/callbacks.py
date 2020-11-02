@@ -140,7 +140,7 @@ class SummaryCallback(Callback):
 
     def on_trail_begin(self, hyper_model, space, trail_no):
         if logger.is_info_enabled():
-            msg = f'\nTrail No:{trail_no}{space.params_summary()}\ntrail begin'
+            msg = f'\nTrail No:{trail_no}{space.params_summary()}\ntrail {trail_no} begin'
             logger.info(msg)
 
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
