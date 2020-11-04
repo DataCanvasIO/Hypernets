@@ -1,15 +1,17 @@
 # -*- coding:utf-8 -*-
 
+import os
+import time
+
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
-from ..core.trial import *
+from ..core.trial import Trail
 from ..utils import logging
 from ..utils.common import config
-import time
 
 logger = logging.get_logger(__name__)
 
-_model_root = config('model_path', 'models')
+_model_root = config('model_path', 'tmp/models')
 
 
 class InProcessDispatcher(Dispatcher):
@@ -21,25 +23,22 @@ class InProcessDispatcher(Dispatcher):
         experiment_model_root = f'{_model_root}/{experiment}'
         os.makedirs(experiment_model_root, exist_ok=True)
 
+        retry_limit = int(config('search_retry', '1000'))
+
         trail_no = 1
         retry_counter = 0
         while trail_no <= max_trails:
             space_sample = hyper_model.searcher.sample()
             if hyper_model.history.is_existed(space_sample):
-                if retry_counter >= 1000:
-                    print(f'Unable to take valid sample and exceed the retry limit 1000.')
+                if retry_counter >= retry_limit:
+                    logger.info(f'Unable to take valid sample and exceed the retry limit {retry_limit}.')
                     break
                 trail = hyper_model.history.get_trail(space_sample)
                 for callback in hyper_model.callbacks:
-                    callback.on_skip_trail(hyper_model, space_sample, trail_no, 'trail_exsited', trail.reward, False,
+                    callback.on_skip_trail(hyper_model, space_sample, trail_no, 'trail_existed', trail.reward, False,
                                            trail.elapsed)
                 retry_counter += 1
                 continue
-            # for testing
-            # space_sample = self.searcher.space_fn()
-            # trails = self.trail_store.get_all(dataset_id, space_sample1.signature)
-            # space_sample.assign_by_vectors(trails[0].space_sample_vectors)
-            # space_sample.space_id = space_sample1.space_id
 
             try:
                 if trail_store is not None:
@@ -64,7 +63,10 @@ class InProcessDispatcher(Dispatcher):
                     callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
                 model_file = '%s/%05d_%s.pkl' % (experiment_model_root, trail_no, space_sample.space_id)
+                start_at = time.time()
                 trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
+                done_at = time.time()
+                logger.info('*' * 20 + ' elapsed %.3f seconds' % (done_at - start_at))
 
                 if trail.reward != 0:  # success
                     improved = hyper_model.history.append(trail)

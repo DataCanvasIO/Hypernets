@@ -3,39 +3,14 @@
 import sys
 from multiprocessing import Process, Value as PValue, current_process
 from os.path import getsize
-from threading import Thread, Lock
+from threading import Thread
 
 from paramiko import SSHClient, AutoAddPolicy
 
 from ...utils import logging
+from ...utils.common import Counter
 
 logger = logging.get_logger(__name__)
-
-
-class Counter(object):
-    def __init__(self):
-        super(Counter, self).__init__()
-        self._value = 0
-        self._lock = Lock()
-
-    @property
-    def value(self):
-        return self._value
-
-    def __call__(self, *args, **kwargs):
-        with self._lock:
-            self._value += 1
-            return self._value
-
-    def inc(self, step=1):
-        with self._lock:
-            self._value += step
-            return self._value
-
-    def reset(self):
-        with self._lock:
-            self._value = 0
-            return self._value
 
 
 class DumpFileThread(Thread):

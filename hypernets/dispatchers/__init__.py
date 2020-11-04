@@ -5,6 +5,16 @@ from ..utils.common import config
 
 def get_dispatcher(hyper_model, **kwargs):
     if hyper_model.searcher.parallelizable:
+        cluster = config('cluster', 'standalone')
+        if cluster == 'dask':
+            from dask.distributed import Client
+            # client = Client("tcp://127.0.0.1:55208")
+            # client = Client(processes=False, threads_per_worker=5, n_workers=1, memory_limit='4GB')
+            Client()  # detect env: DASK_SCHEDULER_ADDRESS
+
+            from .dask_dispatcher import DaskDispatcher
+            return DaskDispatcher()
+
         role = config('role', 'standalone')
         driver_address = config('driver')
         if role == 'driver':
