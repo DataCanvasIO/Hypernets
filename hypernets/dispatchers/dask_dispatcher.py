@@ -184,9 +184,6 @@ class DaskDispatcher(Dispatcher):
 
             if trail_item.reward != 0 and not math.isnan(trail_item.reward):  # success
                 improved = hyper_model.history.append(trail_item)
-                # if improved:
-                #     hyper_model.best_model = hyper_model.last_model
-
                 for callback in hyper_model.callbacks:
                     callback.on_trail_end(hyper_model, trail_item.space_sample,
                                           trail_item.trail_no, trail_item.reward,
@@ -242,8 +239,6 @@ class DaskDispatcher(Dispatcher):
                         elapsed = trail.elapsed
                         trail = Trail(space_sample, trail_no, reward, elapsed)
                         improved = hyper_model.history.append(trail)
-                        if improved:
-                            hyper_model.best_model = None
                         hyper_model.searcher.update_result(space_sample, reward)
                         for callback in hyper_model.callbacks:
                             callback.on_skip_trail(hyper_model, space_sample, trail_no, 'hit_trail_store', reward,

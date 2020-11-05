@@ -73,7 +73,7 @@ x = np.random.randint(0, 10000, size=(100, 10))
 y = np.random.randint(0, 2, size=(100), dtype='int')
 
 hk.search(x, y, x, y, max_trails=10)
-assert hk.best_model
+assert hk.get_best_trail()
 
 ```
 
@@ -98,8 +98,8 @@ y_train = X_train.pop('y')
 y_test = X_test.pop('y')
 
 hk.search(X_train, y_train, X_test, y_test, max_trails=30)
-assert hk.best_model
 best_trial = hk.get_best_trail()
+assert best_trial
 
 estimator = hk.final_train(best_trial.space_sample, X_train, y_train)
 score = estimator.predict(X_test)
@@ -141,8 +141,8 @@ y = df_train.pop(14)
 y_test = df_test.pop(14)
 
 hdt.search(df_train, y, df_test, y_test, max_trails=100, batch_size=256, epochs=10, verbose=1, )
-assert hdt.best_model
 best_trial = hdt.get_best_trail()
+assert best_trial
 ```
 
 

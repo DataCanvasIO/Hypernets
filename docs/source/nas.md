@@ -85,7 +85,7 @@ x = np.random.randint(0, 10000, size=(100, 10))
 y = np.random.randint(0, 2, size=(100), dtype='int')
 
 hk.search(x, y, x, y, max_trails=3)
-assert hk.best_model
+assert hk.get_best_trail()
 ```
 
 ## Define A CNN Search Space
@@ -183,7 +183,7 @@ y_train = tf.keras.utils.to_categorical(y_train)
 y_test = tf.keras.utils.to_categorical(y_test)
 
 hk.search(x_train, y_train, x_test, y_test, max_trails=10, epochs=10)
-assert hk.best_model
+assert hk.get_best_trail()
 ```
 
 ## Define An ENAS Micro Search Space
@@ -415,7 +415,7 @@ print("Number of original test examples:", len(x_test))
 samples = 10000
 hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
           max_trails=10, epochs=3)
-assert hk.best_model
+assert hk.get_best_trail()
 ```
 
 

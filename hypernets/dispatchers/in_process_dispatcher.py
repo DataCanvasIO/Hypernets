@@ -48,8 +48,6 @@ class InProcessDispatcher(Dispatcher):
                         elapsed = trail.elapsed
                         trail = Trail(space_sample, trail_no, reward, elapsed)
                         improved = hyper_model.history.append(trail)
-                        if improved:
-                            hyper_model.best_model = None
                         hyper_model.searcher.update_result(space_sample, reward)
                         for callback in hyper_model.callbacks:
                             callback.on_skip_trail(hyper_model, space_sample, trail_no, 'hit_trail_store', reward,
@@ -70,9 +68,6 @@ class InProcessDispatcher(Dispatcher):
 
                 if trail.reward != 0:  # success
                     improved = hyper_model.history.append(trail)
-                    if improved:
-                        hyper_model.best_model = hyper_model.last_model
-
                     for callback in hyper_model.callbacks:
                         callback.on_trail_end(hyper_model, space_sample, trail_no, trail.reward,
                                               improved, trail.elapsed)
