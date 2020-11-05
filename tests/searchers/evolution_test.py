@@ -111,7 +111,7 @@ class Test_Evolution():
     #     x = [x1, x2, x3]
     #
     #     hk.search(x, y, x, y, max_trails=10)
-    #     assert hk.best_model
+    #     assert hk.get_best_trail()
     #     best_trial = hk.get_best_trail()
     #
     #     estimator = hk.final_train(best_trial.space_sample, x, y)

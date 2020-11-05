@@ -28,8 +28,8 @@ x = np.random.randint(0, 10000, size=(100, 10))
 y = np.random.randint(0, 2, size=(100), dtype='int')
 
 hk.search(x, y, x, y, max_trails=3)
-assert hk.best_model
 best_trial = hk.get_best_trail()
+assert best_trial
 
 estimator = hk.final_train(best_trial.space_sample, x, y)
 score = estimator.predict(x)

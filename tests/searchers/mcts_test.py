@@ -139,7 +139,7 @@ class Test_MCTS():
     #     y = np.random.randint(0, 2, size=(100), dtype='int')
     #
     #     hk.search(x, y, x, y, max_trails=10)
-    #     assert hk.best_model
+    #     assert hk.get_best_trail()
     #     best_trial = hk.get_best_trail()
     #
     #     estimator = hk.final_train(best_trial.space_sample, x, y)

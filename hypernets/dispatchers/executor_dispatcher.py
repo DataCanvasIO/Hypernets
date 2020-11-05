@@ -80,9 +80,6 @@ class ExecutorDispatcher(Dispatcher):
                     trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, None, **fit_kwargs)
                     if trail.reward != 0:
                         improved = hyper_model.history.append(trail)
-                        if improved:
-                            hyper_model.best_model = hyper_model.last_model
-
                         for callback in hyper_model.callbacks:
                             callback.on_trail_end(hyper_model, space_sample, trail_no, trail.reward,
                                                   improved, trail.elapsed)

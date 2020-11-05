@@ -23,7 +23,6 @@ class HyperModel():
         self.callbacks = callbacks
         self.reward_metric = reward_metric
         self.history = TrailHistory(searcher.optimize_direction)
-        self.best_model = None
         self.start_search_time = None
 
     def _get_estimator(self, space_sample):
@@ -60,12 +59,9 @@ class HyperModel():
 
             elapsed = time.time() - start_time
 
-            self.last_model = estimator
             trail = Trail(space_sample, trail_no, reward, elapsed, model_file)
 
             # improved = self.history.append(trail)
-            # if improved:
-            #     self.best_model = estimator.model
 
             self.searcher.update_result(space_sample, reward)
 
