@@ -8,11 +8,10 @@ from setuptools import setup
 version = '0.1.3'
 
 requirements = [
+    'numpy>=1.17.4',
     'pandas>=0.25.3',
     'scikit-learn>=0.22.1',
-    'tensorflow>=2.0.0',
-    'numpy>=1.17.4',
-    'lightgbm'
+    'lightgbm>=2.2.0'
 ]
 
 MIN_PYTHON_VERSION = '>=3.6.*'
