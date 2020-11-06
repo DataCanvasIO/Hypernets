@@ -18,6 +18,13 @@ MIN_PYTHON_VERSION = '>=3.6.*'
 
 long_description = open('README.md', encoding='utf-8').read()
 
+extras_require = {
+    'dask': ['dask', 'distributed'],
+    'ssh': ['paramiko', 'grpcio>=1.27.0', 'protobuf'],
+    'tests': ['pytest', ],
+}
+extras_require["all"] = sorted({v for req in extras_require.values() for v in req})
+
 setup(
     name='hypernets',
     version=version,
@@ -30,11 +37,7 @@ setup(
     license='Apache License 2.0',
     install_requires=requirements,
     python_requires=MIN_PYTHON_VERSION,
-    extras_require={
-        'tests': ['pytest', ],
-        'gpu': ['tensorflow-gpu==2.1.0', ]
-    },
-
+    extras_require=extras_require,
     classifiers=[
         'Operating System :: OS Independent',
         'Intended Audience :: Developers',
@@ -49,7 +52,7 @@ setup(
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    packages=find_packages(exclude=('docs', 'tests')),
+    packages=find_packages(exclude=('docs', 'tests*')),
     package_data={
     },
     zip_safe=False,
