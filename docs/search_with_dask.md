@@ -10,7 +10,7 @@ Usually, the Estimator `fit()` and `evaluate()` spend most
 CPU time. Hypernets provides the ability to parallelize Estimator
 `fit()` and `evaluate()` with the [Dask](https://dask.org/) cluster. 
 
-To turn Dask support on, you need follow these steps:
+To turn Dask support on, please do the following steps:
 1. Setup Dask local cluster or distributed cluster, 
 you can refer to the [Dask setup documents](https://docs.dask.org/en/latest/setup.html).
 1. Set Hypernets environment variable `HYN_SEARCH_BACKEND` to `dask`
