@@ -1,11 +1,11 @@
-# dask
-dask
-distributed
-
-# ssh
+# cluster dispatcher
 paramiko
 protobuf
-grpcio>=1.27.0
+grpcio>=1.24.0
+
+# dask dispatcher
+dask
+distributed
 
 # tests
 pytest

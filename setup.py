@@ -20,7 +20,7 @@ long_description = open('README.md', encoding='utf-8').read()
 
 extras_require = {
     'dask': ['dask', 'distributed'],
-    'ssh': ['paramiko', 'grpcio>=1.27.0', 'protobuf'],
+    'cluster': ['paramiko', 'grpcio>=1.24.0', 'protobuf'],
     'tests': ['pytest', ],
 }
 extras_require["all"] = sorted({v for req in extras_require.values() for v in req})

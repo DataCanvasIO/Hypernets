@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import argparse
 
-from hypernets.dispatchers.grpc.predict_service import serve
+from hypernets.dispatchers.predict.grpc.predict_service import serve
 
 
 def main():

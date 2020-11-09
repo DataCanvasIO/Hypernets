@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import argparse
 
-from hypernets.dispatchers.grpc.predict_helper import PredictHelper
+from hypernets.dispatchers.predict.predict_helper import PredictHelper
 
 
 def main():

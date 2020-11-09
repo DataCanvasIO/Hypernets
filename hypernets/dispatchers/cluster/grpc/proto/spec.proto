@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package hypernets.dispatchers.cluster.grpc.proto;
+
+
+service SearchDriver {
+  rpc ping(PingMessage) returns (PingMessage){}
+  rpc search(stream SearchRequest) returns (stream SearchResponse){}
+}
+
+message PingMessage{
+  string  message = 1;
+}
+
+message SearchRequest {
+  string search_id = 1;
+  string trail_no = 2;
+  string space_id = 3;
+  bool success = 4;
+  float reward = 5;
+  string message = 6;
+}
+
+
+message SearchResponse {
+  enum SearchResponseCode{
+    OK = 0;
+    WAITING = 11;
+    FINISHED = 12;
+    FAILED = 99;
+  }
+
+  SearchResponseCode code = 1;
+  string search_id = 2;
+  string trail_no = 3;
+  string space_id = 4;
+  string space_file = 5;
+  string model_file = 6;
+}
+

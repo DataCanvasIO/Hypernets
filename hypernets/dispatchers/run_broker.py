@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import argparse
 
-from .grpc.process_broker_service import serve
+from hypernets.dispatchers.process.grpc.process_broker_service import serve
 
 
 def main():
@@ -13,10 +13,13 @@ def main():
     parser.add_argument('--port', '-port',
                         type=int, default=8010,
                         help='broker tcp port, default 8010')
+    parser.add_argument('--workers', '-workers',
+                        type=int, default=10,
+                        help='max worker count, default 10')
 
     args = parser.parse_args()
 
-    server, _ = serve(f'{args.host}:{args.port}')
+    server, _ = serve(f'{args.host}:{args.port}', args.workers)
     server.wait_for_termination()
 
 
