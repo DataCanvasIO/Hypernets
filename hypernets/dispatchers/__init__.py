@@ -7,28 +7,20 @@ from ..utils.common import config
 
 def get_dispatcher(hyper_model, **kwargs):
     if hyper_model.searcher.parallelizable:
-        dispatcher = config('dispatcher', 'standalone')
-        if dispatcher == 'dask':
-            from dask.distributed import Client, default_client
-            try:
-                default_client()
-            except ValueError:
-                # create default Client
-                # client = Client("tcp://127.0.0.1:55208")
-                # client = Client(processes=False, threads_per_worker=5, n_workers=1, memory_limit='4GB')
-                Client()  # detect env: DASK_SCHEDULER_ADDRESS
+        experiment = config('experiment', time.strftime('%Y%m%d%H%M%S'))
+        backend = config('search-backend', 'standalone')
 
+        if backend == 'dask':
             from .dask.dask_dispatcher import DaskDispatcher
-            return DaskDispatcher()
+            return DaskDispatcher(config('models_dir', f'tmp/{experiment}/models'))
         elif config('role') is not None:
             role = config('role', 'standalone')
             driver_address = config('driver')
             if role == 'driver':
                 from hypernets.dispatchers.cluster import DriverDispatcher
-                experiment = time.strftime('%Y%m%d%H%M%S')
                 return DriverDispatcher(driver_address,
                                         config('spaces_dir', f'tmp/{experiment}/spaces'),
-                                        config('spaces_dir', f'tmp/{experiment}/models'))
+                                        config('models_dir', f'tmp/{experiment}/models'))
             elif role == 'executor':
                 if driver_address is None:
                     raise Exception('Not found setting "driver" for executor role.')

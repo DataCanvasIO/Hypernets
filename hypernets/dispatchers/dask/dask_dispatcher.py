@@ -7,6 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import dask
+from dask.distributed import Client, default_client
 
 from hypernets.core.callbacks import EarlyStoppingError
 from hypernets.core.dispatcher import Dispatcher
@@ -15,8 +16,6 @@ from hypernets.utils import logging
 from hypernets.utils.common import config, Counter
 
 logger = logging.get_logger(__name__)
-
-_model_root = config('model_path', 'tmp/models')
 
 
 class DaskTrailItem(Trail):
@@ -152,15 +151,24 @@ class DaskExecutorPool(object):
 
 
 class DaskDispatcher(Dispatcher):
+    def __init__(self, models_dir):
+        try:
+            default_client()
+        except ValueError:
+            # create default Client
+            # client = Client("tcp://127.0.0.1:55208")
+            # client = Client(processes=False, threads_per_worker=5, n_workers=1, memory_limit='4GB')
+            Client()  # detect env: DASK_SCHEDULER_ADDRESS
+
+        super(DaskDispatcher, self).__init__()
+
+        self.models_dir = models_dir
+        os.makedirs(models_dir, exist_ok=True)
 
     def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
         assert not any(dask.is_dask_collection(i) for i in (X, y, X_val, y_val)), \
             f'{self.__class__.__name__} does not support to run trail with dask collection.'
-
-        experiment = time.strftime('%Y%m%d%H%M%S')
-        experiment_model_root = f'{_model_root}/{experiment}'
-        os.makedirs(experiment_model_root, exist_ok=True)
 
         queue_size = int(config('search_queue', '1'))
         worker_count = int(config('search_executors', '3'))
@@ -247,7 +255,7 @@ class DaskDispatcher(Dispatcher):
                         trail_no += 1
                         continue
 
-                model_file = '%s/%05d_%s.pkl' % (experiment_model_root, trail_no, space_sample.space_id)
+                model_file = '%s/%05d_%s.pkl' % (self.models_dir, trail_no, space_sample.space_id)
 
                 item = DaskTrailItem(space_sample, trail_no, model_file=model_file)
                 pool.push(item)
