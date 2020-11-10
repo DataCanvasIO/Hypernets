@@ -1,38 +1,44 @@
 # -*- coding:utf-8 -*-
-__author__ = 'yangjian'
 """
 
 """
-from hypernets.frameworks.keras.layers import *
-from hypernets.frameworks.keras.hyper_keras import HyperKeras
+import numpy as np
+
+from hypernets.core.ops import Int, Choice, Bool, Real, Identity
+from hypernets.core.search_space import HyperSpace
+from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.random_searcher import RandomSearcher
-from hypernets.core.callbacks import *
-from hypernets.core.searcher import OptimizeDirection
+from hypernets.searchers.evolution_searcher import EvolutionSearcher
+
 
 def get_space():
     space = HyperSpace()
     with space.as_default():
-        in1 = Input(shape=(10,))
-        dense1 = Dense(10, activation=Choice(['relu', 'tanh', None]), use_bias=Bool())(in1)
-        bn1 = BatchNormalization()(dense1)
-        dropout1 = Dropout(Choice([0.3, 0.4, 0.5]))(bn1)
-        output = Dense(2, activation='softmax', use_bias=True)(dropout1)
+        p1 = Int(1, 100)
+        p2 = Choice(['a', 'b', 'c'])
+        p3 = Bool()
+        p4 = Real(0.0, 1.0)
+        id1 = Identity(p1=p1)
+        id2 = Identity(p2=p2)(id1)
+        id3 = Identity(p3=p3)(id2)
+        id4 = Identity(p4=p4)(id3)
     return space
 
 
-rs = RandomSearcher(get_space, optimize_direction=OptimizeDirection.Maximize)
-hk = HyperKeras(rs, optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'],
-                callbacks=[SummaryCallback()])
+def run_search():
+    searchers = (
+        RandomSearcher(get_space, space_sample_validation_fn=lambda s: True),
+        MCTSSearcher(get_space, max_node_space=10),
+        EvolutionSearcher(get_space, 5, 3, regularized=False)
+    )
 
-x = np.random.randint(0, 10000, size=(100, 10))
-y = np.random.randint(0, 2, size=(100), dtype='int')
+    for searcher in searchers:
+        for i in range(100):
+            space_sample = searcher.sample()
+            assert space_sample.all_assigned == True
+            print(searcher.__class__.__name__, i, space_sample.params_summary())
+            searcher.update_result(space_sample, np.random.uniform(0.1, 0.9))
 
-hk.search(x, y, x, y, max_trails=3)
-best_trial = hk.get_best_trail()
-assert best_trial
 
-estimator = hk.final_train(best_trial.space_sample, x, y)
-score = estimator.predict(x)
-result = estimator.evaluate(x, y)
-assert len(score) == 100
-assert result
+if __name__ == '__main__':
+    run_search()
