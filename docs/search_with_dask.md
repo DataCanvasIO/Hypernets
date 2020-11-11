@@ -6,7 +6,7 @@ until the `max_trails` reached or the`EarlyStoppingError`
 occurred. Hypernets executes the loop step by step within one
 python process by default.
 
-Usually, the HyperModel `_run_trail()` which execution the esspend most CPU time. 
+Usually, the HyperModel `_run_trail()` spends most CPU time. 
 Hypernets provides the ability to parallelize `_run_trail()`
 with the [Dask](https://dask.org/) cluster. 
 
@@ -26,7 +26,7 @@ default is `3`.
 ### Setup share storage for distributed Dask cluster
 
 If you plan setup a distributed Dask cluster with multiple nodes
-to run Hypernets search, a share storage is required. 
+to run Hypernets search, a shared storage is required. 
 Currently, Hypernets can use shared file system 
 or S3-based object store to share data between 
 the Hypernets main process and Dask jobs.
@@ -34,14 +34,14 @@ the Hypernets main process and Dask jobs.
 #### Use shared file system
 
 1. Deploy your share file system, such as NFS, cephfs, etc.
-1. Mount the share file system in Hypernets node and all Dask node, 
+1. Mount the shared file system at Hypernets node and all Dask nodes 
 with the same access path, eg: `/opt/share`, 
 and grant read-write permissions to the user which starts 
-Hypernets and Dask cluster.
+Hypernets and Dask cluster. 
 1. Set the following Hypernets environment variables:
     * `HYN_STORAGE_TYPE`: set to `file`
     * `HYN_STORAGE_ROOT`: set to the shared storage root path for Hypernets,
-    eg: `/opt/share/hypernets`
+    eg: `/opt/share/hypernets`, default is `./workdir`
 
 
 ####  Use S3-base object store
