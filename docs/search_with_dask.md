@@ -23,7 +23,7 @@ To turn Dask support on, please do the followings:
 `HYN_SEARCH_EXECUTORS` to control the concurrent Dask job number, 
 default is `3`.
 
-### Setup share storage for distributed Dask cluster
+### Setup shared storage for distributed Dask cluster
 
 If you plan setup a distributed Dask cluster with multiple nodes
 to run Hypernets search, a shared storage is required. 
