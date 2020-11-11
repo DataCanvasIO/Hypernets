@@ -1,4 +1,3 @@
-import os
 import pickle
 import queue
 import time
@@ -6,7 +5,7 @@ from threading import Thread
 
 import grpc
 
-from hypernets.utils import logging
+from hypernets.utils import logging, fs
 from hypernets.utils.common import config
 from .proto import spec_pb2_grpc
 from .proto.spec_pb2 import SearchResponse, PingMessage
@@ -36,12 +35,13 @@ class TrailItem(object):
 class SearchHolder(object):
     def __init__(self, search_id, spaces_dir, models_dir, on_next, on_report, on_summary):
         super(SearchHolder, self).__init__()
-        os.makedirs(spaces_dir, exist_ok=True)
+
+        fs.makedirs(spaces_dir, exist_ok=True)
+        fs.makedirs(models_dir, exist_ok=True)
 
         self.search_id = search_id
         self.spaces_dir = spaces_dir
         self.models_dir = models_dir
-        os.makedirs(self.models_dir, exist_ok=True)
 
         self.on_next = on_next
         self.on_report = on_report
@@ -60,7 +60,7 @@ class SearchHolder(object):
         assert space_id not in self.all_items.keys()
 
         space_file = f'{self.spaces_dir}/space-{trail_no}.pkl'
-        with open(space_file, 'wb') as f:
+        with fs.open(space_file, 'wb') as f:
             pickle.dump(space_sample, f)
 
         model_file = '%s/%05d_%s.pkl' % (self.models_dir, trail_no, space_id)

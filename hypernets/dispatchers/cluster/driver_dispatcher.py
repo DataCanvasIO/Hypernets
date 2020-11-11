@@ -15,11 +15,13 @@ _search_counter = 0
 
 
 class DriverDispatcher(Dispatcher):
-    def __init__(self, address, spaces_dir, models_dir):
+    def __init__(self, address, work_dir):
         super(DriverDispatcher, self).__init__()
+
         self.address = address
-        self.spaces_dir = spaces_dir
-        self.models_dir = models_dir
+        self.work_dir = work_dir
+        self.spaces_dir = f'{work_dir}/spaces'
+        self.models_dir = f'{work_dir}/models'
 
     def dispatch(self, hyper_model, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store,
                  **fit_kwargs):

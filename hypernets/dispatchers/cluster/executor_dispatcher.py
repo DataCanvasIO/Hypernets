@@ -4,7 +4,7 @@ import pickle
 import time
 
 from hypernets.core.dispatcher import Dispatcher
-from hypernets.utils import logging
+from hypernets.utils import logging, fs
 from .grpc.search_driver_client import SearchDriverClient
 
 logger = logging.get_logger(__name__)
@@ -69,7 +69,7 @@ class ExecutorDispatcher(Dispatcher):
                 if logger.is_info_enabled():
                     logger.info(f'[{search_id}] new trail:' + detail)
                 try:
-                    with open(item.space_file, 'rb') as f:
+                    with fs.open(item.space_file, 'rb') as f:
                         space_sample = pickle.load(f)
 
                     for callback in hyper_model.callbacks:

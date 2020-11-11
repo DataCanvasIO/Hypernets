@@ -1,12 +1,11 @@
 # -*- coding:utf-8 -*-
 
-import os
 import time
 
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trail
-from ..utils import logging
+from ..utils import logging, fs
 from ..utils.common import config
 
 logger = logging.get_logger(__name__)
@@ -15,14 +14,14 @@ _model_root = config('model_path', 'tmp/models')
 
 
 class InProcessDispatcher(Dispatcher):
+    def __init__(self, models_dir):
+        super(InProcessDispatcher, self).__init__()
+
+        self.models_dir = models_dir
+        fs.makedirs(models_dir, exist_ok=True)
 
     def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
-
-        experiment = time.strftime('%Y%m%d%H%M%S')
-        experiment_model_root = f'{_model_root}/{experiment}'
-        os.makedirs(experiment_model_root, exist_ok=True)
-
         retry_limit = int(config('search_retry', '1000'))
 
         trail_no = 1
@@ -60,7 +59,8 @@ class InProcessDispatcher(Dispatcher):
                     # callback.on_build_estimator(hyper_model, space_sample, estimator, trail_no) #fixme
                     callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
-                model_file = '%s/%05d_%s.pkl' % (experiment_model_root, trail_no, space_sample.space_id)
+                model_file = '%s/%05d_%s.pkl' % (self.models_dir, trail_no, space_sample.space_id)
+
                 start_at = time.time()
                 trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
                 done_at = time.time()

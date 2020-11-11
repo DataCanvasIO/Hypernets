@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 
 import math
-import os
 import queue
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -12,7 +11,7 @@ from dask.distributed import Client, default_client
 from hypernets.core.callbacks import EarlyStoppingError
 from hypernets.core.dispatcher import Dispatcher
 from hypernets.core.trial import Trail
-from hypernets.utils import logging
+from hypernets.utils import logging, fs
 from hypernets.utils.common import config, Counter
 
 logger = logging.get_logger(__name__)
@@ -151,7 +150,7 @@ class DaskExecutorPool(object):
 
 
 class DaskDispatcher(Dispatcher):
-    def __init__(self, models_dir):
+    def __init__(self, work_dir):
         try:
             default_client()
         except ValueError:
@@ -162,8 +161,10 @@ class DaskDispatcher(Dispatcher):
 
         super(DaskDispatcher, self).__init__()
 
-        self.models_dir = models_dir
-        os.makedirs(models_dir, exist_ok=True)
+        self.work_dir = work_dir
+        self.models_dir = f'{work_dir}/models'
+
+        fs.makedirs(self.models_dir, exist_ok=True)
 
     def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
                  **fit_kwargs):

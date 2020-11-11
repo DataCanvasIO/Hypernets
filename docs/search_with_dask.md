@@ -33,7 +33,8 @@ the Hypernets main process and Dask jobs.
 
 #### Use shared file system
 
-1. Deploy your share file system, such as NFS, cephfs, etc.
+1. Deploy your shared file system, such as NFS,
+[cephfs](https://ceph.io/), etc.
 1. Mount the shared file system at Hypernets node and all Dask nodes 
 with the same access path, eg: `/opt/share`, 
 and grant read-write permissions to the user which starts 

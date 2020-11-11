@@ -76,7 +76,7 @@ class Cluster(object):
     def __init__(self, experiment,
                  driver, driver_port, start_driver,
                  executors,
-                 spaces_dir, logs_dir,
+                 work_dir, logs_dir,
                  report_interval,
                  *args, **kwargs):
         super(Cluster, self).__init__()
@@ -89,7 +89,7 @@ class Cluster(object):
         self.driver_port = driver_port
         self.start_driver = start_driver
         self.executors = executors
-        self.spaces_dir = spaces_dir
+        self.work_dir = work_dir
         self.logs_dir = logs_dir
         self.report_interval = report_interval
         self.args = args
@@ -161,9 +161,13 @@ class Cluster(object):
         cmds = ' '.join(self.args)
         driver = self.driver if self.driver else '0.0.0.0'
         driver_host = AddressParser(driver).host
-        spaces_dir = f'{self.spaces_dir}/{self.experiment}'
 
-        ssh_cmd = f'{cmds} --driver {driver_host}:{self.driver_port} --role driver --spaces-dir {spaces_dir}'
+        ssh_cmd = f'{cmds} --driver {driver_host}:{self.driver_port} --role driver'
+        if self.experiment:
+            ssh_cmd += f' --experiment {self.experiment}'
+        if self.work_dir:
+            ssh_cmd += f' --work-dir {self.work_dir}'
+
         return ssh_cmd
 
     @property
