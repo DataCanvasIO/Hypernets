@@ -45,10 +45,10 @@ Hypernets and Dask cluster.
     eg: `/opt/share/hypernets`, default is `./workdir`
 
 
-####  Use S3-base object store
+####  Use S3-based object store
 
 1. Request S3 compatible service from your cloud provider,
-or deploy your private object store service use [ceph](https://ceph.io/),
+or deploy private object store service use [ceph](https://ceph.io/),
  [minio](https://min.io/), etc.
 1. Set the following Hypernets environment variables:
     * `HYN_STORAGE_TYPE`: set to `s3`

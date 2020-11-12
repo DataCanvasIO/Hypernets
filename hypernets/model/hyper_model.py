@@ -120,7 +120,7 @@ class HyperModel():
 
         self._before_search()
 
-        dispatcher = get_dispatcher(self)
+        dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
         trail_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store, **fit_kwargs)
 
         self._after_search(trail_no)
