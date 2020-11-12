@@ -9,7 +9,7 @@ import time
 
 import numpy as np
 
-from ..utils import logging
+from ..utils import logging, fs
 
 logger = logging.get_logger(__name__)
 
@@ -76,6 +76,13 @@ class EarlyStoppingCallback(Callback):
 class FileLoggingCallback(Callback):
     def __init__(self, searcher, output_dir=None):
         super(FileLoggingCallback, self).__init__()
+
+        if getattr(self, 'open', None) is None:
+            self.open = open
+
+        if getattr(self, 'mkdirs', None) is None:
+            self.mkdirs = os.makedirs
+
         self.output_dir = self._prepare_output_dir(output_dir, searcher)
 
     def _prepare_output_dir(self, log_dir, searcher):
@@ -85,9 +92,9 @@ class FileLoggingCallback(Callback):
             log_dir = log_dir[:-1]
 
         running_dir = f'exp_{searcher.__class__.__name__}_{datetime.datetime.now().__format__("%m%d-%H%M%S")}'
-        output_path = os.path.expanduser(f'{log_dir}/{running_dir}/')
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
+        output_path = os.path.expanduser(f'{log_dir}/{running_dir}')
+
+        self.mkdirs(output_path, exist_ok=True)
         return output_path
 
     def on_build_estimator(self, hyper_model, space, estimator, trail_no):
@@ -99,19 +106,20 @@ class FileLoggingCallback(Callback):
         #     f.write(space.params_summary())
 
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
-        with open(f'{self.output_dir}/trail_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log', 'w') as f:
+        with self.open(f'{self.output_dir}/trail_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
+                       'w') as f:
             f.write(space.params_summary())
             f.write('\r\n----------------Summary for Searcher----------------\r\n')
             f.write(hyper_model.searcher.summary())
 
         topn = 10
         diff = hyper_model.history.diff(hyper_model.history.get_top(topn))
-        with open(f'{self.output_dir}/top_{topn}_diff.txt', 'w') as f:
+        with self.open(f'{self.output_dir}/top_{topn}_diff.txt', 'w') as f:
             diff_str = json.dumps(diff, indent=5)
             f.write(diff_str)
             f.write('\r\n')
             f.write(hyper_model.searcher.summary())
-        with open(f'{self.output_dir}/top_{topn}_config.txt', 'w') as f:
+        with self.open(f'{self.output_dir}/top_{topn}_config.txt', 'w') as f:
             trials = hyper_model.history.get_top(topn)
             configs = hyper_model.export_configuration(trials)
             for trail, conf in zip(trials, configs):
@@ -120,15 +128,24 @@ class FileLoggingCallback(Callback):
                 f.write('\r\n---------------------------------------------------\r\n\r\n')
 
     def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
-        with open(f'{self.output_dir}/trail_{reason}_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
-                  'w') as f:
+        with self.open(
+                f'{self.output_dir}/trail_{reason}_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
+                'w') as f:
             f.write(space.params_summary())
 
         topn = 5
         diff = hyper_model.history.diff(hyper_model.history.get_top(topn))
-        with open(f'{self.output_dir}/top_{topn}_diff.txt', 'w') as f:
+        with self.open(f'{self.output_dir}/top_{topn}_diff.txt', 'w') as f:
             diff_str = json.dumps(diff, indent=5)
             f.write(diff_str)
+
+
+class FileStorageLoggingCallback(FileLoggingCallback):
+    def __init__(self, searcher, output_dir=None):
+        self.open = fs.open
+        self.mkdirs = fs.mkdirs
+
+        super(FileStorageLoggingCallback, self).__init__(searcher, output_dir)
 
 
 class SummaryCallback(Callback):
