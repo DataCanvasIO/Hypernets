@@ -77,13 +77,15 @@ class FileLoggingCallback(Callback):
     def __init__(self, searcher, output_dir=None):
         super(FileLoggingCallback, self).__init__()
 
-        if getattr(self, 'open', None) is None:
-            self.open = open
-
-        if getattr(self, 'mkdirs', None) is None:
-            self.mkdirs = os.makedirs
-
         self.output_dir = self._prepare_output_dir(output_dir, searcher)
+
+    @staticmethod
+    def open(file_path, mode):
+        return open(file_path, mode=mode)
+
+    @staticmethod
+    def mkdirs(dir_path, exist_ok):
+        os.makedirs(dir_path, exist_ok=exist_ok)
 
     def _prepare_output_dir(self, log_dir, searcher):
         if log_dir is None:
@@ -141,11 +143,13 @@ class FileLoggingCallback(Callback):
 
 
 class FileStorageLoggingCallback(FileLoggingCallback):
-    def __init__(self, searcher, output_dir=None):
-        self.open = fs.open
-        self.mkdirs = fs.mkdirs
+    @staticmethod
+    def open(file_path, mode):
+        return fs.open(file_path, mode=mode)
 
-        super(FileStorageLoggingCallback, self).__init__(searcher, output_dir)
+    @staticmethod
+    def mkdirs(dir_path, exist_ok):
+        fs.mkdirs(dir_path, exist_ok=exist_ok)
 
 
 class SummaryCallback(Callback):
