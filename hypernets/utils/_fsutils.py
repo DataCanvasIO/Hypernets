@@ -16,7 +16,7 @@ def get_filesystem() -> fsspec.AbstractFileSystem:
     fs_options = config('storage_options', None)
 
     if fs_options is None or len(fs_options) == 0:
-        fs = fsspec.filesystem(fs_type)
+        fs = fsspec.filesystem(fs_type, skip_instance_cache=True)
     else:
         try:
             parsed = json.loads(fs_options)
@@ -30,7 +30,7 @@ def get_filesystem() -> fsspec.AbstractFileSystem:
                   f'current settings:\n{fs_options}'
             raise Exception(msg)
 
-        fs = fsspec.filesystem(fs_type, **parsed)
+        fs = fsspec.filesystem(fs_type, skip_instance_cache=True, **parsed)
 
     if is_local(fs):
         remote_root = config('storage_root', os.path.abspath('./workdir'))
