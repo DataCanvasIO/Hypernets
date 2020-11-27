@@ -2,11 +2,12 @@
 """
 
 """
-from hypernets.searchers.evolution_searcher import EvolutionSearcher,Population
-from hypernets.core.searcher import OptimizeDirection
-from hypernets.core.ops import *
-from hypernets.core.callbacks import SummaryCallback
 import numpy as np
+
+from hypernets.core.ops import Identity
+from hypernets.core.search_space import HyperSpace, Int, Real, Choice, Bool
+from hypernets.core.searcher import OptimizeDirection
+from hypernets.searchers.evolution_searcher import Population
 
 
 class Test_Evolution():

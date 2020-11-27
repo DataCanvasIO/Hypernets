@@ -3,9 +3,10 @@ __author__ = 'yangjian'
 """
 
 """
-from .. import test_output_dir
+from hypernets.core.ops import Identity, Choice
+from hypernets.core.search_space import HyperSpace, Int, Real
 from hypernets.core.trial import TrailHistory, Trail
-from hypernets.core.ops import HyperSpace, Identity, Choice, Int, Real
+from .. import test_output_dir
 
 
 class Test_TrialHistory():
@@ -65,7 +66,7 @@ class Test_TrialHistory():
 
         with open(filepath) as f:
             lines = f.readlines()
-            #assert lines == ['min\n', '1|[0, 1, 0.1]|0.99|100\n', '2|[1, 2, 0.2]|0.9|50\n', '3|[0, 3, 0.3]|0.7|200\n']
+            # assert lines == ['min\n', '1|[0, 1, 0.1]|0.99|100\n', '2|[1, 2, 0.2]|0.9|50\n', '3|[0, 3, 0.3]|0.7|200\n']
 
         history = TrailHistory.load_history(get_space, filepath)
         assert history.optimize_direction == 'min'

@@ -13,6 +13,14 @@ def start_broker(host, port):
 
 
 def test_grpc_broker_run():
+    try:
+        from paramiko import SSHClient, AutoAddPolicy
+        package_exists = True
+    except:
+        package_exists = False
+    if not package_exists:
+        return
+
     import tempfile
     from hypernets.dispatchers.process import GrpcProcess
     from hypernets.utils.common import generate_id
