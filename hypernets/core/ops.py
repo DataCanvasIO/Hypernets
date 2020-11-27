@@ -2,7 +2,7 @@
 """
 
 """
-from .search_space import *
+from .search_space import ModuleSpace, Bool, Choice, MultipleChoice
 import itertools
 
 

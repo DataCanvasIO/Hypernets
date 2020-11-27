@@ -184,7 +184,7 @@ class FileSystemAdapter(object):
         post_processes = self.fn_post_process
         for fns, fix in self.fn_fix_pairs:
             for fn in fns:
-                assert hasattr(fs, fn)
+                assert hasattr(fs, fn), f'fn:{fn}'
                 f = getattr(fs, fn)
 
                 original_fn = f'_orig_{fn}_'
