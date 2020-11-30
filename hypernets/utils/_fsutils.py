@@ -184,12 +184,14 @@ class FileSystemAdapter(object):
         post_processes = self.fn_post_process
         for fns, fix in self.fn_fix_pairs:
             for fn in fns:
-                assert hasattr(fs, fn), f'fn:{fn}'
-                f = getattr(fs, fn)
+                # assert hasattr(fs, fn), f'fn:{fn}'
+                if not hasattr(fs, fn):
+                    continue
 
                 original_fn = f'_orig_{fn}_'
                 assert not hasattr(fs, original_fn)
 
+                f = getattr(fs, fn)
                 setattr(fs, original_fn, f)
                 setattr(fs, fn, fix(f, post_processes.get(fn)))
 
@@ -198,7 +200,7 @@ class FileSystemAdapter(object):
         setattr(fs, '_orig__reduce__', f)
         setattr(fs, '__reduce__', _fs_reduce)
 
-        # mark decorated
+        # mark adapted
         setattr(fs, '_hyn_adapted_', 1)
 
         return fs
