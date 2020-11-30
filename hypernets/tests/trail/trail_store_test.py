@@ -5,7 +5,7 @@
 from hypernets.core.trial import *
 from hypernets.core.search_space import *
 from hypernets.core.ops import *
-from tests import test_output_dir
+from hypernets.tests import test_output_dir
 
 
 class Test_TrailStore():
