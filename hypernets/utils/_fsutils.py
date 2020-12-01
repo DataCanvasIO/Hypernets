@@ -5,6 +5,7 @@
 
 import json
 import os
+import tempfile
 
 import fsspec
 
@@ -237,7 +238,7 @@ class S3FileSystemAdapter(FileSystemAdapter):
         return {**super().fn_post_process, '_ls': self.handle_private_ls}
 
 
-def get_filesystem(fs_type, fs_options) -> fsspec.AbstractFileSystem:
+def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     if fs_options is None or len(fs_options) == 0:
         fs = fsspec.filesystem(fs_type, skip_instance_cache=True)
     else:
@@ -256,17 +257,19 @@ def get_filesystem(fs_type, fs_options) -> fsspec.AbstractFileSystem:
         fs = fsspec.filesystem(fs_type, skip_instance_cache=True, **parsed)
 
     if type(fs).__name__.lower().find('local') >= 0:
-        remote_root = config('storage_root', os.path.abspath('./workdir'))
+        if fs_root is None or fs_root == '':
+            fs_root = os.path.join(tempfile.gettempdir(), 'workdir')
+        remote_root = fs_root
         if not fs.exists(remote_root):
             fs.mkdirs(remote_root, exist_ok=True)
 
         local_root = remote_root
     else:
-        remote_root = config('storage_root', '/')
+        remote_root = fs_root if fs_root else '/tmp'
         if not fs.exists(remote_root):
             fs.mkdirs(remote_root, exist_ok=True)
 
-        local_root = config('storage_localroot', os.path.abspath('./workdir/cache'))
+        local_root = config('storage_localroot', os.path.join(tempfile.gettempdir(), 'cache'))
         os.makedirs(local_root, exist_ok=True)
 
     # return fix_filesystem(fs, remote_root, local_root)
@@ -277,7 +280,9 @@ def get_filesystem(fs_type, fs_options) -> fsspec.AbstractFileSystem:
 
 
 def _fs_reduce(*args):
-    return get_filesystem, (config('storage_type', 'file'), config('storage_options', None))
+    return get_filesystem, (config('storage_type', 'file'),
+                            config('storage_root', None),
+                            config('storage_options', None))
 
 
-filesystem = get_filesystem(config('storage_type', 'file'), config('storage_options', None))
+filesystem = _fs_reduce()[0](*_fs_reduce()[1])
