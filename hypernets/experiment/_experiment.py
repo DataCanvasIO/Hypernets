@@ -6,6 +6,29 @@ __author__ = 'yangjian'
 import time
 
 
+class ExperimentCallback():
+    def experiment_start(self):
+        pass
+
+    def experiment_end(self):
+        pass
+
+    def experiment_break(self, error):
+        pass
+
+    def step_start(self, step):
+        pass
+
+    def step_progress(self, step, progress):
+        pass
+
+    def step_end(self, step, output):
+        pass
+
+    def step_break(self, step, error):
+        pass
+
+
 class Experiment():
     def __init__(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
                  random_state=9527):

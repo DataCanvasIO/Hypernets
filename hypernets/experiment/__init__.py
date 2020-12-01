@@ -4,5 +4,5 @@ __author__ = 'yangjian'
 
 """
 
-from ._experiment import Experiment
+from ._experiment import Experiment, ExperimentCallback
 from .general import GeneralExperiment
