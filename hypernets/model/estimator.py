@@ -6,7 +6,7 @@ import time
 
 
 class Estimator():
-    def __init__(self, space_sample, task='classification'):
+    def __init__(self, space_sample, task='binary'):
         self.space_sample = space_sample
         self.task = task
 

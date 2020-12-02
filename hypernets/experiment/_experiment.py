@@ -34,9 +34,10 @@ class ExperimentCallback():
 
 
 class Experiment():
-    def __init__(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
+    def __init__(self, task, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
                  callbacks=None,
                  random_state=9527):
+        self.task = task
         self.id = None
         self.title = None
         self.description = None
