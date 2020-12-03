@@ -34,7 +34,7 @@ class ExperimentCallback():
 
 
 class Experiment():
-    def __init__(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
+    def __init__(self, hyper_model, X_train, y_train, X_eval=None, y_eval=None, X_test=None, eval_size=0.3,
                  task=None, callbacks=None, random_state=9527):
         self.task = task
         self.id = None
@@ -48,9 +48,13 @@ class Experiment():
         self.hyper_model = hyper_model
         self.X_train = X_train
         self.y_train = y_train
-        self.X_test = X_test
         self.X_eval = X_eval
         self.y_eval = y_eval
+        self.X_test = X_test
+
+        if X_eval is not None and X_test is None:
+            self.X_test = X_eval
+
         self.eval_size = eval_size
         self.callbacks = callbacks if callbacks is not None else []
         self.random_state = random_state
