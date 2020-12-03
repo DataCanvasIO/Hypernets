@@ -1,7 +1,5 @@
 # -*- coding:utf-8 -*-
 
-import time
-
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trail
@@ -60,11 +58,7 @@ class InProcessDispatcher(Dispatcher):
                     callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
                 model_file = '%s/%05d_%s.pkl' % (self.models_dir, trail_no, space_sample.space_id)
-
-                start_at = time.time()
                 trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
-                done_at = time.time()
-                logger.info('*' * 20 + ' elapsed %.3f seconds' % (done_at - start_at))
 
                 if trail.reward != 0:  # success
                     improved = hyper_model.history.append(trail)
