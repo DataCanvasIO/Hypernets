@@ -34,7 +34,11 @@ class GeneralExperiment(Experiment):
                 stratify = None
             X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=eval_size,
                                                                 random_state=self.random_state, stratify=stratify)
-        self.step_end()
+        self.step_end(output={'X_train.shape': X_train.shape,
+                              'y_train.shape': y_train.shape,
+                              'X_eval.shape': X_eval.shape,
+                              'y_eval.shape': y_eval.shape,
+                              'X_test.shape': None if X_test is None else X_test.shape})
 
         self.step_start('search')
         hyper_model.search(X_train, y_train, X_eval, y_eval, **kwargs)

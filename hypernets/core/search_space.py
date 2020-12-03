@@ -111,7 +111,7 @@ class HyperSpace(Mutable):
         self.traverse(compile_module, direction='forward')
         end_ts = time.time()
         if logger.is_info_enabled():
-            logger.info(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
+            logger.debug(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
         self._is_compiled = True
         self._outputs = set(space_out)
 
@@ -134,7 +134,7 @@ class HyperSpace(Mutable):
         self.traverse(forward_module, direction='forward')
         end_ts = time.time()
         if logger.is_info_enabled():
-            logger.info(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
+            logger.debug(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
         outputs = [output.output for output in self.get_outputs()]
         return outputs
 
