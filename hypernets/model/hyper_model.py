@@ -16,7 +16,7 @@ logger = logging.get_logger(__name__)
 
 
 class HyperModel():
-    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None, task=None):
         # self.searcher = self._build_searcher(searcher, space_fn)
         self.searcher = searcher
         self.dispatcher = dispatcher
@@ -24,6 +24,7 @@ class HyperModel():
         self.reward_metric = reward_metric
         self.history = TrailHistory(searcher.optimize_direction)
         self.start_search_time = None
+        self.task = task
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError
@@ -113,6 +114,8 @@ class HyperModel():
     def search(self, X, y, X_eval, y_eval, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
         self.start_search_time = time.time()
 
+        self.task, _ = self.infer_task_type(y)
+
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
         if self.searcher.use_meta_learner:
@@ -160,3 +163,36 @@ class HyperModel():
 
     def export_trail_configuration(self, trail):
         raise NotImplementedError
+
+    def infer_task_type(self, y):
+        if len(y.shape) > 1 and y.shape[-1] > 1:
+            labels = list(range(y.shape[-1]))
+            task = 'multilable'
+            return task, labels
+
+        uniques = set(y)
+        n_unique = len(uniques)
+        labels = []
+
+        if n_unique == 2:
+            logger.info(f'2 class detected, {uniques}, so inferred as a [binary classification] task')
+            task = 'binary'  # TASK_BINARY
+            labels = sorted(uniques)
+        else:
+            if y.dtype == 'float':
+                logger.info(f'Target column type is float, so inferred as a [regression] task.')
+                task = 'regression'
+            else:
+                if n_unique > 1000:
+                    if 'int' in y.dtype:
+                        logger.info(
+                            'The number of classes exceeds 1000 and column type is int, so inferred as a [regression] task ')
+                        task = 'regression'
+                    else:
+                        raise ValueError(
+                            'The number of classes exceeds 1000, please confirm whether your predict target is correct ')
+                else:
+                    logger.info(f'{n_unique} class detected, inferred as a [multiclass classification] task')
+                    task = 'multiclass'
+                    labels = sorted(uniques)
+        return task, labels

@@ -34,9 +34,8 @@ class ExperimentCallback():
 
 
 class Experiment():
-    def __init__(self, task, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
-                 callbacks=None,
-                 random_state=9527):
+    def __init__(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
+                 task=None, callbacks=None, random_state=9527):
         self.task = task
         self.id = None
         self.title = None
@@ -62,6 +61,9 @@ class Experiment():
     def run(self, **kwargs):
         self.start_time = time.time()
         try:
+            if self.task is None:
+                self.task, _ = self.hyper_model.infer_task_type(self.y_train)
+
             for callback in self.callbacks:
                 callback.experiment_start(self)
 

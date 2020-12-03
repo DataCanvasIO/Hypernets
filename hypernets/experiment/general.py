@@ -13,11 +13,10 @@ logger = logging.get_logger(__name__)
 
 
 class GeneralExperiment(Experiment):
-    def __init__(self, task, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
-                 callbacks=None, random_state=9527):
-        super(GeneralExperiment, self).__init__(task, hyper_model, X_train, y_train, X_test, X_eval=X_eval,
-                                                y_eval=y_eval,
-                                                eval_size=eval_size,
+    def __init__(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3,
+                 task=None, callbacks=None, random_state=9527):
+        super(GeneralExperiment, self).__init__(hyper_model, X_train, y_train, X_test, X_eval=X_eval,
+                                                y_eval=y_eval, eval_size=eval_size, task=task,
                                                 callbacks=callbacks, random_state=random_state)
 
     def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3, **kwargs):
