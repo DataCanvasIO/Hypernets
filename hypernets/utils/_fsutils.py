@@ -259,7 +259,7 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     if type(fs).__name__.lower().find('local') >= 0:
         if fs_root is None or fs_root == '':
             fs_root = os.path.join(tempfile.gettempdir(), 'workdir')
-        remote_root = fs_root
+        remote_root = os.path.abspath(os.path.expanduser(fs_root))
         if not fs.exists(remote_root):
             fs.mkdirs(remote_root, exist_ok=True)
 
@@ -270,6 +270,7 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
             fs.mkdirs(remote_root, exist_ok=True)
 
         local_root = config('storage_localroot', os.path.join(tempfile.gettempdir(), 'cache'))
+        local_root = os.path.abspath(os.path.expanduser(local_root))
         os.makedirs(local_root, exist_ok=True)
 
     # return fix_filesystem(fs, remote_root, local_root)
