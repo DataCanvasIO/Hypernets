@@ -51,7 +51,7 @@ class HyperModel():
             logger.error(track)
 
         if fit_succeed:
-            metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
+            metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric], **fit_kwargs)
             reward = self._get_reward(metrics, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:
