@@ -62,7 +62,7 @@ y = np.random.randint(0, 2, size=(100), dtype='int')
 
 # Search and get the best model
 hk.search(x, y, x, y, max_trails=10)
-assert hk.best_model
+assert hk.get_best_trail()
 ```
 
 
@@ -74,14 +74,14 @@ pip install deeptables
 ```
 
 ```python
-from contrib.deeptables.models import *
+from deeptables.models.hyper_dt import mini_dt_space, HyperDT
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.callbacks import SummaryCallback, FileLoggingCallback
 from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.evolution_searcher import EvolutionSearcher
 from hypernets.core.trial import DiskTrailStore
-from deeptables.datasets import dsutils
+from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
 disk_trail_store = DiskTrailStore('~/trail_store')
@@ -107,7 +107,7 @@ y_test = df_test.pop(14)
 
 # Search and get the best model
 hdt.search(df_train, y, df_test, y_test, max_trails=100, batch_size=256, epochs=10, verbose=1, )
-assert hdt.best_model
+assert hdt.get_best_trail()
 best_trial = hdt.get_best_trail()
 ```
 

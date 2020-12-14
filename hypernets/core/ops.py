@@ -2,7 +2,7 @@
 """
 
 """
-from .search_space import *
+from .search_space import ModuleSpace, Bool, Choice, MultipleChoice
 import itertools
 
 
@@ -212,14 +212,14 @@ class Repeat(ConnectionSpace):
 
 
 class InputChoice(ConnectionSpace):
-    def __init__(self, inputs, max_chosen_num=0, keep_link=False, space=None, name=None, hp_choice=None):
+    def __init__(self, inputs, num_chosen_most=0, num_chosen_least=1, keep_link=False, space=None, name=None,
+                 hp_choice=None):
         assert isinstance(inputs, list)
         connection_num = len(inputs)
-        assert connection_num > 1
+        assert connection_num >= num_chosen_least, f'`inputs` contains at least {num_chosen_least} item.'
         self.inputs = inputs
         self.hp_choice = hp_choice if hp_choice is not None else MultipleChoice(list(range(connection_num)),
-                                                                                max_chosen_num)
-        self.max_chosen_num = max_chosen_num
+                                                                                num_chosen_most, num_chosen_least)
         ConnectionSpace.__init__(self, None, keep_link, space, name, hp_choice=self.hp_choice)
 
     def _on_params_ready(self):

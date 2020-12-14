@@ -32,6 +32,16 @@ pip install hypernets
 python -c "from examples import smoke_testing;"
 ```
 
+## Hypernets related projects
+
+* [HyperGBM](https://github.com/DataCanvasIO/HyperGBM): A full pipeline AutoML tool integrated various GBM models.
+* [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
+* [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
+* [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
+* [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning framework.
+
+![DataCanvas AutoML Toolkit](docs/source/images/datacanvas_automl_toolkit.png)
+
 ## Neural Architecture Search
 * [Define A DNN Search Space](https://hypernets.readthedocs.io/en/latest/nas.html#define-a-dnn-search-space)
 * [Define A CNN Search Space](https://hypernets.readthedocs.io/en/latest/nas.html#define-a-cnn-search-space)
@@ -63,7 +73,7 @@ x = np.random.randint(0, 10000, size=(100, 10))
 y = np.random.randint(0, 2, size=(100), dtype='int')
 
 hk.search(x, y, x, y, max_trails=10)
-assert hk.best_model
+assert hk.get_best_trail()
 
 ```
 
@@ -74,7 +84,7 @@ from hypernets.frameworks.ml.common_ops import get_space_num_cat_pipeline_comple
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection
-from deeptables.datasets import dsutils
+from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
 rs = RandomSearcher(get_space_num_cat_pipeline_complex, optimize_direction=OptimizeDirection.Maximize)
@@ -88,8 +98,8 @@ y_train = X_train.pop('y')
 y_test = X_test.pop('y')
 
 hk.search(X_train, y_train, X_test, y_test, max_trails=30)
-assert hk.best_model
 best_trial = hk.get_best_trail()
+assert best_trial
 
 estimator = hk.final_train(best_trial.space_sample, X_train, y_train)
 score = estimator.predict(X_test)
@@ -104,14 +114,14 @@ pip install deeptables
 ```
 
 ```python
-from contrib.deeptables.models import *
+from deeptables.models.hyper_dt import mini_dt_space, HyperDT
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.callbacks import SummaryCallback, FileLoggingCallback
 from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.evolution_searcher import EvolutionSearcher
 from hypernets.core.trial import DiskTrailStore
-from deeptables.datasets import dsutils
+from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
 disk_trail_store = DiskTrailStore('~/trail_store')
@@ -131,8 +141,8 @@ y = df_train.pop(14)
 y_test = df_test.pop(14)
 
 hdt.search(df_train, y, df_test, y_test, max_trails=100, batch_size=256, epochs=10, verbose=1, )
-assert hdt.best_model
 best_trial = hdt.get_best_trail()
+assert best_trial
 ```
 
 

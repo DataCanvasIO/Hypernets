@@ -13,6 +13,9 @@ import time
 from collections import OrderedDict
 from .mutables import Mutable, MutableScope
 from ..utils.common import generate_id, combinations
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class HyperNode(Mutable):
@@ -107,7 +110,8 @@ class HyperSpace(Mutable):
 
         self.traverse(compile_module, direction='forward')
         end_ts = time.time()
-        print(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
+        if logger.is_info_enabled():
+            logger.debug(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
         self._is_compiled = True
         self._outputs = set(space_out)
 
@@ -129,7 +133,8 @@ class HyperSpace(Mutable):
 
         self.traverse(forward_module, direction='forward')
         end_ts = time.time()
-        print(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
+        if logger.is_info_enabled():
+            logger.debug(f'Forward Space: forwarded {len(counter)} modules in {end_ts - start_ts} seconds.')
         outputs = [output.output for output in self.get_outputs()]
         return outputs
 
@@ -801,31 +806,34 @@ class Choice(ParameterSpace):
 
 
 class MultipleChoice(ParameterSpace):
-    def __init__(self, options, max_chosen_num=0, random_state=np.random.RandomState(), space=None, name=None):
+    def __init__(self, options, num_chosen_most=0, num_chosen_least=1, random_state=np.random.RandomState(),
+                 space=None, name=None):
         ParameterSpace.__init__(self, space, name)
         assert isinstance(options, list), '`options` must be a List.'
-        assert len(options) > 1, '`options` contains at least 2 item.'
+        assert len(options) >= num_chosen_least, f'`options` contains at least {num_chosen_least} item.'
         self.options = options
-        self.max_chosen_num = max_chosen_num
+        self.num_chosen_most = num_chosen_most
+        self.num_chosen_least = num_chosen_least
         self.random_state = random_state
 
     def _random_sample(self):
-        high = self.max_chosen_num
+        high = self.num_chosen_most
         if high <= 0:
             high = len(self.options)
-        indices = self.random_state.choice(range(0, len(self.options)), self.random_state.randint(1, high + 1), False)
+        indices = self.random_state.choice(range(0, len(self.options)),
+                                           self.random_state.randint(self.num_chosen_least, high + 1), False)
         values = [self.options[index] for index in sorted(indices)]
         return values
 
     def _check(self, value):
         assert isinstance(value, list)
-        assert len(value) > 0, 'value contains at least 1 item.'
-        assert (self.max_chosen_num == 0 or self.max_chosen_num <= len(self.options))
+        assert len(value) >= self.num_chosen_least, f'value contains at least {self.num_chosen_least} item.'
+        assert (self.num_chosen_most == 0 or self.num_chosen_most <= len(self.options))
         assert all([v in self.options for v in value])
 
     @property
     def config_keys(self):
-        return ['options', 'max_chosen_num']
+        return ['options', 'num_chosen_most', 'num_chosen_least']
 
     def value2numeric(self, value):
         numeric = int(''.join(['1' if v in value else '0' for v in self.options]), 2)
@@ -857,7 +865,7 @@ class MultipleChoice(ParameterSpace):
         return samples
 
     def _get_choice_num(self):
-        return int(combinations(len(self.options), self.max_chosen_num, 1))
+        return int(combinations(len(self.options), self.num_chosen_most, 1))
 
 
 class Bool(Choice):

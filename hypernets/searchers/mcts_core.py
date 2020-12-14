@@ -13,6 +13,7 @@ class MCNode(object):
         self.visits = 0
         self.reward = 0.0
         self.rewards = []
+        self.simulation_rewards = []
 
         assert name is not None
         if name != 'ROOT':
@@ -67,7 +68,7 @@ class MCNode(object):
         self.parent = parent
 
     def expansion(self, param_space, max_space):
-        print(f'Node expanssion: param_space:{param_space.label}')
+        #print(f'Node expanssion: param_space:{param_space.label}')
         assert not param_space.assigned
         samples = param_space.expansion(sample_num=max_space)
         for param_sample in samples:
@@ -109,7 +110,7 @@ class MCTree(object):
                 if child != node:
                     return space_sample, child
             else:
-                print(f'Tree selection:{node.info()}')
+                #print(f'Tree selection:{node.info()}')
                 node = self.policy.selection(node)
                 if node.visits <= 0:
                     break
@@ -136,7 +137,7 @@ class MCTree(object):
         return space_sample
 
     def expansion(self, node):
-        print(f'Tree expansion:{node.info()}')
+        #print(f'Tree expansion:{node.info()}')
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
@@ -155,13 +156,13 @@ class MCTree(object):
     def simulation(self, node):
         raise NotImplementedError
 
-    def back_propagation(self, node, reward):
+    def back_propagation(self, node, reward, is_simulation=False):
         while node is not None:
-            node.reward, node.visits = self.policy.back_propagation(node, reward)
+            node.reward, node.visits = self.policy.back_propagation(node, reward, is_simulation)
             node = node.parent
 
     def roll_out(self, space_sample, node):
-        print(f'Tree roll out:{node.info()}')
+        #print(f'Tree roll out:{node.info()}')
         terminal = True
         for hp in space_sample.params_iterator:
             terminal = False
@@ -193,13 +194,25 @@ class UCT(BasePolicy):
                    node.children]
         index = np.argmax(scores)
         selected = node.children[index]
-        print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
-        print(f'Detials: {details}')
-        print('*******************************************************************************')
+        #print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
+        #print(f'Detials: {details}')
+        #print('*******************************************************************************')
 
         return selected
 
-    def back_propagation(self, node, reward):
-        new_reward = node.reward + (reward - node.reward) / (node.visits + 1)
-        node.rewards.append(reward)
-        return new_reward, node.visits + 1
+    def back_propagation(self, node, reward, is_simulation=False):
+        if is_simulation:
+            node.simulation_rewards.append(reward)
+            # return np.average(node.rewards + [reward]), len(node.rewards) + 1
+        else:
+            node.rewards.append(reward)
+            # return np.average(node.rewards), len(node.rewards)
+        avg_reward = np.average(node.rewards) if len(node.rewards) > 0 else 0.0
+        if len(node.simulation_rewards) > 0:
+            avg_sim_reward = np.average(node.simulation_rewards)
+            new_reward = (avg_reward + avg_sim_reward) / 2
+            visits = len(node.simulation_rewards)
+        else:
+            new_reward = avg_reward
+            visits = len(node.rewards)
+        return new_reward, visits

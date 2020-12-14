@@ -2,18 +2,21 @@
 """
 
 """
-from ..core.searcher import OptimizeDirection
 import datetime
 import os
 import pickle
+import shutil
+
+from ..core.searcher import OptimizeDirection
 
 
 class Trail():
-    def __init__(self, space_sample, trail_no, reward, elapsed):
+    def __init__(self, space_sample, trail_no, reward, elapsed, model_file=None):
         self.space_sample = space_sample
         self.trail_no = trail_no
         self.reward = reward
         self.elapsed = elapsed
+        self.model_file = model_file
 
 
 class TrailHistory():
@@ -84,6 +87,56 @@ class TrailHistory():
             diffs[sign] = pv_dict
 
         return diffs
+
+    def get_trajectories(self):
+        times, best_rewards, rewards = [0.0], [0.0], [0.0]
+        his = sorted(self.history, key=lambda t: t.trail_no)
+        best_trail_no = 0
+        best_elapsed = 0
+        for t in his:
+            rewards.append(t.reward)
+            times.append(t.elapsed + times[-1])
+
+            if t.reward > best_rewards[-1]:
+                best_rewards.append(t.reward)
+                best_trail_no = t.trail_no
+                best_elapsed = times[-1]
+            else:
+                best_rewards.append(best_rewards[-1])
+
+        return times, best_rewards, rewards, best_trail_no, best_elapsed
+
+    def save(self, filepath):
+        with open(filepath, 'w') as output:
+            output.write(f'{self.optimize_direction}\r\n')
+            for trail in self.history:
+                data = f'{trail.trail_no}|{trail.space_sample.vectors}|{trail.reward}|{trail.elapsed}' + \
+                       f'|{trail.model_file if trail.model_file else ""}\r\n'
+                output.write(data)
+
+    @staticmethod
+    def load_history(space_fn, filepath):
+        with open(filepath, 'r') as input:
+            line = input.readline()
+            history = TrailHistory(line.strip())
+            while line is not None and line != '':
+                line = input.readline()
+                if line.strip() == '':
+                    continue
+                fields = line.split('|')
+                assert len(fields) >= 4, f'Trail format is not correct. \r\nline:[{line}]'
+                sample = space_fn()
+                vector = [float(n) if n.__contains__('.') else int(n) for n in
+                          fields[1].replace('[', '').replace(']', '').split(',')]
+                sample.assign_by_vectors(vector)
+                if len(fields) > 4:
+                    model_file = fields[4]
+                else:
+                    model_file = None
+                trail = Trail(space_sample=sample, trail_no=int(fields[0]), reward=float(fields[2]),
+                              elapsed=float(fields[3]), model_file=model_file)
+                history.append(trail)
+            return history
 
 
 class TrailStore(object):
@@ -176,6 +229,11 @@ class DiskTrailStore(TrailStore):
     def load(self):
         pass
 
+    def clear_history(self):
+        shutil.rmtree(self.home_dir)
+        self.prepare_home_dir(self.home_dir)
+        self.reset()
+
     def reset(self):
         self._cache = {}
 
@@ -200,7 +258,11 @@ class DiskTrailStore(TrailStore):
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         with open(path, 'wb') as f:
-            temp = Trail(space_sample=None, trail_no=trail.trail_no, reward=trail.reward, elapsed=trail.elapsed)
+            temp = Trail(space_sample=None,
+                         trail_no=trail.trail_no,
+                         reward=trail.reward,
+                         elapsed=trail.elapsed,
+                         model_file=trail.model_file)
             temp.space_sample_vectors = trail.space_sample.vectors
             pickle.dump(temp, f)
 

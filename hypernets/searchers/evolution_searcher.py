@@ -2,8 +2,12 @@
 """
 
 """
-from ..core.searcher import Searcher, OptimizeDirection
 import numpy as np
+
+from ..core.searcher import Searcher, OptimizeDirection
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class Individual(object):
@@ -22,7 +26,10 @@ class Population(object):
         self.size = size
         self.populations = []
         self.optimize_direction = optimize_direction
-        self.initializing = True
+
+    @property
+    def initializing(self):
+        return not len(self.populations) >= self.size
 
     @property
     def length(self):
@@ -31,8 +38,6 @@ class Population(object):
     def append(self, space_sample, reward):
         individual = Individual(space_sample, reward)
         self.populations.append(individual)
-        if len(self.populations) >= self.size:
-            self.initializing = False
 
     def sample_best(self, sample_size, random_state=np.random.RandomState()):
         if sample_size > self.length:
@@ -85,9 +90,10 @@ class Population(object):
 
 class EvolutionSearcher(Searcher):
     def __init__(self, space_fn, population_size, sample_size, regularized=False,
-                 candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True):
+                 candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
+                 space_sample_validation_fn=None):
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
-                          use_meta_learner=use_meta_learner)
+                          use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
         self.population = Population(size=population_size, optimize_direction=optimize_direction)
         self.sample_size = sample_size
         self.regularized = regularized
@@ -99,33 +105,51 @@ class EvolutionSearcher(Searcher):
 
     def sample(self):
         if self.population.initializing:
-            space_sample = self.space_fn()
-            space_sample.random_sample()
+            space_sample = self._sample_and_check(self._random_sample)
             return space_sample
         else:
             best = self.population.sample_best(self.sample_size)
             offspring = self._get_offspring(best.space_sample)
-            return offspring
+            if offspring is not None:
+                return offspring
+            else:
+                self.population.populations.remove(best)
+                space_sample = self._sample_and_check(self._random_sample)
+                return space_sample
 
     def _get_offspring(self, space_sample):
         if self.use_meta_learner and self.meta_learner is not None:
             candidates = []
             scores = []
+            no = 0
             for i in range(self.candidate_size):
                 new_space = self.space_fn()
-                candidate = self.population.mutate(space_sample, new_space)
-                candidates.append(candidate)
-                scores.append((i, self.meta_learner.predict(candidate)))
+                try:
+                    candidate = self._sample_and_check(lambda: self.population.mutate(space_sample, new_space))
+                    candidates.append(candidate)
+                    scores.append((no, self.meta_learner.predict(candidate)))
+                    no += 1
+                except:
+                    pass
+            if len(candidates) <= 0:
+                return None
+
             topn = sorted(scores,
                           key=lambda s: s[1] if self.optimize_direction == OptimizeDirection.Minimize else -s[1])[
-                   :int(self.candidate_size * 0.3)]
+                   :int(len(candidates) * 0.3)]
             best = topn[np.random.choice(range(len(topn)))]
-            print(f'get_offspring scores:{best[1]}, index:{best[0]}')
+
+            if logger.is_info_enabled():
+                logger.info(f'get_offspring scores:{best[1]}, index:{best[0]}')
+
             return candidates[best[0]]
         else:
             new_space = self.space_fn()
-            candidate = self.population.mutate(space_sample, new_space)
-            return candidate
+            try:
+                candidate = self._sample_and_check(lambda: self.population.mutate(space_sample, new_space))
+                return candidate
+            except:
+                return None
 
     def update_result(self, space_sample, result):
         if not self.population.initializing:

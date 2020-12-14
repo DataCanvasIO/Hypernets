@@ -2,48 +2,78 @@
 """
 
 """
+import hashlib
 import time
-from ..core.callbacks import EarlyStoppingError
-from ..core.trial import *
+import traceback
+from collections import UserDict
+
 from ..core.meta_learner import MetaLearner
-import collections
+from ..core.trial import *
+from ..dispatchers import get_dispatcher
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
+
 
 class HyperModel():
-    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None, task=None):
         # self.searcher = self._build_searcher(searcher, space_fn)
         self.searcher = searcher
         self.dispatcher = dispatcher
         self.callbacks = callbacks
         self.reward_metric = reward_metric
         self.history = TrailHistory(searcher.optimize_direction)
-        self.best_model = None
         self.start_search_time = None
+        self.task = task
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError
 
-    def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs):
+    def load_estimator(self, model_file):
+        raise NotImplementedError
+
+    def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs):
 
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
 
         for callback in self.callbacks:
             callback.on_build_estimator(self, space_sample, estimator, trail_no)
-            callback.on_trail_begin(self, space_sample, trail_no)
+        #     callback.on_trail_begin(self, space_sample, trail_no)
+        fit_succeed = False
+        try:
+            estimator.fit(X, y, **fit_kwargs)
+            fit_succeed = True
+        except Exception as e:
+            logger.error('Estimator fit failed!')
+            logger.error(e)
+            track = traceback.format_exc()
+            logger.error(track)
 
-        estimator.fit(X, y, **fit_kwargs)
-        metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric])
-        reward = self._get_reward(metrics, self.reward_metric)
-        elapsed = time.time() - start_time
-        trail = Trail(space_sample, trail_no, reward, elapsed)
-        improved = self.history.append(trail)
-        if improved:
-            self.best_model = estimator.model
+        if fit_succeed:
+            metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric], **fit_kwargs)
+            reward = self._get_reward(metrics, self.reward_metric)
 
-        self.searcher.update_result(space_sample, reward)
+            if model_file is None or len(model_file) == 0:
+                model_file = '%05d_%s.pkl' % (trail_no, space_sample.space_id)
+            estimator.save(model_file)
 
-        for callback in self.callbacks:
-            callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
+            elapsed = time.time() - start_time
+
+            trail = Trail(space_sample, trail_no, reward, elapsed, model_file)
+
+            # improved = self.history.append(trail)
+
+            self.searcher.update_result(space_sample, reward)
+
+            # for callback in self.callbacks:
+            #     callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
+        else:
+            # for callback in self.callbacks:
+            #     callback.on_trail_error(self, space_sample, trail_no)
+
+            elapsed = time.time() - start_time
+            trail = Trail(space_sample, trail_no, 0, elapsed)
 
         return trail
 
@@ -61,7 +91,8 @@ class HyperModel():
         fv = cast_float(value)
         if fv is not None:
             reward = fv
-        elif (isinstance(value, dict) or isinstance(value, collections.UserDict)) and key in value and cast_float(value[key]) is not None:
+        elif (isinstance(value, dict) or isinstance(value, UserDict)) and key in value and cast_float(
+                value[key]) is not None:
             reward = cast_float(value[key])
         else:
             raise ValueError(
@@ -71,14 +102,27 @@ class HyperModel():
     def get_best_trail(self):
         return self.history.get_best()
 
+    @property
+    def best_reward(self):
+        best = self.get_best_trail()
+        if best is not None:
+            return best.reward
+        else:
+            return None
+
+    def get_top_trails(self, top_n):
+        return self.history.get_top(top_n)
+
     def _before_search(self):
         pass
 
     def _after_search(self, last_trail_no):
         pass
 
-    def search(self, X, y, X_val, y_val, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
+    def search(self, X, y, X_eval, y_eval, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
         self.start_search_time = time.time()
+
+        self.task, _ = self.infer_task_type(y)
 
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
@@ -87,61 +131,32 @@ class HyperModel():
 
         self._before_search()
 
-        trail_no = 1
-        retry_counter = 0
-        while trail_no <= max_trails:
-            space_sample = self.searcher.sample()
-            if self.history.is_existed(space_sample):
-                if retry_counter >= 1000:
-                    print(f'Unable to take valid sample and exceed the retry limit 1000.')
-                    break
-                trail = self.history.get_trail(space_sample)
-                for callback in self.callbacks:
-                    callback.on_skip_trail(self, space_sample, trail_no, 'trail_exsited', trail.reward, False,
-                                           trail.elapsed)
-                retry_counter += 1
-                continue
-            # for testing
-            # space_sample = self.searcher.space_fn()
-            # trails = self.trail_store.get_all(dataset_id, space_sample1.signature)
-            # space_sample.assign_by_vectors(trails[0].space_sample_vectors)
-            # space_sample.space_id = space_sample1.space_id
-
-            try:
-                if trail_store is not None:
-                    trail = trail_store.get(dataset_id, space_sample)
-                    if trail is not None:
-                        reward = trail.reward
-                        elapsed = trail.elapsed
-                        trail = Trail(space_sample, trail_no, reward, elapsed)
-                        improved = self.history.append(trail)
-                        if improved:
-                            self.best_model = None
-                        self.searcher.update_result(space_sample, reward)
-                        for callback in self.callbacks:
-                            callback.on_skip_trail(self, space_sample, trail_no, 'hit_trail_store', reward, improved,
-                                                   elapsed)
-                        trail_no += 1
-                        continue
-                trail = self._run_trial(space_sample, trail_no, X, y, X_val, y_val, **fit_kwargs)
-                print(f'----------------------------------------------------------------')
-                print(f'space signatures: {self.history.get_space_signatures()}')
-                print(f'----------------------------------------------------------------')
-                if trail_store is not None:
-                    trail_store.put(dataset_id, trail)
-                trail_no += 1
-                retry_counter = 0
-            except EarlyStoppingError:
-                break
-                # TODO: early stopping
+        dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
+        trail_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store, **fit_kwargs)
 
         self._after_search(trail_no)
 
     def generate_dataset_id(self, X, y):
-        if isinstance(X, list):
-            return ','.join([str(i) for i in X[0]])
-        else:
-            return str(X.shape)
+        repr = ''
+        if X is not None:
+            if isinstance(X, list):
+                repr += f'X len({len(X)})|'
+            if hasattr(X, 'shape'):
+                repr += f'X shape{X.shape}|'
+            if hasattr(X, 'dtypes'):
+                repr += f'x.dtypes({list(X.dtypes)})|'
+
+        if y is not None:
+            if isinstance(y, list):
+                repr += f'y len({len(y)})|'
+            if hasattr(y, 'shape'):
+                repr += f'y shape{y.shape}|'
+
+            if hasattr(y, 'dtype'):
+                repr += f'y.dtype({y.dtype})|'
+
+        sign = hashlib.md5(repr.encode('utf-8')).hexdigest()
+        return sign
 
     def final_train(self, space_sample, X, y, **kwargs):
         estimator = self._get_estimator(space_sample)
@@ -156,3 +171,36 @@ class HyperModel():
 
     def export_trail_configuration(self, trail):
         raise NotImplementedError
+
+    def infer_task_type(self, y):
+        if len(y.shape) > 1 and y.shape[-1] > 1:
+            labels = list(range(y.shape[-1]))
+            task = 'multilable'
+            return task, labels
+
+        uniques = set(y)
+        n_unique = len(uniques)
+        labels = []
+
+        if n_unique == 2:
+            logger.info(f'2 class detected, {uniques}, so inferred as a [binary classification] task')
+            task = 'binary'  # TASK_BINARY
+            labels = sorted(uniques)
+        else:
+            if y.dtype == 'float':
+                logger.info(f'Target column type is float, so inferred as a [regression] task.')
+                task = 'regression'
+            else:
+                if n_unique > 1000:
+                    if 'int' in y.dtype:
+                        logger.info(
+                            'The number of classes exceeds 1000 and column type is int, so inferred as a [regression] task ')
+                        task = 'regression'
+                    else:
+                        raise ValueError(
+                            'The number of classes exceeds 1000, please confirm whether your predict target is correct ')
+                else:
+                    logger.info(f'{n_unique} class detected, inferred as a [multiclass classification] task')
+                    task = 'multiclass'
+                    labels = sorted(uniques)
+        return task, labels

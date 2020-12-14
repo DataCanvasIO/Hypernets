@@ -3,3 +3,5 @@ __author__ = 'yangjian'
 """
 
 """
+
+from ._fsutils import filesystem as fs

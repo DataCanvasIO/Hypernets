@@ -5,21 +5,48 @@ from __future__ import absolute_import
 from setuptools import find_packages
 from setuptools import setup
 
-version = '0.1.1'
 
-requirements = [
-    'pandas>=0.25.3',
-    'scikit-learn>=0.22.1',
-    'tensorflow==2.1.0',
-    'numpy>=1.17.4',
-    'pytest==5.3.2',
-    'lightgbm',
-    'deeptables'
-]
+def read_requirements(file_path='requirements.txt'):
+    import os
+
+    if not os.path.exists(file_path):
+        return []
+
+    with open(file_path, 'r')as f:
+        lines = f.readlines()
+
+    lines = [x.strip('\n').strip(' ') for x in lines]
+    lines = list(filter(lambda x: len(x) > 0 and not x.startswith('#'), lines))
+
+    return lines
+
+
+def read_extra_requirements():
+    import glob
+    import re
+
+    extra = {}
+
+    for file_name in glob.glob('requirements-*.txt'):
+        key = re.search('requirements-(.+).txt', file_name).group(1)
+        req = read_requirements(file_name)
+        if req:
+            extra[key] = req
+
+    if extra and 'all' not in extra.keys():
+        extra['all'] = sorted({v for req in extra.values() for v in req})
+
+    return extra
+
+
+version = '0.1.6'
 
 MIN_PYTHON_VERSION = '>=3.6.*'
 
 long_description = open('README.md', encoding='utf-8').read()
+
+requires = read_requirements()
+extras_require = read_extra_requirements()
 
 setup(
     name='hypernets',
@@ -31,13 +58,9 @@ setup(
     author='DataCanvas Community',
     author_email='yangjian@zetyun.com',
     license='Apache License 2.0',
-    install_requires=requirements,
+    install_requires=requires,
     python_requires=MIN_PYTHON_VERSION,
-    extras_require={
-        'tests': ['pytest', ],
-        'gpu': ['tensorflow-gpu==2.1.0', ]
-    },
-
+    extras_require=extras_require,
     classifiers=[
         'Operating System :: OS Independent',
         'Intended Audience :: Developers',
@@ -52,7 +75,7 @@ setup(
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    packages=find_packages(exclude=('docs', 'tests')),
+    packages=find_packages(exclude=('docs', 'tests*')),
     package_data={
     },
     zip_safe=False,
