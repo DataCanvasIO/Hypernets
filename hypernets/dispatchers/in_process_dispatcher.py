@@ -70,10 +70,7 @@ class InProcessDispatcher(Dispatcher):
                         callback.on_trail_error(hyper_model, space_sample, trail_no)
 
                 if logger.is_info_enabled():
-                    msg = f'Trail {trail_no} done, reward: {trail.reward}, best_reward:{hyper_model.best_reward}\n' \
-                          + f'----------------------------------------------------------------\n' \
-                          + f'space signatures: \n{hyper_model.history.get_space_signatures()}\n' \
-                          + f'----------------------------------------------------------------'
+                    msg = f'Trail {trail_no} done, reward: {trail.reward}, best_reward:{hyper_model.best_reward}\n'
                     logger.info(msg)
                 if trail_store is not None:
                     trail_store.put(dataset_id, trail)

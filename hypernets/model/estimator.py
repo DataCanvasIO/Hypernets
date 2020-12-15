@@ -33,7 +33,7 @@ class Estimator():
         raise NotImplementedError
 
     def proba2predict(self, proba, proba_threshold=0.5):
-        if self.task != 'classification':
+        if self.task == 'regression':
             return proba
         if proba.shape[-1] > 2:
             predict = proba.argmax(axis=-1)
