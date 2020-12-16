@@ -4,11 +4,11 @@
 """
 import numpy as np
 
-from hypernets.core.ops import Int, Choice, Bool, Real, Identity
-from hypernets.core.search_space import HyperSpace
+from hypernets.core.ops import Choice, Bool, Identity
+from hypernets.core.search_space import HyperSpace, Int, Real
+from hypernets.searchers.evolution_searcher import EvolutionSearcher
 from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.random_searcher import RandomSearcher
-from hypernets.searchers.evolution_searcher import EvolutionSearcher
 
 
 def get_space():
