@@ -23,10 +23,11 @@ _log_level = INFO
 
 # _log_format = '%(name)s %(levelname).1s%(asctime)s.%(msecs)d %(filename)s %(lineno)d - %(message)s'
 # _log_format = '%(module)s %(levelname).1s %(filename)s %(lineno)d - %(message)s'
-_log_format = '%(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
+# _log_format = '%(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
+_log_format = '%(asctime)s %(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
 
 # _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-_data_format = '%m%d %H:%M:%S'
+_data_format = '%H:%M:%S'
 
 
 # # detect code run in interactive mode or not
