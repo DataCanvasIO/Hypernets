@@ -206,10 +206,7 @@ class DaskDispatcher(Dispatcher):
             if logger.is_info_enabled():
                 elapsed = '%.3f' % (trail_item.done_at - trail_item.start_at)
                 msg = f'Trail {trail_item.trail_no} done with reward={trail_item.reward}, ' \
-                      f'elapsed {elapsed} seconds\n' \
-                      f'----------------------------------------------------------------\n' \
-                      f'space signatures: \n{hyper_model.history.get_space_signatures()}\n' \
-                      f'----------------------------------------------------------------'
+                      f'elapsed {elapsed} seconds\n'
                 logger.info(msg)
             if trail_store is not None:
                 trail_store.put(dataset_id, trail_item)
