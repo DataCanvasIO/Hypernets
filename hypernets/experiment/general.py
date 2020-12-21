@@ -28,7 +28,7 @@ class GeneralExperiment(Experiment):
 
         """
         self.step_start('data split')
-        if X_eval or y_eval is None:
+        if X_eval is None or y_eval is None:
             stratify = y_train
             if self.task == 'regression':
                 stratify = None
