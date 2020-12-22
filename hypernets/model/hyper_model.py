@@ -110,6 +110,14 @@ class HyperModel():
         else:
             return None
 
+    @property
+    def best_trail_no(self):
+        best = self.get_best_trail()
+        if best is not None:
+            return best.trail_no
+        else:
+            return None
+
     def get_top_trails(self, top_n):
         return self.history.get_top(top_n)
 

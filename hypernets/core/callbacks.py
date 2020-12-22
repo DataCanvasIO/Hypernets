@@ -40,14 +40,19 @@ class EarlyStoppingError(RuntimeError):
 
 
 class EarlyStoppingCallback(Callback):
-    def __init__(self, max_no_improvement_trails=0, mode='min', min_delta=0):
+    def __init__(self, max_no_improvement_trails=0, mode='min', min_delta=0, time_limit=None, expected_reward=None):
         super(Callback, self).__init__()
+        assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
+
         self.max_no_improvement_trails = max_no_improvement_trails
         self.mode = mode
         self.min_delta = min_delta
         self.best_reward = None
         self.best_trail_no = None
         self.counter_no_improvement_trails = 0
+        self.time_limit = time_limit
+        self.expected_reward = expected_reward
+        self.start_time = None
         if mode == 'min':
             self.op = np.less
         elif mode == 'max':
@@ -55,22 +60,44 @@ class EarlyStoppingCallback(Callback):
         else:
             raise ValueError(f'Unsupported mode:{mode}')
 
+    def on_trail_begin(self, hyper_model, space, trail_no):
+        if self.start_time is None:
+            self.start_time = time.time()
+
     def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
-        if self.best_reward is None:
-            self.best_reward = reward
-            self.best_trail_no = trail_no
-        else:
-            if self.op(reward, self.best_reward - self.min_delta):
+        if self.time_limit is not None:
+            time_total = time.time() - self.start_time
+            if time_total > self.time_limit:
+                msg = 'The time limit has been exceeded, stop early.\r\n'
+                msg += f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                if logger.is_info_enabled():
+                    logger.info(msg)
+                raise EarlyStoppingError(msg)
+
+        if self.expected_reward is not None:
+            if self.op(reward, self.expected_reward):
+                msg = 'Has met the expected reward, stop early.\r\n'
+                msg += f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                if logger.is_info_enabled():
+                    logger.info(msg)
+                raise EarlyStoppingError(msg)
+
+        if self.max_no_improvement_trails > 0:
+            if self.best_reward is None:
                 self.best_reward = reward
                 self.best_trail_no = trail_no
-                self.counter_no_improvement_trails = 0
             else:
-                self.counter_no_improvement_trails += 1
-                if self.counter_no_improvement_trails >= self.max_no_improvement_trails:
-                    msg = f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
-                    if logger.is_info_enabled():
-                        logger.info(msg)
-                    raise EarlyStoppingError(msg)
+                if self.op(reward, self.best_reward - self.min_delta):
+                    self.best_reward = reward
+                    self.best_trail_no = trail_no
+                    self.counter_no_improvement_trails = 0
+                else:
+                    self.counter_no_improvement_trails += 1
+                    if self.counter_no_improvement_trails >= self.max_no_improvement_trails:
+                        msg = f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                        if logger.is_info_enabled():
+                            logger.info(msg)
+                        raise EarlyStoppingError(msg)
 
 
 class FileLoggingCallback(Callback):
