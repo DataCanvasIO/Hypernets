@@ -468,6 +468,36 @@ class HyperSpace(Mutable):
             count *= hp.choice_num
         return count
 
+    def _repr_html_(self):
+        html = '''<table border="1" class="dataframe">
+<thead>
+<tr style="text-align: right;">
+  <th>key</th>
+  <th>value</th>
+</tr>
+</thead>
+<tbody>'''
+        html += f'''<tr>
+  <td>signature</td>
+  <td>{self.signature}</td>
+</tr>
+<tr>
+  <td>vectors</td>
+  <td>{self.vectors}</td>
+</tr>'''
+        params = self.get_assigned_params()
+        for i, hp in enumerate(params):
+            html += f'''<tr>
+  <td>{i}-{hp.alias}</td>
+  <td>{hp.value}</td>
+</tr>
+<tr>'''
+
+        html += '''  </tbody>
+</table>
+</div>'''
+        return html
+
 
 class DefaultStack(threading.local):
     def __init__(self):

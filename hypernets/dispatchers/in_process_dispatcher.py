@@ -6,6 +6,10 @@ from ..core.trial import Trail
 from ..utils import logging, fs
 from ..utils.common import config
 
+from IPython.display import display, update_display, clear_output, display_markdown
+import time
+import pandas as pd
+
 logger = logging.get_logger(__name__)
 
 _model_root = config('model_path', 'tmp/models')
@@ -24,6 +28,11 @@ class InProcessDispatcher(Dispatcher):
 
         trail_no = 1
         retry_counter = 0
+        current_trail_display_id = None
+        search_summary_display_id = None
+        title_display_id = None
+        start_time = time.time()
+        last_reward = 0
         while trail_no <= max_trails:
             space_sample = hyper_model.searcher.sample()
             if hyper_model.history.is_existed(space_sample):
@@ -58,8 +67,32 @@ class InProcessDispatcher(Dispatcher):
                     callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
                 model_file = '%s/%05d_%s.pkl' % (self.models_dir, trail_no, space_sample.space_id)
-                trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
 
+                df_summary = pd.DataFrame([(trail_no, last_reward, hyper_model.best_trail_no, hyper_model.best_reward,
+                                            time.time() - start_time, max_trails)],
+                                          columns=['trail No.', 'Previous reward', 'Best trail', 'Best reward',
+                                                   'Total elapsed',
+                                                   'Max trails'])
+                if search_summary_display_id is None:
+                    handle = display(df_summary, display_id=True)
+                    if handle is not None:
+                        search_summary_display_id = handle.display_id
+                else:
+                    update_display(df_summary, display_id=search_summary_display_id)
+
+                if current_trail_display_id is None:
+                    handle = display({'text/markdown': '#### Current Trail:'}, raw=True, include=['text/markdown'],
+                                     display_id=True)
+                    if handle is not None:
+                        title_display_id = handle.display_id
+                    handle = display(space_sample, display_id=True)
+                    if handle is not None:
+                        current_trail_display_id = handle.display_id
+                else:
+                    update_display(space_sample, display_id=current_trail_display_id)
+
+                trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
+                last_reward = trail.reward
                 if trail.reward != 0:  # success
                     improved = hyper_model.history.append(trail)
                     for callback in hyper_model.callbacks:
@@ -88,5 +121,16 @@ class InProcessDispatcher(Dispatcher):
             finally:
                 trail_no += 1
                 retry_counter = 0
+
+        update_display({'text/markdown': '#### Top trails:'}, raw=True, include=['text/markdown'],
+                       display_id=title_display_id)
+
+        df_best_trails = pd.DataFrame([
+            (t.trail_no, t.reward, t.elapsed) for t in hyper_model.get_top_trails(5)],
+            columns=['Trail No.', 'Reward', 'Elapsed'])
+        if current_trail_display_id is None:
+            display(df_best_trails, display_id=True)
+        else:
+            update_display(df_best_trails, display_id=current_trail_display_id)
 
         return trail_no

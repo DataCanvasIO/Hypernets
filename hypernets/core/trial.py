@@ -18,6 +18,48 @@ class Trail():
         self.elapsed = elapsed
         self.model_file = model_file
 
+    def _repr_html_(self):
+        html = f'<div><h>Trail:</h>'
+        html += '''<table border="1" class="dataframe">
+<thead>
+<tr style="text-align: right;">
+  <th>key</th>
+  <th>value</th>
+</tr>
+</thead>
+<tbody>'''
+        html += f'''<tr>
+  <td>Trail No.</td>
+  <td>{self.trail_no}</td>
+</tr>
+<tr>
+  <td>Reward</td>
+  <td>{self.reward}</td>
+</tr>
+<tr>
+  <td>Elapsed</td>
+  <td>{self.elapsed}</td>
+</tr>
+<tr>
+  <td>space.signature</td>
+  <td>{self.space_sample.signature}</td>
+</tr>
+<tr>
+  <td>space.vectors</td>
+  <td>{self.space_sample.vectors}</td>
+</tr>'''
+        params = self.space_sample.get_assigned_params()
+        for i, hp in enumerate(params):
+            html += f'''<tr>
+  <td>{i}-{hp.alias}</td>
+  <td>{hp.value}</td>
+</tr>
+<tr>'''
+
+        html += '''  </tbody>
+</table>
+</div>'''
+        return html
 
 class TrailHistory():
     def __init__(self, optimize_direction):
