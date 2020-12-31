@@ -30,6 +30,7 @@ class InProcessDispatcher(Dispatcher):
         retry_counter = 0
         current_trail_display_id = None
         search_summary_display_id = None
+        best_trail_display_id = None
         title_display_id = None
         start_time = time.time()
         last_reward = 0
@@ -102,6 +103,16 @@ class InProcessDispatcher(Dispatcher):
                     for callback in hyper_model.callbacks:
                         callback.on_trail_error(hyper_model, space_sample, trail_no)
 
+                best_trail = hyper_model.get_best_trail()
+                if best_trail is not None:
+                    if best_trail_display_id is None:
+                        display_markdown('#### Best Trail:', raw=True)
+                        handle = display(best_trail.space_sample, display_id=True)
+                        if handle is not None:
+                            best_trail_display_id = handle.display_id
+                    else:
+                        update_display(best_trail.space_sample, display_id=best_trail_display_id)
+
                 if logger.is_info_enabled():
                     msg = f'Trail {trail_no} done, reward: {trail.reward}, best_trail_no:{hyper_model.best_trail_no}, best_reward:{hyper_model.best_reward}\n'
                     logger.info(msg)
@@ -126,8 +137,8 @@ class InProcessDispatcher(Dispatcher):
                        display_id=title_display_id)
 
         df_best_trails = pd.DataFrame([
-            (t.trail_no, t.reward, t.elapsed) for t in hyper_model.get_top_trails(5)],
-            columns=['Trail No.', 'Reward', 'Elapsed'])
+            (t.trail_no, t.reward, t.elapsed, t.space_sample.vectors) for t in hyper_model.get_top_trails(5)],
+            columns=['Trail No.', 'Reward', 'Elapsed','Space Vector'])
         if current_trail_display_id is None:
             display(df_best_trails, display_id=True)
         else:
