@@ -34,6 +34,9 @@ class FileSystemAdapter(object):
         if self.remote_root_alias and rpath.startswith(self.remote_root_alias):
             return rpath
 
+        if is_windows and rpath.find(':') > 0:
+            return rpath
+
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)
 
     def to_lpath(self, lpath):
