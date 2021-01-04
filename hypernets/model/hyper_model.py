@@ -11,6 +11,7 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..dispatchers import get_dispatcher
 from ..utils import logging
+from .estimator import CrossValidationEstimator
 
 logger = logging.get_logger(__name__)
 
@@ -32,7 +33,8 @@ class HyperModel():
     def load_estimator(self, model_file):
         raise NotImplementedError
 
-    def _run_trial(self, space_sample, trail_no, X, y, X_eval, y_eval, model_file, **fit_kwargs):
+    def _run_trial(self, space_sample, trail_no, X, y, X_eval, y_eval, cv=False, num_folds=3, model_file=None,
+                   **fit_kwargs):
 
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
@@ -41,8 +43,13 @@ class HyperModel():
             callback.on_build_estimator(self, space_sample, estimator, trail_no)
         #     callback.on_trail_begin(self, space_sample, trail_no)
         fit_succeed = False
+        scores = None
         try:
-            estimator.fit(X, y, **fit_kwargs)
+            if cv:
+                scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
+                                                        shuffle=False, random_state=9527, metrics=[self.reward_metric])
+            else:
+                estimator.fit(X, y, **fit_kwargs)
             fit_succeed = True
         except Exception as e:
             logger.error('Estimator fit failed!')
@@ -51,8 +58,10 @@ class HyperModel():
             logger.error(track)
 
         if fit_succeed:
-            metrics = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
-            reward = self._get_reward(metrics, self.reward_metric)
+            if scores is None:
+                scores = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
+            print(f'scores:{scores}, space_sample:{space_sample.vectors}')
+            reward = self._get_reward(scores, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:
                 model_file = '%05d_%s.pkl' % (trail_no, space_sample.space_id)
@@ -127,7 +136,8 @@ class HyperModel():
     def _after_search(self, last_trail_no):
         pass
 
-    def search(self, X, y, X_eval, y_eval, max_trails=10, dataset_id=None, trail_store=None, **fit_kwargs):
+    def search(self, X, y, X_eval, y_eval, cv=False, num_folds=3, max_trails=10, dataset_id=None, trail_store=None,
+               **fit_kwargs):
         self.start_search_time = time.time()
 
         self.task, _ = self.infer_task_type(y)
@@ -140,7 +150,8 @@ class HyperModel():
         self._before_search()
 
         dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
-        trail_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store, **fit_kwargs)
+        trail_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, cv, num_folds, max_trails, dataset_id, trail_store,
+                                       **fit_kwargs)
 
         self._after_search(trail_no)
 
