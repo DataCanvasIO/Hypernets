@@ -71,6 +71,9 @@ class Counter(object):
 
 
 def isnotebook():
+    '''code from https://stackoverflow.com/questions/15411967/how-can-i-check-if-code-is-executed-in-the-ipython-notebook
+    :return:
+    '''
     try:
         shell = get_ipython().__class__.__name__
         if shell == 'ZMQInteractiveShell':

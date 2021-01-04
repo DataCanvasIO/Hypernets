@@ -32,7 +32,7 @@ class HyperModel():
     def load_estimator(self, model_file):
         raise NotImplementedError
 
-    def _run_trial(self, space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs):
+    def _run_trial(self, space_sample, trail_no, X, y, X_eval, y_eval, model_file, **fit_kwargs):
 
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
@@ -51,7 +51,7 @@ class HyperModel():
             logger.error(track)
 
         if fit_succeed:
-            metrics = estimator.evaluate(X_val, y_val, metrics=[self.reward_metric], **fit_kwargs)
+            metrics = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
             reward = self._get_reward(metrics, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:

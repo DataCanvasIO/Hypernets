@@ -17,7 +17,7 @@ class ExecutorDispatcher(Dispatcher):
         super(ExecutorDispatcher, self).__init__()
         self.driver_address = driver_address
 
-    def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
+    def dispatch(self, hyper_model, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
 
         if 'search_id' in fit_kwargs:
@@ -77,7 +77,7 @@ class ExecutorDispatcher(Dispatcher):
                         callback.on_trail_begin(hyper_model, space_sample, trail_no)
 
                     model_file = item.model_file
-                    trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
+                    trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, model_file, **fit_kwargs)
                     if trail.reward != 0:
                         improved = hyper_model.history.append(trail)
                         for callback in hyper_model.callbacks:

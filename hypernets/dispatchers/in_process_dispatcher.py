@@ -22,7 +22,7 @@ class InProcessDispatcher(Dispatcher):
         self.models_dir = models_dir
         fs.makedirs(models_dir, exist_ok=True)
 
-    def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
+    def dispatch(self, hyper_model, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
         retry_limit = int(config('search_retry', '1000'))
 
@@ -92,7 +92,7 @@ class InProcessDispatcher(Dispatcher):
                 else:
                     update_display(space_sample, display_id=current_trail_display_id)
 
-                trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_val, y_val, model_file, **fit_kwargs)
+                trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, model_file, **fit_kwargs)
                 last_reward = trail.reward
                 if trail.reward != 0:  # success
                     improved = hyper_model.history.append(trail)
