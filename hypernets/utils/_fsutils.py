@@ -5,11 +5,14 @@
 
 import json
 import os
+import sys
 import tempfile
 
 import fsspec
 
 from .common import config
+
+is_windows = sys.platform.find('win') >= 0
 
 
 class FileSystemAdapter(object):
@@ -20,11 +23,15 @@ class FileSystemAdapter(object):
         self.remote_root = remote_root
         self.local_root = local_root
         self.remote_sep = remote_sep
+        self.remote_root_alias = remote_root.replace('\\', '/') if is_windows else None
 
     def to_rpath(self, rpath):
         # return os.path.join(remote_root, rpath)
         assert rpath
         if rpath.startswith(self.remote_root):
+            return rpath
+
+        if self.remote_root_alias and rpath.startswith(self.remote_root_alias):
             return rpath
 
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)
@@ -264,6 +271,7 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
             fs.mkdirs(remote_root, exist_ok=True)
 
         local_root = remote_root
+        is_local = True
     else:
         remote_root = fs_root if fs_root else '/tmp'
         if not fs.exists(remote_root):
@@ -272,12 +280,13 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
         local_root = config('storage_localroot', os.path.join(tempfile.gettempdir(), 'cache'))
         local_root = os.path.abspath(os.path.expanduser(local_root))
         os.makedirs(local_root, exist_ok=True)
+        is_local = False
 
     # return fix_filesystem(fs, remote_root, local_root)
     if type(fs).__name__ == 'S3FileSystem':
         return S3FileSystemAdapter(remote_root, local_root, fs.sep)(fs)
     else:
-        return FileSystemAdapter(remote_root, local_root, fs.sep)(fs)
+        return FileSystemAdapter(remote_root, local_root, os.path.sep if is_local else fs.sep)(fs)
 
 
 def _fs_reduce(*args):
