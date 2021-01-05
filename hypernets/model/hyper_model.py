@@ -11,7 +11,6 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..dispatchers import get_dispatcher
 from ..utils import logging
-from .estimator import CrossValidationEstimator
 
 logger = logging.get_logger(__name__)
 
@@ -60,7 +59,6 @@ class HyperModel():
         if fit_succeed:
             if scores is None:
                 scores = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
-            print(f'scores:{scores}, space_sample:{space_sample.vectors}')
             reward = self._get_reward(scores, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:

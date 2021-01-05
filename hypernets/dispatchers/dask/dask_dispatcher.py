@@ -166,7 +166,7 @@ class DaskDispatcher(Dispatcher):
 
         fs.makedirs(self.models_dir, exist_ok=True)
 
-    def dispatch(self, hyper_model, X, y, X_val, y_val, max_trails, dataset_id, trail_store,
+    def dispatch(self, hyper_model, X, y, X_val, y_val, cv, num_folds, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
         assert not any(dask.is_dask_collection(i) for i in (X, y, X_val, y_val)), \
             f'{self.__class__.__name__} does not support to run trail with dask collection.'

@@ -23,7 +23,7 @@ class DriverDispatcher(Dispatcher):
         self.spaces_dir = f'{work_dir}/spaces'
         self.models_dir = f'{work_dir}/models'
 
-    def dispatch(self, hyper_model, X, y, X_eval, y_eval, max_trails, dataset_id, trail_store,
+    def dispatch(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trails, dataset_id, trail_store,
                  **fit_kwargs):
         def on_next_space(item):
             for cb in hyper_model.callbacks:
