@@ -43,11 +43,13 @@ class HyperModel():
         #     callback.on_trail_begin(self, space_sample, trail_no)
         fit_succeed = False
         scores = None
+        oof = None
         try:
             if cv:
-                scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
-                                                        shuffle=False, random_state=9527, metrics=[self.reward_metric],
-                                                        **fit_kwargs)
+                scores, oof = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
+                                                             shuffle=False, random_state=9527,
+                                                             metrics=[self.reward_metric],
+                                                             **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
             fit_succeed = True
@@ -69,6 +71,8 @@ class HyperModel():
             elapsed = time.time() - start_time
 
             trail = Trail(space_sample, trail_no, reward, elapsed, model_file)
+            if oof is not None:
+                trail.memo['oof'] = oof
 
             # improved = self.history.append(trail)
 

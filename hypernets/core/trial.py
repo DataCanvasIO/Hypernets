@@ -17,6 +17,7 @@ class Trail():
         self.reward = reward
         self.elapsed = elapsed
         self.model_file = model_file
+        self.memo = {}
 
     def _repr_html_(self):
         html = f'<div><h>Trail:</h>'
