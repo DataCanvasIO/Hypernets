@@ -102,6 +102,9 @@ class CustomizedLogger(_logging.Logger):
             stderr_handler.addFilter(lambda rec: rec.levelno >= WARN)
             self.addHandler(stderr_handler)
 
+    def getEffectiveLevel(self):
+        return _log_level
+
     def log(self, level, msg, *args, **kwargs):
         super(CustomizedLogger, self).log(level, msg, *args, **kwargs)
 
