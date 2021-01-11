@@ -6,6 +6,7 @@ import hashlib
 import time
 import traceback
 from collections import UserDict
+import numpy as np
 
 from ..core.meta_learner import MetaLearner
 from ..core.trial import *
@@ -201,6 +202,8 @@ class HyperModel():
             return task, labels
 
         uniques = set(y)
+        if uniques.__contains__(np.nan):
+            uniques.remove(np.nan)
         n_unique = len(uniques)
         labels = []
 
