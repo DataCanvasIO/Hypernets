@@ -46,8 +46,7 @@ class Population(object):
         samples = [self.populations[i] for i in indices]
         best = \
             sorted(samples,
-                   key=lambda i: i.reward if self.optimize_direction == OptimizeDirection.Minimize else -i.reward)[
-                0]
+                   key=lambda i: i.reward, reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])[0]
         return best
 
     def eliminate(self, num=1, regularized=False):
@@ -60,9 +59,8 @@ class Population(object):
                 eliminates.append(self.populations.pop(0))
             else:
                 # eliminate worst
-                worst = sorted(self.populations, key=lambda
-                    i: -i.reward if self.optimize_direction == OptimizeDirection.Minimize else i.reward)[
-                    0]
+                worst = sorted(self.populations, key=lambda i: i.reward,
+                               reverse=self.optimize_direction in ['min', OptimizeDirection.Minimize])[0]
                 self.populations.remove(worst)
                 eliminates.append(worst)
         return eliminates
@@ -135,7 +133,8 @@ class EvolutionSearcher(Searcher):
                 return None
 
             topn = sorted(scores,
-                          key=lambda s: s[1] if self.optimize_direction == OptimizeDirection.Minimize else -s[1])[
+                          key=lambda s: s[1],
+                          reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])[
                    :int(len(candidates) * 0.3)]
             best = topn[np.random.choice(range(len(topn)))]
 

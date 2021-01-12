@@ -62,6 +62,7 @@ class Trial():
 </div>'''
         return html
 
+
 class TrialHistory():
     def __init__(self, optimize_direction):
         self.history = []
@@ -95,9 +96,8 @@ class TrialHistory():
     def get_top(self, n=10):
         if len(self.history) <= 0:
             return []
-        sorted_trials = sorted(self.history,
-                               key=lambda
-                                   t: t.reward if self.optimize_direction == OptimizeDirection.Minimize else -t.reward)
+        sorted_trials = sorted(self.history, key=lambda t: t.reward,
+                               reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])
         if n > len(sorted_trials):
             n = len(sorted_trials)
         return sorted_trials[:n]
