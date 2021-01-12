@@ -18,19 +18,19 @@ class Callback():
     def __init__(self):
         pass
 
-    def on_build_estimator(self, hyper_model, space, estimator, trail_no):
+    def on_build_estimator(self, hyper_model, space, estimator, trial_no):
         pass
 
-    def on_trail_begin(self, hyper_model, space, trail_no):
+    def on_trial_begin(self, hyper_model, space, trial_no):
         pass
 
-    def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
+    def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
         pass
 
-    def on_trail_error(self, hyper_model, space, trail_no):
+    def on_trial_error(self, hyper_model, space, trial_no):
         pass
 
-    def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
+    def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         pass
 
 
@@ -40,16 +40,16 @@ class EarlyStoppingError(RuntimeError):
 
 
 class EarlyStoppingCallback(Callback):
-    def __init__(self, max_no_improvement_trails=0, mode='min', min_delta=0, time_limit=None, expected_reward=None):
+    def __init__(self, max_no_improvement_trials=0, mode='min', min_delta=0, time_limit=None, expected_reward=None):
         super(Callback, self).__init__()
         assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
 
-        self.max_no_improvement_trails = max_no_improvement_trails
+        self.max_no_improvement_trials = max_no_improvement_trials
         self.mode = mode
         self.min_delta = min_delta
         self.best_reward = None
-        self.best_trail_no = None
-        self.counter_no_improvement_trails = 0
+        self.best_trial_no = None
+        self.counter_no_improvement_trials = 0
         self.time_limit = time_limit
         self.expected_reward = expected_reward
         self.start_time = None
@@ -60,16 +60,16 @@ class EarlyStoppingCallback(Callback):
         else:
             raise ValueError(f'Unsupported mode:{mode}')
 
-    def on_trail_begin(self, hyper_model, space, trail_no):
+    def on_trial_begin(self, hyper_model, space, trial_no):
         if self.start_time is None:
             self.start_time = time.time()
 
-    def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
+    def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
         if self.time_limit is not None:
             time_total = time.time() - self.start_time
             if time_total > self.time_limit:
                 msg = 'The time limit has been exceeded, stop early.\r\n'
-                msg += f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                 if logger.is_info_enabled():
                     logger.info(msg)
                 raise EarlyStoppingError(msg)
@@ -77,24 +77,24 @@ class EarlyStoppingCallback(Callback):
         if self.expected_reward is not None:
             if self.op(reward, self.expected_reward):
                 msg = 'Has met the expected reward, stop early.\r\n'
-                msg += f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                 if logger.is_info_enabled():
                     logger.info(msg)
                 raise EarlyStoppingError(msg)
 
-        if self.max_no_improvement_trails > 0:
+        if self.max_no_improvement_trials > 0:
             if self.best_reward is None:
                 self.best_reward = reward
-                self.best_trail_no = trail_no
+                self.best_trial_no = trial_no
             else:
                 if self.op(reward, self.best_reward - self.min_delta):
                     self.best_reward = reward
-                    self.best_trail_no = trail_no
-                    self.counter_no_improvement_trails = 0
+                    self.best_trial_no = trial_no
+                    self.counter_no_improvement_trials = 0
                 else:
-                    self.counter_no_improvement_trails += 1
-                    if self.counter_no_improvement_trails >= self.max_no_improvement_trails:
-                        msg = f'Early stopping on trail : {trail_no}, best reward: {self.best_reward}, best_trail: {self.best_trail_no}'
+                    self.counter_no_improvement_trials += 1
+                    if self.counter_no_improvement_trials >= self.max_no_improvement_trials:
+                        msg = f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                         if logger.is_info_enabled():
                             logger.info(msg)
                         raise EarlyStoppingError(msg)
@@ -126,16 +126,16 @@ class FileLoggingCallback(Callback):
         self.mkdirs(output_path, exist_ok=True)
         return output_path
 
-    def on_build_estimator(self, hyper_model, space, estimator, trail_no):
+    def on_build_estimator(self, hyper_model, space, estimator, trial_no):
         pass
 
-    def on_trail_begin(self, hyper_model, space, trail_no):
+    def on_trial_begin(self, hyper_model, space, trial_no):
         pass
-        # with open(f'{self.output_dir}/trail_{trail_no}.log', 'w') as f:
+        # with open(f'{self.output_dir}/trial_{trial_no}.log', 'w') as f:
         #     f.write(space.params_summary())
 
-    def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
-        with self.open(f'{self.output_dir}/trail_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
+    def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        with self.open(f'{self.output_dir}/trial_{improved}_{trial_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
                        'w') as f:
             f.write(space.params_summary())
             f.write('\r\n----------------Summary for Searcher----------------\r\n')
@@ -151,14 +151,14 @@ class FileLoggingCallback(Callback):
         with self.open(f'{self.output_dir}/top_{topn}_config.txt', 'w') as f:
             trials = hyper_model.history.get_top(topn)
             configs = hyper_model.export_configuration(trials)
-            for trail, conf in zip(trials, configs):
-                f.write(f'Trail No: {trail.trail_no}, Reward: {trail.reward}\r\n')
+            for trial, conf in zip(trials, configs):
+                f.write(f'Trial No: {trial.trial_no}, Reward: {trial.reward}\r\n')
                 f.write(conf)
                 f.write('\r\n---------------------------------------------------\r\n\r\n')
 
-    def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
+    def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         with self.open(
-                f'{self.output_dir}/trail_{reason}_{improved}_{trail_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
+                f'{self.output_dir}/trial_{reason}_{improved}_{trial_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
                 'w') as f:
             f.write(space.params_summary())
 
@@ -180,24 +180,24 @@ class FileStorageLoggingCallback(FileLoggingCallback):
 
 
 class SummaryCallback(Callback):
-    def on_build_estimator(self, hyper_model, space, estimator, trail_no):
+    def on_build_estimator(self, hyper_model, space, estimator, trial_no):
         # if logger.is_info_enabled():
-        #     logger.info(f'\nTrail No:{trail_no}')
+        #     logger.info(f'\nTrial No:{trial_no}')
         #     logger.info(space.params_summary())
         estimator.summary()
 
-    def on_trail_begin(self, hyper_model, space, trail_no):
+    def on_trial_begin(self, hyper_model, space, trial_no):
         if logger.is_info_enabled():
-            msg = f'\nTrail No:{trail_no}{space.params_summary()}\ntrail {trail_no} begin'
+            msg = f'\nTrial No:{trial_no}{space.params_summary()}\ntrial {trial_no} begin'
             logger.info(msg)
 
-    def on_trail_end(self, hyper_model, space, trail_no, reward, improved, elapsed):
+    def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
         if logger.is_info_enabled():
-            logger.info(f'trail end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
+            logger.info(f'trial end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
             logger.info(f'Total elapsed:{time.time() - hyper_model.start_search_time}')
 
-    def on_skip_trail(self, hyper_model, space, trail_no, reason, reward, improved, elapsed):
+    def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         if logger.is_info_enabled():
             logger.info(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
-            logger.info(f'trail skip. reason:{reason},  reward:{reward}, improved:{improved}, elapsed:{elapsed}')
+            logger.info(f'trial skip. reason:{reason},  reward:{reward}, improved:{improved}, elapsed:{elapsed}')
             logger.info(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')

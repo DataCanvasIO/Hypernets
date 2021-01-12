@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='hypernets.dispatchers.cluster.grpc.proto',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n3hypernets/dispatchers/cluster/grpc/proto/spec.proto\x12(hypernets.dispatchers.cluster.grpc.proto\"\x1e\n\x0bPingMessage\x12\x0f\n\x07message\x18\x01 \x01(\t\"x\n\rSearchRequest\x12\x11\n\tsearch_id\x18\x01 \x01(\t\x12\x10\n\x08trail_no\x18\x02 \x01(\t\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0f\n\x07success\x18\x04 \x01(\x08\x12\x0e\n\x06reward\x18\x05 \x01(\x02\x12\x0f\n\x07message\x18\x06 \x01(\t\"\x8f\x02\n\x0eSearchResponse\x12Y\n\x04\x63ode\x18\x01 \x01(\x0e\x32K.hypernets.dispatchers.cluster.grpc.proto.SearchResponse.SearchResponseCode\x12\x11\n\tsearch_id\x18\x02 \x01(\t\x12\x10\n\x08trail_no\x18\x03 \x01(\t\x12\x10\n\x08space_id\x18\x04 \x01(\t\x12\x12\n\nspace_file\x18\x05 \x01(\t\x12\x12\n\nmodel_file\x18\x06 \x01(\t\"C\n\x12SearchResponseCode\x12\x06\n\x02OK\x10\x00\x12\x0b\n\x07WAITING\x10\x0b\x12\x0c\n\x08\x46INISHED\x10\x0c\x12\n\n\x06\x46\x41ILED\x10\x63\x32\x8a\x02\n\x0cSearchDriver\x12v\n\x04ping\x12\x35.hypernets.dispatchers.cluster.grpc.proto.PingMessage\x1a\x35.hypernets.dispatchers.cluster.grpc.proto.PingMessage\"\x00\x12\x81\x01\n\x06search\x12\x37.hypernets.dispatchers.cluster.grpc.proto.SearchRequest\x1a\x38.hypernets.dispatchers.cluster.grpc.proto.SearchResponse\"\x00(\x01\x30\x01\x62\x06proto3')
+  serialized_pb=_b('\n3hypernets/dispatchers/cluster/grpc/proto/spec.proto\x12(hypernets.dispatchers.cluster.grpc.proto\"\x1e\n\x0bPingMessage\x12\x0f\n\x07message\x18\x01 \x01(\t\"x\n\rSearchRequest\x12\x11\n\tsearch_id\x18\x01 \x01(\t\x12\x10\n\x08trial_no\x18\x02 \x01(\t\x12\x10\n\x08space_id\x18\x03 \x01(\t\x12\x0f\n\x07success\x18\x04 \x01(\x08\x12\x0e\n\x06reward\x18\x05 \x01(\x02\x12\x0f\n\x07message\x18\x06 \x01(\t\"\x8f\x02\n\x0eSearchResponse\x12Y\n\x04\x63ode\x18\x01 \x01(\x0e\x32K.hypernets.dispatchers.cluster.grpc.proto.SearchResponse.SearchResponseCode\x12\x11\n\tsearch_id\x18\x02 \x01(\t\x12\x10\n\x08trial_no\x18\x03 \x01(\t\x12\x10\n\x08space_id\x18\x04 \x01(\t\x12\x12\n\nspace_file\x18\x05 \x01(\t\x12\x12\n\nmodel_file\x18\x06 \x01(\t\"C\n\x12SearchResponseCode\x12\x06\n\x02OK\x10\x00\x12\x0b\n\x07WAITING\x10\x0b\x12\x0c\n\x08\x46INISHED\x10\x0c\x12\n\n\x06\x46\x41ILED\x10\x63\x32\x8a\x02\n\x0cSearchDriver\x12v\n\x04ping\x12\x35.hypernets.dispatchers.cluster.grpc.proto.PingMessage\x1a\x35.hypernets.dispatchers.cluster.grpc.proto.PingMessage\"\x00\x12\x81\x01\n\x06search\x12\x37.hypernets.dispatchers.cluster.grpc.proto.SearchRequest\x1a\x38.hypernets.dispatchers.cluster.grpc.proto.SearchResponse\"\x00(\x01\x30\x01\x62\x06proto3')
 )
 
 
@@ -102,7 +102,7 @@ _SEARCHREQUEST = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='trail_no', full_name='hypernets.dispatchers.cluster.grpc.proto.SearchRequest.trail_no', index=1,
+      name='trial_no', full_name='hypernets.dispatchers.cluster.grpc.proto.SearchRequest.trial_no', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -175,7 +175,7 @@ _SEARCHRESPONSE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='trail_no', full_name='hypernets.dispatchers.cluster.grpc.proto.SearchResponse.trail_no', index=2,
+      name='trial_no', full_name='hypernets.dispatchers.cluster.grpc.proto.SearchResponse.trial_no', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,

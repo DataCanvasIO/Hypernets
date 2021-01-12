@@ -23,7 +23,7 @@ class HyperModel():
         self.dispatcher = dispatcher
         self.callbacks = callbacks
         self.reward_metric = reward_metric
-        self.history = TrailHistory(searcher.optimize_direction)
+        self.history = TrialHistory(searcher.optimize_direction)
         self.start_search_time = None
         self.task = task
 
@@ -33,15 +33,15 @@ class HyperModel():
     def load_estimator(self, model_file):
         raise NotImplementedError
 
-    def _run_trial(self, space_sample, trail_no, X, y, X_eval, y_eval, cv=False, num_folds=3, model_file=None,
+    def _run_trial(self, space_sample, trial_no, X, y, X_eval, y_eval, cv=False, num_folds=3, model_file=None,
                    **fit_kwargs):
 
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
 
         for callback in self.callbacks:
-            callback.on_build_estimator(self, space_sample, estimator, trail_no)
-        #     callback.on_trail_begin(self, space_sample, trail_no)
+            callback.on_build_estimator(self, space_sample, estimator, trial_no)
+        #     callback.on_trial_begin(self, space_sample, trial_no)
         fit_succeed = False
         scores = None
         oof = None
@@ -66,29 +66,29 @@ class HyperModel():
             reward = self._get_reward(scores, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:
-                model_file = '%05d_%s.pkl' % (trail_no, space_sample.space_id)
+                model_file = '%05d_%s.pkl' % (trial_no, space_sample.space_id)
             estimator.save(model_file)
 
             elapsed = time.time() - start_time
 
-            trail = Trail(space_sample, trail_no, reward, elapsed, model_file)
+            trial = Trial(space_sample, trial_no, reward, elapsed, model_file)
             if oof is not None:
-                trail.memo['oof'] = oof
+                trial.memo['oof'] = oof
 
-            # improved = self.history.append(trail)
+            # improved = self.history.append(trial)
 
             self.searcher.update_result(space_sample, reward)
 
             # for callback in self.callbacks:
-            #     callback.on_trail_end(self, space_sample, trail_no, reward, improved, elapsed)
+            #     callback.on_trial_end(self, space_sample, trial_no, reward, improved, elapsed)
         else:
             # for callback in self.callbacks:
-            #     callback.on_trail_error(self, space_sample, trail_no)
+            #     callback.on_trial_error(self, space_sample, trial_no)
 
             elapsed = time.time() - start_time
-            trail = Trail(space_sample, trail_no, 0, elapsed)
+            trial = Trial(space_sample, trial_no, 0, elapsed)
 
-        return trail
+        return trial
 
     def _get_reward(self, value, key=None):
         def cast_float(value):
@@ -112,35 +112,35 @@ class HyperModel():
                 f'[value] should be a numeric or a dict which has a key named "{key}" whose value is a numeric.')
         return reward
 
-    def get_best_trail(self):
+    def get_best_trial(self):
         return self.history.get_best()
 
     @property
     def best_reward(self):
-        best = self.get_best_trail()
+        best = self.get_best_trial()
         if best is not None:
             return best.reward
         else:
             return None
 
     @property
-    def best_trail_no(self):
-        best = self.get_best_trail()
+    def best_trial_no(self):
+        best = self.get_best_trial()
         if best is not None:
-            return best.trail_no
+            return best.trial_no
         else:
             return None
 
-    def get_top_trails(self, top_n):
+    def get_top_trials(self, top_n):
         return self.history.get_top(top_n)
 
     def _before_search(self):
         pass
 
-    def _after_search(self, last_trail_no):
+    def _after_search(self, last_trial_no):
         pass
 
-    def search(self, X, y, X_eval, y_eval, cv=False, num_folds=3, max_trails=10, dataset_id=None, trail_store=None,
+    def search(self, X, y, X_eval, y_eval, cv=False, num_folds=3, max_trials=10, dataset_id=None, trial_store=None,
                **fit_kwargs):
         self.start_search_time = time.time()
 
@@ -149,15 +149,15 @@ class HyperModel():
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
         if self.searcher.use_meta_learner:
-            self.searcher.set_meta_learner(MetaLearner(self.history, dataset_id, trail_store))
+            self.searcher.set_meta_learner(MetaLearner(self.history, dataset_id, trial_store))
 
         self._before_search()
 
         dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
-        trail_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, cv, num_folds, max_trails, dataset_id, trail_store,
+        trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                                        **fit_kwargs)
 
-        self._after_search(trail_no)
+        self._after_search(trial_no)
 
     def generate_dataset_id(self, X, y):
         repr = ''
@@ -188,11 +188,11 @@ class HyperModel():
 
     def export_configuration(self, trials):
         configurations = []
-        for trail in trials:
-            configurations.append(self.export_trail_configuration(trail))
+        for trial in trials:
+            configurations.append(self.export_trial_configuration(trial))
         return configurations
 
-    def export_trail_configuration(self, trail):
+    def export_trial_configuration(self, trial):
         raise NotImplementedError
 
     def infer_task_type(self, y):

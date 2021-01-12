@@ -1,13 +1,13 @@
 ## Use Dask to parallelize Hypernets search
 
 In each HyperModel `search()` call, 
-it loops the HyperSpace `sample()` -> HyperModel `_run_trail()`
-until the `max_trails` reached or the`EarlyStoppingError`
+it loops the HyperSpace `sample()` -> HyperModel `_run_trial()`
+until the `max_trials` reached or the`EarlyStoppingError`
 occurred. Hypernets executes the loop step by step within one
 python process by default.
 
-Usually, the HyperModel `_run_trail()` spends most CPU time. 
-Hypernets provides the ability to parallelize `_run_trail()`
+Usually, the HyperModel `_run_trial()` spends most CPU time. 
+Hypernets provides the ability to parallelize `_run_trial()`
 with the [Dask](https://dask.org/) cluster. 
 
 ### Setup Dask support

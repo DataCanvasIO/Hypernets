@@ -25,8 +25,8 @@ from hypernets.core.search_space import HyperSpace, Bool, Choice, Real, Dynamic
 from hypernets.core.ops import Permutation, Sequential, Optional, Repeat
 import itertools
 
+
 def dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_activation, step):
-    
     # The value of a `Dynamic` is computed as a function of the values of the ParameterSpace it depends on.
     block_units = Dynamic(
         lambda_fn=lambda units, reduce_factor: units if step == 0 else units * (reduce_factor ** step),
@@ -40,7 +40,7 @@ def dnn_block(hp_dnn_units, hp_reduce_factor, hp_seq, hp_use_bn, hp_dropout, hp_
     # Use `Permutation` to try different arrangements of act, optional_bn, dropout
     # optional_bn is optional module and will be skipped when hp_use_bn is False
     perm_act_bn_dropout = Permutation([act, optional_bn, dropout], hp_seq=hp_seq)
-    
+
     # Use `Sequential` to connect dense and perm_act_bn_dropout in order
     seq = Sequential([dense, perm_act_bn_dropout])
     return seq
@@ -84,14 +84,16 @@ hk = HyperKeras(rs, optimizer='adam', loss='sparse_categorical_crossentropy', me
 x = np.random.randint(0, 10000, size=(100, 10))
 y = np.random.randint(0, 2, size=(100), dtype='int')
 
-hk.search(x, y, x, y, max_trails=3)
-assert hk.get_best_trail()
+hk.search(x, y, x, y, max_trials=3)
+assert hk.get_best_trial()
 ```
 
 ## Define A CNN Search Space
+
 ```python
-from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization, Activation, \
-    Conv2D, MaxPooling2D, AveragePooling2D, Flatten
+from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization, Activation,
+
+Conv2D, MaxPooling2D, AveragePooling2D, Flatten
 from hypernets.core.search_space import HyperSpace, Bool, Choice, Dynamic
 from hypernets.core.ops import Permutation, Sequential, Optional, Repeat, ModuleChoice
 import itertools
@@ -182,8 +184,8 @@ x_train, x_test = x_train[..., np.newaxis] / 255.0, x_test[..., np.newaxis] / 25
 y_train = tf.keras.utils.to_categorical(y_train)
 y_test = tf.keras.utils.to_categorical(y_test)
 
-hk.search(x_train, y_train, x_test, y_test, max_trails=10, epochs=10)
-assert hk.get_best_trail()
+hk.search(x_train, y_train, x_test, y_test, max_trials=10, epochs=10)
+assert hk.get_best_trial()
 ```
 
 ## Define An ENAS Micro Search Space
@@ -202,8 +204,9 @@ assert hk.get_best_trail()
 # define an ENAS micro search space
 
 from hypernets.frameworks.keras.enas_layers import SafeMerge, Identity, CalibrateSize
-from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
-    SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
+from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D,
+
+SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd
 from hypernets.core.search_space import ModuleSpace
 
@@ -279,10 +282,10 @@ def conv_cell(hp_dict, type, cell_no, node_no, left_or_right, inputs, filters, i
     hp_strides = (1, 1)
     hp_or = hp_dict.get(op_choice_key)
     or1 = ModuleChoice([sepconv5x5(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
-              identity(name_prefix)], hp_or=hp_or)(ic1)
+                        sepconv3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        avgpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        maxpooling3x3(name_prefix, filters, strides=hp_strides, data_format=data_format),
+                        identity(name_prefix)], hp_or=hp_or)(ic1)
 
     if hp_or is None:
         hp_dict[op_choice_key] = or1.hp_or
@@ -347,7 +350,8 @@ from hypernets.frameworks.keras.layers import Input
 from hypernets.frameworks.keras.enas_layers import FactorizedReduction
 from hypernets.core.search_space import HyperSpace
 
-def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=64, 
+
+def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=64,
                             node_num=4, data_format=None,
                             classes=10, classification_dropout=0,
                             hp_dict={}):
@@ -414,8 +418,8 @@ print("Number of original test examples:", len(x_test))
 # sample for speed up
 samples = 10000
 hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_test[:int(samples / 10)],
-          max_trails=10, epochs=3)
-assert hk.get_best_trail()
+          max_trials=10, epochs=3)
+assert hk.get_best_trial()
 ```
 
 
@@ -433,7 +437,7 @@ Initialize Meta Learner: dataset_id:(10000, 28, 28, 1)
 2020-07-09 12:39:44.524010: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x7fedc7d8bc50 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
 2020-07-09 12:39:44.524026: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
 
-Trail No:1
+Trial No:1
 
 --------------------------------------------------------------
 (0) Module_InputChoice_1.hp_choice:                       [0]
@@ -682,7 +686,7 @@ Total params: 271,818
 Trainable params: 267,466
 Non-trainable params: 4,352
 __________________________________________________________________________________________________
-trail begin
+trial begin
 Train on 10000 samples
 Epoch 1/3
 10000/10000 [==============================] - 322s 32ms/sample - loss: 0.3171 - accuracy: 0.9157
@@ -691,13 +695,13 @@ Epoch 2/3
 Epoch 3/3
 10000/10000 [==============================] - 319s 32ms/sample - loss: 0.0584 - accuracy: 0.9825
 1000/1000 [==============================] - 8s 8ms/sample - loss: 0.3346 - accuracy: 0.8820
-trail end. reward:0.8820000290870667, improved:True, elapsed:971.3707249164581
+trial end. reward:0.8820000290870667, improved:True, elapsed:971.3707249164581
 Total elapsed:971.4891712665558
 ----------------------------------------------------------------
 space signatures: {'76001d37233837206b28fd9999cb2e75'}
 ----------------------------------------------------------------
 
-Trail No:2
+Trial No:2
 ......
 ```
 ## API Reference

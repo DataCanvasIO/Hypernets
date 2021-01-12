@@ -111,9 +111,9 @@ class Test_Evolution():
     #     y = np.random.randint(0, 2, size=(100), dtype='int')
     #     x = [x1, x2, x3]
     #
-    #     hk.search(x, y, x, y, max_trails=10)
-    #     assert hk.get_best_trail()
-    #     best_trial = hk.get_best_trail()
+    #     hk.search(x, y, x, y, max_trials=10)
+    #     assert hk.get_best_trial()
+    #     best_trial = hk.get_best_trial()
     #
     #     estimator = hk.final_train(best_trial.space_sample, x, y)
     #     score = estimator.predict(x)

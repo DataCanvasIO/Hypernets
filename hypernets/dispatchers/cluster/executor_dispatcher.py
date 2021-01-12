@@ -17,7 +17,7 @@ class ExecutorDispatcher(Dispatcher):
         super(ExecutorDispatcher, self).__init__()
         self.driver_address = driver_address
 
-    def dispatch(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trails, dataset_id, trail_store,
+    def dispatch(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                  **fit_kwargs):
 
         if 'search_id' in fit_kwargs:
@@ -40,7 +40,7 @@ class ExecutorDispatcher(Dispatcher):
             res.message = message
             return res
 
-        trail_no = 0
+        trial_no = 0
         sch = client.search(search_id)
         try:
             item = next(sch)
@@ -64,34 +64,34 @@ class ExecutorDispatcher(Dispatcher):
                     # sch.send(None)
                     break
 
-                trail_no = item.trail_no if item.trail_no is not None else trail_no + 1
-                detail = f'trail_no={trail_no}, space_id={item.space_id}, space_file={item.space_file}'
+                trial_no = item.trial_no if item.trial_no is not None else trial_no + 1
+                detail = f'trial_no={trial_no}, space_id={item.space_id}, space_file={item.space_file}'
                 if logger.is_info_enabled():
-                    logger.info(f'[{search_id}] new trail:' + detail)
+                    logger.info(f'[{search_id}] new trial:' + detail)
                 try:
                     with fs.open(item.space_file, 'rb') as f:
                         space_sample = pickle.load(f)
 
                     for callback in hyper_model.callbacks:
-                        # callback.on_build_estimator(hyper_model, space_sample, estimator, trail_no)
-                        callback.on_trail_begin(hyper_model, space_sample, trail_no)
+                        # callback.on_build_estimator(hyper_model, space_sample, estimator, trial_no)
+                        callback.on_trial_begin(hyper_model, space_sample, trial_no)
 
                     model_file = item.model_file
-                    trail = hyper_model._run_trial(space_sample, trail_no, X, y, X_eval, y_eval, cv, num_folds,
+                    trial = hyper_model._run_trial(space_sample, trial_no, X, y, X_eval, y_eval, cv, num_folds,
                                                    model_file, **fit_kwargs)
-                    if trail.reward != 0:
-                        improved = hyper_model.history.append(trail)
+                    if trial.reward != 0:
+                        improved = hyper_model.history.append(trial)
                         for callback in hyper_model.callbacks:
-                            callback.on_trail_end(hyper_model, space_sample, trail_no, trail.reward,
-                                                  improved, trail.elapsed)
+                            callback.on_trial_end(hyper_model, space_sample, trial_no, trial.reward,
+                                                  improved, trial.elapsed)
                     else:
                         for callback in hyper_model.callbacks:
-                            callback.on_trail_error(hyper_model, space_sample, trail_no)
+                            callback.on_trial_error(hyper_model, space_sample, trial_no)
 
-                    if trail_store is not None:
-                        trail_store.put(dataset_id, trail)
+                    if trial_store is not None:
+                        trial_store.put(dataset_id, trial)
 
-                    item = sch.send(response(item, trail.reward != 0.0, trail.reward))
+                    item = sch.send(response(item, trial.reward != 0.0, trial.reward))
                 except StopIteration:
                     break
                 except KeyboardInterrupt:
@@ -110,5 +110,5 @@ class ExecutorDispatcher(Dispatcher):
             client.close()
 
         if logger.is_info_enabled():
-            logger.info(f'[{search_id}] search done, last trail_no={trail_no}')
-        return trail_no
+            logger.info(f'[{search_id}] search done, last trial_no={trial_no}')
+        return trial_no

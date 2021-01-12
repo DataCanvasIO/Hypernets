@@ -11,8 +11,8 @@ logger = logging.get_logger(__name__)
 
 
 class MetaLearner(object):
-    def __init__(self, history, dataset_id, trail_store):
-        self.trail_store = trail_store
+    def __init__(self, history, dataset_id, trial_store):
+        self.trial_store = trial_store
         self.dataset_id = dataset_id
         self.history = history
         self.regressors = {}
@@ -35,11 +35,11 @@ class MetaLearner(object):
 
         store_history = self.store_history.get(space_signature)
 
-        if self.trail_store is not None and store_history is None:
-            trails = self.trail_store.get_all(self.dataset_id, space_signature)
+        if self.trial_store is not None and store_history is None:
+            trials = self.trial_store.get_all(self.dataset_id, space_signature)
             store_x = []
             store_y = []
-            for t in trails:
+            for t in trials:
                 store_x.append(t.space_sample_vectors)
                 store_y.append(t.reward)
             store_history = (store_x, store_y)

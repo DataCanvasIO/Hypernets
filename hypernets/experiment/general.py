@@ -24,7 +24,7 @@ class GeneralExperiment(Experiment):
 
         Arguments
         ---------
-        max_trails :
+        max_trials :
 
         """
         self.step_start('data split')
@@ -42,8 +42,8 @@ class GeneralExperiment(Experiment):
 
         self.step_start('search')
         hyper_model.search(X_train, y_train, X_eval, y_eval, **kwargs)
-        best_trial = hyper_model.get_best_trail()
-        self.step_end(output={'best_trail': best_trial})
+        best_trial = hyper_model.get_best_trial()
+        self.step_end(output={'best_trial': best_trial})
 
         self.step_start('load estimator')
         self.estimator = hyper_model.load_estimator(best_trial.model_file)

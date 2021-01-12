@@ -10,7 +10,7 @@ from hypernets.core.ops import *
 from hypernets.core.search_space import *
 
 from hypernets.core.meta_learner import MetaLearner
-from hypernets.core.trial import TrailHistory, DiskTrailStore, Trail
+from hypernets.core.trial import TrialHistory, DiskTrialStore, Trial
 from hypernets.tests import test_output_dir
 
 import numpy as np
@@ -85,11 +85,11 @@ class Test_MCTS():
 
     def test_mcts_searcher_parallelize(self):
         searcher = MCTSSearcher(self.get_space, max_node_space=10)
-        history = TrailHistory(OptimizeDirection.Maximize)
-        disk_trail_store = DiskTrailStore(f'{test_output_dir}/trail_store')
-        meta_learner = MetaLearner(history, 'test_mcts_searcher_parallelize', disk_trail_store)
+        history = TrialHistory(OptimizeDirection.Maximize)
+        disk_trial_store = DiskTrialStore(f'{test_output_dir}/trial_store')
+        meta_learner = MetaLearner(history, 'test_mcts_searcher_parallelize', disk_trial_store)
         searcher.set_meta_learner(meta_learner)
-        trail_no = 1
+        trial_no = 1
         running_samples = []
         for i in range(10):
             space_sample = searcher.sample()
@@ -97,10 +97,10 @@ class Test_MCTS():
         assert searcher.tree.root.visits == 10
         for sample in running_samples:
             reward = np.random.uniform(0.1, 0.9)
-            trail = Trail(sample, trail_no, reward, 10)
-            history.append(trail)
+            trial = Trial(sample, trial_no, reward, 10)
+            history.append(trial)
             searcher.update_result(sample, reward)
-            trail_no += 1
+            trial_no += 1
 
         assert searcher.tree.root.visits == 10
         assert len(searcher.nodes_map.items()) == 10
@@ -112,8 +112,8 @@ class Test_MCTS():
 
         for sample in running_samples:
             reward = np.random.uniform(0.1, 0.9)
-            trail = Trail(sample, trail_no, reward, 10)
-            history.append(trail)
+            trial = Trial(sample, trial_no, reward, 10)
+            history.append(trial)
             searcher.update_result(sample, reward)
 
         assert searcher.tree.root.visits == 20
@@ -136,9 +136,9 @@ class Test_MCTS():
     #     x = np.random.randint(0, 10000, size=(100, 10))
     #     y = np.random.randint(0, 2, size=(100), dtype='int')
     #
-    #     hk.search(x, y, x, y, max_trails=10)
-    #     assert hk.get_best_trail()
-    #     best_trial = hk.get_best_trail()
+    #     hk.search(x, y, x, y, max_trials=10)
+    #     assert hk.get_best_trial()
+    #     best_trial = hk.get_best_trial()
     #
     #     estimator = hk.final_train(best_trial.space_sample, x, y)
     #     score = estimator.predict(x)

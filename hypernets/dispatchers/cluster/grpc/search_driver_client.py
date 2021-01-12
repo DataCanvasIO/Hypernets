@@ -14,17 +14,17 @@ class SearchDriverClient(object):
     _instances = {}
     callbacks = []
 
-    class TrailItemWrapper(object):
-        def __init__(self, code, search_id, trail_no,
+    class TrialItemWrapper(object):
+        def __init__(self, code, search_id, trial_no,
                      space_id, space_file, model_file):
-            super(SearchDriverClient.TrailItemWrapper, self).__init__()
+            super(SearchDriverClient.TrialItemWrapper, self).__init__()
 
             self.code = code
             self.search_id = search_id
             try:
-                self.trail_no = int(trail_no)
+                self.trial_no = int(trial_no)
             except ValueError:
-                self.trail_no = None
+                self.trial_no = None
             self.space_id = space_id
             self.space_file = space_file
             self.model_file = model_file
@@ -45,7 +45,7 @@ class SearchDriverClient(object):
         def to_request(self):
             msg = SearchRequest(search_id=self.search_id,
                                 space_id=self.space_id,
-                                trail_no=str(self.trail_no) if self.trail_no is not None else '',
+                                trial_no=str(self.trial_no) if self.trial_no is not None else '',
                                 success=self.success,
                                 reward=self.reward if self.reward is not None else 0.0,
                                 message=self.message if self.message else '')
@@ -55,7 +55,7 @@ class SearchDriverClient(object):
         def from_response(cls, msg):
             item = cls(code=msg.code,
                        search_id=msg.search_id,
-                       trail_no=msg.trail_no,
+                       trial_no=msg.trial_no,
                        space_id=msg.space_id,
                        space_file=msg.space_file,
                        model_file=msg.model_file)
@@ -112,14 +112,14 @@ class SearchDriverClient(object):
         def fire_request():
             # fire first msg,
             msg = SearchRequest(search_id=search_id,
-                                trail_no='',
+                                trial_no='',
                                 space_id='',
                                 success=False,
                                 reward=0.0,
                                 message='')
             yield msg
 
-            # fire response msg and get next trail
+            # fire response msg and get next trial
             while running:
                 try:
                     r = ack_queue.get(block=False)
@@ -137,7 +137,7 @@ class SearchDriverClient(object):
         try:
             response = self.stub.search(fire_request())
             for res in response:
-                item = SearchDriverClient.TrailItemWrapper.from_response(res)
+                item = SearchDriverClient.TrialItemWrapper.from_response(res)
                 try:
                     result = yield item
                     ack_queue.put(result)

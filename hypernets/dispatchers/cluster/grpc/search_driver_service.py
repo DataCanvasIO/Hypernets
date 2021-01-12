@@ -13,11 +13,11 @@ from .proto.spec_pb2 import SearchResponse, PingMessage
 logger = logging.get_logger(__name__)
 
 
-class TrailItem(object):
-    def __init__(self, trail_no, space_file, space_sample, model_file):
-        super(TrailItem, self).__init__()
+class TrialItem(object):
+    def __init__(self, trial_no, space_file, space_sample, model_file):
+        super(TrialItem, self).__init__()
 
-        self.trail_no = trail_no
+        self.trial_no = trial_no
         self.space_file = space_file
         self.space_sample = space_sample
         self.space_id = space_sample.space_id
@@ -50,23 +50,23 @@ class SearchHolder(object):
         self.start_at = time.time()
         self.finish_at = None
 
-        self.queued_pool = queue.Queue()  # TrailItem
-        self.running_items = {}  # space_id -> TrailItem
-        self.reported_items = {}  # space_id -> TrailItem
-        self.all_items = {}  # space_id -> TrailItem
+        self.queued_pool = queue.Queue()  # TrialItem
+        self.running_items = {}  # space_id -> TrialItem
+        self.reported_items = {}  # space_id -> TrialItem
+        self.all_items = {}  # space_id -> TrialItem
 
-    def add(self, trail_no, space_sample):
+    def add(self, trial_no, space_sample):
         space_id = space_sample.space_id
         assert space_id not in self.all_items.keys()
 
-        space_file = f'{self.spaces_dir}/space-{trail_no}.pkl'
+        space_file = f'{self.spaces_dir}/space-{trial_no}.pkl'
         with fs.open(space_file, 'wb') as f:
             pickle.dump(space_sample, f)
 
-        model_file = '%s/%05d_%s.pkl' % (self.models_dir, trail_no, space_id)
-        item = TrailItem(trail_no, space_file, space_sample, model_file)
+        model_file = '%s/%05d_%s.pkl' % (self.models_dir, trial_no, space_id)
+        item = TrialItem(trial_no, space_file, space_sample, model_file)
 
-        detail = f'trail_no={item.trail_no}, space_id={item.space_id}, space_file={space_file}'
+        detail = f'trial_no={item.trial_no}, space_id={item.space_id}, space_file={space_file}'
         if logger.is_info_enabled():
             logger.info(f'[{self.search_id}] [search] {detail}')
 
@@ -78,7 +78,7 @@ class SearchHolder(object):
         space_file = item.space_file
         assert space_id in self.all_items.keys()
 
-        detail = f'trail_no={item.trail_no}' \
+        detail = f'trial_no={item.trial_no}' \
                  + f', space_id={item.space_id}, space_file={space_file}'
         if logger.is_info_enabled():
             logger.info(f'[{self.search_id}] [re-push] {detail}')
@@ -111,7 +111,7 @@ class SearchHolder(object):
                 item = self.queued_pool.get(False)
                 item.peer = peer
                 item.start_at = time.time()
-                detail = f'trail_no={item.trail_no}, space_id={item.space_id}' \
+                detail = f'trial_no={item.trial_no}, space_id={item.space_id}' \
                          + f',space_file={item.space_file}'
                 if logger.is_info_enabled():
                     logger.info(f'[{self.search_id}] [dispatch] [{peer}] {detail}')
@@ -129,7 +129,7 @@ class SearchHolder(object):
         assert space_id in self.all_items.keys()
 
         item = self.all_items[space_id]
-        detail = f'trail_no={item.trail_no}, space_id={space_id}' \
+        detail = f'trial_no={item.trial_no}, space_id={space_id}' \
                  + f', reward={reward}, success={success}'
         if not success:
             detail += f', message={message}'
@@ -189,7 +189,7 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         def response_with(search_id, item):
             return SearchResponse(code=SearchResponse.OK,
                                   search_id=search_id,
-                                  trail_no=str(item.trail_no),
+                                  trial_no=str(item.trial_no),
                                   space_id=item.space_id,
                                   space_file=item.space_file,
                                   model_file=item.model_file)
@@ -197,7 +197,7 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         def response_finished(search_id):
             return SearchResponse(code=SearchResponse.FINISHED,
                                   search_id=search_id,
-                                  trail_no='',
+                                  trial_no='',
                                   space_id='',
                                   space_file='',
                                   model_file='')
@@ -205,7 +205,7 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         def response_waiting(search_id):
             return SearchResponse(code=SearchResponse.WAITING,
                                   search_id=search_id,
-                                  trail_no='',
+                                  trial_no='',
                                   space_id='',
                                   space_file='',
                                   model_file='')
@@ -213,7 +213,7 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         def response_failed(search_id):
             return SearchResponse(code=SearchResponse.FAILED,
                                   search_id=search_id,
-                                  trail_no='',
+                                  trial_no='',
                                   space_id='',
                                   space_file='',
                                   model_file='')
@@ -293,8 +293,8 @@ class SearchDriverService(spec_pb2_grpc.SearchDriverServicer):
         assert len(self.searches) > 0
         return self.searches[-1]
 
-    def add(self, trail_no, space_sample):
-        self.current_search.add(trail_no, space_sample)
+    def add(self, trial_no, space_sample):
+        self.current_search.add(trial_no, space_sample)
 
     def running_size(self):
         return self.current_search.running_size()
@@ -347,7 +347,7 @@ class DriverStatusThread(Thread):
 
         msg = f'[{search_id}] [summary] queued={queued}, running={running}, reported={reported}, total={total}'
         if running > 0:
-            detail = [f'trail-{x.trail_no}@{x.peer}' for x in search.running_items.values()]
+            detail = [f'trial-{x.trial_no}@{x.peer}' for x in search.running_items.values()]
             msg += '\n\trunning: ' + ','.join(detail)
 
         if search.on_summary:

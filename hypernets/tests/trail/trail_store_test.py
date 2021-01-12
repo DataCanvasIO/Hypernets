@@ -8,7 +8,7 @@ from hypernets.core.ops import *
 from hypernets.tests import test_output_dir
 
 
-class Test_TrailStore():
+class Test_TrialStore():
     def get_space(self):
         space = HyperSpace()
         with space.as_default():
@@ -18,20 +18,20 @@ class Test_TrailStore():
         return space
 
     def test_basic(self):
-        store = DiskTrailStore(f'{test_output_dir}/trail_store')
+        store = DiskTrialStore(f'{test_output_dir}/trial_store')
         dataset_id = 'test_dataset'
         sample = self.get_space()
         sample.random_sample()
 
-        trail = Trail(sample, 1, 0.99, 100)
-        store.put(dataset_id, trail)
+        trial = Trial(sample, 1, 0.99, 100)
+        store.put(dataset_id, trial)
         store.reset()
 
-        trail_get = store.get(dataset_id, sample)
-        assert trail.trail_no == 1
-        assert trail.reward == 0.99
-        assert trail.elapsed == 100
-        assert trail.space_sample.vectors == trail_get.space_sample.vectors
+        trial_get = store.get(dataset_id, sample)
+        assert trial.trial_no == 1
+        assert trial.reward == 0.99
+        assert trial.elapsed == 100
+        assert trial.space_sample.vectors == trial_get.space_sample.vectors
 
-        trails = store.get_all(dataset_id, sample.signature)
-        assert trails
+        trials = store.get_all(dataset_id, sample.signature)
+        assert trials

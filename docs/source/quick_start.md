@@ -33,11 +33,13 @@ Basically, to search the best model only needs 4 steps:
 ## Examples
 
 ### HyperKeras
+
 ```python
 from hypernets.searchers.mcts_searcher import *
 from hypernets.frameworks.keras.layers import *
 from hypernets.frameworks.keras.hyper_keras import HyperKeras
 from hypernets.core.callbacks import SummaryCallback
+
 
 # Define Search Space
 def get_space():
@@ -50,6 +52,7 @@ def get_space():
         Dense(2, activation='softmax', use_bias=True)(dropout1)
     return space
 
+
 # Select a Searcher
 mcts = MCTSSearcher(get_space, max_node_space=4)
 
@@ -61,8 +64,8 @@ x = np.random.randint(0, 10000, size=(100, 10))
 y = np.random.randint(0, 2, size=(100), dtype='int')
 
 # Search and get the best model
-hk.search(x, y, x, y, max_trails=10)
-assert hk.get_best_trail()
+hk.search(x, y, x, y, max_trials=10)
+assert hk.get_best_trial()
 ```
 
 
@@ -80,11 +83,11 @@ from hypernets.core.searcher import OptimizeDirection
 from hypernets.core.callbacks import SummaryCallback, FileLoggingCallback
 from hypernets.searchers.mcts_searcher import MCTSSearcher
 from hypernets.searchers.evolution_searcher import EvolutionSearcher
-from hypernets.core.trial import DiskTrailStore
+from hypernets.core.trial import DiskTrialStore
 from hypernets.frameworks.ml.datasets import dsutils
 from sklearn.model_selection import train_test_split
 
-disk_trail_store = DiskTrailStore('~/trail_store')
+disk_trial_store = DiskTrialStore('~/trial_store')
 
 # Define Search Space
 # `mini_dt_space` is a canned search space
@@ -106,8 +109,8 @@ y = df_train.pop(14)
 y_test = df_test.pop(14)
 
 # Search and get the best model
-hdt.search(df_train, y, df_test, y_test, max_trails=100, batch_size=256, epochs=10, verbose=1, )
-assert hdt.get_best_trail()
-best_trial = hdt.get_best_trail()
+hdt.search(df_train, y, df_test, y_test, max_trials=100, batch_size=256, epochs=10, verbose=1, )
+assert hdt.get_best_trial()
+best_trial = hdt.get_best_trial()
 ```
 

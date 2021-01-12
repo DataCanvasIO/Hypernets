@@ -14,7 +14,7 @@ message PingMessage{
 
 message SearchRequest {
   string search_id = 1;
-  string trail_no = 2;
+  string trial_no = 2;
   string space_id = 3;
   bool success = 4;
   float reward = 5;
@@ -32,7 +32,7 @@ message SearchResponse {
 
   SearchResponseCode code = 1;
   string search_id = 2;
-  string trail_no = 3;
+  string trial_no = 3;
   string space_id = 4;
   string space_file = 5;
   string model_file = 6;
