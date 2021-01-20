@@ -18,6 +18,14 @@ logger = logging.get_logger(__name__)
 
 class HyperModel():
     def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None, task=None):
+        """
+
+        :param searcher:
+        :param dispatcher:
+        :param callbacks:
+        :param reward_metric:
+        :param task:
+        """
         # self.searcher = self._build_searcher(searcher, space_fn)
         self.searcher = searcher
         self.dispatcher = dispatcher
@@ -142,6 +150,19 @@ class HyperModel():
 
     def search(self, X, y, X_eval, y_eval, cv=False, num_folds=3, max_trials=10, dataset_id=None, trial_store=None,
                **fit_kwargs):
+        """
+        :param X: Pandas or Dask DataFrame, feature data for training
+        :param y: Pandas or Dask Series, target values for training
+        :param X_eval: (Pandas or Dask DataFrame) or None, feature data for evaluation
+        :param y_eval: (Pandas or Dask Series) or None, target values for evaluation
+        :param cv: Optional, int(default=False), If set to `true`, use cross-validation instead of evaluation set reward to guide the search process
+        :param num_folds: Optional, int(default=3), Number of cross-validated folds, only valid when cv is true
+        :param max_trials: Optional, int(default=10), The upper limit of the number of search trials, the search process stops when the number is exceeded
+        :param dataset_id:
+        :param trial_store:
+        :param fit_kwargs: Optional, dict, parameters for fit method of model
+        :return:
+        """
         self.start_search_time = time.time()
 
         self.task, _ = self.infer_task_type(y)

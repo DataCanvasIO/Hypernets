@@ -10,6 +10,16 @@ from ..core.searcher import Searcher, OptimizeDirection
 class MCTSSearcher(Searcher):
     def __init__(self, space_fn, policy=None, max_node_space=10, candidates_size=10,
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True, space_sample_validation_fn=None):
+        """
+
+        :param space_fn:
+        :param policy:
+        :param max_node_space:
+        :param candidates_size:
+        :param optimize_direction:
+        :param use_meta_learner:
+        :param space_sample_validation_fn:
+        """
         if policy is None:
             policy = UCT()
         self.tree = MCTree(space_fn, policy, max_node_space=max_node_space)
