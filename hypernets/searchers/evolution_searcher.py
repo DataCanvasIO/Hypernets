@@ -90,6 +90,17 @@ class EvolutionSearcher(Searcher):
     def __init__(self, space_fn, population_size, sample_size, regularized=False,
                  candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
                  space_sample_validation_fn=None):
+        """
+
+        :param space_fn:
+        :param population_size:
+        :param sample_size:
+        :param regularized:
+        :param candidates_size:
+        :param optimize_direction:
+        :param use_meta_learner:
+        :param space_sample_validation_fn:
+        """
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
                           use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
         self.population = Population(size=population_size, optimize_direction=optimize_direction)
