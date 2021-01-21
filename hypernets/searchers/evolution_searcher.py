@@ -87,6 +87,11 @@ class Population(object):
 
 
 class EvolutionSearcher(Searcher):
+    """
+    References
+    ----------
+        Real, Esteban, et al. "Regularized evolution for image classifier architecture search." Proceedings of the aaai conference on artificial intelligence. Vol. 33. 2019.
+    """
     def __init__(self, space_fn, population_size, sample_size, regularized=False,
                  candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
                  space_sample_validation_fn=None):

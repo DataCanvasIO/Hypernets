@@ -8,6 +8,12 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class MCTSSearcher(Searcher):
+    """
+    References
+    ----------
+        Wang, Linnan, et al. "Alphax: exploring neural architectures with deep neural networks and monte carlo tree search." arXiv preprint arXiv:1903.11059 (2019).
+        Browne, Cameron B., et al. "A survey of monte carlo tree search methods." IEEE Transactions on Computational Intelligence and AI in games 4.1 (2012): 1-43.
+    """
     def __init__(self, space_fn, policy=None, max_node_space=10, candidates_size=10,
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True, space_sample_validation_fn=None):
         """
