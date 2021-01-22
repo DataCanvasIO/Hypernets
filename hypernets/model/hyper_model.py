@@ -17,7 +17,7 @@ logger = logging.get_logger(__name__)
 
 
 class HyperModel():
-    def __init__(self, searcher, dispatcher=None, callbacks=[], reward_metric=None, task=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None):
         """
 
         :param searcher:
@@ -29,7 +29,7 @@ class HyperModel():
         # self.searcher = self._build_searcher(searcher, space_fn)
         self.searcher = searcher
         self.dispatcher = dispatcher
-        self.callbacks = callbacks
+        self.callbacks = callbacks if callbacks is not None else []
         self.reward_metric = reward_metric
         self.history = TrialHistory(searcher.optimize_direction)
         self.start_search_time = None
