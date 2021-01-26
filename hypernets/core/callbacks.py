@@ -65,7 +65,7 @@ class EarlyStoppingCallback(Callback):
             self.start_time = time.time()
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
-        if self.time_limit is not None:
+        if self.time_limit is not None and self.time_limit > 0:
             time_total = time.time() - self.start_time
             if time_total > self.time_limit:
                 msg = 'The time limit has been exceeded, stop early.\r\n'
@@ -74,7 +74,7 @@ class EarlyStoppingCallback(Callback):
                     logger.info(msg)
                 raise EarlyStoppingError(msg)
 
-        if self.expected_reward is not None:
+        if self.expected_reward is not None and self.expected_reward != 0.0:
             if self.op(reward, self.expected_reward):
                 msg = 'Has met the expected reward, stop early.\r\n'
                 msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
@@ -82,7 +82,7 @@ class EarlyStoppingCallback(Callback):
                     logger.info(msg)
                 raise EarlyStoppingError(msg)
 
-        if self.max_no_improvement_trials > 0:
+        if self.max_no_improvement_trials is not None and self.max_no_improvement_trials > 0:
             if self.best_reward is None:
                 self.best_reward = reward
                 self.best_trial_no = trial_no
