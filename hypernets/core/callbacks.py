@@ -42,7 +42,7 @@ class EarlyStoppingError(RuntimeError):
 class EarlyStoppingCallback(Callback):
     def __init__(self, max_no_improvement_trials=0, mode='min', min_delta=0, time_limit=None, expected_reward=None):
         super(Callback, self).__init__()
-        assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
+        # assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
 
         self.max_no_improvement_trials = max_no_improvement_trials
         self.mode = mode
