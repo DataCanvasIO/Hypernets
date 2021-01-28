@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging as _logging
+import re
 import sys as _sys
 import traceback as _traceback
 from logging import DEBUG
@@ -20,6 +21,25 @@ from logging import WARN
 
 # settings
 _log_level = INFO
+
+_name2level = {
+    'FATAL': FATAL,
+    'F': FATAL,
+
+    'ERROR': ERROR,
+    'ERR': ERROR,
+    'E': ERROR,
+
+    'WARNING': WARN,
+    'WARN': WARN,
+    'W': WARN,
+
+    'INFO': INFO,
+    'I': INFO,
+
+    'DEBUG': DEBUG,
+    'D': DEBUG,
+}
 
 # _log_format = '%(name)s %(levelname).1s%(asctime)s.%(msecs)d %(filename)s %(lineno)d - %(message)s'
 # _log_format = '%(module)s %(levelname).1s %(filename)s %(lineno)d - %(message)s'
@@ -192,7 +212,18 @@ def get_level():
 
 def set_level(v):
     """Sets newer logger threshold for what messages will be logged."""
+    assert isinstance(v, (str, int))
+
     global _log_level
+
+    if isinstance(v, str):
+        if v.upper() in _name2level.keys():
+            v = _name2level[v.upper()]
+        elif re.match(r'^\d$', v):
+            v = int(v)
+        else:
+            raise ValueError(f'Unrecognized log level {v}.')
+
     _log_level = v
 
 
