@@ -1,17 +1,19 @@
 # -*- coding:utf-8 -*-
 
+import time
+
+import pandas as pd
+from IPython.display import display, update_display, display_markdown
+
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trial
 from ..utils import logging, fs
-from ..utils.common import config
-
-from IPython.display import display, update_display, clear_output, display_markdown
-import time
-import pandas as pd
+from ..utils.common import config, isnotebook
 
 logger = logging.get_logger(__name__)
 
+_is_notebook = isnotebook()
 _model_root = config('model_path', 'tmp/models')
 
 
@@ -69,28 +71,30 @@ class InProcessDispatcher(Dispatcher):
 
                 model_file = '%s/%05d_%s.pkl' % (self.models_dir, trial_no, space_sample.space_id)
 
-                df_summary = pd.DataFrame([(trial_no, last_reward, hyper_model.best_trial_no, hyper_model.best_reward,
-                                            time.time() - start_time, max_trials)],
-                                          columns=['trial No.', 'Previous reward', 'Best trial', 'Best reward',
-                                                   'Total elapsed',
-                                                   'Max trials'])
-                if search_summary_display_id is None:
-                    handle = display(df_summary, display_id=True)
-                    if handle is not None:
-                        search_summary_display_id = handle.display_id
-                else:
-                    update_display(df_summary, display_id=search_summary_display_id)
+                if _is_notebook:
+                    df_summary = pd.DataFrame([(trial_no, last_reward, hyper_model.best_trial_no,
+                                                hyper_model.best_reward,
+                                                time.time() - start_time, max_trials)],
+                                              columns=['trial No.', 'Previous reward', 'Best trial', 'Best reward',
+                                                       'Total elapsed',
+                                                       'Max trials'])
+                    if search_summary_display_id is None:
+                        handle = display(df_summary, display_id=True)
+                        if handle is not None:
+                            search_summary_display_id = handle.display_id
+                    else:
+                        update_display(df_summary, display_id=search_summary_display_id)
 
-                if current_trial_display_id is None:
-                    handle = display({'text/markdown': '#### Current Trial:'}, raw=True, include=['text/markdown'],
-                                     display_id=True)
-                    if handle is not None:
-                        title_display_id = handle.display_id
-                    handle = display(space_sample, display_id=True)
-                    if handle is not None:
-                        current_trial_display_id = handle.display_id
-                else:
-                    update_display(space_sample, display_id=current_trial_display_id)
+                    if current_trial_display_id is None:
+                        handle = display({'text/markdown': '#### Current Trial:'}, raw=True, include=['text/markdown'],
+                                         display_id=True)
+                        if handle is not None:
+                            title_display_id = handle.display_id
+                        handle = display(space_sample, display_id=True)
+                        if handle is not None:
+                            current_trial_display_id = handle.display_id
+                    else:
+                        update_display(space_sample, display_id=current_trial_display_id)
 
                 trial = hyper_model._run_trial(space_sample, trial_no, X, y, X_eval, y_eval, cv, num_folds, model_file,
                                                **fit_kwargs)
@@ -104,18 +108,20 @@ class InProcessDispatcher(Dispatcher):
                     for callback in hyper_model.callbacks:
                         callback.on_trial_error(hyper_model, space_sample, trial_no)
 
-                best_trial = hyper_model.get_best_trial()
-                if best_trial is not None:
-                    if best_trial_display_id is None:
-                        display_markdown('#### Best Trial:', raw=True)
-                        handle = display(best_trial.space_sample, display_id=True)
-                        if handle is not None:
-                            best_trial_display_id = handle.display_id
-                    else:
-                        update_display(best_trial.space_sample, display_id=best_trial_display_id)
+                if _is_notebook:
+                    best_trial = hyper_model.get_best_trial()
+                    if best_trial is not None:
+                        if best_trial_display_id is None:
+                            display_markdown('#### Best Trial:', raw=True)
+                            handle = display(best_trial.space_sample, display_id=True)
+                            if handle is not None:
+                                best_trial_display_id = handle.display_id
+                        else:
+                            update_display(best_trial.space_sample, display_id=best_trial_display_id)
 
                 if logger.is_info_enabled():
-                    msg = f'Trial {trial_no} done, reward: {trial.reward}, best_trial_no:{hyper_model.best_trial_no}, best_reward:{hyper_model.best_reward}\n'
+                    msg = f'Trial {trial_no} done, reward: {trial.reward}, ' \
+                          f'best_trial_no:{hyper_model.best_trial_no}, best_reward:{hyper_model.best_reward}\n'
                     logger.info(msg)
                 if trial_store is not None:
                     trial_store.put(dataset_id, trial)
@@ -134,15 +140,15 @@ class InProcessDispatcher(Dispatcher):
                 trial_no += 1
                 retry_counter = 0
 
-        update_display({'text/markdown': '#### Top trials:'}, raw=True, include=['text/markdown'],
-                       display_id=title_display_id)
-
-        df_best_trials = pd.DataFrame([
-            (t.trial_no, t.reward, t.elapsed, t.space_sample.vectors) for t in hyper_model.get_top_trials(5)],
-            columns=['Trial No.', 'Reward', 'Elapsed', 'Space Vector'])
-        if current_trial_display_id is None:
-            display(df_best_trials, display_id=True)
-        else:
-            update_display(df_best_trials, display_id=current_trial_display_id)
+        if _is_notebook:
+            update_display({'text/markdown': '#### Top trials:'}, raw=True, include=['text/markdown'],
+                           display_id=title_display_id)
+            df_best_trials = pd.DataFrame([
+                (t.trial_no, t.reward, t.elapsed, t.space_sample.vectors) for t in hyper_model.get_top_trials(5)],
+                columns=['Trial No.', 'Reward', 'Elapsed', 'Space Vector'])
+            if current_trial_display_id is None:
+                display(df_best_trials, display_id=True)
+            else:
+                update_display(df_best_trials, display_id=current_trial_display_id)
 
         return trial_no
