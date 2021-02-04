@@ -39,7 +39,9 @@ def read_extra_requirements():
     return extra
 
 
-version = '0.1.6'
+import hypernets
+
+version = hypernets.__version__
 
 MIN_PYTHON_VERSION = '>=3.6.*'
 
