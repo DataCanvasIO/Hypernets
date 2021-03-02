@@ -47,7 +47,7 @@ _name2level = {
 _log_format = '%(asctime)s %(levelname).1s %(sname)s.%(filename)s %(lineno)d - %(message)s'
 
 # _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-_data_format = '%H:%M:%S'
+_date_format = '%m-%d %H:%M:%S'
 
 
 # # detect code run in interactive mode or not
@@ -109,16 +109,16 @@ class CustomizedLogger(_logging.Logger):
             # # Add the output handler.
             # stream = _sys.stdout if _interactive else _sys.stderr
             # handler = _logging.StreamHandler(stream)
-            # handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            # handler.setFormatter(CustomizedLogFormatter(_log_format, _date_format))
             # self.addHandler(handler)
 
             stdout_handler = _logging.StreamHandler(_sys.stdout)
-            stdout_handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            stdout_handler.setFormatter(CustomizedLogFormatter(_log_format, _date_format))
             stdout_handler.addFilter(lambda rec: rec.levelno < WARN)
             self.addHandler(stdout_handler)
 
             stderr_handler = _logging.StreamHandler(_sys.stderr)
-            stderr_handler.setFormatter(CustomizedLogFormatter(_log_format, _data_format))
+            stderr_handler.setFormatter(CustomizedLogFormatter(_log_format, _date_format))
             stderr_handler.addFilter(lambda rec: rec.levelno >= WARN)
             self.addHandler(stderr_handler)
 
