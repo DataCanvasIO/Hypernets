@@ -19,6 +19,7 @@ script:
 notifications:
   recipients:
     - yangjian@zetyun.com
+    - lixf@zetyun.com
 
   on_success: change
   on_failure: change
