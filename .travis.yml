@@ -1,7 +1,6 @@
 language: python
 
 python:
-#  - "3.5" TF 2.0.0b1
   - "3.6"
   - "3.7"
 
@@ -12,6 +11,7 @@ install:
   - pip install -q pytest-cov==2.4.0
   - pip install -q python-coveralls
   - pip install -q codacy-coverage
+
 # command to run tests
 script:
   - pytest --cov=hypernets
