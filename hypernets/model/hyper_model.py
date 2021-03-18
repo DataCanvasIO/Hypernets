@@ -53,12 +53,13 @@ class HyperModel():
         fit_succeed = False
         scores = None
         oof = None
+        oof_scores = None
         try:
             if cv:
-                scores, oof = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
-                                                             shuffle=False, random_state=9527,
-                                                             metrics=[self.reward_metric],
-                                                             **fit_kwargs)
+                scores, oof, oof_scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
+                                                                         shuffle=False, random_state=9527,
+                                                                         metrics=[self.reward_metric],
+                                                                         **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
             fit_succeed = True
@@ -82,6 +83,8 @@ class HyperModel():
             trial = Trial(space_sample, trial_no, reward, elapsed, model_file)
             if oof is not None:
                 trial.memo['oof'] = oof
+            if oof_scores is not None:
+                trial.memo['oof_scores'] = oof_scores
 
             # improved = self.history.append(trial)
 
