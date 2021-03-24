@@ -10,8 +10,10 @@ import tempfile
 
 import fsspec
 
+from . import logging
 from .common import config
 
+logger = logging.get_logger(__name__)
 is_windows = sys.platform.find('win') >= 0
 
 
@@ -269,9 +271,18 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     if type(fs).__name__.lower().find('local') >= 0:
         if fs_root is None or fs_root == '':
             fs_root = os.path.join(tempfile.gettempdir(), 'workdir')
+            logger.info(f'use {fs_root} as working directory.')
+
         remote_root = os.path.abspath(os.path.expanduser(fs_root))
-        if not fs.exists(remote_root):
-            fs.mkdirs(remote_root, exist_ok=True)
+        try:
+            if not fs.exists(remote_root):
+                fs.mkdirs(remote_root, exist_ok=True)
+            else:
+                with tempfile.TemporaryFile(prefix='hyn_', dir=remote_root) as t:
+                    t.write(b'.')
+        except PermissionError as e:
+            logger.warn(f'{type(e).__name__}: working directory "{remote_root}"')
+            logger.warn(e)
 
         local_root = remote_root
         is_local = True
