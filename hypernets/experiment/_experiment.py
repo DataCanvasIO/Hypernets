@@ -3,6 +3,7 @@ __author__ = 'yangjian'
 """
 
 """
+import os
 import time
 
 from hypernets.utils import logging
@@ -33,11 +34,11 @@ class ExperimentCallback():
         pass
 
 
-class Experiment():
+class Experiment(object):
     def __init__(self, hyper_model, X_train, y_train, X_eval=None, y_eval=None, X_test=None, eval_size=0.3,
-                 task=None, callbacks=None, random_state=9527):
+                 task=None, id=None, callbacks=None, random_state=9527):
         self.task = task
-        self.id = None
+        self.id = id
         self.title = None
         self.description = None
         self.dataset_id = None
@@ -64,6 +65,10 @@ class Experiment():
 
     def run(self, **kwargs):
         self.start_time = time.time()
+
+        if self.id is not None:
+            os.environ['HYN_EXPERIMENT'] = str(self.id)
+
         try:
             if self.task is None:
                 self.task, _ = self.hyper_model.infer_task_type(self.y_train)
