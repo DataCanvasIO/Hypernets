@@ -27,9 +27,7 @@ class FileSystemAdapter(object):
         self.remote_sep = remote_sep
         self.remote_root_alias = remote_root.replace('\\', '/') if is_windows else None
 
-    def to_rpath(self, rpath):
-        # return os.path.join(remote_root, rpath)
-        assert rpath
+    def _inner_to_rpath(self, rpath):
         if rpath.startswith(self.remote_root):
             return rpath
 
@@ -40,6 +38,18 @@ class FileSystemAdapter(object):
             return rpath
 
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)
+
+    def to_rpath(self, rpath):
+        # return os.path.join(remote_root, rpath)
+        assert rpath
+
+        if isinstance(rpath, str):
+            return self._inner_to_rpath(rpath)
+        elif isinstance(rpath, (list, tuple)):
+            return [self._inner_to_rpath(p) for p in rpath]
+        else:
+            logger.warn(f'Unexpected rpath type: {type(rpath)}, rpath: {rpath}')
+            return rpath
 
     def to_lpath(self, lpath):
         assert lpath
