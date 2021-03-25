@@ -6,8 +6,9 @@ from ..utils.common import config
 
 
 def get_dispatcher(hyper_model, **kwargs):
-    experiment = config('experiment', time.strftime('%Y%m%d%H%M%S'))
-    work_dir = config('work-dir', f'experiments/{experiment}')
+    timestamp = time.strftime('%Y%m%d%H%M%S')
+    experiment = config('experiment', f'experiment_{timestamp}')
+    work_dir = config('work-dir', f'{experiment}')
 
     if hyper_model.searcher.parallelizable:
         backend = config('search-backend', 'standalone')

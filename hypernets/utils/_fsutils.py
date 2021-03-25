@@ -10,8 +10,10 @@ import tempfile
 
 import fsspec
 
+from . import logging
 from .common import config
 
+logger = logging.get_logger(__name__)
 is_windows = sys.platform.find('win') >= 0
 
 
@@ -25,9 +27,7 @@ class FileSystemAdapter(object):
         self.remote_sep = remote_sep
         self.remote_root_alias = remote_root.replace('\\', '/') if is_windows else None
 
-    def to_rpath(self, rpath):
-        # return os.path.join(remote_root, rpath)
-        assert rpath
+    def _inner_to_rpath(self, rpath):
         if rpath.startswith(self.remote_root):
             return rpath
 
@@ -38,6 +38,18 @@ class FileSystemAdapter(object):
             return rpath
 
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)
+
+    def to_rpath(self, rpath):
+        # return os.path.join(remote_root, rpath)
+        assert rpath
+
+        if isinstance(rpath, str):
+            return self._inner_to_rpath(rpath)
+        elif isinstance(rpath, (list, tuple)):
+            return [self._inner_to_rpath(p) for p in rpath]
+        else:
+            logger.warn(f'Unexpected rpath type: {type(rpath)}, rpath: {rpath}')
+            return rpath
 
     def to_lpath(self, lpath):
         assert lpath
@@ -269,9 +281,18 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     if type(fs).__name__.lower().find('local') >= 0:
         if fs_root is None or fs_root == '':
             fs_root = os.path.join(tempfile.gettempdir(), 'workdir')
+            logger.info(f'use {fs_root} as working directory.')
+
         remote_root = os.path.abspath(os.path.expanduser(fs_root))
-        if not fs.exists(remote_root):
-            fs.mkdirs(remote_root, exist_ok=True)
+        try:
+            if not fs.exists(remote_root):
+                fs.mkdirs(remote_root, exist_ok=True)
+            else:
+                with tempfile.TemporaryFile(prefix='hyn_', dir=remote_root) as t:
+                    t.write(b'.')
+        except PermissionError as e:
+            logger.warn(f'{type(e).__name__}: working directory "{remote_root}"')
+            logger.warn(e)
 
         local_root = remote_root
         is_local = True
