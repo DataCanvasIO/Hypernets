@@ -11,7 +11,7 @@ from hypernets.core.search_space import *
 from hypernets.searchers.random_searcher import RandomSearcher
 
 
-class Test_MCTS():
+class Test_RandomSearcher():
     def get_space(self):
         space = HyperSpace()
         with space.as_default():
