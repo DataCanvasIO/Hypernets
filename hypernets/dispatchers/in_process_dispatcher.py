@@ -37,19 +37,19 @@ class InProcessDispatcher(Dispatcher):
         start_time = time.time()
         last_reward = 0
         while trial_no <= max_trials:
-            space_sample = hyper_model.searcher.sample()
-            if hyper_model.history.is_existed(space_sample):
-                if retry_counter >= retry_limit:
-                    logger.info(f'Unable to take valid sample and exceed the retry limit {retry_limit}.')
-                    break
-                trial = hyper_model.history.get_trial(space_sample)
-                for callback in hyper_model.callbacks:
-                    callback.on_skip_trial(hyper_model, space_sample, trial_no, 'trial_existed', trial.reward, False,
-                                           trial.elapsed)
-                retry_counter += 1
-                continue
-
             try:
+                space_sample = hyper_model.searcher.sample()
+                if hyper_model.history.is_existed(space_sample):
+                    if retry_counter >= retry_limit:
+                        logger.info(f'Unable to take valid sample and exceed the retry limit {retry_limit}.')
+                        break
+                    trial = hyper_model.history.get_trial(space_sample)
+                    for callback in hyper_model.callbacks:
+                        callback.on_skip_trial(hyper_model, space_sample, trial_no, 'trial_existed',
+                                               trial.reward, False, trial.elapsed)
+                    retry_counter += 1
+                    continue
+
                 if trial_store is not None:
                     trial = trial_store.get(dataset_id, space_sample)
                     if trial is not None:
