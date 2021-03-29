@@ -70,11 +70,11 @@ class Test_TrialHistory():
 
         history = TrialHistory.load_history(get_space, filepath)
         assert history.optimize_direction == 'min'
-        assert len(history.history) == 3
-        assert history.history[0].space_sample.vectors == [0, 1, 0.1]
-        assert history.history[0].elapsed == 100.0
-        assert history.history[0].reward == 0.99
-        assert history.history[0].trial_no == 1
+        assert len(history.trials) == 3
+        assert history.trials[0].space_sample.vectors == [0, 1, 0.1]
+        assert history.trials[0].elapsed == 100.0
+        assert history.trials[0].reward == 0.99
+        assert history.trials[0].trial_no == 1
 
         trajectories = history.get_trajectories()
         assert trajectories == ([0.0, 100.0, 150.0, 350.0], [0.0, 0.99, 0.99, 0.99], [0.0, 0.99, 0.9, 0.7], 1, 100.0)

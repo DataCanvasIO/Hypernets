@@ -65,24 +65,24 @@ class Trial():
 
 class TrialHistory():
     def __init__(self, optimize_direction):
-        self.history = []
+        self.trials = []
         self.optimize_direction = optimize_direction
 
     def append(self, trial):
         old_best = self.get_best()
-        self.history.append(trial)
+        self.trials.append(trial)
         new_best = self.get_best()
         improved = old_best != new_best
         return improved
 
     def is_existed(self, space_sample):
-        return space_sample.vectors in [t.space_sample.vectors for t in self.history]
+        return space_sample.vectors in [t.space_sample.vectors for t in self.trials]
 
     def get_trial(self, space_sample):
-        all_vectors = [t.space_sample.vectors for t in self.history]
+        all_vectors = [t.space_sample.vectors for t in self.trials]
         index = all_vectors.index(space_sample.vectors)
         if index >= 0:
-            return self.history[index]
+            return self.trials[index]
         else:
             return None
 
@@ -94,9 +94,9 @@ class TrialHistory():
             return top1[0]
 
     def get_top(self, n=10):
-        if len(self.history) <= 0:
+        if len(self.trials) <= 0:
             return []
-        sorted_trials = sorted(self.history, key=lambda t: t.reward,
+        sorted_trials = sorted(self.trials, key=lambda t: t.reward,
                                reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])
         if n > len(sorted_trials):
             n = len(sorted_trials)
@@ -104,7 +104,7 @@ class TrialHistory():
 
     def get_space_signatures(self):
         signatures = set()
-        for s in [t.space_sample for t in self.history]:
+        for s in [t.space_sample for t in self.trials]:
             signatures.add(s.signature)
         return signatures
 
@@ -133,7 +133,7 @@ class TrialHistory():
 
     def get_trajectories(self):
         times, best_rewards, rewards = [0.0], [0.0], [0.0]
-        his = sorted(self.history, key=lambda t: t.trial_no)
+        his = sorted(self.trials, key=lambda t: t.trial_no)
         best_trial_no = 0
         best_elapsed = 0
         for t in his:
@@ -152,7 +152,7 @@ class TrialHistory():
     def save(self, filepath):
         with open(filepath, 'w') as output:
             output.write(f'{self.optimize_direction}\r\n')
-            for trial in self.history:
+            for trial in self.trials:
                 data = f'{trial.trial_no}|{trial.space_sample.vectors}|{trial.reward}|{trial.elapsed}' + \
                        f'|{trial.model_file if trial.model_file else ""}\r\n'
                 output.write(data)
