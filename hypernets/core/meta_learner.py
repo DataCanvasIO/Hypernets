@@ -67,6 +67,6 @@ class MetaLearner(object):
         return score
 
     def extract_features_and_labels(self, signature):
-        features = [(t.space_sample.vectors, t.reward) for t in self.history.history if
+        features = [(t.space_sample.vectors, t.reward) for t in self.history.trials if
                     t.space_sample.signature == signature]
         return features
