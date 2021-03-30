@@ -2,27 +2,24 @@
 
 import time
 
-from ..utils.common import config
+from .cfg import DispatchCfg as c
 
 
 def get_dispatcher(hyper_model, **kwargs):
     timestamp = time.strftime('%Y%m%d%H%M%S')
-    experiment = config('experiment', f'experiment_{timestamp}')
-    work_dir = config('work-dir', f'{experiment}')
+    experiment = c.experiment if len(c.experiment) > 0 else f'experiment_{timestamp}'
+    work_dir = c.work_dir if len(c.work_dir) > 0 else f'{experiment}'
 
     if hyper_model.searcher.parallelizable:
-        backend = config('search-backend', 'standalone')
-
-        if backend == 'dask':
+        if c.backend == 'dask':
             from .dask.dask_dispatcher import DaskDispatcher
-            return DaskDispatcher(config('models_dir', work_dir))
-        elif config('role') is not None:
-            role = config('role', 'standalone')
-            driver_address = config('driver')
-            if role == 'driver':
+            return DaskDispatcher(work_dir)
+        elif c.backend == 'cluster':
+            driver_address = c.cluster_driver
+            if c.cluster_role == 'driver':
                 from hypernets.dispatchers.cluster import DriverDispatcher
                 return DriverDispatcher(driver_address, work_dir)
-            elif role == 'executor':
+            elif c.cluster_role == 'executor':
                 if driver_address is None:
                     raise Exception('Not found setting "driver" for executor role.')
                 from hypernets.dispatchers.cluster import ExecutorDispatcher

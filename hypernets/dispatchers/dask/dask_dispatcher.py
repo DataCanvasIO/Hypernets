@@ -11,8 +11,9 @@ from dask.distributed import Client, default_client
 from hypernets.core.callbacks import EarlyStoppingError
 from hypernets.core.dispatcher import Dispatcher
 from hypernets.core.trial import Trial
+from hypernets.dispatchers.cfg import DispatchCfg as c
 from hypernets.utils import logging, fs
-from hypernets.utils.common import config, Counter
+from hypernets.utils.common import Counter
 
 logger = logging.get_logger(__name__)
 
@@ -171,9 +172,9 @@ class DaskDispatcher(Dispatcher):
         assert not any(dask.is_dask_collection(i) for i in (X, y, X_val, y_val)), \
             f'{self.__class__.__name__} does not support to run trial with dask collection.'
 
-        queue_size = int(config('search_queue', '1'))
-        worker_count = int(config('search_executors', '3'))
-        retry_limit = int(config('search_retry', '1000'))
+        queue_size = c.dask_search_queue
+        worker_count = c.dask_search_executors
+        retry_limit = c.trial_retry_limit
 
         failed_counter = Counter()
         success_counter = Counter()

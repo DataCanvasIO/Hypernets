@@ -6,7 +6,7 @@ from hypernets.dispatchers.cluster.grpc.search_driver_service import get_or_serv
 from hypernets.core.callbacks import EarlyStoppingError
 from hypernets.core.dispatcher import Dispatcher
 from hypernets.core.trial import Trial
-from hypernets.utils.common import config
+from hypernets.dispatchers.cfg import DispatchCfg as c
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -86,7 +86,7 @@ class DriverDispatcher(Dispatcher):
 
         trial_no = 1
         retry_counter = 0
-        queue_size = int(config('search_queue', '1'))
+        queue_size = c.cluster_search_queue
 
         while trial_no <= max_trials:
             space_sample = hyper_model.searcher.sample()

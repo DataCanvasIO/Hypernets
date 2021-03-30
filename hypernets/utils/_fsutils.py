@@ -10,11 +10,27 @@ import tempfile
 
 import fsspec
 
+from hypernets.conf import Configurable, configure, Unicode
 from . import logging
-from .common import config
 
 logger = logging.get_logger(__name__)
 is_windows = sys.platform.find('win') >= 0
+
+
+@configure()
+class StorageCfg(Configurable):
+    kind = Unicode('file',
+                   help='storage kind (fsspec protocol). "file" and "s3" were tested.'
+                   ).tag(config=True)
+    root = Unicode('',
+                   help='storage root path.'
+                   ).tag(config=True)
+    options = Unicode('',
+                      help='storage options, json string. see fsspec from more details.'
+                      ).tag(config=True)
+    local_root = Unicode(os.path.join(tempfile.gettempdir(), 'cache'),
+                         help='local root path, used as temp.'
+                         ).tag(config=True)
 
 
 class FileSystemAdapter(object):
@@ -301,7 +317,7 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
         if not fs.exists(remote_root):
             fs.mkdirs(remote_root, exist_ok=True)
 
-        local_root = config('storage_localroot', os.path.join(tempfile.gettempdir(), 'cache'))
+        local_root = StorageCfg.local_root
         local_root = os.path.abspath(os.path.expanduser(local_root))
         os.makedirs(local_root, exist_ok=True)
         is_local = False
@@ -314,9 +330,9 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
 
 
 def _fs_reduce(*args):
-    return get_filesystem, (config('storage_type', 'file'),
-                            config('storage_root', None),
-                            config('storage_options', None))
+    return get_filesystem, (StorageCfg.kind if len(StorageCfg.kind) > 0 else None,
+                            StorageCfg.root if len(StorageCfg.root) > 0 else None,
+                            StorageCfg.options if len(StorageCfg.options) > 0 else None)
 
 
 filesystem = _fs_reduce()[0](*_fs_reduce()[1])

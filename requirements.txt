@@ -5,3 +5,4 @@ lightgbm>=2.2.0
 fsspec>=0.8.0
 seaborn==0.11.0
 ipython
+traitlets

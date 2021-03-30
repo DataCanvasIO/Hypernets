@@ -5,16 +5,16 @@ import time
 import pandas as pd
 from IPython.display import display, update_display, display_markdown
 
+from .cfg import DispatchCfg as c
 from ..core.callbacks import EarlyStoppingError
 from ..core.dispatcher import Dispatcher
 from ..core.trial import Trial
 from ..utils import logging, fs
-from ..utils.common import config, isnotebook
+from ..utils.common import isnotebook
 
 logger = logging.get_logger(__name__)
 
 _is_notebook = isnotebook()
-_model_root = config('model_path', 'tmp/models')
 
 
 class InProcessDispatcher(Dispatcher):
@@ -26,7 +26,7 @@ class InProcessDispatcher(Dispatcher):
 
     def dispatch(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                  **fit_kwargs):
-        retry_limit = int(config('search_retry', '1000'))
+        retry_limit = c.trial_retry_limit
 
         trial_no = 1
         retry_counter = 0

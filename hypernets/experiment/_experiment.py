@@ -3,9 +3,9 @@ __author__ = 'yangjian'
 """
 
 """
-import os
 import time
 
+from hypernets.dispatchers.cfg import DispatchCfg
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -67,7 +67,7 @@ class Experiment(object):
         self.start_time = time.time()
 
         if self.id is not None:
-            os.environ['HYN_EXPERIMENT'] = str(self.id)
+            DispatchCfg.experiment = str(self.id)
 
         try:
             if self.task is None:

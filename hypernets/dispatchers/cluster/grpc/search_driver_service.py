@@ -5,8 +5,8 @@ from threading import Thread
 
 import grpc
 
+from hypernets.dispatchers.cfg import DispatchCfg as c
 from hypernets.utils import logging, fs
-from hypernets.utils.common import config
 from .proto import spec_pb2_grpc
 from .proto.spec_pb2 import SearchResponse, PingMessage
 
@@ -310,7 +310,7 @@ class DriverStatusThread(Thread):
         self.service = service
         self.daemon = True
         self.running = False
-        self.summary_interval = float(config('summary_interval', '60'))
+        self.summary_interval = c.cluster_summary_interval
 
     def run(self) -> None:
         self.running = True
@@ -365,7 +365,7 @@ def serve(addr, search_id, spaces_dir, models_dir, on_next=None, on_report=None,
     import grpc
     from concurrent import futures
 
-    worker_number = int(config('grpc_worker_count', '10'))
+    worker_number = c.grpc_worker_count
     service = SearchDriverService(spaces_dir, models_dir)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=worker_number))
     spec_pb2_grpc.add_SearchDriverServicer_to_server(service, server)
