@@ -66,8 +66,7 @@ class Experiment(object):
     def run(self, **kwargs):
         self.start_time = time.time()
 
-        if self.id is not None:
-            DispatchCfg.experiment = str(self.id)
+        DispatchCfg.experiment = str(self.id) if self.id is not None else ''
 
         try:
             if self.task is None:
