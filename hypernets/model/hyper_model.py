@@ -6,12 +6,11 @@ import hashlib
 import time
 import traceback
 from collections import UserDict
-import numpy as np
 
 from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..dispatchers import get_dispatcher
-from ..utils import logging
+from ..utils import logging, infer_task_type as _infer_task_type
 
 logger = logging.get_logger(__name__)
 
@@ -220,40 +219,4 @@ class HyperModel():
         raise NotImplementedError
 
     def infer_task_type(self, y):
-        if len(y.shape) > 1 and y.shape[-1] > 1:
-            labels = list(range(y.shape[-1]))
-            task = 'multilable'
-            return task, labels
-
-        if hasattr(y, 'unique'):
-            uniques = set(y.unique())
-        else:
-            uniques = set(y)
-
-        if uniques.__contains__(np.nan):
-            uniques.remove(np.nan)
-        n_unique = len(uniques)
-        labels = []
-
-        if n_unique == 2:
-            logger.info(f'2 class detected, {uniques}, so inferred as a [binary classification] task')
-            task = 'binary'  # TASK_BINARY
-            labels = sorted(uniques)
-        else:
-            if y.dtype == 'float':
-                logger.info(f'Target column type is float, so inferred as a [regression] task.')
-                task = 'regression'
-            else:
-                if n_unique > 1000:
-                    if 'int' in y.dtype:
-                        logger.info(
-                            'The number of classes exceeds 1000 and column type is int, so inferred as a [regression] task ')
-                        task = 'regression'
-                    else:
-                        raise ValueError(
-                            'The number of classes exceeds 1000, please confirm whether your predict target is correct ')
-                else:
-                    logger.info(f'{n_unique} class detected, inferred as a [multiclass classification] task')
-                    task = 'multiclass'
-                    labels = sorted(uniques)
-        return task, labels
+        return _infer_task_type(y)

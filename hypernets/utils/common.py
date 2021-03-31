@@ -118,18 +118,18 @@ def infer_task_type(y):
         task = TASK_BINARY  # TASK_BINARY
         labels = sorted(uniques)
     else:
-        if y.dtype == 'float':
-            logger.info(f'Target column type is float, so inferred as a [regression] task.')
+        if str(y.dtype).find('float') >= 0:
+            logger.info(f'Target column type is {y.dtype}, so inferred as a [regression] task.')
             task = TASK_REGRESSION
         else:
             if n_unique > 1000:
-                if 'int' in y.dtype:
-                    logger.info(
-                        'The number of classes exceeds 1000 and column type is int, so inferred as a [regression] task ')
+                if str(y.dtype).find('int') >= 0:
+                    logger.info('The number of classes exceeds 1000 and column type is {y.dtype}, '
+                                'so inferred as a [regression] task ')
                     task = TASK_REGRESSION
                 else:
-                    raise ValueError(
-                        'The number of classes exceeds 1000, please confirm whether your predict target is correct ')
+                    raise ValueError('The number of classes exceeds 1000, please confirm whether '
+                                     'your predict target is correct ')
             else:
                 logger.info(f'{n_unique} class detected, inferred as a [multiclass classification] task')
                 task = TASK_MULTICLASS
