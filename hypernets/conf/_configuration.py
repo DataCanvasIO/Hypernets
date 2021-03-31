@@ -28,7 +28,7 @@ class Configuration(Application):
                 self.load_config_file(f)
 
 
-_conf = Configuration.instance()
+_conf = Configuration()
 
 generate_config_file = _conf.generate_config_file
 
