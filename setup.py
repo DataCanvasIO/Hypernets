@@ -79,6 +79,7 @@ setup(
     ],
     packages=find_packages(exclude=('docs', 'tests*')),
     package_data={
+        'hypernets': ['tabular/datasets/*.csv', 'tabular/datasets/*.txt', 'tabular/datasets/*.gz'],
     },
     zip_safe=False,
     include_package_data=True,
