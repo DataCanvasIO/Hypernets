@@ -5,10 +5,9 @@ __author__ = 'yangjian'
 """
 
 import numpy as np
-from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils import indexable
 from sklearn.utils.validation import _num_samples
-
+from sklearn.model_selection._split import _BaseKFold
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -38,14 +37,15 @@ class PrequentialSplit(_BaseKFold):
             `preq-bls`:
             `preq-slid-bls`:
             `preq-bls-gap`:
-            
+
     References
     ----------
         Cerqueira V, Torgo L, Mozetič I. Evaluating time series forecasting models: An empirical study on performance estimation methods[J]. Machine Learning, 2020, 109(11): 1997-2028.
     """
 
     def __init__(self, strategy='preq-bls', base_size=None, n_splits=5, stride=1, *, max_train_size=None):
-        super(PrequentialSplit, self).__init__(n_splits=(n_splits // stride) - 1, shuffle=False, random_state=None)
+        super(PrequentialSplit, self).__init__(n_splits=max((n_splits // stride) - 1, 2), shuffle=False,
+                                               random_state=None)
         self.max_train_size = max_train_size
         self.base_size = base_size
         self.stride = stride
