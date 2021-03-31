@@ -46,7 +46,7 @@ def test_max_abs_scale():
 
 
 def test_ordinal_encoder():
-    from tabular_toolbox.dask_ex import SafeOrdinalEncoder
+    from hypernets.tabular.dask_ex import SafeOrdinalEncoder
     df1 = pd.DataFrame({"A": [1, 2, 3, 4],
                         "B": ['a', 'a', 'a', 'b']})
     df2 = pd.DataFrame({"A": [1, 2, 3, 5],
