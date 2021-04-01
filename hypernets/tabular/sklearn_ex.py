@@ -52,74 +52,107 @@ def subsample(X, y, max_samples, train_samples, task, random_state=9527):
     return X_train, X_test, y_train, y_test
 
 
+# class SafeLabelEncoder(LabelEncoder):
+#     def transform(self, y):
+#         check_is_fitted(self, 'classes_')
+#         y = column_or_1d(y, warn=True)
+#
+#         unseen = len(self.classes_)
+#         y = np.array([np.searchsorted(self.classes_, x) if x in self.classes_ else unseen for x in y])
+#         return y
+
 class SafeLabelEncoder(LabelEncoder):
     def transform(self, y):
         check_is_fitted(self, 'classes_')
         y = column_or_1d(y, warn=True)
 
         unseen = len(self.classes_)
-        y = np.array([np.searchsorted(self.classes_, x) if x in self.classes_ else unseen for x in y])
-        return y
+        lookup_table = dict(zip(self.classes_, list(range(0, unseen))))
+        out = np.full(len(y), unseen)
+        ind_id = 0
+        for cell_value in y:
+            if cell_value in lookup_table:
+                out[ind_id] = lookup_table[cell_value]
+            ind_id += 1
+        return out
 
 
 class MultiLabelEncoder:
-    def __init__(self):
+    def __init__(self, columns=None):
+        self.columns = columns
         self.encoders = {}
 
-    def fit(self, X, y=None):
+    def fit(self, X, *args):
         assert len(X.shape) == 2
-        n_features = X.shape[1]
-        use_iloc = hasattr(X, 'iloc')
-        for n in range(n_features):
-            le = SafeLabelEncoder()
-            data = X.iloc[:, n] if use_iloc else X[:, n]
-            le.fit(data)
-            self.encoders[n] = le
+        assert isinstance(X, pd.DataFrame) or self.columns is None
+
+        if isinstance(X, pd.DataFrame):
+            if self.columns is None:
+                self.columns = X.columns.tolist()
+            for col in self.columns:
+                data = X.loc[:, col]
+                if data.dtype == 'object':
+                    data = data.astype('str')
+                    # print(f'Column "{col}" has been convert to "str" type.')
+                le = SafeLabelEncoder()
+                le.fit(data)
+                self.encoders[col] = le
+        else:
+            n_features = X.shape[1]
+            for n in range(n_features):
+                data = X[:, n]
+                le = SafeLabelEncoder()
+                le.fit(data)
+                self.encoders[n] = le
+
         return self
 
     def transform(self, X):
         assert len(X.shape) == 2
-        n_features = X.shape[1]
-        assert n_features == len(self.encoders.items())
-        for n in range(n_features):
-            if isinstance(X, np.ndarray):
+        assert isinstance(X, pd.DataFrame) or self.columns is None
+
+        if self.columns is not None:  # dataframe
+            for col in self.columns:
+                data = X.loc[:, col]
+                if data.dtype == 'object':
+                    data = data.astype('str')
+                X.loc[:, col] = self.encoders[col].transform(data)
+        else:
+            n_features = X.shape[1]
+            assert n_features == len(self.encoders.items())
+            for n in range(n_features):
                 X[:, n] = self.encoders[n].transform(X[:, n])
-            elif isinstance(X, pd.DataFrame):
-                X.iloc[:, n] = self.encoders[n].transform(X.iloc[:, n])
-            else:
-                raise NotImplementedError('Not supported type')
+
+        return X
+
+    def fit_transform(self, X, *args):
+        assert len(X.shape) == 2
+        assert isinstance(X, pd.DataFrame) or self.columns is None
+
+        if isinstance(X, pd.DataFrame):
+            if self.columns is None:
+                self.columns = X.columns.tolist()
+            for col in self.columns:
+                data = X.loc[:, col]
+                if data.dtype == 'object':
+                    data = data.astype('str')
+                    # print(f'Column "{col}" has been convert to "str" type.')
+                le = SafeLabelEncoder()
+                X.loc[:, col] = le.fit_transform(data)
+                self.encoders[col] = le
+        else:
+            n_features = X.shape[1]
+            for n in range(n_features):
+                data = X[:, n]
+                le = SafeLabelEncoder()
+                X[:, n] = le.fit_transform(data)
+                self.encoders[n] = le
+
         return X
 
 
 class SafeOrdinalEncoder(OrdinalEncoder):
     __doc__ = r'Adapted from sklearn OrdinalEncoder\n' + OrdinalEncoder.__doc__
-
-    # def fit(self, X, y=None):
-    #     super().fit(X, y)
-    #     #
-    #     # def make_encoder(categories):
-    #     #     unseen = len(categories)
-    #     #     m = dict(zip(categories, range(unseen)))
-    #     #     vf = np.vectorize(lambda x: m[x] if x in m.keys() else unseen)
-    #     #     return vf
-    #     #
-    #     # def make_decoder(categories, dtype):
-    #     #     if dtype in (np.float32, np.float64, np.float):
-    #     #         default_value = np.nan
-    #     #     elif dtype in (np.int32, np.int64, np.int, np.uint32, np.uint64, np.uint):
-    #     #         default_value = -1
-    #     #     else:
-    #     #         default_value = None
-    #     #         dtype = np.object
-    #     #     unseen = len(categories)
-    #     #     vf = np.vectorize(lambda x: categories[x] if unseen > x >= 0 else default_value,
-    #     #                       otypes=[dtype])
-    #     #     return vf
-    #     #
-    #     # self.encoders_ = [make_encoder(cat) for cat in self.categories_]
-    #     # self.decoders_ = [make_decoder(cat, X.dtypes[i]) for i, cat in enumerate(self.categories_)]
-    #
-    #     return self
 
     def transform(self, X, y=None):
         if not isinstance(X, (pd.DataFrame, np.ndarray)):
