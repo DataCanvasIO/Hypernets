@@ -149,6 +149,20 @@ class Test_HyperSpace():
         ps = space.get_assigned_params()
         assert ps == [space.Param_Real_1, space.Param_Choice_1, space.Param_Int_1, space.Param_Choice_2]
 
+    def test_parameter_grid(self):
+        from sklearn.model_selection import ParameterGrid
+        space = self.get_space()
+        ps = space.get_unassigned_params()
+        grid = {}
+        for p in ps:
+            grid[p.name] = [s.value for s in p.expansion(2)]
+        all_vectors = list(ParameterGrid(grid))
+        for ps in all_vectors:
+            space = self.get_space()
+            for k,v in ps.items():
+                space.__dict__[k].assign(v)
+            assert space.all_assigned == True
+
     def test_params_iterator(self):
         space = self.get_space()
         ps = []
