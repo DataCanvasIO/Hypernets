@@ -17,7 +17,7 @@ class GridSearcher(Searcher):
         self.grid = {}
         self.n_expansion = n_expansion
         for p in assignable_params:
-            self.grid[p.name] = [s.value for s in p.expansion(n_expansion)]
+            self.grid[p.id] = [s.value for s in p.expansion(n_expansion)]
         self.all_combinations = list(ParameterGrid(self.grid))
         self.position_ = -1
 
