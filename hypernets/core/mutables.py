@@ -59,6 +59,9 @@ class MutableScope:
 
 class Mutable(object):
     def __init__(self, scope, name=None):
+        self.attach_to_scope(scope, name)
+
+    def attach_to_scope(self, scope, name=None):
         assert scope is not None, 'scope cannot be None'
         self.scope = scope
         self.name = name

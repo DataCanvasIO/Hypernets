@@ -24,6 +24,11 @@ class HyperNode(Mutable):
         Mutable.__init__(self, self._space.scope, name)
         self._space.add_node(self)
 
+    def attach_to_space(self, space=None, name=None):
+        self._space = space if space is not None else get_default_space()
+        self.attach_to_scope(self._space.scope, name)
+        self._space.add_node(self)
+
     @property
     def space(self):
         return self._space
