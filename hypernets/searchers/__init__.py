@@ -31,8 +31,6 @@ searcher_dict = {
 
 
 def get_searcher_cls(identifier):
-    from ..core.searcher import Searcher
-
     if isinstance(identifier, str):
         cls = searcher_dict.get(identifier, None)
         if cls is None:
