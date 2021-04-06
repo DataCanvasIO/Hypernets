@@ -329,10 +329,9 @@ class MulticollinearityDetectStep(FeatureSelectStep):
             if X_test is not None:
                 X_test = X_test[self.selected_features_]
             self.step_progress('drop features')
-            self.step_end(output=self.output_multi_collinearity_)
         else:
             self.selected_features_ = None
-
+        self.step_end(output=self.output_multi_collinearity_)
         if _is_notebook:
             display(pd.DataFrame([(k, v)
                                   for k, v in self.output_multi_collinearity_.items()],
