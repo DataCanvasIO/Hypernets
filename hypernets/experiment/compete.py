@@ -28,7 +28,6 @@ from hypernets.utils import hash_data, logging, fs, isnotebook, const
 logger = logging.get_logger(__name__)
 
 DEFAULT_EVAL_SIZE = 0.3
-DEFAULT_TARGET_SET = {'y', 'target'}
 
 _is_notebook = isnotebook()
 
