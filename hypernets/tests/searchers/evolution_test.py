@@ -42,7 +42,7 @@ class Test_Evolution():
         b1 = population.sample_best(25)
         assert b1.reward == 8
 
-        population = Population(optimize_direction=OptimizeDirection.Minimize)
+        population = Population(optimize_direction=OptimizeDirection.Minimize, random_state=np.random.RandomState(9527))
         population.append('a', 0)
         population.append('b', 1)
         population.append('c', 2)
@@ -110,7 +110,7 @@ class Test_Evolution():
         vectors = []
         for i in range(1, 10):
             vectors.append(searcher.sample().vectors)
-        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7],
                            [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
 
         set_random_state(None)
@@ -118,7 +118,7 @@ class Test_Evolution():
         vectors = []
         for i in range(1, 10):
             vectors.append(searcher.sample().vectors)
-        assert vectors != [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+        assert vectors != [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7],
                            [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
 
         set_random_state(9527)
@@ -126,7 +126,7 @@ class Test_Evolution():
         vectors = []
         for i in range(1, 10):
             vectors.append(searcher.sample().vectors)
-        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7],
                            [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
 
         set_random_state(1)

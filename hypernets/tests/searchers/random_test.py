@@ -53,7 +53,7 @@ class Test_RandomSearcher():
         vectors = []
         for i in range(1, 10):
             vectors.append(searcher.sample().vectors)
-        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7],
                            [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
 
         set_random_state(None)
@@ -61,7 +61,7 @@ class Test_RandomSearcher():
         vectors = []
         for i in range(1, 10):
             vectors.append(searcher.sample().vectors)
-        assert vectors != [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+        assert vectors != [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7],
                            [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
 
         set_random_state(9527)
@@ -69,7 +69,7 @@ class Test_RandomSearcher():
         vectors = []
         for i in range(1, 10):
             vectors.append(searcher.sample().vectors)
-        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7],
                            [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
 
         set_random_state(1)

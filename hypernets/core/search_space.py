@@ -745,12 +745,12 @@ class Real(ParameterSpace):
 
         if self.step is not None:
             if self.prior == 'log_uniform':
-                all = np.arange(np.exp(self.low), np.exp(self.high) + self.step, step=self.step)
+                all = np.round(np.arange(np.exp(self.low), np.exp(self.high) + self.step, step=self.step), 8)
                 value = all[np.abs(all - value).argmin()]
                 if value > np.exp(self.high):
                     value = np.exp(self.high)
             else:
-                all = np.arange(self.low, self.high + self.step, step=self.step)
+                all = np.round(np.arange(self.low, self.high + self.step, step=self.step), 8)
                 value = all[np.abs(all - value).argmin()]
                 if value > self.high:
                     value = self.high
