@@ -7,12 +7,27 @@ import numpy as np
 from hypernets.core.ops import Identity
 from hypernets.core.search_space import HyperSpace, Int, Real, Choice, Bool
 from hypernets.core.searcher import OptimizeDirection
-from hypernets.searchers.evolution_searcher import Population
+from hypernets.searchers.evolution_searcher import Population, EvolutionSearcher
+
+
+def get_space():
+    space = HyperSpace()
+    with space.as_default():
+        p1 = Int(1, 100)
+        p2 = Choice(['a', 'b'])
+        p3 = Bool()
+        p4 = Real(0.0, 1.0)
+        id1 = Identity(p1=p1)
+        id2 = Identity(p2=p2)(id1)
+        id3 = Identity(p3=p3)(id2)
+        id4 = Identity(p4=p4)(id3)
+    return space
 
 
 class Test_Evolution():
+
     def test_population(self):
-        population = Population(optimize_direction=OptimizeDirection.Maximize)
+        population = Population(optimize_direction=OptimizeDirection.Maximize, random_state=np.random.RandomState(9527))
         population.append('a', 0)
         population.append('b', 1)
         population.append('c', 2)
@@ -24,7 +39,7 @@ class Test_Evolution():
         population.append('i', 8)
         population.append('i', 9)
 
-        b1 = population.sample_best(25, np.random.RandomState(9527))
+        b1 = population.sample_best(25)
         assert b1.reward == 8
 
         population = Population(optimize_direction=OptimizeDirection.Minimize)
@@ -39,7 +54,7 @@ class Test_Evolution():
         population.append('i', 8)
         population.append('i', 9)
 
-        b2 = population.sample_best(25, np.random.RandomState(9527))
+        b2 = population.sample_best(25)
         assert b2.reward == 0
 
     def test_eliminate(self):
@@ -86,6 +101,43 @@ class Test_Evolution():
         assert space2.all_assigned
         assert new_space.all_assigned
         assert np.sum([v1 != v2 for v1, v2 in zip(pv1, pv2)]) == 1
+
+    def test_set_random_state(self):
+        from hypernets.core import set_random_state
+        set_random_state(9527)
+
+        searcher = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+                           [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
+
+        set_random_state(None)
+        searcher = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors != [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+                           [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
+
+        set_random_state(9527)
+        searcher = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors == [[98, 0, 0, 0.96], [9, 0, 0, 0.93], [60, 0, 1, 0.24], [54, 0, 1, 0.7000000000000001],
+                           [25, 0, 1, 0.73], [67, 1, 1, 0.43], [57, 1, 1, 0.05], [49, 0, 0, 0.71], [71, 1, 1, 0.49]]
+
+        set_random_state(1)
+        searcher = EvolutionSearcher(get_space, 5, 3, regularized=False, optimize_direction=OptimizeDirection.Maximize)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors == [[38, 1, 0, 0.93], [10, 1, 1, 0.15], [17, 1, 0, 0.39], [7, 1, 0, 0.85], [19, 0, 1, 0.44],
+                           [29, 1, 0, 0.67], [88, 1, 1, 0.43], [95, 0, 0, 0.8], [10, 1, 1, 0.09]]
+
+        set_random_state(None)
 
     # def test_searcher_with_hp(self):
     #     def get_space():
