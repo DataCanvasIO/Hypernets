@@ -10,6 +10,7 @@ from .random_searcher import RandomSearcher
 from .playback_searcher import PlaybackSearcher
 from .grid_searcher import GridSearcher
 from ..core.searcher import Searcher
+
 searcher_dict = {
     'mcts': MCTSSearcher,
     'MCTS': MCTSSearcher,
@@ -45,3 +46,20 @@ def get_searcher_cls(identifier):
             raise ValueError(f'Wrong searcher type:{identifier}')
     else:
         raise ValueError(f'Illegal identifier:{identifier}')
+
+
+def build_searcher(cls, search_space_fn, optimize_direction='min'):
+    cls = get_searcher_cls(cls)
+    if cls == EvolutionSearcher:
+        s = cls(search_space_fn, optimize_direction=optimize_direction,
+                population_size=30, sample_size=10, candidates_size=10,
+                regularized=True, use_meta_learner=True)
+    elif cls == MCTSSearcher:
+        s = MCTSSearcher(search_space_fn, optimize_direction=optimize_direction, max_node_space=10)
+    elif cls == RandomSearcher:
+        s = cls(search_space_fn, optimize_direction=optimize_direction)
+    elif cls == GridSearcher:
+        s = cls(search_space_fn, optimize_direction=optimize_direction)
+    else:
+        s = cls(search_space_fn, optimize_direction=optimize_direction)
+    return s

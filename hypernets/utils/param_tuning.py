@@ -11,8 +11,7 @@ from hypernets.conf import configure, Configurable, String, Int as cfg_int
 from hypernets.core import TrialHistory, Trial, EarlyStoppingError
 from hypernets.core.ops import Identity, HyperInput
 from hypernets.core.search_space import HyperSpace, ParameterSpace
-from hypernets.searchers import EvolutionSearcher, RandomSearcher, MCTSSearcher, GridSearcher, get_searcher_cls, \
-    Searcher
+from hypernets.searchers import build_searcher, Searcher
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -37,28 +36,9 @@ def func_space(func):
     return space
 
 
-def build_searcher(cls, func, optimize_direction='min'):
-    cls = get_searcher_cls(cls)
-    search_space_fn = lambda: func_space(func)
-
-    if cls == EvolutionSearcher:
-        s = cls(search_space_fn, optimize_direction=optimize_direction,
-                population_size=30, sample_size=10, candidates_size=10,
-                regularized=True, use_meta_learner=True)
-    elif cls == MCTSSearcher:
-        s = MCTSSearcher(search_space_fn, optimize_direction=optimize_direction, max_node_space=10)
-    elif cls == RandomSearcher:
-        s = cls(search_space_fn, optimize_direction=optimize_direction)
-    elif cls == GridSearcher:
-        s = cls(search_space_fn, optimize_direction=optimize_direction)
-    else:
-        s = cls(search_space_fn, optimize_direction=optimize_direction)
-    return s
-
-
 def search_params(func, searcher, max_trials=10, optimize_direction='min'):
     if not isinstance(searcher, Searcher):
-        searcher = build_searcher(searcher, func, optimize_direction)
+        searcher = build_searcher(searcher, lambda: func_space(func), optimize_direction)
     retry_limit = ParamSearchCfg.trial_retry_limit
     trial_no = 1
     retry_counter = 0
