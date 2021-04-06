@@ -118,6 +118,43 @@ class Test_MCTS():
 
         assert searcher.tree.root.visits == 20
 
+    def test_set_random_state(self):
+        from hypernets.core import set_random_state
+        set_random_state(9527)
+
+        searcher = MCTSSearcher(self.get_space, max_node_space=10)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors == [[98, 0, 1, 0.86], [2, 0, 1, 0.58], [2, 0, 1, 0.73], [2, 0, 1, 0.58], [2, 1, 0, 0.67],
+                           [2, 0, 1, 0.01], [2, 0, 1, 0.22], [2, 0, 1, 0.55], [2, 0, 1, 0.32]]
+
+        set_random_state(None)
+        searcher = MCTSSearcher(self.get_space, max_node_space=10)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors != [[98, 0, 1, 0.86], [2, 0, 1, 0.58], [2, 0, 1, 0.73], [2, 0, 1, 0.58], [2, 1, 0, 0.67],
+                           [2, 0, 1, 0.01], [2, 0, 1, 0.22], [2, 0, 1, 0.55], [2, 0, 1, 0.32]]
+
+        set_random_state(9527)
+        searcher = MCTSSearcher(self.get_space, max_node_space=10)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors == [[98, 0, 1, 0.86], [2, 0, 1, 0.58], [2, 0, 1, 0.73], [2, 0, 1, 0.58], [2, 1, 0, 0.67],
+                           [2, 0, 1, 0.01], [2, 0, 1, 0.22], [2, 0, 1, 0.55], [2, 0, 1, 0.32]]
+
+        set_random_state(1)
+        searcher = MCTSSearcher(self.get_space, max_node_space=10)
+        vectors = []
+        for i in range(1, 10):
+            vectors.append(searcher.sample().vectors)
+        assert vectors == [[73, 1, 0, 0.4], [2, 0, 0, 0.42], [2, 0, 0, 0.2], [2, 0, 0, 0.03], [2, 0, 0, 0.42],
+                           [2, 1, 1, 0.14], [2, 0, 0, 0.8], [2, 1, 1, 0.31], [2, 0, 1, 0.88]]
+
+        set_random_state(None)
+
     # def test_searcher_with_hp(self):
     #     def get_space():
     #         space = HyperSpace()

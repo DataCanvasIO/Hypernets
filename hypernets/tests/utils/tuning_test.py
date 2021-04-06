@@ -21,5 +21,5 @@ class Test_ParamTuning():
         print('start')
         history = search_params(func1, 'grid', max_trials=10, optimize_direction='max')
         best = history.get_best()
-        assert best.reward == 14.370000000000012
+        assert best.reward == 14.370000000000001
         assert best.trial_no == 10

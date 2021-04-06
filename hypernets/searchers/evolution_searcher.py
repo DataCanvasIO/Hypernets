@@ -5,6 +5,7 @@
 import numpy as np
 
 from ..core.searcher import Searcher, OptimizeDirection
+from ..core import get_random_state
 from ..utils import logging
 
 logger = logging.get_logger(__name__)
@@ -20,12 +21,13 @@ class Individual(object):
 
 
 class Population(object):
-    def __init__(self, size=50, optimize_direction=OptimizeDirection.Minimize):
+    def __init__(self, size=50, optimize_direction=OptimizeDirection.Minimize, random_state=None):
         assert isinstance(size, int)
         assert size > 0
         self.size = size
         self.populations = []
         self.optimize_direction = optimize_direction
+        self.random_state = random_state if random_state is not None else get_random_state()
 
     @property
     def initializing(self):
@@ -39,10 +41,10 @@ class Population(object):
         individual = Individual(space_sample, reward)
         self.populations.append(individual)
 
-    def sample_best(self, sample_size, random_state=np.random.RandomState()):
+    def sample_best(self, sample_size):
         if sample_size > self.length:
             sample_size = self.length
-        indices = sorted(random_state.choice(range(self.length), sample_size))
+        indices = sorted(self.random_state.choice(range(self.length), sample_size))
         samples = [self.populations[i] for i in indices]
         best = \
             sorted(samples,
@@ -66,12 +68,12 @@ class Population(object):
         return eliminates
 
     def shuffle(self):
-        np.random.shuffle(self.populations)
+        self.random_state.shuffle(self.populations)
 
     def mutate(self, parent_space, offspring_space):
         assert parent_space.all_assigned
         parent_params = parent_space.get_assigned_params()
-        pos = np.random.randint(0, len(parent_params))
+        pos = self.random_state.randint(0, len(parent_params))
         for i, hp in enumerate(offspring_space.params_iterator):
             if i > (len(parent_params) - 1) or not parent_params[i].same_config(hp):
                 hp.random_sample()
@@ -96,7 +98,7 @@ class EvolutionSearcher(Searcher):
     """
     def __init__(self, space_fn, population_size, sample_size, regularized=False,
                  candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
-                 space_sample_validation_fn=None):
+                 space_sample_validation_fn=None, random_state=None):
         """
         :param space_fn: callable, required
             A search space function which when called returns a `HyperSpace` instance
@@ -120,7 +122,8 @@ class EvolutionSearcher(Searcher):
         """
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
                           use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
-        self.population = Population(size=population_size, optimize_direction=optimize_direction)
+        self.random_state = random_state if random_state is not None else get_random_state()
+        self.population = Population(size=population_size, optimize_direction=optimize_direction, random_state=self.random_state)
         self.sample_size = sample_size
         self.regularized = regularized
         self.candidate_size = candidates_size
@@ -164,7 +167,7 @@ class EvolutionSearcher(Searcher):
                           key=lambda s: s[1],
                           reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])[
                    :int(len(candidates) * 0.3)]
-            best = topn[np.random.choice(range(len(topn)))]
+            best = topn[self.random_state.choice(range(len(topn)))]
 
             if logger.is_info_enabled():
                 logger.info(f'get_offspring scores:{best[1]}, index:{best[0]}')

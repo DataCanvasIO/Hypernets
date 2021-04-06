@@ -75,6 +75,9 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
             if isnotebook():
                 if clear_logs:
                     clear_output()
+                    current_trial_display_id = None
+                    trials_display_id = None
+                    
                 if current_trial_display_id is None:
                     display({'text/markdown': '#### Current Trial:'}, raw=True, include=['text/markdown'])
                     handle = display(space_sample, display_id=True)

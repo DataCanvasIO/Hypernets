@@ -83,7 +83,7 @@ class Test_Parameter:
         assert r4.assigned == True
         assert v1 == 0.33
         assert v2 == 0.4
-        assert v3 == 1.2700501670841682
+        assert v3 == 1.27005017
         assert r4.value == 0.2
 
         with pytest.raises(AssertionError) as excinfo:

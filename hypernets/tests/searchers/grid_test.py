@@ -32,36 +32,36 @@ class Test_GridSearcher():
     def test_playback_searcher(self):
         searcher = GridSearcher(get_space, n_expansion=2)
         assert searcher.grid == {'Param_Choice_1': ['a', 'b'], 'Param_Int_1': [9, 98],
-                                 'Param_Real_1': [0.23, 0.9500000000000001]}
+                                 'Param_Real_1': [0.23, 0.95]}
 
         assert searcher.all_combinations == [{'Param_Choice_1': 'a', 'Param_Int_1': 9, 'Param_Real_1': 0.23},
                                              {'Param_Choice_1': 'a', 'Param_Int_1': 9,
-                                              'Param_Real_1': 0.9500000000000001},
+                                              'Param_Real_1': 0.95},
                                              {'Param_Choice_1': 'a', 'Param_Int_1': 98, 'Param_Real_1': 0.23},
                                              {'Param_Choice_1': 'a', 'Param_Int_1': 98,
-                                              'Param_Real_1': 0.9500000000000001},
+                                              'Param_Real_1': 0.95},
                                              {'Param_Choice_1': 'b', 'Param_Int_1': 9, 'Param_Real_1': 0.23},
                                              {'Param_Choice_1': 'b', 'Param_Int_1': 9,
-                                              'Param_Real_1': 0.9500000000000001},
+                                              'Param_Real_1': 0.95},
                                              {'Param_Choice_1': 'b', 'Param_Int_1': 98, 'Param_Real_1': 0.23},
                                              {'Param_Choice_1': 'b', 'Param_Int_1': 98,
-                                              'Param_Real_1': 0.9500000000000001}]
+                                              'Param_Real_1': 0.95}]
         sample1 = searcher.sample()
         assert sample1.vectors == [0, 9, 0.23]
         sample2 = searcher.sample()
-        assert sample2.vectors == [0, 9, 0.9500000000000001]
+        assert sample2.vectors == [0, 9, 0.95]
         sample3 = searcher.sample()
         assert sample3.vectors == [0, 98, 0.23]
         sample4 = searcher.sample()
-        assert sample4.vectors == [0, 98, 0.9500000000000001]
+        assert sample4.vectors == [0, 98, 0.95]
         sample5 = searcher.sample()
         assert sample5.vectors == [1, 9, 0.23]
         sample6 = searcher.sample()
-        assert sample6.vectors == [1, 9, 0.9500000000000001]
+        assert sample6.vectors == [1, 9, 0.95]
         sample7 = searcher.sample()
         assert sample7.vectors == [1, 98, 0.23]
         sample8 = searcher.sample()
-        assert sample8.vectors == [1, 98, 0.9500000000000001]
+        assert sample8.vectors == [1, 98, 0.95]
 
         with pytest.raises(EarlyStoppingError) as ese:
             searcher.sample()
