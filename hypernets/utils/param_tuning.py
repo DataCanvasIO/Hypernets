@@ -11,7 +11,7 @@ from hypernets.conf import configure, Configurable, String, Int as cfg_int
 from hypernets.core import TrialHistory, Trial, EarlyStoppingError
 from hypernets.core.ops import Identity, HyperInput
 from hypernets.core.search_space import HyperSpace, ParameterSpace
-from hypernets.searchers import build_searcher, Searcher
+from hypernets.searchers import make_searcher, Searcher
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -38,7 +38,7 @@ def func_space(func):
 
 def search_params(func, searcher, max_trials=10, optimize_direction='min'):
     if not isinstance(searcher, Searcher):
-        searcher = build_searcher(searcher, lambda: func_space(func), optimize_direction)
+        searcher = make_searcher(searcher, lambda: func_space(func), optimize_direction)
     retry_limit = ParamSearchCfg.trial_retry_limit
     trial_no = 1
     retry_counter = 0

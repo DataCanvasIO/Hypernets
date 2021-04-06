@@ -48,18 +48,16 @@ def get_searcher_cls(identifier):
         raise ValueError(f'Illegal identifier:{identifier}')
 
 
-def build_searcher(cls, search_space_fn, optimize_direction='min'):
+def make_searcher(cls, search_space_fn, optimize_direction='min', **kwargs):
     cls = get_searcher_cls(cls)
+
     if cls == EvolutionSearcher:
-        s = cls(search_space_fn, optimize_direction=optimize_direction,
-                population_size=30, sample_size=10, candidates_size=10,
-                regularized=True, use_meta_learner=True)
+        default_kwargs = dict(population_size=30, sample_size=10, candidates_size=10,
+                              regularized=True, use_meta_learner=True)
     elif cls == MCTSSearcher:
-        s = MCTSSearcher(search_space_fn, optimize_direction=optimize_direction, max_node_space=10)
-    elif cls == RandomSearcher:
-        s = cls(search_space_fn, optimize_direction=optimize_direction)
-    elif cls == GridSearcher:
-        s = cls(search_space_fn, optimize_direction=optimize_direction)
+        default_kwargs = dict(max_node_space=10)
     else:
-        s = cls(search_space_fn, optimize_direction=optimize_direction)
-    return s
+        default_kwargs = {}
+    kwargs = {**default_kwargs, **kwargs}
+    searcher = cls(search_space_fn, optimize_direction=optimize_direction, **kwargs)
+    return searcher
