@@ -138,3 +138,24 @@ def _calc_score_dask(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=
             else:
                 logger.warning(f'unknown metric: {metric}')
     return score
+
+
+def metric_to_scoring(metric):
+    mapping = {
+        'auc': 'roc_auc_ovo',
+        'accuracy': 'accuracy',
+        'recall': 'recall',
+        'precision': 'precision',
+        'f1': 'f1',
+        'mse': 'neg_mean_squared_error',
+        'mae': 'neg_mean_absolute_error',
+        'msle': 'neg_mean_squared_log_error',
+        'rmse': 'neg_root_mean_squared_error',
+        'rootmeansquarederror': 'neg_root_mean_squared_error',
+        'r2': 'r2',
+        'logloss': 'neg_log_loss',
+    }
+    if metric not in mapping.keys():
+        raise ValueError(f'Not found matching scoring for {metric}')
+
+    return mapping[metric]
