@@ -39,7 +39,7 @@ class PlainSearchSpace:
         solver = Choice(['lbfgs', 'sgd', 'adam'])
         return dict(
             cls=MLPClassifier,
-            max_iter=Int(1000, 10000, step=500),
+            max_iter=Int(500, 5000, step=500),
             activation=Choice(['identity', 'logistic', 'tanh', 'relu']),
             solver=solver,
             learning_rate=Choice(['constant', 'invscaling', 'adaptive']),
@@ -49,7 +49,7 @@ class PlainSearchSpace:
     @staticmethod
     def _nn_learning_rate_init(slvr):
         if slvr in ['sgd' or 'adam']:
-            return 'learning_rate_init', Choice([0.0001, 0.001, 0.01])
+            return 'learning_rate_init', Choice([0.001, 0.01])
         else:
             return 'learning_rate_init', Constant(0.001)
 
@@ -135,15 +135,20 @@ class PlainEstimator(Estimator):
         pass
 
     def fit(self, X, y, **kwargs):
+        eval_set = kwargs.pop('eval_set', None)  # ignore
+
         self.model.fit(X, y, **kwargs)
         self.classes_ = getattr(self.model, 'classes_', None)
         self.cv_models_ = []
 
         return self
 
-    def fit_cross_validation(self, X, y, stratified=True, num_folds=3, shuffle=False, random_state=9527, metrics=None):
+    def fit_cross_validation(self, X, y, stratified=True, num_folds=3, shuffle=False, random_state=9527, metrics=None,
+                             **kwargs):
         assert num_folds > 0
         assert isinstance(metrics, (list, tuple))
+
+        eval_set = kwargs.pop('eval_set', None)  # ignore
 
         if stratified and self.task == const.TASK_BINARY:
             iterators = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=random_state)
@@ -161,7 +166,7 @@ class PlainEstimator(Estimator):
             x_val_fold, y_val_fold = X.iloc[valid_idx], y[valid_idx]
 
             fold_model = copy.deepcopy(self.model)
-            fold_model.fit(x_train_fold, y_train_fold)
+            fold_model.fit(x_train_fold, y_train_fold, **kwargs)
 
             # calc fold oof and score
             if self.task == const.TASK_REGRESSION:
@@ -196,11 +201,14 @@ class PlainEstimator(Estimator):
 
         # calc final score with mean
         scores = pd.concat([pd.Series(s) for s in oof_scores], axis=1).mean(axis=1).to_dict()
+        logger.info(f'fit_cross_validation score:{scores}, folds score:{oof_scores}')
 
         # return
         return scores, oof_, oof_scores
 
     def predict(self, X, **kwargs):
+        eval_set = kwargs.pop('eval_set', None)  # ignore
+
         if self.cv_models_:
             if self.task == const.TASK_REGRESSION:
                 pred_sum = None
@@ -220,6 +228,8 @@ class PlainEstimator(Estimator):
         return preds
 
     def predict_proba(self, X, **kwargs):
+        eval_set = kwargs.pop('eval_set', None)  # ignore
+
         if self.cv_models_:
             proba_sum = None
             for est in self.cv_models_:

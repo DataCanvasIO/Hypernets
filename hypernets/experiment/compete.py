@@ -402,6 +402,8 @@ class DriftDetectStep(FeatureSelectStep):
 class PermutationImportanceSelectionStep(FeatureSelectStep):
 
     def __init__(self, experiment, name, scorer, estimator_size, importance_threshold):
+        assert scorer is not None
+
         super().__init__(experiment, name)
 
         self.scorer = scorer
@@ -682,8 +684,8 @@ class PseudoLabelStep(ExperimentStep):
                         plt.title('Density Plot of Probability', fontsize=22)
                         plt.legend()
                         plt.show()
-                    else:
-                        print(proba)
+                    # else:
+                    #     print(proba)
                 except:
                     print(proba)
 
