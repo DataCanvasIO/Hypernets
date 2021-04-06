@@ -92,7 +92,8 @@ class Experiment(object):
 
     def step_start(self, step):
         if self.current_step is not None:
-            raise RuntimeError('Make sure `step_end()` is called at the end of the previous step.')
+            raise RuntimeError(
+                f'Make sure `step_end()` is called at the end of the previous step. `step`:{step}, `current_step`:{self.current_step}')
 
         self.current_step = step
         self.step_start_time = time.time()
