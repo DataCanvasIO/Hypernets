@@ -14,6 +14,7 @@ from collections import OrderedDict
 from .mutables import Mutable, MutableScope
 from ..utils.common import generate_id, combinations
 from ..utils import logging
+from .random_state import get_random_state
 
 logger = logging.get_logger(__name__)
 
@@ -566,10 +567,11 @@ def get_default_space():
 
 
 class ParameterSpace(HyperNode):
-    def __init__(self, space=None, name=None):
+    def __init__(self, space=None, name=None, random_state=None):
         HyperNode.__init__(self, space, name)
         self._assigned = False
         self._value = None
+        self.random_state = random_state if random_state is not None else get_random_state()
         self.references = set()
 
     @property
@@ -659,14 +661,13 @@ class ParameterSpace(HyperNode):
 
 
 class Int(ParameterSpace):
-    def __init__(self, low, high, step=1, random_state=np.random.RandomState(), space=None, name=None):
-        ParameterSpace.__init__(self, space, name)
+    def __init__(self, low, high, step=1, random_state=None, space=None, name=None):
+        ParameterSpace.__init__(self, space, name, random_state)
         assert isinstance(low, int) and isinstance(high, int), '`low` and `high` must be a int.'
         assert low < high, '`low` must less than `high`.'
         self.low = low
         self.high = high
         self.step = step
-        self.random_state = random_state
 
     def _random_sample(self):
         value = self.random_state.randint(self.low, self.high)
@@ -714,9 +715,8 @@ class Int(ParameterSpace):
 
 class Real(ParameterSpace):
     def __init__(self, low, high, q=None, prior="uniform", step=0.01, max_expansion=100,
-                 random_state=np.random.RandomState(),
-                 space=None, name=None):
-        ParameterSpace.__init__(self, space, name)
+                 random_state=None, space=None, name=None):
+        ParameterSpace.__init__(self, space, name, random_state)
         low = float(low)
         high = float(high)
         assert low < high, '`low` must less than `high`.'
@@ -725,7 +725,6 @@ class Real(ParameterSpace):
         self.q = q
         self.prior = prior
         self.step = float(step)
-        self.random_state = random_state
         self.max_expansion = max_expansion
 
     def _random_sample(self):
@@ -800,12 +799,11 @@ class Real(ParameterSpace):
 
 
 class Choice(ParameterSpace):
-    def __init__(self, options, random_state=np.random.RandomState(), space=None, name=None):
-        ParameterSpace.__init__(self, space, name)
+    def __init__(self, options, random_state=None, space=None, name=None):
+        ParameterSpace.__init__(self, space, name, random_state)
         assert isinstance(options, list), '`options` must be a List.'
         assert len(options) > 0, '`options` contains at least one item.'
         self.options = options
-        self.random_state = random_state
 
     @property
     def is_mutable(self):
@@ -841,15 +839,14 @@ class Choice(ParameterSpace):
 
 
 class MultipleChoice(ParameterSpace):
-    def __init__(self, options, num_chosen_most=0, num_chosen_least=1, random_state=np.random.RandomState(),
+    def __init__(self, options, num_chosen_most=0, num_chosen_least=1, random_state=None,
                  space=None, name=None):
-        ParameterSpace.__init__(self, space, name)
+        ParameterSpace.__init__(self, space, name, random_state)
         assert isinstance(options, list), '`options` must be a List.'
         assert len(options) >= num_chosen_least, f'`options` contains at least {num_chosen_least} item.'
         self.options = options
         self.num_chosen_most = num_chosen_most
         self.num_chosen_least = num_chosen_least
-        self.random_state = random_state
 
     def _random_sample(self):
         high = self.num_chosen_most
@@ -904,7 +901,7 @@ class MultipleChoice(ParameterSpace):
 
 
 class Bool(Choice):
-    def __init__(self, random_state=np.random.RandomState(), space=None, name=None):
+    def __init__(self, random_state=None, space=None, name=None):
         Choice.__init__(self, [False, True], random_state, space, name)
 
 

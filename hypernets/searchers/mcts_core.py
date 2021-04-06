@@ -6,10 +6,11 @@ import numpy as np
 import math
 from collections import OrderedDict
 from ..utils.common import generate_id
+from ..core import get_random_state
 
 
 class MCNode(object):
-    def __init__(self, id, name, param_sample, parent=None, tree=None, is_terminal=False):
+    def __init__(self, id, name, param_sample, parent=None, tree=None, is_terminal=False, random_state=None):
         self.visits = 0
         self.reward = 0.0
         self.rewards = []
@@ -30,6 +31,7 @@ class MCNode(object):
         self._is_terminal = is_terminal
         self._children = []
         self.id = id
+        self.random_state = random_state if random_state is not None else get_random_state()
 
     @property
     def is_terminal(self):
@@ -68,14 +70,14 @@ class MCNode(object):
         self.parent = parent
 
     def expansion(self, param_space, max_space):
-        #print(f'Node expanssion: param_space:{param_space.label}')
+        # print(f'Node expanssion: param_space:{param_space.label}')
         assert not param_space.assigned
         samples = param_space.expansion(sample_num=max_space)
         for param_sample in samples:
             self.add_child(param_sample)
 
     def random_sample(self):
-        child = np.random.choice(self._children)
+        child = self.random_state.choice(self._children)
         return child
 
     def info(self):
@@ -110,7 +112,7 @@ class MCTree(object):
                 if child != node:
                     return space_sample, child
             else:
-                #print(f'Tree selection:{node.info()}')
+                # print(f'Tree selection:{node.info()}')
                 node = self.policy.selection(node)
                 if node.visits <= 0:
                     break
@@ -137,7 +139,7 @@ class MCTree(object):
         return space_sample
 
     def expansion(self, node):
-        #print(f'Tree expansion:{node.info()}')
+        # print(f'Tree expansion:{node.info()}')
         space_sample = self.space_fn()
         nodes = self.path_to_node(node)
         i = 0
@@ -162,7 +164,7 @@ class MCTree(object):
             node = node.parent
 
     def roll_out(self, space_sample, node):
-        #print(f'Tree roll out:{node.info()}')
+        # print(f'Tree roll out:{node.info()}')
         terminal = True
         for hp in space_sample.params_iterator:
             terminal = False
@@ -185,7 +187,7 @@ class UCT(BasePolicy):
         self.exploration_bonus = exploration_bonus
 
     def selection(self, node):
-        node_log_nt = math.log10(node.visits)
+        node_log_nt = 0 if node.visits <= 0 else math.log10(node.visits)
         scores = [(child.reward + self.exploration_bonus * math.sqrt(
             node_log_nt / child.visits)) if child.visits > 0 else np.inf for child
                   in
@@ -194,9 +196,9 @@ class UCT(BasePolicy):
                    node.children]
         index = np.argmax(scores)
         selected = node.children[index]
-        #print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
-        #print(f'Detials: {details}')
-        #print('*******************************************************************************')
+        # print(f'UCT selection: scores:{scores}, index:{index}, selected:{selected.info()}')
+        # print(f'Detials: {details}')
+        # print('*******************************************************************************')
 
         return selected
 
