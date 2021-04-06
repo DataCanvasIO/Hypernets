@@ -1,8 +1,12 @@
 #
+import copy
 import pickle
 from functools import partial
 
+import numpy as np
+import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 
@@ -11,6 +15,7 @@ from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
 from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, Constant, HyperNode
 from hypernets.model import Estimator, HyperModel
 from hypernets.searchers import RandomSearcher
+from hypernets.tabular.dask_ex import fix_binary_predict_proba_result
 from hypernets.tabular.metrics import calc_score
 from hypernets.utils import fs, logging, const, infer_task_type
 
@@ -107,6 +112,8 @@ class PlainSearchSpace:
 
 class PlainEstimator(Estimator):
     def __init__(self, space_sample, task=const.TASK_BINARY):
+        assert task in {const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION}
+
         super(PlainEstimator, self).__init__(space_sample, task)
 
         # space, _ = space_sample.compile_and_forward()
@@ -119,37 +126,141 @@ class PlainEstimator(Estimator):
         self.model = cls(**kwargs)
         self.cls = cls
         self.model_args = kwargs
+
+        # fitted
         self.classes_ = None
+        self.cv_models_ = []
 
     def summary(self):
         pass
 
     def fit(self, X, y, **kwargs):
         self.model.fit(X, y, **kwargs)
-        if hasattr(self.model, 'classes_'):
-            self.classes_ = getattr(self.model, 'classes_')
+        self.classes_ = getattr(self.model, 'classes_', None)
+        self.cv_models_ = []
+
         return self
 
     def fit_cross_validation(self, X, y, stratified=True, num_folds=3, shuffle=False, random_state=9527, metrics=None):
-        raise NotImplemented()
+        assert num_folds > 0
+        assert isinstance(metrics, (list, tuple))
+
+        if stratified and self.task == const.TASK_BINARY:
+            iterators = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=random_state)
+        else:
+            iterators = KFold(n_splits=num_folds, shuffle=True, random_state=random_state)
+
+        if isinstance(y, (pd.Series, pd.DataFrame)):
+            y = y.values
+
+        oof_ = None
+        oof_scores = []
+        cv_models = []
+        for n_fold, (train_idx, valid_idx) in enumerate(iterators.split(X, y)):
+            x_train_fold, y_train_fold = X.iloc[train_idx], y[train_idx]
+            x_val_fold, y_val_fold = X.iloc[valid_idx], y[valid_idx]
+
+            fold_model = copy.deepcopy(self.model)
+            fold_model.fit(x_train_fold, y_train_fold)
+
+            # calc fold oof and score
+            if self.task == const.TASK_REGRESSION:
+                proba = fold_model.predict(x_val_fold)
+                preds = proba
+            else:
+                proba = fold_model.predict_proba(x_val_fold)
+                if self.task == const.TASK_BINARY:
+                    proba = fix_binary_predict_proba_result(proba)
+
+                proba_threshold = 0.5
+                if proba.shape[-1] > 2:  # multiclass
+                    preds = proba.argmax(axis=-1)
+                else:  # binary:
+                    preds = (proba[:, 1] > proba_threshold).astype('int32')
+                preds = np.array(fold_model.classes_).take(preds, axis=0)
+
+            if oof_ is None:
+                if len(proba.shape) == 1:
+                    oof_ = np.full(y.shape, np.nan, proba.dtype)
+                else:
+                    oof_ = np.full((y.shape[0], proba.shape[-1]), np.nan, proba.dtype)
+            fold_scores = calc_score(y_val_fold, preds, proba, metrics)
+
+            # save fold result
+            oof_[valid_idx] = proba
+            oof_scores.append(fold_scores)
+            cv_models.append(fold_model)
+
+        self.classes_ = getattr(cv_models[0], 'classes_', None)
+        self.cv_models_ = cv_models
+
+        # calc final score with mean
+        scores = pd.concat([pd.Series(s) for s in oof_scores], axis=1).mean(axis=1).to_dict()
+
+        # return
+        return scores, oof_, oof_scores
 
     def predict(self, X, **kwargs):
-        return self.model.predict(X, **kwargs)
+        if self.cv_models_:
+            if self.task == const.TASK_REGRESSION:
+                pred_sum = None
+                for est in self.cv_models_:
+                    pred = est.predict(X, **kwargs)
+                    if pred_sum is None:
+                        pred_sum = np.zeros_like(pred)
+                    pred_sum += pred
+                preds = pred_sum / len(self.cv_models_)
+            else:
+                proba = self.predict_proba(X, **kwargs)
+                preds = self.proba2predict(proba)
+                preds = np.array(self.classes_).take(preds, axis=0)
+        else:
+            preds = self.model.predict(X, **kwargs)
+
+        return preds
 
     def predict_proba(self, X, **kwargs):
-        return self.model.predict_proba(X, **kwargs)
+        if self.cv_models_:
+            proba_sum = None
+            for est in self.cv_models_:
+                proba = est.predict_proba(X, **kwargs)
+                if self.task == const.TASK_BINARY:
+                    proba = fix_binary_predict_proba_result(proba)
+                if proba_sum is None:
+                    proba_sum = np.zeros_like(proba)
+                proba_sum += proba
+            proba = proba_sum / len(self.cv_models_)
+        else:
+            proba = self.model.predict_proba(X, **kwargs)
+            if self.task == const.TASK_BINARY:
+                proba = fix_binary_predict_proba_result(proba)
+
+        return proba
 
     def evaluate(self, X, y, metrics=None, **kwargs):
         if metrics is None:
             metrics = ['rmse'] if self.task == const.TASK_REGRESSION else ['accuracy']
 
-        if self.task != const.TASK_REGRESSION:
-            proba = self.predict_proba(X, **kwargs)
-        else:
+        if self.task == const.TASK_REGRESSION:
             proba = None
-        preds = self.predict(X, **kwargs)
+            preds = self.predict(X, **kwargs)
+        else:
+            proba = self.predict_proba(X, **kwargs)
+            preds = self.proba2predict(proba, proba_threshold=kwargs.get('proba_threshold', 0.5))
+
         scores = calc_score(y, preds, proba, metrics, self.task)
         return scores
+
+    def proba2predict(self, proba, proba_threshold=0.5):
+        if self.task == const.TASK_REGRESSION:
+            return proba
+        if proba.shape[-1] > 2:
+            predict = proba.argmax(axis=-1)
+        elif proba.shape[-1] == 2:
+            predict = (proba[:, 1] > proba_threshold).astype('int32')
+        else:
+            predict = (proba > proba_threshold).astype('int32')
+        return predict
 
     def save(self, model_file):
         with fs.open(model_file, 'wb') as f:
@@ -173,7 +284,7 @@ class PlainModel(HyperModel):
         return PlainEstimator.load(model_file)
 
 
-def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optimize_direction='max', max_trials=10):
+def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optimize_direction='max', **kwargs):
     if task is None:
         task = infer_task_type(y_train)
     if reward_metric is None:
@@ -183,13 +294,13 @@ def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optim
     searcher = RandomSearcher(search_space, optimize_direction=optimize_direction)
     callbacks = [SummaryCallback()]
     hm = PlainModel(searcher=searcher, task=task, reward_metric=reward_metric, callbacks=callbacks)
-    hm.search(X_train, y_train, X_eval, y_eval, cv=False, max_trials=max_trials)
+    hm.search(X_train, y_train, X_eval, y_eval, **kwargs)
     best = hm.get_best_trial()
     model = hm.final_train(best.space_sample, X_train, y_train)
     return hm, model
 
 
-def train_heart_disease():
+def train_heart_disease(**kwargs):
     from hypernets.tabular.datasets import dsutils
     from sklearn.model_selection import train_test_split
 
@@ -199,7 +310,8 @@ def train_heart_disease():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=0.3)
 
-    hm, model = train(X_train, y_train, X_eval, y_eval, const.TASK_BINARY, 'auc', max_trials=100)
+    kwargs = {'reward_metric': 'auc', 'max_trials': 10, **kwargs}
+    hm, model = train(X_train, y_train, X_eval, y_eval, const.TASK_BINARY, **kwargs)
 
     print('-' * 50)
     scores = model.evaluate(X_test, y_test, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
