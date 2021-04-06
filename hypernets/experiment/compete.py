@@ -237,7 +237,7 @@ class DataCleanStep(ExperimentStep):
 
         if not self.cv:
             if X_eval is None or y_eval is None:
-                eval_size = kwargs.get('eval_size', DEFAULT_EVAL_SIZE)
+                eval_size = self.experiment.eval_size
                 if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
                     logger.debug('DriftDetector.train_test_split')
                     detector = dd.DriftDetector()
@@ -739,7 +739,7 @@ class PseudoLabelStep(ExperimentStep):
             else:
                 stratify = y_mix
 
-            eval_size = kwargs.get('eval_size', DEFAULT_EVAL_SIZE)
+            eval_size = self.experiment.eval_size
             X_train, X_eval, y_train, y_eval = \
                 train_test_split(X_mix, y_mix, test_size=eval_size,
                                  random_state=self.random_state, stratify=stratify)
@@ -797,7 +797,7 @@ class DaskPseudoLabelStep(PseudoLabelStep):
             X_mix = dex.concat_df([X_mix, y_mix], axis=1).reset_index(drop=True)
             y_mix = X_mix.pop(y_mix.name)
 
-            eval_size = kwargs.get('eval_size', DEFAULT_EVAL_SIZE)
+            eval_size = self.experiment.eval_size
             X_train, X_eval, y_train, y_eval = \
                 dex.train_test_split(X_mix, y_mix, test_size=eval_size, random_state=self.random_state)
         else:

@@ -19,7 +19,7 @@ class GeneralExperiment(Experiment):
                                                 y_eval=y_eval, X_test=X_test, eval_size=eval_size, task=task,
                                                 id=id, callbacks=callbacks, random_state=random_state)
 
-    def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, eval_size=0.3, **kwargs):
+    def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, **kwargs):
         """Run an experiment
 
         Arguments
@@ -32,7 +32,7 @@ class GeneralExperiment(Experiment):
             stratify = y_train
             if self.task == 'regression':
                 stratify = None
-            X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=eval_size,
+            X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=self.eval_size,
                                                                 random_state=self.random_state, stratify=stratify)
         self.step_end(output={'X_train.shape': X_train.shape,
                               'y_train.shape': y_train.shape,

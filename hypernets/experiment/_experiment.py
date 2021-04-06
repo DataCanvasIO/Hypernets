@@ -76,7 +76,7 @@ class Experiment(object):
                 callback.experiment_start(self)
 
             model = self.train(self.hyper_model, self.X_train, self.y_train, self.X_test, X_eval=self.X_eval,
-                               y_eval=self.y_eval, eval_size=self.eval_size, **kwargs)
+                               y_eval=self.y_eval, **kwargs)
 
             self.end_time = time.time()
 
