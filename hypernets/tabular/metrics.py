@@ -7,7 +7,7 @@ import numpy as np
 from dask import dataframe as dd
 from sklearn import metrics as sk_metrics
 
-from hypernets.utils import logging
+from hypernets.utils import logging, const
 from . import dask_ex as dex
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 _DASK_METRICS = ('accuracy', 'logloss')
 
 
-def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task='binary', pos_label=1):
+def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1):
     data_list = (y_true, y_proba, y_preds)
     if any(map(dex.is_dask_object, data_list)):
         if all(map(dex.is_dask_object, data_list)) and len(set(metrics).difference(set(_DASK_METRICS))) == 0:
@@ -30,7 +30,7 @@ def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task='binar
     return fn(y_true, y_preds, y_proba, metrics, task, pos_label)
 
 
-def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), task='binary', pos_label=1):
+def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1):
     score = {}
     if y_proba is None:
         y_proba = y_preds
@@ -42,47 +42,45 @@ def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), tas
         if callable(metric):
             score[metric.__name__] = metric(y_true, y_preds)
         else:
-            metric = metric.lower()
-            if task == 'multiclass':
+            metric_lower = metric.lower()
+            if task == const.TASK_MULTICLASS:
                 average = 'micro'
             else:
                 average = 'binary'
 
-            if metric == 'auc':
+            if metric_lower == 'auc':
                 if len(y_proba.shape) == 2:
-                    if task == 'multiclass':
-                        score['auc'] = sk_metrics.roc_auc_score(y_true, y_proba, multi_class='ovo')
+                    if task == const.TASK_MULTICLASS:
+                        score[metric] = sk_metrics.roc_auc_score(y_true, y_proba, multi_class='ovo')
                     else:
-                        score['auc'] = sk_metrics.roc_auc_score(y_true, y_proba[:, 1])
+                        score[metric] = sk_metrics.roc_auc_score(y_true, y_proba[:, 1])
                 else:
-                    score['auc'] = sk_metrics.roc_auc_score(y_true, y_proba)
-
-            elif metric == 'accuracy':
-                if y_proba is None:
-                    score['accuracy'] = 0
+                    score[metric] = sk_metrics.roc_auc_score(y_true, y_proba)
+            elif metric_lower == 'accuracy':
+                if y_preds is None:
+                    score[metric] = 0
                 else:
-                    score['accuracy'] = sk_metrics.accuracy_score(y_true, y_preds)
-            elif metric == 'recall':
-                score['recall'] = sk_metrics.recall_score(y_true, y_preds, average=average, pos_label=pos_label)
-            elif metric == 'precision':
-                score['precision'] = sk_metrics.precision_score(y_true, y_preds, average=average, pos_label=pos_label)
-            elif metric == 'f1':
-                score['f1'] = sk_metrics.f1_score(y_true, y_preds, average=average, pos_label=pos_label)
-
-            elif metric == 'mse':
-                score['mse'] = sk_metrics.mean_squared_error(y_true, y_preds)
-            elif metric == 'mae':
-                score['mae'] = sk_metrics.mean_absolute_error(y_true, y_preds)
-            elif metric == 'msle':
-                score['msle'] = sk_metrics.mean_squared_log_error(y_true, y_preds)
-            elif metric == 'rmse':
-                score['rmse'] = np.sqrt(sk_metrics.mean_squared_error(y_true, y_preds))
-            elif metric == 'rootmeansquarederror':
-                score['rootmeansquarederror'] = np.sqrt(sk_metrics.mean_squared_error(y_true, y_preds))
-            elif metric == 'r2':
-                score['r2'] = sk_metrics.r2_score(y_true, y_preds)
-            elif metric == 'logloss':
-                score['logloss'] = sk_metrics.log_loss(y_true, y_proba)
+                    score[metric] = sk_metrics.accuracy_score(y_true, y_preds)
+            elif metric_lower == 'recall':
+                score[metric] = sk_metrics.recall_score(y_true, y_preds, average=average, pos_label=pos_label)
+            elif metric_lower == 'precision':
+                score[metric] = sk_metrics.precision_score(y_true, y_preds, average=average, pos_label=pos_label)
+            elif metric_lower == 'f1':
+                score[metric] = sk_metrics.f1_score(y_true, y_preds, average=average, pos_label=pos_label)
+            elif metric_lower == 'mse':
+                score[metric] = sk_metrics.mean_squared_error(y_true, y_preds)
+            elif metric_lower == 'mae':
+                score[metric] = sk_metrics.mean_absolute_error(y_true, y_preds)
+            elif metric_lower == 'msle':
+                score[metric] = sk_metrics.mean_squared_log_error(y_true, y_preds)
+            elif metric_lower == 'rmse':
+                score[metric] = np.sqrt(sk_metrics.mean_squared_error(y_true, y_preds))
+            elif metric_lower == 'rootmeansquarederror':
+                score[metric] = np.sqrt(sk_metrics.mean_squared_error(y_true, y_preds))
+            elif metric_lower == 'r2':
+                score[metric] = sk_metrics.r2_score(y_true, y_preds)
+            elif metric_lower == 'logloss':
+                score[metric] = sk_metrics.log_loss(y_true, y_proba)
 
     return score
 
@@ -127,10 +125,10 @@ def _calc_score_dask(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=
         if callable(metric):
             score[metric.__name__] = metric(y_true, y_preds)
         else:
-            metric = metric.lower()
-            if metric == 'accuracy':
+            metric_lower = metric.lower()
+            if metric_lower == 'accuracy':
                 score[metric] = dm_metrics.accuracy_score(y_true, y_preds)
-            elif metric == 'logloss':
+            elif metric_lower == 'logloss':
                 ll = dm_metrics.log_loss(y_true, y_proba)
                 if hasattr(ll, 'compute'):
                     ll = ll.compute()
@@ -141,6 +139,8 @@ def _calc_score_dask(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=
 
 
 def metric_to_scoring(metric):
+    assert isinstance(metric, str)
+
     mapping = {
         'auc': 'roc_auc_ovo',
         'accuracy': 'accuracy',
@@ -155,7 +155,7 @@ def metric_to_scoring(metric):
         'r2': 'r2',
         'logloss': 'neg_log_loss',
     }
-    if metric not in mapping.keys():
+    if metric.lower() not in mapping.keys():
         raise ValueError(f'Not found matching scoring for {metric}')
 
-    return mapping[metric]
+    return mapping[metric.lower()]
