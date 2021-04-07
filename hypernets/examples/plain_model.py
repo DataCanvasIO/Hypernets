@@ -77,7 +77,7 @@ class PlainSearchSpace(object):
             cls=LogisticRegression,
             max_iter=Choice(iters),
             solver=solver,
-            penalty_sub=penalty,
+            penalty_stub=penalty,
             l1_ratio_stub=l1_ratio,
         )
 
