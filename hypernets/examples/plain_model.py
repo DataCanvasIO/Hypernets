@@ -22,7 +22,16 @@ from hypernets.utils import fs, logging, const, infer_task_type
 logger = logging.get_logger(__name__)
 
 
-class PlainSearchSpace:
+class PlainSearchSpace(object):
+    def __init__(self, enable_dt=True, enable_lr=True, enable_nn=True):
+        assert enable_dt or enable_lr or enable_nn
+
+        super(PlainSearchSpace, self).__init__()
+
+        self.enable_dt = enable_dt
+        self.enable_lr = enable_lr
+        self.enable_nn = enable_nn
+
     # DecisionTreeClassifier
     @property
     def dt(self):
@@ -101,8 +110,15 @@ class PlainSearchSpace:
 
         with space.as_default():
             hyper_input = HyperInput(name='input1')
-            estimators = [self.dt, self.nn, self.lr]
-            # estimators = [self.nn, ]
+
+            estimators = []
+            if self.enable_dt:
+                estimators.append(self.dt)
+            if self.enable_lr:
+                estimators.append(self.lr)
+            if self.enable_nn:
+                estimators.append(self.nn)
+
             modules = [ModuleSpace(name=f'{e["cls"].__name__}', **e) for e in estimators]
             outputs = ModuleChoice(modules)(hyper_input)
             space.set_inputs(hyper_input)

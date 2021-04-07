@@ -1,17 +1,17 @@
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import get_scorer
+from sklearn.model_selection import train_test_split
 
+from hypernets.core.callbacks import SummaryCallback
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import CompeteExperiment
 from hypernets.searchers import make_searcher
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.sklearn_ex import MultiLabelEncoder
-from hypernets.core.callbacks import SummaryCallback
 from hypernets.tabular.metrics import calc_score, metric_to_scoring
+from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 
 
 def create_hyper_model(reward_metric='auc', optimize_direction='max'):
-    search_space = PlainSearchSpace()
+    search_space = PlainSearchSpace(enable_dt=True, enable_lr=True, enable_nn=False)
     searcher = make_searcher('random', search_space_fn=search_space, optimize_direction=optimize_direction)
     hyper_model = PlainModel(searcher=searcher, reward_metric=reward_metric, callbacks=[SummaryCallback()])
 
@@ -31,6 +31,7 @@ def run_compete_experiment_with_bank_data(init_kwargs, run_kwargs):
     init_kwargs = {
         'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
         'scorer': scorer,
+        'ensemble_size': 0,
         **init_kwargs
     }
     run_kwargs = {
@@ -52,6 +53,29 @@ def run_compete_experiment_with_bank_data(init_kwargs, run_kwargs):
 
 def test_simple():
     run_compete_experiment_with_bank_data({}, {})
+
+
+def test_without_eval():
+    run_compete_experiment_with_bank_data(dict(X_eval=None, y_eval=None, ), {})
+
+
+def test_without_xtest():
+    run_compete_experiment_with_bank_data(dict(X_test=None), {})
+
+
+def test_without_eval_xtest():
+    run_compete_experiment_with_bank_data(dict(X_eval=None, y_eval=None, X_test=None), {})
+
+
+def test_with_adversarial_validation():
+    run_compete_experiment_with_bank_data(dict(cv=False,
+                                               X_eval=None,
+                                               y_eval=None,
+                                               train_test_split_strategy='adversarial_validation'), {})
+
+
+def test_with_ensemble():
+    run_compete_experiment_with_bank_data(dict(ensemble_size=5), {})
 
 
 def test_without_cv():
