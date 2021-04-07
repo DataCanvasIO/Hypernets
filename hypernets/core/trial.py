@@ -8,6 +8,9 @@ import pickle
 import shutil
 
 from ..core.searcher import OptimizeDirection
+import math
+import pandas as pd
+from hypernets.utils.common import isnotebook
 
 
 class Trial():
@@ -180,6 +183,108 @@ class TrialHistory():
                               elapsed=float(fields[3]), model_file=model_file)
                 history.append(trial)
             return history
+
+    def plot_hyperparams(self, destination='notebook', output='hyperparams.html'):
+        """Plot hyperparams in a parallel line chart
+
+        Args:
+            destination: one of notebook, html
+            output: the html file path
+
+        Returns:
+
+        """
+
+        try:
+            import pyecharts
+        except Exception as e:
+            raise Exception("You may not install 'pyecharts',"
+                            "please refer to https://github.com/pyecharts/pyecharts and install it.")
+
+        import pyecharts.options as opts
+        from pyecharts.charts import Parallel
+
+        if destination == 'notebook' and not isnotebook():
+            raise Exception("You may not running in a notebook,"
+                            " try to set 'destination' to 'html' or run it in notebook ")
+
+        if self.trials is None or len(self.trials) < 1:
+            raise Exception("Trials is empty ")
+
+        REWARD_METRIC_COL = 'Reward metric'
+
+        def get_space_params(trial):
+            space = trial.space_sample
+            params_dict = {}
+            for hyper_param in space.get_all_params():
+                references = list(hyper_param.references)
+                if len(references) > 0:
+                    param_name = hyper_param.alias[len(list(hyper_param.references)[0].name) + 1:]
+                    param_value = hyper_param.value
+
+                    if isinstance(param_value, int) or isinstance(param_value, float):
+                        if not isinstance(param_value, bool):
+                            params_dict[param_name] = param_value
+                params_dict[REWARD_METRIC_COL] = trial.reward
+
+            return params_dict
+
+        def make_dims(df_params):
+            parallel_axis = []
+            for i, col in enumerate(df_params.columns):
+                if df_params.dtypes[col].kind == 'O':
+                    parallel_axis.append({
+                        "dim": i,
+                        "name": col,
+                        "type": "category",
+                        "data": df_params[col].unique().tolist(),
+                    })
+                else:
+                    parallel_axis.append({'dim': i, 'name': col})
+            return parallel_axis
+
+        trials_params = [get_space_params(trial) for trial in self.trials]
+
+        param_names = list(set([v for ps in trials_params for v in ps.keys()]))
+        param_names.remove(REWARD_METRIC_COL)
+        param_names.insert(len(param_names), REWARD_METRIC_COL)
+
+        trial_params_values = []
+        for t in trials_params:
+            param_values = [t.get(n) for n in param_names]
+            trial_params_values.append(param_values)
+
+        df_train_params = pd.DataFrame(data=trial_params_values, columns=param_names)
+
+        # remove if all is None
+        df_train_params.dropna(axis=1, how='all', inplace=True)
+
+        parallel_axis = make_dims(df_train_params)
+        chart = \
+            Parallel(init_opts=opts.InitOpts(width="%dpx" % (len(param_names) * 100), height="400px"))\
+                .add_schema(schema=parallel_axis).add(series_name="",
+                     data=df_train_params.values.tolist(),
+                     linestyle_opts=opts.LineStyleOpts(width=1, opacity=0.5),
+
+            ).set_global_opts(
+                visualmap_opts=[
+                    opts.VisualMapOpts(
+                        type_="color",
+                        is_calculable=True,
+                        precision=2,
+                        # dimension=0,
+                        pos_left="-10",
+                        pos_bottom="30",
+                        max_=df_train_params[REWARD_METRIC_COL].max().tolist(),
+                        min_=df_train_params[REWARD_METRIC_COL].min().tolist()
+                    )
+                ]
+            )
+
+        if destination == 'notebook':
+            return chart.render_notebook()
+        else:
+            return chart.render(output)
 
 
 class TrialStore(object):

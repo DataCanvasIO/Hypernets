@@ -220,3 +220,6 @@ class HyperModel():
 
     def infer_task_type(self, y):
         return _infer_task_type(y)
+
+    def plot_hyperparams(self, destination='notebook', output='hyperparams.html'):
+        return self.history.plot_hyperparams(destination, output)
