@@ -86,6 +86,10 @@ def test_without_dd():
     run_compete_experiment_with_bank_data(dict(drift_detection=False), {})
 
 
+def test_with_cd():
+    run_compete_experiment_with_bank_data(dict(collinearity_detection=True), {})
+
+
 def test_with_pl():
     run_compete_experiment_with_bank_data(dict(drift_detection=False, pseudo_labeling=True), {})
 
