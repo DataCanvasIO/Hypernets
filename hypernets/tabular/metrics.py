@@ -81,6 +81,8 @@ def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), tas
                 score[metric] = sk_metrics.r2_score(y_true, y_preds)
             elif metric_lower == 'logloss':
                 score[metric] = sk_metrics.log_loss(y_true, y_proba)
+            elif metric_lower == 'log_loss':
+                score[metric] = sk_metrics.log_loss(y_true, y_proba)
 
     return score
 
