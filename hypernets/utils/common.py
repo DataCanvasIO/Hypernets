@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from . import logging
-from .const import TASK_BINARY, TASK_REGRESSION, TASK_MULTICLASS
+from .const import TASK_BINARY, TASK_REGRESSION, TASK_MULTICLASS, TASK_MULTILABEL
 
 logger = logging.get_logger(__name__)
 
@@ -38,19 +38,6 @@ def combinations(n, m_max, m_min=1):
             c = math.factorial(n) / (math.factorial(i) * math.factorial(n - i))
             sum += c
         return sum
-
-
-# def config(key, default=None):
-#     # parse config from command line
-#     argv = sys.argv
-#     key_alias = key.replace('_', '-')
-#     accept_items = {f'--{key}', f'-{key}', f'--{key_alias}', f'-{key_alias}'}
-#     for i in range(len(argv) - 1):
-#         if argv[i] in accept_items:
-#             return argv[i + 1]
-#
-#     # parse config from environs
-#     return os.environ.get(f'HYN_{key}'.upper(), default)
 
 
 class Counter(object):
@@ -100,7 +87,7 @@ def isnotebook():
 def infer_task_type(y):
     if len(y.shape) > 1 and y.shape[-1] > 1:
         labels = list(range(y.shape[-1]))
-        task = 'multilable'
+        task = TASK_MULTILABEL  # 'multilable'
         return task, labels
 
     if hasattr(y, 'unique'):
