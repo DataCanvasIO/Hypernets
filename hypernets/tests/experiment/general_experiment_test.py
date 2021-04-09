@@ -48,7 +48,7 @@ def test_general_experiment_of_heart_disease_with_eval_and_cv():
     trials = hyper_model.get_top_trials(5)
 
     assert estimator
-    assert len(trials) == 5
+    assert trials
 
     score = estimator.evaluate(X_test, y_test, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
     print('evaluate score:', score)
