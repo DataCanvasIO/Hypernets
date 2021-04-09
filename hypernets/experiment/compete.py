@@ -1123,3 +1123,28 @@ class CompeteExperiment(SteppedExperiment):
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
         return super().run(**run_kwargs)
+
+
+def evaluate_oofs(hyper_model, ensemble_estimator, y_train, metrics):
+    from hypernets.tabular.lifelong_learning import select_valid_oof
+    from hypernets.tabular.metrics import calc_score
+    trials = hyper_model.get_top_trials(ensemble_estimator.ensemble_size)
+    if all(['oof' in trial.memo.keys() for trial in trials]):
+        oofs = None
+        for i, trial in enumerate(trials):
+            if 'oof' in trial.memo.keys():
+                oof = trial.memo['oof']
+                if oofs is None:
+                    if len(oof.shape) == 1:
+                        oofs = np.zeros((oof.shape[0], len(trials)), dtype=np.float64)
+                    else:
+                        oofs = np.zeros((oof.shape[0], len(trials), oof.shape[-1]), dtype=np.float64)
+                oofs[:, i] = oof
+        y_, oofs_ = select_valid_oof(y_train, oofs)
+        proba = ensemble_estimator.predictions2predict_proba(oofs_)
+        pred = ensemble_estimator.predictions2predict(oofs_)
+        scores = calc_score(y_, pred, proba, metrics)
+        return scores
+    else:
+        print('No oof data')
+        return None
