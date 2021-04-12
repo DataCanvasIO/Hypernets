@@ -80,6 +80,9 @@ class CustomizedLogFormatter(_logging.Formatter):
 
     @staticmethod
     def get_simple_name(name):
+        if name.endswith('@'):
+            return name
+
         sa = name.split('.')
         if len(sa) <= 1:
             return name

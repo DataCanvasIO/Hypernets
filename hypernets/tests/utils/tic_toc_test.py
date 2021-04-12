@@ -1,4 +1,4 @@
-from hypernets.utils import tic_toc
+from hypernets.utils import tic_toc, tic_toc_report_as_dataframe
 from hypernets.tabular.datasets import dsutils
 
 
@@ -40,3 +40,6 @@ def cls_foo():
 def test_tic_toc():
     foo()
     cls_foo()
+
+    df = tic_toc_report_as_dataframe()
+    print(df)
