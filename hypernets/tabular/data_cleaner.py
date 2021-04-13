@@ -151,7 +151,7 @@ class DataCleaner:
     def _drop_columns(self, X, cols):
         if cols is None or len(cols) <= 0:
             return X
-        X = X[list(set(X.columns.to_list()) - set(cols))]
+        X = X[[c for c in X.columns.to_list() if c not in cols]]
         return X
 
     def clean_data(self, X, y):
@@ -207,7 +207,7 @@ class DataCleaner:
         if self.drop_constant_columns:
             logger.debug('drop invalidate columns')
             if self.dropped_constant_columns_ is not None:
-                self._drop_columns(X, self.dropped_constant_columns_)
+                X = self._drop_columns(X, self.dropped_constant_columns_)
             else:
                 X, self.dropped_constant_columns_ = _drop_constant_columns(X)
 
