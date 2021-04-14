@@ -9,10 +9,11 @@ from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder, PolynomialFeatures
 
+from hypernets.tabular import sklearn_ex as skex
 from hypernets.tabular.column_selector import *
 from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.sklearn_ex import MultiLabelEncoder, FeatureSelectionTransformer, SafeOrdinalEncoder, subsample
+from hypernets.utils import const
 
 
 def get_df():
@@ -37,12 +38,16 @@ def get_df():
 
 
 class Test_Transformer():
+    @classmethod
+    def setup_class(cls):
+        cls.bank_data = dsutils.load_bank()
+        cls.movie_lens = dsutils.load_movielens()
 
     def test_func_transformer(self):
         dfm = DataFrameMapper(
             [(column_object_category_bool, [
                 SimpleImputer(strategy='constant'),
-                MultiLabelEncoder(),
+                skex.MultiLabelEncoder(),
             ]
               ),
              ],
@@ -102,25 +107,26 @@ class Test_Transformer():
         assert 'd' in x_new
 
     def test_subsample(self):
-        df = dsutils.load_bank()
+        df = self.bank_data.copy()
         y = df.pop('y')
-        X_train, X_test, y_train, y_test = subsample(df, y, 100, 60, 'regression')
+        X_train, X_test, y_train, y_test = skex.subsample(df, y, 100, 60, 'regression')
         assert X_train.shape == (60, 17)
         assert X_test.shape == (40, 17)
         assert y_train.shape == (60,)
         assert y_test.shape == (40,)
 
-        X_train, X_test, y_train, y_test = subsample(df, y, 100, 60, 'classification')
+        X_train, X_test, y_train, y_test = skex.subsample(df, y, 100, 60, 'classification')
         assert X_train.shape == (60, 17)
         assert X_test.shape == (40, 17)
         assert y_train.shape == (60,)
         assert y_test.shape == (40,)
 
     def test_feature_selection(self):
-        df = dsutils.load_bank()
+        df = self.bank_data.copy()
         y = df.pop('y')
         reserved_cols = ['age', 'poutcome', 'id']
-        fse = FeatureSelectionTransformer('classification', 10000, 10000, 10, n_max_cols=8, reserved_cols=reserved_cols)
+        fse = skex.FeatureSelectionTransformer('classification', 10000, 10000, 10, n_max_cols=8,
+                                               reserved_cols=reserved_cols)
         fse.fit(df, y)
         assert len(fse.scores_.items()) == 10
         assert len(fse.columns_) == 11
@@ -131,7 +137,7 @@ class Test_Transformer():
 
         df = dsutils.load_bank()
         y = df.pop('age')
-        fse = FeatureSelectionTransformer('regression', 10000, 10000, -1)
+        fse = skex.FeatureSelectionTransformer('regression', 10000, 10000, -1)
         fse.fit(df, y)
         assert len(fse.scores_.items()) == 17
         assert len(fse.columns_) == 10
@@ -142,7 +148,7 @@ class Test_Transformer():
         df2 = pd.DataFrame({"A": [1, 2, 3, 5],
                             "B": ['a', 'b', 'z', '0']})
 
-        ec = SafeOrdinalEncoder(dtype=np.int32)
+        ec = skex.SafeOrdinalEncoder(dtype=np.int32)
         df = ec.fit_transform(df1)
         df_expect = pd.DataFrame({"A": [0, 1, 2, 3],
                                   "B": [0, 0, 0, 1]})
@@ -159,3 +165,66 @@ class Test_Transformer():
         df_expect = pd.DataFrame({"A": [1, 2, 3, -1],
                                   "B": ['a', 'b', None, None]})
         assert np.where(df_expect.values == df.values, 0, 1).sum() == 0
+
+    def test_lgbm_leaves_encoder_binary(self):
+        X = self.bank_data.copy()
+        y = X.pop('y')
+        cats = X.select_dtypes(['int', 'int64', ]).columns.to_list()
+        continous = X.select_dtypes(['float', 'float64']).columns.to_list()
+        n_estimators = 50
+        t = skex.LgbmLeavesEncoder(cat_vars=cats, cont_vars=continous, task=const.TASK_BINARY,
+                                   n_estimators=n_estimators)
+        X = t.fit_transform(X[cats + continous].copy(), y)
+        assert getattr(t.lgbm, 'n_estimators', 0) > 0
+        assert len(X.columns) == len(cats) + len(continous) + t.lgbm.n_estimators
+
+    def test_lgbm_leaves_encoder_multiclass(self):
+        X = self.bank_data.copy()
+        y = X.pop('age')
+        cats = X.select_dtypes(['int', 'int64', ]).columns.to_list()
+        continous = X.select_dtypes(['float', 'float64']).columns.to_list()
+        t = skex.LgbmLeavesEncoder(cat_vars=cats, cont_vars=continous, task=const.TASK_MULTICLASS)
+        X = t.fit_transform(X[cats + continous].copy(), y)
+        assert getattr(t.lgbm, 'n_estimators', 0) > 0
+        assert len(X.columns) == len(cats) + len(continous) + t.lgbm.n_classes_ * t.lgbm.n_estimators
+
+    def test_lgbm_leaves_encoder_regression(self):
+        X = self.bank_data.copy()
+        y = X.pop('age').astype('float')
+        cats = X.select_dtypes(['int', 'int64', ]).columns.to_list()
+        continous = X.select_dtypes(['float', 'float64']).columns.to_list()
+        n_estimators = 50
+        t = skex.LgbmLeavesEncoder(cat_vars=cats, cont_vars=continous, task=const.TASK_REGRESSION,
+                                   n_estimators=n_estimators)
+        X = t.fit_transform(X[cats + continous].copy(), y)
+        assert getattr(t.lgbm, 'n_estimators', 0) > 0
+        assert len(X.columns) == len(cats) + len(continous) + t.lgbm.n_estimators
+
+    def test_cat_encoder(self):
+        X = self.bank_data.copy()
+        y = X.pop('y')
+        cats = X.select_dtypes(['int', 'int64', ]).columns.to_list()
+        t = skex.CategorizeEncoder(columns=cats)
+        Xt = t.fit_transform(X.copy(), y)
+        assert len(t.new_columns) == len(cats)
+        assert len(Xt.columns) == len(X.columns) + len(t.new_columns)
+
+    def test_varlens_encoder(self):
+        try:
+            from tensorflow.python.keras.preprocessing.sequence import pad_sequences
+            tf_installed = True
+        except:
+            tf_installed = False
+
+        if tf_installed:
+            df = self.movie_lens.copy()
+            df['genres_copy'] = df['genres']
+
+            multi_encoder = skex.MultiVarLenFeatureEncoder([('genres', '|'), ('genres_copy', '|'), ])
+            result_df = multi_encoder.fit_transform(df)
+
+            assert multi_encoder._encoders['genres'].max_element_length > 0
+            assert multi_encoder._encoders['genres_copy'].max_element_length > 0
+
+            shape = np.array(result_df['genres'].tolist()).shape
+            assert shape[1] == multi_encoder._encoders['genres'].max_element_length
