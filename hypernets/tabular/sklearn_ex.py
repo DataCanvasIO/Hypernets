@@ -612,12 +612,14 @@ class VarLenFeatureEncoder:
         key_set = set()
         # flat map
         for keys in X.map(lambda _: _.split(self.sep)):
-            keys_ = set(keys)
-            if len(keys_) > self._max_element_length:
-                self._max_element_length = len(keys_)
-            key_set.update(keys_)
+            if len(keys) > self._max_element_length:
+                self._max_element_length = len(keys)
+            key_set.update(keys)
+        key_set = list(key_set)
+        key_set.sort()
+
         lb = SafeLabelEncoder()  # fix unseen values
-        lb.fit(np.array(list(key_set)))
+        lb.fit(np.array(key_set))
         self.encoder = lb
         return self
 

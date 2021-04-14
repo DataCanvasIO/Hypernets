@@ -2,6 +2,7 @@
 """
 
 """
+import pandas as pd
 import pytest
 from sklearn import preprocessing
 from sklearn.compose import make_column_transformer
@@ -14,6 +15,13 @@ from hypernets.tabular.column_selector import *
 from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
 from hypernets.utils import const
+
+try:
+    from tensorflow.python.keras.preprocessing.sequence import pad_sequences
+
+    tf_installed = True
+except:
+    tf_installed = False
 
 
 def get_df():
@@ -209,13 +217,7 @@ class Test_Transformer():
         assert len(t.new_columns) == len(cats)
         assert len(Xt.columns) == len(X.columns) + len(t.new_columns)
 
-    def test_varlens_encoder(self):
-        try:
-            from tensorflow.python.keras.preprocessing.sequence import pad_sequences
-            tf_installed = True
-        except:
-            tf_installed = False
-
+    def test_varlen_encoder_with_movie_lens(self):
         if tf_installed:
             df = self.movie_lens.copy()
             df['genres_copy'] = df['genres']
@@ -228,3 +230,26 @@ class Test_Transformer():
 
             shape = np.array(result_df['genres'].tolist()).shape
             assert shape[1] == multi_encoder._encoders['genres'].max_element_length
+
+    def test_varlen_encoder_with_customized_data(self):
+        if tf_installed:
+            from io import StringIO
+            data = '''
+            col_foo
+            a|b|c|x
+            a|b
+            b|b|x
+            '''.replace(' ', '')
+
+            result = pd.DataFrame({'col_foo': [
+                [1, 2, 3, 4],
+                [1, 2, 0, 0],
+                [2, 2, 4, 0]
+            ]})
+            df = pd.read_csv(StringIO(data))
+
+            multi_encoder = skex.MultiVarLenFeatureEncoder([('col_foo', '|')])
+            result_df = multi_encoder.fit_transform(df)
+            print(result_df)
+
+            assert all(result_df.values == result.values)
