@@ -23,7 +23,12 @@ try:
     from ._transformers import \
         MultiLabelEncoder, SafeOneHotEncoder, TruncatedSVD, \
         MaxAbsScaler, SafeOrdinalEncoder, DataInterceptEncoder, \
-        CallableAdapterEncoder, DataCacher, CacheCleaner
+        CallableAdapterEncoder, DataCacher, CacheCleaner, \
+        LgbmLeavesEncoder, CategorizeEncoder, MultiKBinsDiscretizer, \
+        MultiVarLenFeatureEncoder
+
+    from ..sklearn_ex import PassThroughEstimator
+
 except ImportError:
     # Not found dask_ml
     pass
