@@ -499,14 +499,21 @@ class CategorizeEncoder(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         if self.columns is None:
             self.columns = X.columns.tolist()
+
+        new_columns = []
+        if self.remain_numeric:
+            for col in self.columns:
+                target_col = col + const.COLUMNNAME_POSTFIX_CATEGORIZE
+                new_columns.append((target_col, 'str', X[col].nunique()))
+
+        self.new_columns = new_columns
+
         return self
 
     def transform(self, X):
-        self.new_columns = []
         for col in self.columns:
             if self.remain_numeric:
                 target_col = col + const.COLUMNNAME_POSTFIX_CATEGORIZE
-                self.new_columns.append((target_col, 'str', X[col].nunique()))
             else:
                 target_col = col
             X[target_col] = X[col].astype('str')
