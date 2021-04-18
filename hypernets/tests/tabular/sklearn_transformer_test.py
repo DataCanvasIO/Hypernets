@@ -225,11 +225,11 @@ class Test_Transformer():
             multi_encoder = skex.MultiVarLenFeatureEncoder([('genres', '|'), ('genres_copy', '|'), ])
             result_df = multi_encoder.fit_transform(df)
 
-            assert multi_encoder._encoders['genres'].max_element_length > 0
-            assert multi_encoder._encoders['genres_copy'].max_element_length > 0
+            assert multi_encoder.max_length_['genres'] > 0
+            assert multi_encoder.max_length_['genres_copy'] > 0
 
             shape = np.array(result_df['genres'].tolist()).shape
-            assert shape[1] == multi_encoder._encoders['genres'].max_element_length
+            assert shape[1] == multi_encoder.max_length_['genres']
 
     def test_varlen_encoder_with_customized_data(self):
         if tf_installed:

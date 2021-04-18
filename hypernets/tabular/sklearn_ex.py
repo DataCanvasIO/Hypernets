@@ -658,14 +658,26 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, features):
         super(MultiVarLenFeatureEncoder, self).__init__()
 
-        self._encoders = {feature[0]: VarLenFeatureEncoder(feature[1]) for feature in features}
+        self.features = features
+
+        # fitted
+        self.encoders_ = {}  # feature name -> VarLenFeatureEncoder
+        self.max_length_ = {}  # feature name -> max length
 
     def fit(self, X, y=None):
-        for k, v in self._encoders.items():
+        encoders = {feature[0]: VarLenFeatureEncoder(feature[1]) for feature in self.features}
+        max_length = {}
+
+        for k, v in encoders.items():
             v.fit(X[k])
+            max_length[k] = v.max_element_length
+
+        self.encoders_ = encoders
+        self.max_length_ = max_length
+
         return self
 
     def transform(self, X):
-        for k, v in self._encoders.items():
+        for k, v in self.encoders_.items():
             X[k] = v.transform(X[k])
         return X
