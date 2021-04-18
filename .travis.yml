@@ -15,7 +15,7 @@ install:
 
 # command to run tests
 script:
-  - pytest --cov=hypernets
+  - pytest --cov=hypernets --durations=30
 
 notifications:
   recipients:
