@@ -496,6 +496,19 @@ class CacheCleaner(DataInterceptEncoder):
     #     return [p for p in params if p != 'cache_dict']
 
 
+class DataFrameWrapper(skex.DataFrameWrapper):
+
+    def transform(self, X):
+        transformed = self.transformer.transform(X)
+
+        if isinstance(transformed, da.Array):
+            transformed = dd.from_dask_array(transformed, columns=self.columns)
+        elif isinstance(transformed, np.ndarray):
+            transformed = pd.DataFrame(transformed, columns=self.columns)
+
+        return transformed
+
+
 class AdaptedTransformer(BaseEstimator):
     """
     Adapt sklearn style transformer to support dask data objects.
@@ -702,19 +715,21 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
 
         super(MultiVarLenFeatureEncoder, self).__init__()
 
-        self.feature_seps = {feature[0]: feature[1] for feature in features}
+        self.seps_ = {feature[0]: feature[1] for feature in features}
 
         # fitted
-        self.feature_keys_ = None
+        self.keys_ = None
+        self.max_length_ = {}  # key: feature, value: max length
 
     def fit(self, X, y=None):
         assert isinstance(X, (dd.DataFrame, pd.DataFrame))
 
         is_dask_X = isinstance(X, dd.DataFrame)
         feature_keys = {}
+        max_length = {}
 
         sep_to_features = defaultdict(list)
-        for f, sep in self.feature_seps.items():
+        for f, sep in self.seps_.items():
             sep_to_features[sep].append(f)
 
         for sep, features in sep_to_features.items():
@@ -727,26 +742,31 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
                                           ).compute()
             else:  # pd.DataFrame
                 t = self._fit_part(sep, X[features])
-            assert isinstance(t, pd.Series)
-            feature_keys.update(t.to_dict())
 
-        self.feature_keys_ = feature_keys
+            assert isinstance(t, pd.Series)
+            for f, aggregated in t.to_dict().items():
+                a = aggregated.split(sep)
+                max_length[f] = int(a[0])
+                feature_keys[f] = a[1:]
+
+        self.max_length_ = max_length
+        self.keys_ = feature_keys
 
         return self
 
     def transform(self, X):
         assert isinstance(X, (dd.DataFrame, pd.DataFrame))
-        assert len(set(self.feature_seps.keys()) - set(X.columns.to_list())) == 0, \
-            f'Not found {set(self.feature_seps.keys()) - set(X.columns.to_list())} in X'
+        assert len(set(self.seps_.keys()) - set(X.columns.to_list())) == 0, \
+            f'Not found {set(self.seps_.keys()) - set(X.columns.to_list())} in X'
 
         if isinstance(X, dd.DataFrame):
             meta = X.dtypes.to_dict()
-            for f in self.feature_seps.keys():
+            for f in self.seps_.keys():
                 meta[f] = 'object'
-            fn = partial(MultiVarLenFeatureEncoder._transform_df, self.feature_seps, self.feature_keys_)
+            fn = partial(MultiVarLenFeatureEncoder._transform_df, self.seps_, self.keys_, self.max_length_)
             X = X.map_partitions(fn, meta=meta)
         else:
-            X = self._transform_df(self.feature_seps, self.feature_keys_, X)
+            X = self._transform_df(self.seps_, self.keys_, self.max_length_, X)
 
         return X
 
@@ -783,13 +803,13 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
         return sep.join([str(max_len)] + key_set)
 
     @staticmethod
-    def _transform_df(feature_seps, feature_keys, X):
+    def _transform_df(feature_seps, feature_keys, feature_max_length, X):
         for f, sep in feature_seps.items():
-            keys = feature_keys.get(f, '').split(sep)
-            if len(keys) <= 1:
+            keys = feature_keys.get(f, [])
+            max_len = feature_max_length.get(f, 0)
+            assert isinstance(keys, (list, tuple)) and isinstance(max_len, int)
+            if len(keys) <= 1 or max_len < 1:
                 continue
-            max_len = int(keys[0])
-            keys = keys[1:]
             X[f] = MultiVarLenFeatureEncoder._encode(sep, keys, max_len, X[f])
 
         return X
