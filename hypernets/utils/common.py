@@ -12,6 +12,7 @@ from functools import partial
 from io import BytesIO
 
 import dask.dataframe as dd
+import dask.array as da
 import numpy as np
 import pandas as pd
 
@@ -92,6 +93,8 @@ def infer_task_type(y):
 
     if hasattr(y, 'unique'):
         uniques = set(y.unique())
+    elif isinstance(y, da.Array):
+        uniques = set(da.unique(y).compute())
     else:
         uniques = set(y)
 
