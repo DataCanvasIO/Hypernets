@@ -20,18 +20,25 @@ try:
     import dask_ml.preprocessing as dm_pre
     import dask_ml.model_selection as dm_sel
 
+    from dask_ml.impute import SimpleImputer
+    from dask_ml.compose import ColumnTransformer
+    from dask_ml.preprocessing import \
+        LabelEncoder, OneHotEncoder, OrdinalEncoder, \
+        StandardScaler, MinMaxScaler, RobustScaler
+
     from ._transformers import \
         MultiLabelEncoder, SafeOneHotEncoder, TruncatedSVD, \
         MaxAbsScaler, SafeOrdinalEncoder, DataInterceptEncoder, \
         CallableAdapterEncoder, DataCacher, CacheCleaner, \
         LgbmLeavesEncoder, CategorizeEncoder, MultiKBinsDiscretizer, \
-        MultiVarLenFeatureEncoder
+        MultiVarLenFeatureEncoder, DataFrameWrapper
 
     from ..sklearn_ex import PassThroughEstimator
 
+    dask_ml_available = True
 except ImportError:
     # Not found dask_ml
-    pass
+    dask_ml_available = False
 
 logger = logging.get_logger(__name__)
 
@@ -322,6 +329,26 @@ def compute_and_call(fn_call, *args, **kwargs):
 
     if logger.is_debug_enabled():
         logger.debug('[compute_and_call] done')
+    return r
+
+
+def call_and_compute(fn_call, *args, **kwargs):
+    if logger.is_debug_enabled():
+        logger.debug(f'[call_and_compute] call {fn_call.__name__}')
+    r = fn_call(*args, **kwargs)
+
+    if is_dask_object(r):
+        if logger.is_debug_enabled():
+            logger.debug('[call_and_compute] to dask type')
+        r = compute(r, traverse=False)[0]
+    elif isinstance(r, (tuple, list)) and any(map(is_dask_object, r)):
+        if logger.is_debug_enabled():
+            logger.debug('[call_and_compute] to dask type')
+        r = compute(*r, traverse=False)
+
+    if logger.is_debug_enabled():
+        logger.debug('[call_and_compute] done')
+
     return r
 
 
