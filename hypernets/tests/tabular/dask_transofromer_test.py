@@ -2,6 +2,7 @@ import math
 import os
 
 import dask.dataframe as dd
+import numpy as np
 import pandas as pd
 import psutil
 
@@ -10,7 +11,7 @@ from hypernets.tabular.datasets import dsutils
 from hypernets.utils import const
 
 
-def setup_dask(overload):
+def _startup_dask(overload):
     from dask.distributed import LocalCluster, Client
 
     if os.environ.get('DASK_SCHEDULER_ADDRESS') is not None:
@@ -36,15 +37,21 @@ def setup_dask(overload):
     return client
 
 
+def setup_dask(cls):
+    try:
+        from dask.distributed import default_client
+        client = default_client()
+    except:
+        client = _startup_dask(2.0)
+    print('Dask Client:', client)
+
+    setattr(cls, 'dask_client_', client)
+
+
 class Test_DaskCustomizedTransformer:
     @classmethod
     def setup_class(cls):
-        try:
-            from dask.distributed import default_client
-            client = default_client()
-        except:
-            client = setup_dask(2.0)
-        print('Dask Client:', client)
+        setup_dask(cls)
 
         cls.bank_data = dd.from_pandas(dsutils.load_bank(), npartitions=2)
         cls.movie_lens = dd.from_pandas(dsutils.load_movielens(), npartitions=2)
@@ -147,6 +154,26 @@ class Test_DaskCustomizedTransformer:
 
         print(d_result_df)
         assert all(d_result_df.values == result.values)
+
+    def test_dataframe_wrapper(self):
+        X = self.bank_data.copy()
+
+        cats = X.select_dtypes(['object', ]).columns.to_list()
+        continous = X.select_dtypes(['float', 'float64', 'int', 'int64']).columns.to_list()
+        transformers = [('cats',
+                         dex.SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=''),
+                         cats
+                         ),
+                        ('conts',
+                         dex.SimpleImputer(missing_values=np.nan, strategy='mean'),
+                         continous
+                         )]
+        ct = dex.ColumnTransformer(transformers=transformers)
+        dfw = dex.DataFrameWrapper(ct, cats + continous)
+        X = dfw.fit_transform(X[cats + continous])
+
+        assert dex.is_dask_dataframe(X)
+        print(X.dtypes)
 
 
 if __name__ == '__main__':
