@@ -17,67 +17,68 @@ from hypernets.utils import logging, const
 logger = logging.get_logger(__name__)
 
 
-class MultiLabelEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self.encoders = {}
-
-    def fit(self, X, y=None):
-        assert len(X.shape) == 2
-
-        if isinstance(X, (pd.DataFrame, dd.DataFrame)):
-            return self._fit_df(X, y)
-        elif isinstance(X, (np.ndarray, da.Array)):
-            return self._fit_array(X, y)
-        else:
-            raise Exception(f'Unsupported type "{type(X)}"')
-
-    def _fit_df(self, X, y=None):
-        return self._fit_array(X.values, y.values if y else None)
-
-    def _fit_array(self, X, y=None):
-        n_features = X.shape[1]
-        for n in range(n_features):
-            le = dm_pre.LabelEncoder()
-            le.fit(X[:, n])
-            self.encoders[n] = le
-        return self
-
-    def transform(self, X):
-        assert len(X.shape) == 2
-
-        if isinstance(X, (dd.DataFrame, pd.DataFrame)):
-            return self._transform_dask_df(X)
-        elif isinstance(X, (da.Array, np.ndarray)):
-            return self._transform_dask_array(X)
-        else:
-            raise Exception(f'Unsupported type "{type(X)}"')
-
-    def _transform_dask_df(self, X):
-        data = self._transform_dask_array(X.values)
-
-        if isinstance(X, dd.DataFrame):
-            result = dd.from_dask_array(data, columns=X.columns)
-        else:
-            result = pd.DataFrame(data, columns=X.columns)
-        return result
-
-    def _transform_dask_array(self, X):
-        n_features = X.shape[1]
-        assert n_features == len(self.encoders.items())
-
-        data = []
-        for n in range(n_features):
-            data.append(self.encoders[n].transform(X[:, n]))
-
-        if isinstance(X, da.Array):
-            result = da.stack(data, axis=-1, allow_unknown_chunksizes=True)
-        else:
-            result = np.stack(data, axis=-1)
-
-        return result
-
-    # def fit_transform(self, X, y=None):
-    #     return self.fit(X, y).transform(X)
+#
+# class MultiLabelEncoder(BaseEstimator, TransformerMixin):
+#     def __init__(self):
+#         self.encoders = {}
+#
+#     def fit(self, X, y=None):
+#         assert len(X.shape) == 2
+#
+#         if isinstance(X, (pd.DataFrame, dd.DataFrame)):
+#             return self._fit_df(X, y)
+#         elif isinstance(X, (np.ndarray, da.Array)):
+#             return self._fit_array(X, y)
+#         else:
+#             raise Exception(f'Unsupported type "{type(X)}"')
+#
+#     def _fit_df(self, X, y=None):
+#         return self._fit_array(X.values, y.values if y else None)
+#
+#     def _fit_array(self, X, y=None):
+#         n_features = X.shape[1]
+#         for n in range(n_features):
+#             le = dm_pre.LabelEncoder()
+#             le.fit(X[:, n])
+#             self.encoders[n] = le
+#         return self
+#
+#     def transform(self, X):
+#         assert len(X.shape) == 2
+#
+#         if isinstance(X, (dd.DataFrame, pd.DataFrame)):
+#             return self._transform_dask_df(X)
+#         elif isinstance(X, (da.Array, np.ndarray)):
+#             return self._transform_dask_array(X)
+#         else:
+#             raise Exception(f'Unsupported type "{type(X)}"')
+#
+#     def _transform_dask_df(self, X):
+#         data = self._transform_dask_array(X.values)
+#
+#         if isinstance(X, dd.DataFrame):
+#             result = dd.from_dask_array(data, columns=X.columns)
+#         else:
+#             result = pd.DataFrame(data, columns=X.columns)
+#         return result
+#
+#     def _transform_dask_array(self, X):
+#         n_features = X.shape[1]
+#         assert n_features == len(self.encoders.items())
+#
+#         data = []
+#         for n in range(n_features):
+#             data.append(self.encoders[n].transform(X[:, n]))
+#
+#         if isinstance(X, da.Array):
+#             result = da.stack(data, axis=-1, allow_unknown_chunksizes=True)
+#         else:
+#             result = np.stack(data, axis=-1)
+#
+#         return result
+#
+#     # def fit_transform(self, X, y=None):
+#     #     return self.fit(X, y).transform(X)
 
 
 class SafeOneHotEncoder(dm_pre.OneHotEncoder):
@@ -299,7 +300,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
             Numpy array or pandas dataframe will return a pandas DataFrame
         """
         if isinstance(X, np.ndarray):
-            X = pd.DataFrame(X, columns=self.columns_)
+            X = pd.DataFrame(X, columns=self.categorical_columns_)
         elif isinstance(X, da.Array):
             # later on we concat(..., axis=1), which requires
             # known divisions. Suboptimal, but I think unavoidable.
@@ -309,7 +310,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
                 X = X.copy()
                 chunks = (tuple(lengths), X.chunks[1])
                 X._chunks = chunks
-            X = dd.from_dask_array(X, columns=self.columns_)
+            X = dd.from_dask_array(X, columns=self.categorical_columns_)
 
         decoder = self.make_decoder(self.categorical_columns_, self.categories_, self.dtypes_)
 
@@ -376,6 +377,10 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
             return pdf
 
         return safe_ordinal_decoder
+
+
+# alias
+MultiLabelEncoder = SafeOrdinalEncoder
 
 
 class DataInterceptEncoder(BaseEstimator, TransformerMixin):

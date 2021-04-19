@@ -290,7 +290,7 @@ def fix_binary_predict_proba_result(proba):
 
 
 def wrap_for_local_scorer(estimator, target_type):
-    def call_and_compute(fn_call, fn_fix, *args, **kwargs):
+    def _call_and_compute(fn_call, fn_fix, *args, **kwargs):
         r = fn_call(*args, **kwargs)
         if is_dask_object(r):
             r = r.compute()
@@ -302,12 +302,12 @@ def wrap_for_local_scorer(estimator, target_type):
         orig_predict_proba = estimator.predict_proba
         fix = fix_binary_predict_proba_result if target_type == 'binary' else None
         setattr(estimator, '_orig_predict_proba', orig_predict_proba)
-        setattr(estimator, 'predict_proba', partial(call_and_compute, orig_predict_proba, fix))
+        setattr(estimator, 'predict_proba', partial(_call_and_compute, orig_predict_proba, fix))
 
     if hasattr(estimator, 'predict'):
         orig_predict = estimator.predict
         setattr(estimator, '_orig_predict', orig_predict)
-        setattr(estimator, 'predict', partial(call_and_compute, orig_predict, None))
+        setattr(estimator, 'predict', partial(_call_and_compute, orig_predict, None))
 
     return estimator
 
@@ -332,7 +332,7 @@ def compute_and_call(fn_call, *args, **kwargs):
     return r
 
 
-def call_and_compute(fn_call, *args, **kwargs):
+def call_and_compute(fn_call, optimize_graph, *args, **kwargs):
     if logger.is_debug_enabled():
         logger.debug(f'[call_and_compute] call {fn_call.__name__}')
     r = fn_call(*args, **kwargs)
@@ -344,7 +344,7 @@ def call_and_compute(fn_call, *args, **kwargs):
     elif isinstance(r, (tuple, list)) and any(map(is_dask_object, r)):
         if logger.is_debug_enabled():
             logger.debug('[call_and_compute] to dask type')
-        r = compute(*r, traverse=False)
+        r = compute(*r, traverse=False, optimize_graph=optimize_graph)
 
     if logger.is_debug_enabled():
         logger.debug('[call_and_compute] done')
