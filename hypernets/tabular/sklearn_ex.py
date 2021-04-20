@@ -480,10 +480,13 @@ class LgbmLeavesEncoder(BaseEstimator, TransformerMixin):
         X[self.cat_vars] = X[self.cat_vars].astype('int')
 
         leaves = self.lgbm.predict(X, pred_leaf=True, num_iteration=self.lgbm.best_iteration_)
-        df_leaves = pd.DataFrame(leaves)
-        self.new_columns = [f'lgbm_leaf_{i}' for i in range(leaves.shape[1])]
-        df_leaves.columns = self.new_columns
-        return pd.concat([X, df_leaves], axis=1)
+        new_columns = [f'lgbm_leaf_{i}' for i in range(leaves.shape[1])]
+        df_leaves = pd.DataFrame(leaves, columns=new_columns, index=X.index)
+        result = pd.concat([X, df_leaves], axis=1)
+
+        self.new_columns = new_columns
+
+        return result
 
 
 class CategorizeEncoder(BaseEstimator, TransformerMixin):
