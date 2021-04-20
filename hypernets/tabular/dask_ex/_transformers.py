@@ -520,34 +520,39 @@ class AdaptedTransformer(BaseEstimator):
     Note: adapted transformer uses locale resource only.
     """
 
-    def __init__(self, cls, at_local, *args, **kwargs):
+    def __init__(self, cls, attributes, *args, **kwargs):
         super(AdaptedTransformer, self).__init__()
 
-        self.adapted_ = cls(*args, **kwargs)
-        self.at_local = at_local
+        assert isinstance(cls, type)
+        assert attributes is None or isinstance(attributes, (tuple, list, set))
+
+        self.adapted_transformer_ = cls(*args, **kwargs)
+        self.adapted_attributes_ = set(attributes) if attributes is not None else None
 
     def fit(self, X, y=None, **kwargs):
         if y is None:
-            self._adapt(self.adapted_.fit, X, **kwargs)
+            self._adapt(self.adapted_transformer_.fit, X, **kwargs)
         else:
-            self._adapt(self.adapted_.fit, X, y, **kwargs)
+            self._adapt(self.adapted_transformer_.fit, X, y, **kwargs)
         return self
 
     def transform(self, X, *args, **kwargs):
-        return self._adapt(self.adapted_.transform, X, *args, **kwargs)
+        return self._adapt(self.adapted_transformer_.transform, X, *args, **kwargs)
 
     def inverse_transform(self, X, *args, **kwargs):
-        return self._adapt(self.adapted_.inverse_transform, X, *args, **kwargs)
+        return self._adapt(self.adapted_transformer_.inverse_transform, X, *args, **kwargs)
 
     def fit_transform(self, X, y=None, **kwargs):
-        if hasattr(self.adapted_, 'fit_transform'):
+        transformer = self.adapted_transformer_
+
+        if hasattr(transformer, 'fit_transform'):
             if y is None:
-                return self._adapt(self.adapted_.fit_transform, X, **kwargs)
+                return self._adapt(transformer.fit_transform, X, **kwargs)
             else:
-                return self._adapt(self.adapted_.fit_transform, X, y, **kwargs)
+                return self._adapt(transformer.fit_transform, X, y, **kwargs)
         else:
             self.fit(X, y, **kwargs)
-            return self._adapt(self.adapted_.transform, X, **kwargs)
+            return self._adapt(transformer.transform, X, **kwargs)
 
     @staticmethod
     def _adapt(fn, X, *args, **kwargs):
@@ -562,20 +567,41 @@ class AdaptedTransformer(BaseEstimator):
             X = X.compute()
 
         args = [a.compute() if isinstance(a, (dd.DataFrame, dd.Series, da.Array)) else a for a in args]
-        X = fn(X, *args, **kwargs)
+        r = fn(X, *args, **kwargs)
 
-        if isinstance(X, (pd.DataFrame, pd.Series, np.ndarray)):
+        if isinstance(r, (pd.DataFrame, pd.Series, np.ndarray)):
             if is_dask_frame_X:
-                X = dd.from_pandas(X, npartitions=npartitions)
+                r = dd.from_pandas(r, npartitions=npartitions)
             elif is_dask_array_X:
-                X = da.from_array(X, chunks=chunks)
+                r = da.from_array(r, chunks=chunks)
 
-        return X
+        return r
+
+    def __getattribute__(self, name: str):
+        if name in {'adapted_attributes_', 'adapted_transformer_'}:
+            return super().__getattribute__(name)
+
+        adapted_attributes = self.adapted_attributes_
+        if adapted_attributes is not None and name in adapted_attributes:
+            adapted_transformer = self.adapted_transformer_
+            return getattr(adapted_transformer, name)
+
+        return super().__getattribute__(name)
+
+    def __dir__(self):
+        adapted_attributes = self.adapted_attributes_
+        if adapted_attributes is not None:
+            return set(list(adapted_attributes) + list(super().__dir__()))
+
+        return super().__dir__()
 
 
 class LgbmLeavesEncoder(AdaptedTransformer, TransformerMixin):
+
     def __init__(self, cat_vars, cont_vars, task, **params):
-        super(LgbmLeavesEncoder, self).__init__(skex.LgbmLeavesEncoder, True, cat_vars, cont_vars, task, **params)
+        attributes = {'lgbm', 'cat_vars', 'cont_vars', 'new_columns', 'task', 'lgbm_params'}
+        super(LgbmLeavesEncoder, self).__init__(skex.LgbmLeavesEncoder, attributes,
+                                                cat_vars, cont_vars, task, **params)
 
 
 class CategorizeEncoder(skex.CategorizeEncoder):

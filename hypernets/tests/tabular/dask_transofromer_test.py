@@ -63,22 +63,33 @@ class Test_DaskCustomizedTransformer:
         continous = X.select_dtypes(['float', 'float64']).columns.to_list()
         X = X[cats + continous]
         n_estimators = 50
+        X_shape = dex.compute(X.shape)[0]
 
         # with fit_transform
         t = dex.LgbmLeavesEncoder(cat_vars=cats, cont_vars=continous, task=const.TASK_BINARY,
                                   n_estimators=n_estimators)
         Xt = t.fit_transform(X.copy(), y)
+
+        # check attributes
+        attributes = {'lgbm', 'cat_vars', 'cont_vars', 'new_columns', 'task', 'lgbm_params'}
+        assert len(attributes - set(dir(t))) == 0
+        assert all([hasattr(t, a) for a in attributes])
+        assert all([getattr(t, a, None) is not None for a in attributes])
+
+        # check result
         Xt = Xt.compute()
-        assert getattr(t.adapted_.lgbm, 'n_estimators', 0) > 0
-        assert len(Xt.columns) == len(cats) + len(continous) + t.adapted_.lgbm.n_estimators
+        assert getattr(t.lgbm, 'n_estimators', 0) > 0
+        assert len(Xt.columns) == len(cats) + len(continous) + t.lgbm.n_estimators
+        assert X_shape[0] == Xt.shape[0]
 
         # with fit + transform
         t2 = dex.LgbmLeavesEncoder(cat_vars=cats, cont_vars=continous, task=const.TASK_BINARY,
                                    n_estimators=n_estimators)
         Xt = t2.fit(X.copy(), y).transform(X.copy())
         Xt = Xt.compute()
-        assert getattr(t2.adapted_.lgbm, 'n_estimators', 0) > 0
-        assert len(Xt.columns) == len(cats) + len(continous) + t2.adapted_.lgbm.n_estimators
+        assert getattr(t2.lgbm, 'n_estimators', 0) > 0
+        assert len(Xt.columns) == len(cats) + len(continous) + t2.lgbm.n_estimators
+        assert X_shape[0] == Xt.shape[0]
 
     def test_cat_encoder(self):
         X = self.bank_data.copy()
