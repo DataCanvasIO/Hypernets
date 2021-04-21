@@ -779,7 +779,7 @@ class DaskPseudoLabelStep(PseudoLabelStep):
         y_p2 = da.zeros_like(negative, dtype='int64')
 
         X_pseudo = dex.concat_df([X_test_p1, X_test_p2], axis=0)
-        y_pseudo = dex.hstack_array([y_p1, y_p2])
+        y_pseudo = dex.vstack_array([y_p1, y_p2])
 
         if classes is not None:
             y_pseudo = da.take(np.array(classes), y_pseudo, axis=0)

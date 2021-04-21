@@ -240,13 +240,14 @@ def array_to_df(arrs, columns=None, meta=None):
 
 def concat_df(dfs, axis=0, repartition=False, **kwargs):
     if exist_dask_object(*dfs):
+        dfs = [dd.from_dask_array(v) if is_dask_array(v) else v for v in dfs]
+
         if all([isinstance(df, (dd.Series, pd.Series)) for df in dfs]):
             values = vstack_array([df.values for df in dfs])
             df = dd.from_dask_array(values, columns=dfs[0].name)
             assert isinstance(df, dd.Series)
             return df
 
-        dfs = [dd.from_dask_array(v) if is_dask_array(v) else v for v in dfs]
         if axis == 0:
             values = [df[dfs[0].columns].to_dask_array(lengths=True) for df in dfs]
             df = array_to_df(vstack_array(values), meta=dfs[0])
@@ -359,7 +360,7 @@ def call_and_compute(fn_call, optimize_graph, *args, **kwargs):
 
 
 def wrap_local_estimator(estimator):
-    for fn_name in ('fit', 'predict', 'predict_proba'):
+    for fn_name in ('fit', 'fit_cross_validation', 'predict', 'predict_proba'):
         fn_name_original = f'_wrapped_{fn_name}_by_wle'
         if hasattr(estimator, fn_name) and not hasattr(estimator, fn_name_original):
             fn = getattr(estimator, fn_name)
