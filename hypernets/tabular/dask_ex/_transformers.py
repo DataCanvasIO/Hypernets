@@ -511,7 +511,7 @@ class DataFrameWrapper(skex.DataFrameWrapper):
         elif isinstance(transformed, np.ndarray):
             transformed = pd.DataFrame(transformed, columns=self.columns)
         else:
-            X.columns = self.columns
+            transformed.columns = self.columns
 
         return transformed
 
