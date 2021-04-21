@@ -1,4 +1,5 @@
 import os
+import time
 
 
 def start_broker(host, port):
@@ -28,6 +29,7 @@ def test_grpc_broker_run():
     broker_host = '127.0.0.1'
     broker_port = 43218
     broker = start_broker(broker_host, broker_port)
+    time.sleep(1)
 
     # run process
     cmd = 'echo 123'
