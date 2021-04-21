@@ -510,6 +510,8 @@ class DataFrameWrapper(skex.DataFrameWrapper):
             transformed = dd.from_dask_array(transformed, columns=self.columns)
         elif isinstance(transformed, np.ndarray):
             transformed = pd.DataFrame(transformed, columns=self.columns)
+        else:
+            X.columns = self.columns
 
         return transformed
 
