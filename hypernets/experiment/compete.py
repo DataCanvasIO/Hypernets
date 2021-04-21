@@ -6,7 +6,7 @@ __author__ = 'yangjian'
 """
 import copy
 import pickle
-
+import inspect
 import numpy as np
 import pandas as pd
 from IPython.display import display, display_markdown
@@ -219,8 +219,8 @@ class DataCleanStep(ExperimentStep):
         # 1. Clean Data
         if self.cv and X_eval is not None and y_eval is not None:
             logger.info(f'{self.name} cv enabled, so concat train data and eval data')
-            X_train = pd.concat([X_train, X_eval], axis=0)
-            y_train = pd.concat([y_train, y_eval], axis=0)
+            X_train = dex.concat_df([X_train, X_eval], axis=0)
+            y_train = dex.concat_df([y_train, y_eval], axis=0)
             X_eval = None
             y_eval = None
 
@@ -544,8 +544,11 @@ class EnsembleStep(EstimatorBuilderStep):
             logger.info('ensemble with oofs')
             oofs = self.get_ensemble_predictions(best_trials, ensemble)
             assert oofs is not None
-            y_, oofs_ = select_valid_oof(y_train, oofs)
-            ensemble.fit(None, y_, oofs_)
+            if hasattr(oofs, 'shape'):
+                y_, oofs_ = select_valid_oof(y_train, oofs)
+                ensemble.fit(None, y_, oofs_)
+            else:
+                ensemble.fit(None, y_train, oofs)
         else:
             ensemble.fit(X_eval, y_eval)
 
@@ -580,9 +583,13 @@ class EnsembleStep(EstimatorBuilderStep):
 class DaskEnsembleStep(EnsembleStep):
     def get_ensemble(self, estimators, X_train, y_train):
         if dex.exist_dask_object(X_train, y_train):
+            predict_kwargs = {}
+            if all(['use_cache' in inspect.signature(est.predict).parameters.keys()
+                    for est in estimators]):
+                predict_kwargs['use_cache'] = False
             return DaskGreedyEnsemble(self.task, estimators, scoring=self.scorer,
                                       ensemble_size=self.ensemble_size,
-                                      predict_kwargs={'use_cache': False})
+                                      predict_kwargs=predict_kwargs)
 
         return super().get_ensemble(estimators, X_train, y_train)
 
