@@ -45,7 +45,8 @@ def setup_dask(cls):
         client = _startup_dask(2.0)
     print('Dask Client:', client)
 
-    setattr(cls, 'dask_client_', client)
+    if cls is not None:
+        setattr(cls, 'dask_client_', client)
 
 
 class Test_DaskCustomizedTransformer:
