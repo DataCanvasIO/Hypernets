@@ -1,0 +1,57 @@
+# -*- coding:utf-8 -*-
+__author__ = 'yangjian'
+"""
+
+"""
+import numpy as np
+from ..core import TrialHistory
+
+
+class BaseDiscriminator():
+    def __init__(self, min_trials=5, min_steps=5, stride=1, history: TrialHistory = None, optimize_direction='min'):
+        self.history = history
+        self.min_trilas = min_trials
+        self.min_steps = min_steps
+        self.stride = stride
+        self.optimize_direction = optimize_direction.lower()
+        if self.optimize_direction == 'min':
+            self._sign = -1
+        else:
+            self._sign = 1
+
+    def bind_history(self, history):
+        self.history = history
+
+    def is_promising(self, iteration_trajectory, group_id):
+        if self.history is None:
+            raise ValueError('`history` is not bound')
+        n_step = len(iteration_trajectory)
+        if n_step < self.min_steps:
+            return True
+
+        trial_scores = get_previous_trials_scores(self.history, n_step - 1, n_step - 1, group_id)
+        if len(trial_scores) < self.min_trilas:
+            return True
+        if self.stride > 1:
+            if ((n_step - self.min_steps) % self.stride) > 0:
+                return True
+
+        return self._is_promising(iteration_trajectory, group_id)
+
+    def _is_promising(self, iteration_trajectory, group_id):
+        raise NotImplementedError()
+
+
+def get_percentile_score(history, n_step, group_id, percentile, sign=1):
+    trial_scores = get_previous_trials_scores(history, n_step, n_step, group_id)
+    percentile_score = np.percentile(trial_scores * (sign * -1), percentile)
+    return percentile_score * (sign * -1)
+
+
+def get_previous_trials_scores(history, from_step, to_step, group_id):
+    trial_scores = []
+    for trial in history.trials:
+        scores = trial.iteration_scores.get(group_id)
+        if scores and len(scores) >= (to_step + 1):
+            trial_scores.append(scores[from_step:(to_step + 1)])
+    return np.array(trial_scores)
