@@ -8,6 +8,9 @@ from ..core import TrialHistory
 
 
 class BaseDiscriminator():
+    """
+    Discriminator is used to determine whether to continue training
+    """
     def __init__(self, min_trials=5, min_steps=5, stride=1, history: TrialHistory = None, optimize_direction='min'):
         self.history = history
         self.min_trilas = min_trials
@@ -39,6 +42,17 @@ class BaseDiscriminator():
         return self._is_promising(iteration_trajectory, group_id)
 
     def _is_promising(self, iteration_trajectory, group_id):
+        """
+        discriminate whether continuing training a trial is promising
+
+        Args:
+            iteration_trajectory:
+                list, The scores of each step in the iteration process are arranged from front to back
+            group_id:
+                Str, It is used to group different types of trials in a search task
+        Returns:
+            A boolean value representing whether the trial should be stop.
+        """
         raise NotImplementedError()
 
 
