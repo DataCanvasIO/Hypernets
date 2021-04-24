@@ -23,18 +23,6 @@ _DEFAULT_TOP_PERCENT = 0.2
 
 def sample_by_pseudo_labeling(X_test, classes, proba, strategy,
                               threshold=None, quantile=None, number=None):
-    """
-
-    :param X_test:
-    :param classes:
-    :param proba:
-    :param strategy:
-    :param threshold:
-    :param quantile:
-    :param number:
-    :return:
-    """
-
     assert len(classes) == proba.shape[-1] > 1
 
     if strategy is None:
