@@ -16,7 +16,7 @@ logger = logging.get_logger(__name__)
 
 
 class HyperModel():
-    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None, discriminator=None):
         """
 
         :param searcher:
@@ -33,6 +33,9 @@ class HyperModel():
         self.history = TrialHistory(searcher.optimize_direction)
         self.start_search_time = None
         self.task = task
+        self.discriminator = discriminator
+        if self.discriminator:
+            self.discriminator.bind_history(self.history)
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError
@@ -45,11 +48,13 @@ class HyperModel():
 
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
+        if self.discriminator:
+            estimator.set_discriminator(self.discriminator)
 
         for callback in self.callbacks:
             callback.on_build_estimator(self, space_sample, estimator, trial_no)
         #     callback.on_trial_begin(self, space_sample, trial_no)
-        fit_succeed = False
+        succeeded = False
         scores = None
         oof = None
         oof_scores = None
@@ -61,14 +66,14 @@ class HyperModel():
                                                                          **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
-            fit_succeed = True
+            succeeded = True
         except Exception as e:
             logger.error('Estimator fit failed!')
             logger.error(e)
             track = traceback.format_exc()
             logger.error(track)
 
-        if fit_succeed:
+        if succeeded:
             if scores is None:
                 scores = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
             reward = self._get_reward(scores, self.reward_metric)
@@ -79,7 +84,8 @@ class HyperModel():
 
             elapsed = time.time() - start_time
 
-            trial = Trial(space_sample, trial_no, reward, elapsed, model_file)
+            trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
+            trial.iteration_scores = estimator.get_iteration_scores()
             if oof is not None:
                 trial.memo['oof'] = oof
             if oof_scores is not None:
@@ -96,7 +102,7 @@ class HyperModel():
             #     callback.on_trial_error(self, space_sample, trial_no)
 
             elapsed = time.time() - start_time
-            trial = Trial(space_sample, trial_no, 0, elapsed)
+            trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
 
         return trial
 
@@ -206,6 +212,9 @@ class HyperModel():
 
     def final_train(self, space_sample, X, y, **kwargs):
         estimator = self._get_estimator(space_sample)
+        if self.discriminator:
+            estimator.set_discriminator(self.discriminator)
+
         estimator.fit(X, y, **kwargs)
         return estimator
 

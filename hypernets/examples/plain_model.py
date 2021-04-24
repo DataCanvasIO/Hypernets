@@ -310,6 +310,9 @@ class PlainEstimator(Estimator):
         with fs.open(model_file, 'rb') as f:
             return pickle.load(f)
 
+    def get_iteration_scores(self):
+        return []
+
 
 class PlainModel(HyperModel):
     def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None,
