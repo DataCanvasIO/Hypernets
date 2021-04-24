@@ -127,7 +127,7 @@ class PlainSearchSpace(object):
 
 
 class PlainEstimator(Estimator):
-    def __init__(self, space_sample, task=const.TASK_BINARY):
+    def __init__(self, space_sample, task=const.TASK_BINARY, transformer=None):
         assert task in {const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION}
 
         super(PlainEstimator, self).__init__(space_sample, task)
@@ -142,6 +142,7 @@ class PlainEstimator(Estimator):
         self.model = cls(**kwargs)
         self.cls = cls
         self.model_args = kwargs
+        self.transformer = transformer
 
         # fitted
         self.classes_ = None
@@ -152,6 +153,9 @@ class PlainEstimator(Estimator):
 
     def fit(self, X, y, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
+
+        if self.transformer is not None:
+            X = self.transformer.fit_transform(X, y)
 
         self.model.fit(X, y, **kwargs)
         self.classes_ = getattr(self.model, 'classes_', None)
@@ -165,6 +169,9 @@ class PlainEstimator(Estimator):
         assert isinstance(metrics, (list, tuple))
 
         eval_set = kwargs.pop('eval_set', None)  # ignore
+
+        if self.transformer is not None:
+            X = self.transformer.fit_transform(X, y)
 
         if stratified and self.task == const.TASK_BINARY:
             iterators = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=random_state)
@@ -225,6 +232,9 @@ class PlainEstimator(Estimator):
     def predict(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
+        if self.transformer is not None:
+            X = self.transformer.transform(X)
+
         if self.cv_models_:
             if self.task == const.TASK_REGRESSION:
                 pred_sum = None
@@ -245,6 +255,9 @@ class PlainEstimator(Estimator):
 
     def predict_proba(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
+
+        if self.transformer is not None:
+            X = self.transformer.transform(X)
 
         if self.cv_models_:
             proba_sum = None
@@ -299,12 +312,19 @@ class PlainEstimator(Estimator):
 
 
 class PlainModel(HyperModel):
-    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None,
+                 transformer=None):
         super(PlainModel, self).__init__(searcher, dispatcher=dispatcher, callbacks=callbacks,
                                          reward_metric=reward_metric, task=task)
+        self.transformer = transformer
 
     def _get_estimator(self, space_sample):
-        return PlainEstimator(space_sample, task=self.task)
+        if callable(self.transformer):
+            transformer = self.transformer()
+        else:
+            transformer = self.transformer
+
+        return PlainEstimator(space_sample, task=self.task, transformer=transformer)
 
     def load_estimator(self, model_file):
         return PlainEstimator.load(model_file)

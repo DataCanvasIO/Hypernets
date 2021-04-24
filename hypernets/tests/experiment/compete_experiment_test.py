@@ -1,42 +1,21 @@
 from sklearn.metrics import get_scorer
+from sklearn.preprocessing import LabelEncoder
 
-from hypernets.core.callbacks import SummaryCallback
-from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import CompeteExperiment
-from hypernets.searchers import make_searcher
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.metrics import calc_score, metric_to_scoring
-from hypernets.tabular.sklearn_ex import MultiLabelEncoder
+from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 
-class DaskPlainModel(PlainModel):
-    def _get_estimator(self, space_sample):
-        estimator = super()._get_estimator(space_sample)
-
-        return dex.wrap_local_estimator(estimator)
-
-
-def create_hyper_model(reward_metric='auc', optimize_direction='max', with_dask=False):
-    search_space = PlainSearchSpace(enable_dt=True, enable_lr=True, enable_nn=False)
-    searcher = make_searcher('random', search_space_fn=search_space, optimize_direction=optimize_direction)
-    if with_dask:
-        cls = DaskPlainModel
-    else:
-        cls = PlainModel
-    hyper_model = cls(searcher=searcher, reward_metric=reward_metric, callbacks=[SummaryCallback()])
-
-    return hyper_model
-
-
 def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask=False):
-    hyper_model = create_hyper_model(with_dask=with_dask)
+    hyper_model = create_plain_model(with_encoder=True, with_dask=with_dask)
     scorer = get_scorer(metric_to_scoring(hyper_model.reward_metric))
     X = dsutils.load_bank()
     if row_count is not None:
         X = X.head(row_count)
-    X = MultiLabelEncoder().fit_transform(X)
+    X['y'] = LabelEncoder().fit_transform(X['y'])
 
     if with_dask:
         setup_dask(None)
@@ -132,11 +111,6 @@ def test_with_pl_dask():
 def test_with_ensemble_dask():
     experiment_with_bank_data(dict(ensemble_size=5, cv=False, drift_detection_num_folds=3), {},
                               with_dask=True)
-
-
-def test_with_cv_ensemble2_dask():
-    experiment_with_bank_data(dict(ensemble_size=5, cv=True, drift_detection=False), {},
-                              row_count=6000, with_dask=True)
 
 
 def test_with_cv_ensemble_dask():
