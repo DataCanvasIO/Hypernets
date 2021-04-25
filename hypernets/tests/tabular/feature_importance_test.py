@@ -3,19 +3,19 @@ __author__ = 'yangjian'
 """
 
 """
-import numpy as np
 from collections import defaultdict
 
+import numpy as np
 from scipy.cluster import hierarchy
 from scipy.stats import spearmanr
 from sklearn.metrics import get_scorer
 from sklearn.model_selection import train_test_split
 
+from hypernets.core import set_random_state, get_random_state
 from hypernets.examples.plain_model import train
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.feature_importance import feature_importance_batch
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
-from hypernets.core import set_random_state
 
 
 class Test_FeatureImportance():
@@ -62,11 +62,13 @@ class Test_FeatureImportance():
         estimators = [hm.load_estimator(trial.model_file) for trial in best_trials]
 
         importances = feature_importance_batch(estimators, X_test, y_test, get_scorer('roc_auc_ovr'), n_jobs=1,
-                                               n_repeats=2)
+                                               n_repeats=2, random_state=get_random_state())
         feature_index = np.argwhere(importances.importances_mean < 1e-5)
         selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
         unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
         set_random_state(None)
 
+        print('selected:  ', selected_features)
+        print('unselected:', unselected_features)
         assert selected_features
         assert unselected_features
