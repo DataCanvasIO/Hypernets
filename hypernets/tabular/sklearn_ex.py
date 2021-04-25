@@ -258,6 +258,8 @@ class LogStandardScaler(BaseEstimator):
 
         self.scaler = StandardScaler(copy=copy, with_mean=with_mean, with_std=with_std)
         self.min_values = None
+        self.with_mean = with_mean
+        self.with_std = with_std
         self.copy = copy
 
     def fit(self, X, y=None):
