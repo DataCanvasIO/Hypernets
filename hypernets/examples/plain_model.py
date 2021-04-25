@@ -10,11 +10,12 @@ from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 
+from hypernets.core import set_random_state, get_random_state
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
 from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, Constant, HyperNode
 from hypernets.model import Estimator, HyperModel
-from hypernets.searchers import RandomSearcher
+from hypernets.searchers import make_searcher
 from hypernets.tabular.dask_ex import fix_binary_predict_proba_result
 from hypernets.tabular.metrics import calc_score
 from hypernets.utils import fs, logging, const, infer_task_type
@@ -40,6 +41,7 @@ class PlainSearchSpace(object):
             criterion=Choice(["gini", "entropy"]),
             splitter=Choice(["best", "random"]),
             max_depth=Choice([None, 3, 5, 10, 20, 50]),
+            random_state=get_random_state(),
         )
 
     # NN
@@ -52,7 +54,8 @@ class PlainSearchSpace(object):
             activation=Choice(['identity', 'logistic', 'tanh', 'relu']),
             solver=solver,
             learning_rate=Choice(['constant', 'invscaling', 'adaptive']),
-            learning_rate_init_stub=Cascade(partial(self._cascade, self._nn_learning_rate_init, 'slvr'), slvr=solver)
+            learning_rate_init_stub=Cascade(partial(self._cascade, self._nn_learning_rate_init, 'slvr'), slvr=solver),
+            random_state=get_random_state(),
         )
 
     @staticmethod
@@ -79,6 +82,7 @@ class PlainSearchSpace(object):
             solver=solver,
             penalty_stub=penalty,
             l1_ratio_stub=l1_ratio,
+            random_state=get_random_state(),
         )
 
     @staticmethod
@@ -340,7 +344,7 @@ def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optim
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
 
     search_space = PlainSearchSpace()
-    searcher = RandomSearcher(search_space, optimize_direction=optimize_direction)
+    searcher = make_searcher('mcts', search_space, optimize_direction=optimize_direction)
     callbacks = [SummaryCallback()]
     hm = PlainModel(searcher=searcher, task=task, reward_metric=reward_metric, callbacks=callbacks)
     hm.search(X_train, y_train, X_eval, y_eval, **kwargs)
@@ -356,8 +360,10 @@ def train_heart_disease(**kwargs):
     X = dsutils.load_heart_disease_uci()
     y = X.pop('target')
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-    X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=0.3)
+    X_train, X_test, y_train, y_test = \
+        train_test_split(X, y, test_size=0.3, random_state=get_random_state())
+    X_train, X_eval, y_train, y_eval = \
+        train_test_split(X_train, y_train, test_size=0.3, random_state=get_random_state())
 
     kwargs = {'reward_metric': 'auc', 'max_trials': 10, **kwargs}
     hm, model = train(X_train, y_train, X_eval, y_eval, const.TASK_BINARY, **kwargs)
@@ -375,4 +381,5 @@ def train_heart_disease(**kwargs):
 
 
 if __name__ == '__main__':
+    set_random_state(335)
     train_heart_disease()
