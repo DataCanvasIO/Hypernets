@@ -41,7 +41,8 @@ def sample_by_pseudo_labeling(X_test, classes, proba, strategy,
         assert 0 < threshold < 1.0
     elif strategy == _STRATEGY_NUMBER:
         if number is None:
-            number = int(proba.shape[0] / proba.shape[1] * _DEFAULT_TOP_PERCENT)
+            proba_shape = dex.compute(proba.shape)[0] if dex.is_dask_object(proba) else proba.shape
+            number = int(proba_shape[0] / proba_shape[1] * _DEFAULT_TOP_PERCENT)
             if number < 10:
                 number = 10
         assert number > 0

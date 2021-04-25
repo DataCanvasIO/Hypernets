@@ -5,8 +5,9 @@ __author__ = 'yangjian'
 
 """
 import copy
-import pickle
 import inspect
+import pickle
+
 import numpy as np
 import pandas as pd
 from IPython.display import display, display_markdown
@@ -23,6 +24,7 @@ from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
 from hypernets.tabular.feature_importance import feature_importance_batch
 from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.lifelong_learning import select_valid_oof
+from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
 from hypernets.utils import hash_data, logging, fs, isnotebook, const
 
 logger = logging.get_logger(__name__)
@@ -631,13 +633,17 @@ class FinalTrainStep(EstimatorBuilderStep):
 
 class PseudoLabelStep(ExperimentStep):
     def __init__(self, experiment, name, estimator_builder,
-                 pseudo_labeling_proba_threshold=0.8, pseudo_labeling_resplit=False, random_state=None):
+                 strategy=None, proba_threshold=None, proba_quantile=None, sample_number=None,
+                 resplit=False, random_state=None):
         super().__init__(experiment, name)
         assert hasattr(estimator_builder, 'estimator_')
 
         self.estimator_builder = estimator_builder
-        self.pseudo_labeling_proba_threshold = pseudo_labeling_proba_threshold
-        self.pseudo_labeling_resplit = pseudo_labeling_resplit
+        self.strategy = strategy
+        self.proba_threshold = proba_threshold
+        self.proba_quantile = proba_quantile
+        self.sample_number = sample_number
+        self.resplit = resplit
         self.random_state = random_state
 
     def transform(self, X, y=None, **kwargs):
@@ -663,38 +669,41 @@ class PseudoLabelStep(ExperimentStep):
         y_pseudo = None
         if self.task in [const.TASK_BINARY, const.TASK_MULTICLASS] and X_test is not None:
             proba = estimator.predict_proba(X_test)
-            if self.task == const.TASK_BINARY:
-                proba = proba[:, 1]
-                proba_threshold = self.pseudo_labeling_proba_threshold
-                X_pseudo, y_pseudo = self.extract_pseudo_label(X_test, proba, proba_threshold, estimator.classes_)
+            proba_threshold = self.proba_threshold
+            X_pseudo, y_pseudo = sample_by_pseudo_labeling(X_test, estimator.classes_, proba,
+                                                           strategy=self.strategy,
+                                                           threshold=self.proba_threshold,
+                                                           quantile=self.proba_quantile,
+                                                           number=self.sample_number,
+                                                           )
 
+            if _is_notebook:
+                display_markdown('### Pseudo label set', raw=True)
+                display(pd.DataFrame([(dex.compute(X_pseudo.shape)[0],
+                                       dex.compute(y_pseudo.shape)[0],
+                                       # len(positive),
+                                       # len(negative),
+                                       proba_threshold)],
+                                     columns=['X_pseudo.shape',
+                                              'y_pseudo.shape',
+                                              # 'positive samples',
+                                              # 'negative samples',
+                                              'proba threshold']), display_id='output_presudo_labelings')
+            try:
                 if _is_notebook:
-                    display_markdown('### Pseudo label set', raw=True)
-                    display(pd.DataFrame([(dex.compute(X_pseudo.shape)[0],
-                                           dex.compute(y_pseudo.shape)[0],
-                                           # len(positive),
-                                           # len(negative),
-                                           proba_threshold)],
-                                         columns=['X_pseudo.shape',
-                                                  'y_pseudo.shape',
-                                                  # 'positive samples',
-                                                  # 'negative samples',
-                                                  'proba threshold']), display_id='output_presudo_labelings')
-                try:
-                    if _is_notebook:
-                        import seaborn as sns
-                        import matplotlib.pyplot as plt
-                        # Draw Plot
-                        plt.figure(figsize=(8, 4), dpi=80)
-                        sns.kdeplot(proba, shade=True, color="g", label="Proba", alpha=.7, bw_adjust=0.01)
-                        # Decoration
-                        plt.title('Density Plot of Probability', fontsize=22)
-                        plt.legend()
-                        plt.show()
-                    # else:
-                    #     print(proba)
-                except:
-                    print(proba)
+                    import seaborn as sns
+                    import matplotlib.pyplot as plt
+                    # Draw Plot
+                    plt.figure(figsize=(8, 4), dpi=80)
+                    sns.kdeplot(proba, shade=True, color="g", label="Proba", alpha=.7, bw_adjust=0.01)
+                    # Decoration
+                    plt.title('Density Plot of Probability', fontsize=22)
+                    plt.legend()
+                    plt.show()
+                # else:
+                #     print(proba)
+            except:
+                print(proba)
 
         if X_pseudo is not None:
             X_train, y_train, X_eval, y_eval = \
@@ -716,24 +725,8 @@ class PseudoLabelStep(ExperimentStep):
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
-    def extract_pseudo_label(self, X_test, proba, proba_threshold, classes):
-        positive = np.argwhere(proba > proba_threshold).ravel()
-        negative = np.argwhere(proba < 1 - proba_threshold).ravel()
-        X_test_p1 = X_test.iloc[positive]
-        X_test_p2 = X_test.iloc[negative]
-        y_p1 = np.ones(positive.shape, dtype='int64')
-        y_p2 = np.zeros(negative.shape, dtype='int64')
-        X_pseudo = pd.concat([X_test_p1, X_test_p2], axis=0)
-        y_pseudo = np.concatenate([y_p1, y_p2], axis=0)
-        if classes is not None:
-            y_pseudo = np.array(classes).take(y_pseudo, axis=0)
-
-        logger.info(f'extract pseudo label data: positive={len(positive)}, negative={len(negative)}')
-
-        return X_pseudo, y_pseudo
-
     def merge_pseudo_label(self, X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs):
-        if self.pseudo_labeling_resplit:
+        if self.resplit:
             x_list = [X_train, X_pseudo]
             y_list = [y_train, pd.Series(y_pseudo)]
             if X_eval is not None and y_eval is not None:
@@ -760,37 +753,11 @@ class PseudoLabelStep(ExperimentStep):
 
 
 class DaskPseudoLabelStep(PseudoLabelStep):
-    def extract_pseudo_label(self, X_test, proba, proba_threshold, classes):
-        if not dex.exist_dask_object(X_test, proba):
-            return super().extract_pseudo_label(X_test, proba, proba_threshold, classes)
-
-        da = dex.da
-        positive = da.argwhere(proba > proba_threshold)
-        positive = dex.make_divisions_known(positive).ravel()
-
-        negative = da.argwhere(proba < 1 - proba_threshold)
-        negative = dex.make_divisions_known(negative).ravel()
-
-        X_test_values = X_test.to_dask_array(lengths=True)
-        X_test_p1 = dex.array_to_df(X_test_values[positive], meta=X_test)
-        X_test_p2 = dex.array_to_df(X_test_values[negative], meta=X_test)
-
-        y_p1 = da.ones_like(positive, dtype='int64')
-        y_p2 = da.zeros_like(negative, dtype='int64')
-
-        X_pseudo = dex.concat_df([X_test_p1, X_test_p2], axis=0)
-        y_pseudo = dex.vstack_array([y_p1, y_p2])
-
-        if classes is not None:
-            y_pseudo = da.take(np.array(classes), y_pseudo, axis=0)
-
-        return X_pseudo, y_pseudo
-
     def merge_pseudo_label(self, X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs):
         if not dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo):
             return super().merge_pseudo_label(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs)
 
-        if self.pseudo_labeling_resplit:
+        if self.resplit:
             x_list = [X_train, X_pseudo]
             y_list = [y_train, y_pseudo]
             if X_eval is not None and y_eval is not None:
@@ -908,7 +875,10 @@ class CompeteExperiment(SteppedExperiment):
                  feature_reselection_estimator_size=10,
                  feature_reselection_threshold=1e-5,
                  pseudo_labeling=False,
-                 pseudo_labeling_proba_threshold=0.8,
+                 pseudo_labeling_strategy=None,
+                 pseudo_labeling_proba_threshold=None,
+                 pseudo_labeling_proba_quantile=None,
+                 pseudo_labeling_sample_number=None,
                  pseudo_labeling_resplit=False,
                  retrain_on_wholedata=False,
                  log_level=None,
@@ -982,8 +952,14 @@ class CompeteExperiment(SteppedExperiment):
             Whether to enable pseudo labeling. Pseudo labeling is a semi-supervised learning technique, instead of manually
             labeling the unlabelled data, we give approximate labels on the basis of the labelled data. Pseudo-labeling can
             sometimes improve the generalization capabilities of the model.
+        pseudo_labeling_strategy : str, (default='threshold')
+            Strategy to sample pseudo labeling data(*threshold*, *number* or *quantile*).
         pseudo_labeling_proba_threshold : float, (default=0.8)
-            Confidence threshold of pseudo-label samples. Only valid when *pseudo_labeling* is True.
+            Confidence threshold of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'threshold'.
+        pseudo_labeling_proba_quantile:
+            Confidence quantile of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'quantile'.
+        pseudo_labeling_sample_number:
+            Excepted number to sample per class. Only valid when *pseudo_labeling_strategy* is 'number'.
         pseudo_labeling_resplit : bool, (default=False)
             Whether to re-split the training set and evaluation set after adding pseudo-labeled data. If False, the
             pseudo-labeled data is only appended to the training set. Only valid when *pseudo_labeling* is True.
@@ -1042,8 +1018,11 @@ class CompeteExperiment(SteppedExperiment):
                 estimator_builder = FinalTrainStep(self, 'pseudo_train', retrain_on_wholedata=retrain_on_wholedata)
             step = pseudo_cls(self, 'pseudo_labeling',
                               estimator_builder=estimator_builder,
-                              pseudo_labeling_resplit=pseudo_labeling_resplit,
-                              pseudo_labeling_proba_threshold=pseudo_labeling_proba_threshold,
+                              strategy=pseudo_labeling_strategy,
+                              proba_threshold=pseudo_labeling_proba_threshold,
+                              proba_quantile=pseudo_labeling_proba_quantile,
+                              sample_number=pseudo_labeling_sample_number,
+                              resplit=pseudo_labeling_resplit,
                               random_state=random_state)
             steps.append(step)
             two_stage = True

@@ -93,8 +93,18 @@ def test_with_cd():
     experiment_with_bank_data(dict(collinearity_detection=True), {})
 
 
-def test_with_pl():
+def test_with_pl_threshold():
     experiment_with_bank_data(dict(drift_detection=False, pseudo_labeling=True), {})
+
+
+def test_with_pl_quantile():
+    experiment_with_bank_data(dict(drift_detection=False, pseudo_labeling=True,
+                                   pseudo_labeling_strategy='quantile'), {})
+
+
+def test_with_pl_number():
+    experiment_with_bank_data(dict(drift_detection=False, pseudo_labeling=True,
+                                   pseudo_labeling_strategy='number'), {})
 
 
 def test_with_pi():
