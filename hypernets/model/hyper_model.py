@@ -212,9 +212,7 @@ class HyperModel():
 
     def final_train(self, space_sample, X, y, **kwargs):
         estimator = self._get_estimator(space_sample)
-        if self.discriminator:
-            estimator.set_discriminator(self.discriminator)
-
+        estimator.set_discriminator(None)
         estimator.fit(X, y, **kwargs)
         return estimator
 
