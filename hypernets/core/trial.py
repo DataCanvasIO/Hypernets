@@ -100,9 +100,10 @@ class TrialHistory():
             return top1[0]
 
     def get_top(self, n=10):
-        if len(self.trials) <= 0:
+        valid_trials = [t for t in self.trials if t.succeeded]
+        if len(valid_trials) <= 0:
             return []
-        sorted_trials = sorted(self.trials, key=lambda t: t.reward,
+        sorted_trials = sorted(valid_trials, key=lambda t: t.reward,
                                reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])
         if n > len(sorted_trials):
             n = len(sorted_trials)
