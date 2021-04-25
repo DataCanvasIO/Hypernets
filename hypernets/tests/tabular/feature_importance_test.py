@@ -3,7 +3,7 @@ __author__ = 'yangjian'
 """
 
 """
-
+import numpy as np
 from collections import defaultdict
 
 from scipy.cluster import hierarchy
@@ -15,6 +15,7 @@ from hypernets.examples.plain_model import train
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.feature_importance import feature_importance_batch
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
+from hypernets.core import set_random_state
 
 
 class Test_FeatureImportance():
@@ -47,7 +48,8 @@ class Test_FeatureImportance():
                                      'contact', 'day', 'month', 'duration', 'campaign', 'pdays', 'poutcome']
 
     def test_basic(self):
-        df = dsutils.load_bank().head(100)
+        set_random_state(9527)
+        df = dsutils.load_bank().head(3000)
         encoder = MultiLabelEncoder()
         df = encoder.fit_transform(df)
         y = df.pop('y')
@@ -59,5 +61,12 @@ class Test_FeatureImportance():
         best_trials = hm.get_top_trials(3)
         estimators = [hm.load_estimator(trial.model_file) for trial in best_trials]
 
-        importances = feature_importance_batch(estimators, X_test, y_test, get_scorer('roc_auc_ovr'), n_repeats=2)
-        assert importances
+        importances = feature_importance_batch(estimators, X_test, y_test, get_scorer('roc_auc_ovr'), n_jobs=1,
+                                               n_repeats=2)
+        feature_index = np.argwhere(importances.importances_mean < 1e-5)
+        selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
+        unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
+        set_random_state(None)
+
+        assert selected_features
+        assert unselected_features
