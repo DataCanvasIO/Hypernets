@@ -7,8 +7,9 @@ import numpy as np
 from sklearn.inspection import permutation_importance as sk_permutation_importance
 from sklearn.utils import Bunch
 
-from hypernets.utils import logging
 from hypernets.tabular import dask_ex as dex
+from hypernets.utils import logging
+from .cfg import TabularCfg as c
 
 logger = logging.get_logger(__name__)
 
@@ -62,9 +63,18 @@ def feature_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
     importances = []
 
     if dex.is_dask_dataframe(X):
+        X_shape = dex.compute(X.shape)[0]
+        if X_shape[0] > c.permutation_importance_sample_limit:
+            frac = c.permutation_importance_sample_limit / X_shape[0]
+            X = X.sample(frac=frac, random_state=random_state)
         permutation_importance = dex.permutation_importance
     else:
+        if X.shape[0] > c.permutation_importance_sample_limit:
+            X = X.sample(n=c.permutation_importance_sample_limit, random_state=random_state)
         permutation_importance = sk_permutation_importance
+
+    if n_jobs is None:
+        n_jobs = c.joblib_njobs
 
     for i, est in enumerate(estimators):
         logger.info(f'score permutation importance by estimator {i}/{len(estimators)}')
