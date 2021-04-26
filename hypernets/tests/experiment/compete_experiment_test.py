@@ -32,6 +32,7 @@ def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask
         'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
         'scorer': scorer,
         'ensemble_size': 0,
+        'drift_detection': False,
         **init_kwargs
     }
     run_kwargs = {
@@ -85,20 +86,37 @@ def test_without_cv():
     experiment_with_bank_data(dict(cv=False), {})
 
 
-def test_without_dd():
-    experiment_with_bank_data(dict(drift_detection=False), {})
+def test_with_dd():
+    experiment_with_bank_data(dict(drift_detection=True), {})
 
 
 def test_with_cd():
     experiment_with_bank_data(dict(collinearity_detection=True), {})
 
 
+def test_with_fi_threshold():
+    experiment_with_bank_data(dict(feature_selection=True,
+                                   feature_selection_threshold=0.0000001), {})
+
+
+def test_with_fi_quantile():
+    experiment_with_bank_data(dict(feature_selection=True,
+                                   feature_selection_strategy='quantile',
+                                   feature_selection_quantile=0.4), {})
+
+
+def test_with_fi_number():
+    experiment_with_bank_data(dict(feature_selection=True,
+                                   feature_selection_strategy='number',
+                                   feature_selection_number=10), {})
+
+
 def test_with_pl_threshold():
-    experiment_with_bank_data(dict(drift_detection=False, pseudo_labeling=True), {})
+    experiment_with_bank_data(dict(pseudo_labeling=True), {})
 
 
 def test_with_pl_quantile():
-    experiment_with_bank_data(dict(drift_detection=False, pseudo_labeling=True,
+    experiment_with_bank_data(dict(pseudo_labeling=True,
                                    pseudo_labeling_strategy='quantile'), {})
 
 
@@ -108,21 +126,20 @@ def test_with_pl_number():
 
 
 def test_with_pi():
-    experiment_with_bank_data(dict(drift_detection=False,
-                                   feature_reselection=True,
-                                   feature_reselection_threshold=0.001), {})
+    experiment_with_bank_data(dict(feature_reselection=True,
+                                   feature_reselection_threshold=0.0001), {})
 
 
 def test_with_pl_dask():
-    experiment_with_bank_data(dict(cv=False, drift_detection=False, pseudo_labeling=True), {},
+    experiment_with_bank_data(dict(cv=False, pseudo_labeling=True), {},
                               with_dask=True)
 
 
 def test_with_ensemble_dask():
-    experiment_with_bank_data(dict(ensemble_size=5, cv=False, drift_detection_num_folds=3), {},
+    experiment_with_bank_data(dict(ensemble_size=5, cv=False), {},
                               with_dask=True)
 
 
 def test_with_cv_ensemble_dask():
-    experiment_with_bank_data(dict(ensemble_size=5, cv=True, drift_detection=False), {},
+    experiment_with_bank_data(dict(ensemble_size=5, cv=True), {},
                               row_count=6000, with_dask=True)

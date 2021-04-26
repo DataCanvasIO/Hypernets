@@ -13,6 +13,65 @@ from .cfg import TabularCfg as c
 
 logger = logging.get_logger(__name__)
 
+_STRATEGY_THRESHOLD = 'threshold'
+_STRATEGY_QUANTILE = 'quantile'
+_STRATEGY_NUMBER = 'number'
+_STRATEGY_DEFAULT = _STRATEGY_THRESHOLD
+
+_DEFAULT_THRESHOLD = 0.1
+_DEFAULT_QUANTILE = 0.2
+_DEFAULT_TOP_PERCENT = 0.8
+
+
+def select_by_feature_importance(feature_importance, strategy=None,
+                                 threshold=None, quantile=None, number=None):
+    assert isinstance(feature_importance, (list, tuple, np.ndarray)) and len(feature_importance) > 0
+
+    if strategy is None:
+        if threshold is not None:
+            strategy = _STRATEGY_THRESHOLD
+        elif number is not None:
+            strategy = _STRATEGY_NUMBER
+        elif quantile is not None:
+            strategy = _STRATEGY_QUANTILE
+        else:
+            strategy = _STRATEGY_DEFAULT
+
+    if strategy == _STRATEGY_THRESHOLD:
+        if threshold is None:
+            threshold = _DEFAULT_THRESHOLD
+        assert 0 < threshold < 1.0
+    elif strategy == _STRATEGY_NUMBER:
+        if number is None:
+            number = len(feature_importance) * _DEFAULT_TOP_PERCENT
+        assert 0 < number < len(feature_importance)
+    elif strategy == _STRATEGY_QUANTILE:
+        if quantile is None:
+            quantile = _DEFAULT_QUANTILE
+        assert 0 < quantile < 1.0
+    else:
+        raise ValueError(f'Unsupported strategy: {strategy}')
+
+    feature_importance = np.array(feature_importance)
+    idx = np.arange(len(feature_importance))
+
+    if strategy == _STRATEGY_THRESHOLD:
+        selected = np.where(np.where(feature_importance >= threshold, idx, -1) >= 0)[0]
+    elif strategy == _STRATEGY_QUANTILE:
+        q = np.quantile(feature_importance, quantile)
+        selected = np.where(np.where(feature_importance >= q, idx, -1) >= 0)[0]
+    elif strategy == _STRATEGY_NUMBER:
+        pos = len(feature_importance) - number
+        sorted = np.argsort(np.argsort(feature_importance))
+        selected = np.where(sorted >= pos)[0]
+    else:
+        raise ValueError(f'Unsupported strategy: {strategy}')
+
+    unselected = list(set(range(len(feature_importance))) - set(selected))
+    unselected = np.array(unselected)
+
+    return selected, unselected
+
 
 def feature_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
                              n_jobs=None, random_state=None):

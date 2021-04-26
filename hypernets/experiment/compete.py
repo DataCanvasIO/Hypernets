@@ -21,8 +21,9 @@ from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
 from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
-from hypernets.tabular.feature_importance import feature_importance_batch
+from hypernets.tabular.feature_importance import feature_importance_batch, select_by_feature_importance
 from hypernets.tabular.feature_selection import select_by_multicollinearity
+from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
 from hypernets.utils import hash_data, logging, fs, isnotebook, const
@@ -401,6 +402,79 @@ class DriftDetectStep(FeatureSelectStep):
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
 
+class FeatureImportanceSelectionStep(FeatureSelectStep):
+    def __init__(self, experiment, name, strategy, threshold, quantile, number):
+        super(FeatureImportanceSelectionStep, self).__init__(experiment, name)
+
+        self.strategy = strategy
+        self.threshold = threshold
+        self.quantile = quantile
+        self.number = number
+
+        # fitted
+        self.features_ = None
+        # self.selected_features_ = None # super attribute
+        self.unselected_features_ = None
+        self.importances_ = None
+
+    def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        if _is_notebook:
+            display_markdown('### Evaluate feature importance', raw=True)
+
+        self.step_start('evaluate feature importance')
+
+        preprocessor = general_preprocessor(X_train)
+        estimator = general_estimator(X_train, task=self.task)
+        estimator.fit(preprocessor.fit_transform(X_train, y_train), y_train)
+        importances = estimator.feature_importances_
+        self.step_progress('training general estimator')
+
+        selected, unselected = \
+            select_by_feature_importance(importances, self.strategy,
+                                         threshold=self.threshold,
+                                         quantile=self.quantile,
+                                         number=self.number)
+
+        features = X_train.columns.to_list()
+        selected_features = [features[i] for i in selected]
+        unselected_features = [features[i] for i in unselected]
+        self.step_progress('select by importances')
+
+        if unselected_features:
+            X_train = X_train[selected_features]
+            if X_eval is not None:
+                X_eval = X_eval[selected_features]
+            if X_test is not None:
+                X_test = X_test[selected_features]
+
+        output_feature_importances_ = {
+            'features': features,
+            'importances': importances,
+            'selected_features': selected_features,
+            'unselected_features': unselected_features}
+
+        self.step_progress('drop features')
+        self.step_end(output=output_feature_importances_)
+
+        if _is_notebook:
+            display_markdown('#### feature selection', raw=True)
+            is_selected = [i in selected for i in range(len(importances))]
+            df = pd.DataFrame(
+                zip(X_train.columns.to_list(), importances, is_selected),
+                columns=['feature', 'importance', 'selected'])
+            df = df.sort_values('importance', axis=0, ascending=False)
+            display(df)
+        elif logger.is_info_enabled():
+            logger.info(f'{self.name} drop {len(unselected_features)} columns, {len(selected_features)} kept')
+
+        self.features_ = features
+        self.selected_features_ = selected_features if len(unselected_features) > 0 else None
+        self.unselected_features_ = unselected_features
+        self.importances_ = importances
+
+        return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+
 class PermutationImportanceSelectionStep(FeatureSelectStep):
 
     def __init__(self, experiment, name, scorer, estimator_size, importance_threshold):
@@ -418,9 +492,9 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         if _is_notebook:
-            display_markdown('### Evaluate feature importance', raw=True)
+            display_markdown('### Evaluate permutation importance', raw=True)
 
-        self.step_start('evaluate feature importance')
+        self.step_start('evaluate permutation importance')
 
         best_trials = hyper_model.get_top_trials(self.estimator_size)
         estimators = [hyper_model.load_estimator(trial.model_file) for trial in best_trials]
@@ -870,6 +944,11 @@ class CompeteExperiment(SteppedExperiment):
                  drift_detection_remove_size=0.1,
                  drift_detection_min_features=10,
                  drift_detection_num_folds=5,
+                 feature_selection=False,
+                 feature_selection_strategy=None,
+                 feature_selection_threshold=None,
+                 feature_selection_quantile=None,
+                 feature_selection_number=None,
                  ensemble_size=20,
                  feature_reselection=False,
                  feature_reselection_estimator_size=10,
@@ -938,6 +1017,16 @@ class CompeteExperiment(SteppedExperiment):
         drift_detection_remove_size : float, (default=0.1)
         drift_detection_min_features : int, (default=10)
         drift_detection_num_folds : int, (default=5)
+        feature_selection: bool, (default=False)
+            Whether to select features by *feature_importances_*.
+        feature_selection_strategy : str, (default='threshold')
+            Strategy to select features(*threshold*, *number* or *quantile*).
+        feature_selection_threshold : float, (default=0.1)
+            Confidence threshold of feature_importance. Only valid when *feature_selection_strategy* is 'threshold'.
+        feature_selection_quantile:
+            Confidence quantile of feature_importance. Only valid when *feature_selection_strategy* is 'quantile'.
+        feature_selection_number:
+            Expected feature number to keep. Only valid when *feature_selection_strategy* is 'number'.
         feature_reselection : bool, (default=True)
             Whether to enable two stage feature selection and searching
         feature_reselection_estimator_size : int, (default=10)
@@ -1006,6 +1095,14 @@ class CompeteExperiment(SteppedExperiment):
                                          remove_size=drift_detection_remove_size,
                                          min_features=drift_detection_min_features,
                                          num_folds=drift_detection_num_folds))
+        # feature selection by importance
+        if feature_selection:
+            steps.append(FeatureImportanceSelectionStep(
+                self, 'feature_selection',
+                strategy=feature_selection_strategy,
+                threshold=feature_selection_threshold,
+                quantile=feature_selection_quantile,
+                number=feature_selection_number))
 
         # first-stage search
         steps.append(search_cls(self, 'space_search', cv=cv, num_folds=num_folds))

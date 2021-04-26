@@ -13,112 +13,17 @@ import numpy as np
 import pandas as pd
 from lightgbm.sklearn import LGBMClassifier
 from sklearn import model_selection as sksel
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, make_scorer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
 
-from hypernets.utils import logging
 from hypernets.tabular import dask_ex as dex
-from hypernets.tabular import sklearn_ex as skex
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
-from hypernets.tabular.dataframe_mapper import DataFrameMapper
+from hypernets.utils import logging
+from .general import general_preprocessor, general_estimator
 
 logger = logging.getLogger(__name__)
 
 roc_auc_scorer = make_scorer(roc_auc_score, greater_is_better=True, needs_threshold=True)
 matthews_corrcoef_scorer = make_scorer(matthews_corrcoef)
-
-
-def general_preprocessor(X):
-    if dex.is_dask_dataframe(X):
-        import dask_ml.impute as dimp
-        import dask_ml.preprocessing as dpre
-        cat_steps = [('imputer_cat', dimp.SimpleImputer(strategy='constant', fill_value='')),
-                     ('encoder', dex.SafeOrdinalEncoder())]
-        num_steps = [('imputer_num', dimp.SimpleImputer(strategy='mean')),
-                     ('scaler', dpre.StandardScaler())]
-    else:
-        cat_steps = [('imputer_cat', SimpleImputer(strategy='constant', fill_value='')),
-                     ('encoder', skex.SafeOrdinalEncoder())]
-        num_steps = [('imputer_num', SimpleImputer(strategy='mean')),
-                     ('scaler', StandardScaler())]
-
-    cat_transformer = Pipeline(steps=cat_steps)
-    num_transformer = Pipeline(steps=num_steps)
-
-    preprocessor = DataFrameMapper(features=[(column_object_category_bool, cat_transformer),
-                                             (column_number_exclude_timedelta, num_transformer)],
-                                   input_df=True,
-                                   df_out=True)
-    return preprocessor
-
-
-def _wrap_predict_proba(estimator):
-    orig_predict_proba = estimator.predict_proba
-
-    def __predict_proba(*args, **kwargs):
-        proba = orig_predict_proba(*args, **kwargs)
-        proba = dex.fix_binary_predict_proba_result(proba)
-        return proba
-
-    setattr(estimator, '_orig_predict_proba', orig_predict_proba)
-    setattr(estimator, 'predict_proba', __predict_proba)
-    return estimator
-
-
-def _get_estimator(X, estimator=None):
-    def default_gbm():
-        return LGBMClassifier(n_estimators=50,
-                              num_leaves=15,
-                              max_depth=5,
-                              subsample=0.5,
-                              subsample_freq=1,
-                              colsample_bytree=0.8,
-                              reg_alpha=1,
-                              reg_lambda=1,
-                              importance_type='gain', )
-
-    def default_dt():
-        return DecisionTreeClassifier(min_samples_leaf=20, min_impurity_decrease=0.01)
-
-    def default_rf():
-        return RandomForestClassifier(min_samples_leaf=20, min_impurity_decrease=0.01)
-
-    def default_dask_xgb():
-        import dask_xgboost
-        return dask_xgboost.XGBClassifier(max_depth=5,
-                                          n_estimators=50,
-                                          min_child_weight=3,
-                                          gamma=1,
-                                          # reg_alpha=0.1,
-                                          # reg_lambda=0.1,
-                                          subsample=0.6,
-                                          colsample_bytree=0.6,
-                                          eval_metric='auc',
-                                          # objective='binary:logitraw',
-                                          tree_method='approx', )
-
-    if dex.is_dask_dataframe(X):
-        try:
-            estimator_ = default_dask_xgb()
-            estimator_ = _wrap_predict_proba(estimator_)
-        except ImportError:  # failed to import dask_xgboost
-            estimator_ = default_gbm()
-            estimator_ = dex.wrap_local_estimator(estimator_)
-    else:
-        if estimator is None or estimator == 'gbm':
-            estimator_ = default_gbm()
-        elif estimator == 'dt':
-            estimator_ = default_dt()
-        elif estimator == 'rf':
-            estimator_ = default_rf()
-        else:
-            estimator_ = copy.deepcopy(estimator)
-
-    return estimator_
 
 
 class FeatureSelectionCallback():
@@ -309,7 +214,7 @@ class DriftDetector():
                 x_train_fold, y_train_fold = X_values.iloc[train_idx], y_values.iloc[train_idx]
                 x_val_fold, y_val_fold = X_values.iloc[valid_idx], y_values.iloc[valid_idx]
 
-            estimator = _get_estimator(X_merge, self.estimator_)
+            estimator = general_estimator(X_merge, self.estimator_)
             kwargs = {}
             # if isinstance(estimator, dask_xgboost.XGBClassifier):
             #     kwargs['eval_set'] = [(x_val_fold.compute(), y_val_fold.compute())]
@@ -476,13 +381,13 @@ def covariate_shift_score(X_train, X_test, scorer=None, cv=None, copy_data=True)
         x = X_merge[[c]]
         if dex.is_dask_dataframe(X_merge):
             x = x.compute()
-        model = LGBMClassifier()
+        model = general_estimator(X_merge)
         if cv is None:
-            mixed_x_train, mixed_x_test, mixed_y_train, mixed_y_test = sksel.train_test_split(x, y, test_size=0.3,
-                                                                                              random_state=9527,
-                                                                                              stratify=y)
-
-            model.fit(mixed_x_train, mixed_y_train, eval_set=(mixed_x_test, mixed_y_test), early_stopping_rounds=20,
+            mixed_x_train, mixed_x_test, mixed_y_train, mixed_y_test = \
+                sksel.train_test_split(x, y, test_size=0.3, random_state=9527, stratify=y)
+            model.fit(mixed_x_train, mixed_y_train,
+                      eval_set=(mixed_x_test, mixed_y_test),
+                      early_stopping_rounds=20,
                       verbose=False)
             score = scorer(model, mixed_x_test, mixed_y_test)
         else:
