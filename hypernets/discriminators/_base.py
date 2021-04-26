@@ -11,6 +11,7 @@ class BaseDiscriminator():
     """
     Discriminator is used to determine whether to continue training
     """
+
     def __init__(self, min_trials=5, min_steps=5, stride=1, history: TrialHistory = None, optimize_direction='min'):
         self.history = history
         self.min_trilas = min_trials
@@ -65,6 +66,8 @@ def get_percentile_score(history, n_step, group_id, percentile, sign=1):
 def get_previous_trials_scores(history, from_step, to_step, group_id):
     trial_scores = []
     for trial in history.trials:
+        if not trial.succeeded:
+            continue
         scores = trial.iteration_scores.get(group_id)
         if scores and len(scores) >= (to_step + 1):
             trial_scores.append(scores[from_step:(to_step + 1)])
