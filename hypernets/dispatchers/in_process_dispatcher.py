@@ -74,9 +74,11 @@ class InProcessDispatcher(Dispatcher):
                 if _is_notebook:
                     df_summary = pd.DataFrame([(trial_no, last_reward, hyper_model.best_trial_no,
                                                 hyper_model.best_reward,
-                                                time.time() - start_time, max_trials)],
+                                                time.time() - start_time,
+                                                len([t for t in hyper_model.history.trials if t.succeeded]),
+                                                max_trials)],
                                               columns=['trial No.', 'Previous reward', 'Best trial', 'Best reward',
-                                                       'Total elapsed',
+                                                       'Total elapsed', 'Valid trials',
                                                        'Max trials'])
                     if search_summary_display_id is None:
                         handle = display(df_summary, display_id=True)

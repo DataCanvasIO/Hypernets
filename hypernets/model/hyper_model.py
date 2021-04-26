@@ -11,6 +11,7 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..dispatchers import get_dispatcher
 from ..utils import logging, infer_task_type as _infer_task_type
+from ..discriminators import UnPromisingTrial
 
 logger = logging.get_logger(__name__)
 
@@ -67,6 +68,8 @@ class HyperModel():
             else:
                 estimator.fit(X, y, **fit_kwargs)
             succeeded = True
+        except UnPromisingTrial as e:
+            logger.info(f'{e}')
         except Exception as e:
             logger.error('Estimator fit failed!')
             logger.error(e)
