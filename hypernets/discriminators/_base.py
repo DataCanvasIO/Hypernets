@@ -6,6 +6,8 @@ __author__ = 'yangjian'
 import numpy as np
 from ..core import TrialHistory
 
+class UnPromisingTrial(Exception):
+    pass
 
 class BaseDiscriminator():
     """
