@@ -63,12 +63,14 @@ class Test_FeatureImportance():
 
         importances = feature_importance_batch(estimators, X_test, y_test, get_scorer('roc_auc_ovr'), n_jobs=1,
                                                n_repeats=2, random_state=get_random_state())
+
         feature_index = np.argwhere(importances.importances_mean < 1e-5)
         selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
-        unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
+        unselected_features = [c for c in X_train.columns.to_list() if c not in selected_features]
         set_random_state(None)
 
         print('selected:  ', selected_features)
         print('unselected:', unselected_features)
-        assert selected_features
-        assert unselected_features
+        assert selected_features == ['job', 'marital', 'education', 'balance', 'housing', 'loan', 'contact', 'day',
+                                     'duration', 'campaign', 'pdays', 'previous', 'poutcome']
+        assert unselected_features == ['age', 'default', 'month']
