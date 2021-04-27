@@ -104,12 +104,13 @@ class HyperSpace(Mutable):
     def _compile_space(self):
         assert not self._is_compiled, 'HyperSpace does not allow to compile repeatedly.'
         space_out = []
-        counter = []
+        counter = 0
         start_ts = time.time()
 
         def compile_module(module):
             module.compile()
-            counter.append(0)
+            nonlocal counter
+            counter += 1
             if len(self.get_outputs(module)) <= 0:
                 space_out.append(module)
             return True
@@ -117,7 +118,7 @@ class HyperSpace(Mutable):
         self.traverse(compile_module, direction='forward')
         end_ts = time.time()
         if logger.is_info_enabled():
-            logger.debug(f'Compile Space: compiled {len(counter)} modules in {end_ts - start_ts} seconds.')
+            logger.debug(f'Compile Space: compiled {counter} modules in {end_ts - start_ts} seconds.')
         self._is_compiled = True
         self._outputs = set(space_out)
 
