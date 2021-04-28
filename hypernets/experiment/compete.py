@@ -139,8 +139,12 @@ class DataCleanStep(ExperimentStep):
 
         # fitted
         self.selected_features_ = None
-        self.data_cleaner = None
+        self.data_cleaner_ = None
+        self.detector_ = None
 
+    @cache(arg_keys=' X_train,y_train,X_test,X_eval,y_eval',
+           strategy='transform', transformer='cache_transform',
+           attrs_to_restore='selected_features_,data_cleaner_,detector_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         self.step_start('clean and split data')
         # 1. Clean Data
@@ -169,15 +173,18 @@ class DataCleanStep(ExperimentStep):
                     logger.debug('DriftDetector.train_test_split')
                     detector = dd.DriftDetector()
                     detector.fit(X_train, X_test)
-                    X_train, X_eval, y_train, y_eval = detector.train_test_split(X_train, y_train, test_size=eval_size)
+                    self.detector_ = detector
+                    X_train, X_eval, y_train, y_eval = \
+                        detector.train_test_split(X_train, y_train, test_size=eval_size)
                 else:
                     if self.task == const.TASK_REGRESSION or dex.is_dask_object(X_train):
-                        X_train, X_eval, y_train, y_eval = dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                                                random_state=self.random_state)
+                        X_train, X_eval, y_train, y_eval = \
+                            dex.train_test_split(X_train, y_train, test_size=eval_size,
+                                                 random_state=self.random_state)
                     else:
-                        X_train, X_eval, y_train, y_eval = dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                                                random_state=self.random_state,
-                                                                                stratify=y_train)
+                        X_train, X_eval, y_train, y_eval = \
+                            dex.train_test_split(X_train, y_train, test_size=eval_size,
+                                                 random_state=self.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
                     y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
@@ -219,12 +226,92 @@ class DataCleanStep(ExperimentStep):
             logger.info(f'{self.name} keep {len(selected_features)} columns')
 
         self.selected_features_ = selected_features
-        self.data_cleaner = data_cleaner
+        self.data_cleaner_ = data_cleaner
+
+        return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        self.step_start('clean and split data with cached status')
+        # 1. Clean Data
+        if self.cv and X_eval is not None and y_eval is not None:
+            logger.info(f'{self.name} cv enabled, so concat train data and eval data')
+            X_train = dex.concat_df([X_train, X_eval], axis=0)
+            y_train = dex.concat_df([y_train, y_eval], axis=0)
+            X_eval = None
+            y_eval = None
+
+        data_cleaner = self.data_cleaner_
+
+        logger.info(f'{self.name} transform train data')
+        X_train, y_train = data_cleaner.transform(X_train, y_train)
+        self.step_progress('fit_transform train set')
+
+        if X_test is not None:
+            logger.info(f'{self.name} transform test data')
+            X_test = data_cleaner.transform(X_test)
+            self.step_progress('transform X_test')
+
+        if not self.cv:
+            if X_eval is None or y_eval is None:
+                eval_size = self.experiment.eval_size
+                if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
+                    logger.debug('DriftDetector.train_test_split')
+                    detector = self.detector_
+                    X_train, X_eval, y_train, y_eval = \
+                        detector.train_test_split(X_train, y_train, test_size=eval_size)
+                else:
+                    if self.task == const.TASK_REGRESSION or dex.is_dask_object(X_train):
+                        X_train, X_eval, y_train, y_eval = \
+                            dex.train_test_split(X_train, y_train, test_size=eval_size,
+                                                 random_state=self.random_state)
+                    else:
+                        X_train, X_eval, y_train, y_eval = \
+                            dex.train_test_split(X_train, y_train, test_size=eval_size,
+                                                 random_state=self.random_state, stratify=y_train)
+                if self.task != const.TASK_REGRESSION:
+                    y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
+                    y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
+                    assert y_train_uniques == y_eval_uniques, \
+                        'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
+                self.step_progress('split into train set and eval set')
+            else:
+                X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
+                self.step_progress('transform eval set')
+
+        self.step_end(output={'X_train.shape': X_train.shape,
+                              'y_train.shape': y_train.shape,
+                              'X_eval.shape': None if X_eval is None else X_eval.shape,
+                              'y_eval.shape': None if y_eval is None else y_eval.shape,
+                              'X_test.shape': None if X_test is None else X_test.shape})
+
+        selected_features = self.selected_features_
+
+        if _is_notebook:
+            display_markdown('### Data Cleaner', raw=True)
+
+            display(data_cleaner, display_id='output_cleaner_info1')
+            display_markdown('### Train set & Eval set', raw=True)
+
+            display_data = (X_train.shape,
+                            y_train.shape,
+                            X_eval.shape if X_eval is not None else None,
+                            y_eval.shape if y_eval is not None else None,
+                            X_test.shape if X_test is not None else None)
+            if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
+                display_data = [dex.compute(shape)[0] for shape in display_data]
+            display(pd.DataFrame([display_data],
+                                 columns=['X_train.shape',
+                                          'y_train.shape',
+                                          'X_eval.shape',
+                                          'y_eval.shape',
+                                          'X_test.shape']), display_id='output_cleaner_info2')
+        else:
+            logger.info(f'{self.name} keep {len(selected_features)} columns')
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def transform(self, X, y=None, **kwargs):
-        return self.data_cleaner.transform(X, y, **kwargs)
+        return self.data_cleaner_.transform(X, y, **kwargs)
 
 
 class MulticollinearityDetectStep(FeatureSelectStep):
@@ -344,6 +431,9 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
         self.unselected_features_ = None
         self.importances_ = None
 
+    @cache(arg_keys='X_train,y_train',
+           strategy='transform', transformer='cache_transform',
+           attrs_to_restore='selected_features_,unselected_features_,features_,importances_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         if _is_notebook:
             display_markdown('### Evaluate feature importance', raw=True)
