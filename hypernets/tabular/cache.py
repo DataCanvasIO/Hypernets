@@ -130,7 +130,7 @@ def decorate(fn, *, cache_dir, strategy,
             key_items = {}
 
             arg_kwargs = bind_args.arguments.get('kwargs', {}).copy()
-            arg_items = {k: v for k, v in bind_args.arguments.items() if k not in ['kwargs', 'self']}  # as dict
+            arg_items = {k: v for k, v in bind_args.arguments.items() if k not in ['self', ]}  # as dict
             arg_items.update(arg_kwargs)
 
             if arg_keys is not None:
