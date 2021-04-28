@@ -57,7 +57,8 @@ class CacheCallback:
         pass
 
 
-def cache(strategy=None, arg_keys=None, attr_keys=None, attrs_to_restore=None, transformer=None, callbacks=None):
+def cache(strategy=None, arg_keys=None, attr_keys=None, attrs_to_restore=None, transformer=None,
+          callbacks=None, cache_dir=None):
     assert strategy in [_STRATEGY_TRANSFORM, _STRATEGY_TRANSFORM, None]
     assert isinstance(arg_keys, (tuple, list, str, type(None)))
     assert isinstance(attr_keys, (tuple, list, str, type(None)))
@@ -72,13 +73,6 @@ def cache(strategy=None, arg_keys=None, attr_keys=None, attrs_to_restore=None, t
         attr_keys = [a.strip(' ') for a in attr_keys.split(',') if len(a.strip(' ')) > 0]
     if isinstance(attrs_to_restore, str):
         attrs_to_restore = [a.strip(' ') for a in attrs_to_restore.split(',') if len(a.strip(' ')) > 0]
-
-    cache_dir = conf.cache_dir
-    if conf.cache_strategy != 'disabled' and not fs.exists(cache_dir):
-        try:
-            fs.mkdirs(cache_dir, exist_ok=True)
-        except:
-            logger.warning(f'Failed to create cache directory "{cache_dir}".')
 
     if isinstance(callbacks, CacheCallback):
         callbacks = [callbacks]
@@ -108,6 +102,15 @@ def decorate(fn, *, cache_dir, strategy,
     if callbacks is None:
         callbacks = []
 
+    if cache_dir is None:
+        cache_dir = f'{conf.cache_dir}{fs.sep}{".".join([fn.__module__, fn.__qualname__])}'
+
+    if conf.cache_strategy != 'disabled' and not fs.exists(cache_dir):
+        try:
+            fs.mkdirs(cache_dir, exist_ok=True)
+        except:
+            logger.warning(f'Failed to create cache directory "{cache_dir}".')
+
     def _call(*args, **kwargs):
         assert len(args) > 0
 
@@ -133,8 +136,8 @@ def decorate(fn, *, cache_dir, strategy,
             arg_items = {k: v for k, v in bind_args.arguments.items() if k not in ['self', ]}  # as dict
             arg_items.update(arg_kwargs)
 
-            if arg_keys is not None:
-                key_items.update({k: arg_items.get(k) for k in key_items})
+            if arg_keys is not None and len(arg_keys) > 0:
+                key_items.update({k: arg_items.get(k) for k in arg_keys})
             else:
                 key_items.update(arg_items)
 
@@ -146,11 +149,9 @@ def decorate(fn, *, cache_dir, strategy,
             cache_key = hash_data(key_items)
 
             # join cache_path
-            if obj is None:
-                tag = fn.__name__
-            else:
-                tag = f'{type(obj).__name__}_{fn.__name__}'
-            cache_path = f'{cache_dir}{fs.sep}{tag}_{cache_key}'
+            if not fs.exists(cache_dir):
+                fs.mkdirs(cache_dir, exist_ok=True)
+            cache_path = f'{cache_dir}{fs.sep}{cache_key}'
 
             # detect and load cache
             if fs.exists(f'{cache_path}.meta'):
@@ -293,6 +294,18 @@ def _load_cache(cache_path):
 
     return data, meta
 
+
+def clear(cache_dir=None, fn=None):
+    assert fn is None or callable(fn)
+
+    if cache_dir is None:
+        cache_dir = conf.cache_dir
+    if callable(fn):
+        cache_dir = f'{cache_dir}{fs.sep}{".".join([fn.__module__, fn.__qualname__])}'
+
+    if fs.exists(cache_dir):
+        fs.rm(cache_dir, recursive=True)
+        fs.mkdirs(cache_dir, exist_ok=True)
 #
 #
 # class CacheLoader:
