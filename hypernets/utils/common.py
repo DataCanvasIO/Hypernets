@@ -11,8 +11,8 @@ import uuid
 from functools import partial
 from io import BytesIO
 
-import dask.dataframe as dd
 import dask.array as da
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 
@@ -146,11 +146,37 @@ def hash_dataframe(df, method='md5', index=False):
     return m.hexdigest()
 
 
+def _hash_array(arr):
+    if arr.shape[0] == 0:
+        v = np.array([], dtype='u8').reshape((-1, 1))
+    else:
+        v = pd.util.hash_pandas_object(pd.DataFrame(arr), index=False).values.reshape((-1, 1))
+
+    return v
+
+
+def hash_array(arr, method='md5'):
+    m = getattr(hashlib, method)()
+
+    if isinstance(arr, da.Array):
+        x = arr.map_blocks(_hash_array, dtype='u8').compute()
+    elif isinstance(arr, np.ndarray):
+        x = _hash_array(arr)
+    else:
+        x = _hash_array(np.array(arr))
+
+    np.vectorize(m.update, otypes=[None], signature='()->()')(x)
+
+    return m.hexdigest()
+
+
 def hash_data(data, method='md5'):
     if isinstance(data, (pd.DataFrame, dd.DataFrame)):
         return hash_dataframe(data, method=method)
     elif isinstance(data, (pd.Series, dd.Series)):
         return hash_dataframe(data.to_frame(), method=method)
+    elif isinstance(data, (np.ndarray, da.Array)):
+        return hash_array(data, method=method)
 
     if isinstance(data, (bytes, bytearray)):
         pass
