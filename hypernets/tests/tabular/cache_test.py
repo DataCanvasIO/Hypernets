@@ -9,21 +9,21 @@ class CacheCounter(CacheCallback):
         super(CacheCounter, self).__init__()
 
         self.enter_counter = Counter()
-        self.aplay_counter = Counter()
+        self.apply_counter = Counter()
         self.store_counter = Counter()
 
     def on_enter(self, fn, *args, **kwargs):
         self.enter_counter()
 
     def on_apply(self, fn, cached_data, *args, **kwargs):
-        self.aplay_counter()
+        self.apply_counter()
 
     def on_store(self, fn, cached_data, *args, **kwargs):
         self.store_counter()
 
     def reset(self):
         self.enter_counter.reset()
-        self.aplay_counter.reset()
+        self.apply_counter.reset()
         self.store_counter.reset()
 
 
@@ -78,9 +78,9 @@ def test_cache_dask():
 
     assert hash_data(X) == hash_data(X1) == hash_data(X2)
     assert cache_counter.enter_counter.value == 2
-    assert cache_counter.aplay_counter.value >= 2
+    assert cache_counter.apply_counter.value <= 2
     assert cache_counter.store_counter.value <= 2
-    assert cache_counter.aplay_counter.value + cache_counter.store_counter.value == 2
+    assert cache_counter.apply_counter.value + cache_counter.store_counter.value == 2
 
     cache_counter.reset()
     t3 = CachedDaskMultiLabelEncoder()
@@ -90,6 +90,6 @@ def test_cache_dask():
 
     assert hash_data(X3) == hash_data(X4)
     assert cache_counter.enter_counter.value == 2
-    assert cache_counter.aplay_counter.value >= 2
+    assert cache_counter.apply_counter.value <= 2
     assert cache_counter.store_counter.value <= 2
-    assert cache_counter.aplay_counter.value + cache_counter.store_counter.value == 2
+    assert cache_counter.apply_counter.value + cache_counter.store_counter.value == 2
