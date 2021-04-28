@@ -142,7 +142,7 @@ class DataCleanStep(ExperimentStep):
         self.data_cleaner_ = None
         self.detector_ = None
 
-    @cache(arg_keys=' X_train,y_train,X_test,X_eval,y_eval',
+    @cache(arg_keys='X_train,y_train,X_test,X_eval,y_eval',
            strategy='transform', transformer='cache_transform',
            attrs_to_restore='selected_features_,data_cleaner_,detector_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
