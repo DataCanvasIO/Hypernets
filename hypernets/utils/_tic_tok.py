@@ -2,7 +2,7 @@ import inspect
 import sys as _sys
 import time
 import traceback as _traceback
-from collections import Iterable, defaultdict
+from collections import defaultdict
 from functools import partial
 
 from hypernets.conf import configure, Configurable, Dict, String, Bool
@@ -97,7 +97,7 @@ def _format_value(v, expand_collection=True):
             if len(r) >= _COLLECTION_LIMIT:
                 r['...'] = '...'
                 break
-    elif isinstance(v, Iterable) and expand_collection:
+    elif hasattr(v, '__iter__') and expand_collection:
         r = []
         for e in v:
             r.append(_format_value(e, False))
