@@ -32,6 +32,11 @@ class CachedMultiLabelEncoder(skex.MultiLabelEncoder):
     def fit_transform(self, X, *args):
         return super().fit_transform(X, *args)
 
+    @cache(attr_keys='columns', attrs_to_restore='columns,encoders')
+    def fit_transform_as_tuple_result(self, X, *args):
+        Xt = super().fit_transform(X.copy(), *args)
+        return X, Xt
+
 
 class CachedDaskMultiLabelEncoder(dex.MultiLabelEncoder):
     cache_counter = CacheCounter()
@@ -59,8 +64,15 @@ def test_cache():
     X1 = t1.fit_transform(df.copy())
     t2 = CachedMultiLabelEncoder()
     X2 = t2.fit_transform(df.copy())
-
     assert hash_data(X) == hash_data(X1) == hash_data(X2)
+
+    t3 = CachedMultiLabelEncoder()
+    X3 = t3.fit_transform_as_tuple_result(df.copy())
+    t4 = CachedMultiLabelEncoder()
+    X4 = t4.fit_transform_as_tuple_result(df.copy())
+    assert isinstance(X3, (tuple, list))
+    assert isinstance(X4, (tuple, list))
+    assert hash_data(X3[1]) == hash_data(X4[1])
 
 
 def test_cache_dask():
