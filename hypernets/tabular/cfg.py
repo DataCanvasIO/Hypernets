@@ -1,6 +1,6 @@
-from hypernets.conf import configure, Configurable, Int
+from hypernets.conf import configure, Configurable, Int, String, Enum
 
-from collections import namedtuple
+
 @configure()
 class TabularCfg(Configurable):
     joblib_njobs = \
@@ -12,3 +12,16 @@ class TabularCfg(Configurable):
         Int(10000, min=100,
             help='maximum number to run permutation importance.'
             ).tag(config=True)
+
+    cache_strategy = \
+        Enum(['data', 'transform', 'disabled'],
+             default_value='transform',
+             config=True,
+             help='dispatcher backend',
+             )
+
+    cache_dir = \
+        String('cache_dir',
+               allow_none=False,
+               config=True,
+               help='the directory to store cached data, read/write permissions are required.')

@@ -6,7 +6,6 @@ __author__ = 'yangjian'
 """
 import copy
 import inspect
-import pickle
 
 import numpy as np
 import pandas as pd
@@ -19,6 +18,7 @@ from sklearn.pipeline import Pipeline
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
+from hypernets.tabular.cache import cache
 from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
 from hypernets.tabular.feature_importance import feature_importance_batch, select_by_feature_importance
@@ -26,7 +26,7 @@ from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
-from hypernets.utils import hash_data, logging, fs, isnotebook, const
+from hypernets.utils import logging, isnotebook, const
 
 logger = logging.get_logger(__name__)
 
@@ -89,82 +89,6 @@ class ExperimentStep(BaseEstimator):
         if 'experiment' in state.keys():
             state['experiment'] = None
         return state
-
-
-def cache_fit(attr_names, keys=('X_train', 'y_train', 'X_test', 'X_eval', 'y_eval'), transform_fn=None):
-    assert isinstance(attr_names, (tuple, list, str)) and len(attr_names) > 0
-    assert callable(transform_fn) or isinstance(transform_fn, str) or (transform_fn is None)
-
-    if isinstance(attr_names, str):
-        attr_names = [a.strip(' ') for a in attr_names.split(',') if len(a.strip(' ')) > 0]
-
-    def decorate(fn):
-        def _call(step, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-            assert isinstance(step, ExperimentStep)
-
-            result = None
-
-            all_items = dict(X_train=X_train, y_train=y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
-                             **kwargs)
-            pre_hashed_types = (pd.DataFrame, pd.Series, dex.dd.DataFrame, dex.dd.Series)
-            key_items = {k: v if not isinstance(v, pre_hashed_types) else hash_data(v)
-                         for k, v in all_items.items() if keys is None or k in keys}
-            key_items['step_params'] = step.get_params(deep=False)
-            key = hash_data(key_items)
-
-            cache_dir = getattr(hyper_model, 'cache_dir', None)
-            if cache_dir is None:
-                cache_dir = 'step_cache'
-                try:
-                    fs.mkdirs(cache_dir, exist_ok=True)
-                except:
-                    pass
-            cache_file = f'{cache_dir}{fs.sep}cache_{step.name}_{key}.pkl'
-
-            # load cache
-            try:
-                if fs.exists(cache_file):
-                    with fs.open(cache_file, 'rb') as f:
-                        cached_data = pickle.load(f)
-                    for k in attr_names:
-                        v = cached_data[k]
-                        setattr(step, k, v)
-
-                    if isinstance(transform_fn, str):
-                        tfn = getattr(step, transform_fn)
-                        result = tfn(hyper_model,
-                                     X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
-                                     **kwargs)
-                    elif callable(transform_fn):
-                        tfn = transform_fn
-                        result = tfn(step, hyper_model,
-                                     X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
-                                     **kwargs)
-                    else:
-                        result = (X_train, y_train, X_test, X_eval, y_eval)
-            except Exception as e:
-                logger.warning(e)
-
-            if result is None:
-                result = fn(step, hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
-                            **kwargs)
-
-                try:
-                    # store cache
-                    cached_data = {k: getattr(step, k) for k in attr_names}
-                    if 'keys' not in cached_data:
-                        cached_data['keys'] = key_items  # for info
-
-                    with fs.open(cache_file, 'wb') as f:
-                        pickle.dump(cached_data, f)
-                except Exception as e:
-                    logger.warning(e)
-
-            return result
-
-        return _call
-
-    return decorate
 
 
 class FeatureSelectStep(ExperimentStep):
@@ -308,7 +232,9 @@ class MulticollinearityDetectStep(FeatureSelectStep):
     def __init__(self, experiment, name):
         super().__init__(experiment, name)
 
-    @cache_fit('selected_features_', keys='X_train', transform_fn='cache_transform')
+    @cache(arg_keys='X_train',
+           strategy='transform', transformer='cache_transform',
+           attrs_to_restore='selected_features_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         if _is_notebook:
             display_markdown('### Drop features with collinearity', raw=True)
@@ -362,8 +288,9 @@ class DriftDetectStep(FeatureSelectStep):
         # fitted
         self.output_drift_detection_ = None
 
-    @cache_fit('selected_features_, output_drift_detection_',
-               keys='X_train,X_test', transform_fn='cache_transform')
+    @cache(arg_keys='X_train,X_test',
+           strategy='transform', transformer='cache_transform',
+           attrs_to_restore='selected_features_, output_drift_detection_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         if X_test is not None:
             if _is_notebook:
