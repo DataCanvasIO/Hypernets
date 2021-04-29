@@ -73,8 +73,8 @@ def select_by_feature_importance(feature_importance, strategy=None,
     return selected, unselected
 
 
-def feature_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
-                             n_jobs=None, random_state=None):
+def permutation_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
+                                 n_jobs=None, random_state=None):
     """Evaluate the importance of features of a set of estimators
 
     Parameters
@@ -123,14 +123,15 @@ def feature_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
 
     if dex.is_dask_dataframe(X):
         X_shape = dex.compute(X.shape)[0]
-        if X_shape[0] > c.permutation_importance_sample_limit:
-            frac = c.permutation_importance_sample_limit / X_shape[0]
-            X = X.sample(frac=frac, random_state=random_state)
         permutation_importance = dex.permutation_importance
     else:
-        if X.shape[0] > c.permutation_importance_sample_limit:
-            X = X.sample(n=c.permutation_importance_sample_limit, random_state=random_state)
+        X_shape = X.shape
         permutation_importance = sk_permutation_importance
+
+    if X_shape[0] > c.permutation_importance_sample_limit:
+        logger.info(f'{X_shape[0]} rows data found, sample to {c.permutation_importance_sample_limit}')
+        frac = c.permutation_importance_sample_limit / X_shape[0]
+        X, _, y, _ = dex.train_test_split(X, y, train_size=frac, random_state=random_state)
 
     if n_jobs is None:
         n_jobs = c.joblib_njobs

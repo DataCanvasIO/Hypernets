@@ -21,7 +21,7 @@ from hypernets.tabular import drift_detection as dd
 from hypernets.tabular.cache import cache
 from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
-from hypernets.tabular.feature_importance import feature_importance_batch, select_by_feature_importance
+from hypernets.tabular.feature_importance import permutation_importance_batch, select_by_feature_importance
 from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
@@ -494,14 +494,18 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
 
 class PermutationImportanceSelectionStep(FeatureSelectStep):
 
-    def __init__(self, experiment, name, scorer, estimator_size, importance_threshold):
+    def __init__(self, experiment, name, scorer, estimator_size,
+                 strategy, threshold, quantile, number):
         assert scorer is not None
 
         super().__init__(experiment, name)
 
         self.scorer = scorer
         self.estimator_size = estimator_size
-        self.importance_threshold = importance_threshold
+        self.strategy = strategy
+        self.threshold = threshold
+        self.quantile = quantile
+        self.number = number
 
         # fixed
         self.unselected_features_ = None
@@ -518,9 +522,9 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
         self.step_progress('load estimators')
 
         if X_eval is None or y_eval is None:
-            importances = feature_importance_batch(estimators, X_train, y_train, self.scorer, n_repeats=5)
+            importances = permutation_importance_batch(estimators, X_train, y_train, self.scorer, n_repeats=5)
         else:
-            importances = feature_importance_batch(estimators, X_eval, y_eval, self.scorer, n_repeats=5)
+            importances = permutation_importance_batch(estimators, X_eval, y_eval, self.scorer, n_repeats=5)
 
         if _is_notebook:
             display_markdown('#### importances', raw=True)
@@ -529,9 +533,25 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
                 columns=['feature', 'importance', 'std']))
             display_markdown('#### feature selection', raw=True)
 
-        feature_index = np.argwhere(importances.importances_mean < self.importance_threshold)
-        selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
-        unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
+        # feature_index = np.argwhere(importances.importances_mean < self.threshold)
+        # selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
+        # unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
+        selected, unselected = select_by_feature_importance(importances.importances_mean,
+                                                            self.strategy,
+                                                            threshold=self.threshold,
+                                                            quantile=self.quantile,
+                                                            number=self.number)
+
+        if len(selected) > 0:
+            selected_features = [importances.columns[i] for i in selected]
+            unselected_features = [importances.columns[i] for i in unselected]
+        else:
+            msg = f'{self.name}: All features will be dropped with importance:{importances.importances_mean},' \
+                  f' so drop nothing. Change settings and try again pls.'
+            logger.warning(msg)
+            selected_features = importances.columns
+            unselected_features = []
+
         self.step_progress('calc importance')
 
         if unselected_features:
@@ -580,6 +600,10 @@ class SpaceSearchStep(ExperimentStep):
         model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
 
+        if model.get_best_trial() is None or model.get_best_trial().reward == 0:
+            raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
+
+        logger.info(f'{self.name} best_reward: {model.get_best_trial().reward}')
         self.step_end(output={'best_reward': model.get_best_trial().reward})
 
         return model, X_train, y_train, X_test, X_eval, y_eval
@@ -969,7 +993,10 @@ class CompeteExperiment(SteppedExperiment):
                  ensemble_size=20,
                  feature_reselection=False,
                  feature_reselection_estimator_size=10,
+                 feature_reselection_strategy=None,
                  feature_reselection_threshold=1e-5,
+                 feature_reselection_quantile=None,
+                 feature_reselection_number=None,
                  pseudo_labeling=False,
                  pseudo_labeling_strategy=None,
                  pseudo_labeling_proba_threshold=None,
@@ -1045,11 +1072,17 @@ class CompeteExperiment(SteppedExperiment):
         feature_selection_number:
             Expected feature number to keep. Only valid when *feature_selection_strategy* is 'number'.
         feature_reselection : bool, (default=True)
-            Whether to enable two stage feature selection and searching
+            Whether to enable two stage feature selection with permutation importance.
         feature_reselection_estimator_size : int, (default=10)
             The number of estimator to evaluate feature importance. Only valid when *feature_reselection* is True.
+        feature_reselection_strategy : str, (default='threshold')
+            Strategy to reselect features(*threshold*, *number* or *quantile*).
         feature_reselection_threshold : float, (default=1e-5)
-            The threshold for feature selection. Features with importance below the threshold will be dropped.  Only valid when *feature_reselection* is True.
+            Confidence threshold of the mean permutation importance. Only valid when *feature_reselection_strategy* is 'threshold'.
+        feature_reselection_quantile:
+            Confidence quantile of feature_importance. Only valid when *feature_reselection_strategy* is 'quantile'.
+        feature_reselection_number:
+            Expected feature number to keep. Only valid when *feature_reselection_strategy* is 'number'.
         ensemble_size : int, (default=20)
             The number of estimator to ensemble. During the AutoML process, a lot of models will be generated with different
             preprocessing pipelines, different models, and different hyperparameters. Usually selecting some of the models
@@ -1143,10 +1176,14 @@ class CompeteExperiment(SteppedExperiment):
 
         # importance selection
         if feature_reselection:
-            step = PermutationImportanceSelectionStep(self, 'feature_reselection',
-                                                      scorer=scorer,
-                                                      estimator_size=feature_reselection_estimator_size,
-                                                      importance_threshold=feature_reselection_threshold)
+            step = PermutationImportanceSelectionStep(
+                self, 'feature_reselection',
+                scorer=scorer,
+                estimator_size=feature_reselection_estimator_size,
+                strategy=feature_reselection_strategy,
+                threshold=feature_reselection_threshold,
+                quantile=feature_reselection_quantile,
+                number=feature_reselection_number)
             steps.append(step)
             two_stage = True
 

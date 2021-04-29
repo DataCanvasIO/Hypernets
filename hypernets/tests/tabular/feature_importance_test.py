@@ -14,11 +14,11 @@ from sklearn.model_selection import train_test_split
 from hypernets.core import set_random_state, get_random_state
 from hypernets.examples.plain_model import train
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.feature_importance import feature_importance_batch
+from hypernets.tabular.feature_importance import permutation_importance_batch
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 
 
-class Test_FeatureImportance():
+class Test_PermutationImportance():
 
     def test_collinear(self):
         df = dsutils.load_bank().head(10000)
@@ -56,13 +56,13 @@ class Test_FeatureImportance():
         df.drop(['id'], axis=1, inplace=True)
         X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=0.3, random_state=42)
 
-        hm, _ = train(X_train, y_train, X_test, y_test, max_trials=10)
+        hm, _ = train(X_train, y_train, X_test, y_test, max_trials=5)
 
         best_trials = hm.get_top_trials(3)
         estimators = [hm.load_estimator(trial.model_file) for trial in best_trials]
 
-        importances = feature_importance_batch(estimators, X_test, y_test, get_scorer('roc_auc_ovr'), n_jobs=1,
-                                               n_repeats=2, random_state=get_random_state())
+        importances = permutation_importance_batch(estimators, X_test, y_test, get_scorer('roc_auc_ovr'), n_jobs=1,
+                                                   n_repeats=5, random_state=get_random_state())
 
         feature_index = np.argwhere(importances.importances_mean < 1e-5)
         selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
