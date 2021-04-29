@@ -111,7 +111,7 @@ def decorate(fn, *, cache_dir, strategy,
         except:
             logger.warning(f'Failed to create cache directory "{cache_dir}".')
 
-    def _call(*args, **kwargs):
+    def _cache_call(*args, **kwargs):
         assert len(args) > 0
 
         obj = None
@@ -213,7 +213,7 @@ def decorate(fn, *, cache_dir, strategy,
 
         return result
 
-    return _call
+    return _cache_call
 
 
 def _store_cache(cache_path, data, meta):
