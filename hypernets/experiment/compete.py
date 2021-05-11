@@ -6,6 +6,7 @@ __author__ = 'yangjian'
 """
 import copy
 import inspect
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
@@ -50,13 +51,9 @@ class ExperimentStep(BaseEstimator):
         self.name = name
         self.experiment = experiment
 
-    def step_start(self, *args, **kwargs):
-        if self.experiment is not None:
-            self.experiment.step_start(*args, **kwargs)
-
-    def step_end(self, *args, **kwargs):
-        if self.experiment is not None:
-            self.experiment.step_end(*args, **kwargs)
+        # fitted
+        self.input_features_ = None
+        self.status_ = None  # None(not fit) or True(fit succeed) or False(fit failed)
 
     def step_progress(self, *args, **kwargs):
         if self.experiment is not None:
@@ -67,8 +64,10 @@ class ExperimentStep(BaseEstimator):
         return self.experiment.task if self.experiment is not None else None
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-        raise NotImplemented()
-        # return hyper_model, X_train, y_train, X_test, X_eval, y_eval,
+        self.input_features_ = X_train.columns.to_list()
+        # self.status_ = True
+
+        return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def transform(self, X, y=None, **kwargs):
         raise NotImplemented()
@@ -76,6 +75,9 @@ class ExperimentStep(BaseEstimator):
 
     def is_transform_skipped(self):
         return False
+
+    def get_fitted_params(self):
+        return {'input_features': self.input_features_}
 
     # override this to remove 'experiment' from estimator __expr__
     @classmethod
@@ -89,6 +91,27 @@ class ExperimentStep(BaseEstimator):
         if 'experiment' in state.keys():
             state['experiment'] = None
         return state
+
+    def _repr_df_(self):
+        init_params = self.get_params()
+        fitted_params = self.get_fitted_params()
+
+        init_df = pd.Series(init_params, name='value').to_frame()
+        init_df['kind'] = 'settings'
+
+        fitted_df = pd.Series(fitted_params, name='value').to_frame()
+        fitted_df['kind'] = 'fitted'
+
+        df = pd.concat([init_df, fitted_df], axis=0)
+        df['key'] = df.index
+        df = df.set_index(['kind', 'key'])
+
+        return df
+
+    def _repr_html_(self):
+        df = self._repr_df_()
+        html = f'<h2>{self.name}</h2>{df._repr_html_()}'
+        return html
 
 
 class FeatureSelectStep(ExperimentStep):
@@ -126,8 +149,18 @@ class FeatureSelectStep(ExperimentStep):
     def is_transform_skipped(self):
         return self.selected_features_ is None
 
+    def get_fitted_params(self):
+        if self.selected_features_ is None:
+            unselected = None
+        else:
+            unselected = list(filter(lambda _: _ not in self.selected_features_, self.input_features_))
 
-class DataCleanStep(ExperimentStep):
+        return {**super().get_fitted_params(),
+                'selected_features': self.selected_features_,
+                'unselected_features': unselected}
+
+
+class DataCleanStep(FeatureSelectStep):
     def __init__(self, experiment, name, data_cleaner_args=None,
                  cv=False, train_test_split_strategy=None, random_state=None):
         super().__init__(experiment, name)
@@ -138,15 +171,16 @@ class DataCleanStep(ExperimentStep):
         self.random_state = random_state
 
         # fitted
-        self.selected_features_ = None
         self.data_cleaner_ = None
         self.detector_ = None
+        self.data_shapes_ = None
 
     @cache(arg_keys='X_train,y_train,X_test,X_eval,y_eval',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='selected_features_,data_cleaner_,detector_')
+           attrs_to_restore='input_features_,selected_features_,data_cleaner_,detector_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-        self.step_start('clean and split data')
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         # 1. Clean Data
         if self.cv and X_eval is not None and y_eval is not None:
             logger.info(f'{self.name} cv enabled, so concat train data and eval data')
@@ -195,43 +229,34 @@ class DataCleanStep(ExperimentStep):
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
                 self.step_progress('transform eval set')
 
-        self.step_end(output={'X_train.shape': X_train.shape,
-                              'y_train.shape': y_train.shape,
-                              'X_eval.shape': None if X_eval is None else X_eval.shape,
-                              'y_eval.shape': None if y_eval is None else y_eval.shape,
-                              'X_test.shape': None if X_test is None else X_test.shape})
-
         selected_features = X_train.columns.to_list()
+        data_shapes = {'X_train.shape': X_train.shape,
+                       'y_train.shape': y_train.shape,
+                       'X_eval.shape': None if X_eval is None else X_eval.shape,
+                       'y_eval.shape': None if y_eval is None else y_eval.shape,
+                       'X_test.shape': None if X_test is None else X_test.shape
+                       }
+        if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
+            data_shapes = {k: dex.compute(v) if v is not None else None
+                           for k, v in data_shapes.items()}
 
         if _is_notebook:
             display_markdown('### Data Cleaner', raw=True)
-
             display(data_cleaner, display_id='output_cleaner_info1')
-            display_markdown('### Train set & Eval set', raw=True)
 
-            display_data = (X_train.shape,
-                            y_train.shape,
-                            X_eval.shape if X_eval is not None else None,
-                            y_eval.shape if y_eval is not None else None,
-                            X_test.shape if X_test is not None else None)
-            if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
-                display_data = [dex.compute(shape)[0] for shape in display_data]
-            display(pd.DataFrame([display_data],
-                                 columns=['X_train.shape',
-                                          'y_train.shape',
-                                          'X_eval.shape',
-                                          'y_eval.shape',
-                                          'X_test.shape']), display_id='output_cleaner_info2')
+            display_markdown('### Cleaned Train set & Eval set', raw=True)
+            display_data = {k: [v] for k, v in data_shapes.items()}
+            display(pd.DataFrame(display_data), display_id='output_cleaner_info2')
         else:
             logger.info(f'{self.name} keep {len(selected_features)} columns')
 
         self.selected_features_ = selected_features
         self.data_cleaner_ = data_cleaner
+        self.data_shapes_ = data_shapes
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-        self.step_start('clean and split data with cached status')
         # 1. Clean Data
         if self.cv and X_eval is not None and y_eval is not None:
             logger.info(f'{self.name} cv enabled, so concat train data and eval data')
@@ -278,40 +303,62 @@ class DataCleanStep(ExperimentStep):
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
                 self.step_progress('transform eval set')
 
-        self.step_end(output={'X_train.shape': X_train.shape,
-                              'y_train.shape': y_train.shape,
-                              'X_eval.shape': None if X_eval is None else X_eval.shape,
-                              'y_eval.shape': None if y_eval is None else y_eval.shape,
-                              'X_test.shape': None if X_test is None else X_test.shape})
-
         selected_features = self.selected_features_
-
+        data_shapes = {'X_train.shape': X_train.shape,
+                       'y_train.shape': y_train.shape,
+                       'X_eval.shape': None if X_eval is None else X_eval.shape,
+                       'y_eval.shape': None if y_eval is None else y_eval.shape,
+                       'X_test.shape': None if X_test is None else X_test.shape
+                       }
+        if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
+            data_shapes = {k: dex.compute(v) if v is not None else None
+                           for k, v in data_shapes.items()}
         if _is_notebook:
-            display_markdown('### Data Cleaner', raw=True)
-
+            display_markdown('### Data Cleaner (use cache)', raw=True)
             display(data_cleaner, display_id='output_cleaner_info1')
-            display_markdown('### Train set & Eval set', raw=True)
 
-            display_data = (X_train.shape,
-                            y_train.shape,
-                            X_eval.shape if X_eval is not None else None,
-                            y_eval.shape if y_eval is not None else None,
-                            X_test.shape if X_test is not None else None)
-            if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
-                display_data = [dex.compute(shape)[0] for shape in display_data]
-            display(pd.DataFrame([display_data],
-                                 columns=['X_train.shape',
-                                          'y_train.shape',
-                                          'X_eval.shape',
-                                          'y_eval.shape',
-                                          'X_test.shape']), display_id='output_cleaner_info2')
+            display_markdown('### Cleaned Train set & Eval set', raw=True)
+            display_data = {k: [v] for k, v in data_shapes.items()}
+            display(pd.DataFrame(display_data), display_id='output_cleaner_info2')
         else:
             logger.info(f'{self.name} keep {len(selected_features)} columns')
+
+        self.data_shapes_ = data_shapes
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def transform(self, X, y=None, **kwargs):
         return self.data_cleaner_.transform(X, y, **kwargs)
+
+    def get_fitted_params(self):
+        dc = self.data_cleaner_
+
+        def get_reason(c):
+            if dc is None:
+                return 'unknown'
+
+            if dc.dropped_constant_columns_ is not None and c in dc.dropped_constant_columns_:
+                return 'constant'
+            elif dc.dropped_idness_columns_ is not None and c in dc.dropped_idness_columns_:
+                return 'idness'
+            elif dc.dropped_duplicated_columns_ is not None and c in dc.dropped_duplicated_columns_:
+                return 'duplicated'
+            else:
+                return 'others'
+
+        params = super().get_fitted_params()
+        data_shapes = self.data_shapes_ if self.data_shapes_ is not None else {}
+        unselected_features = params.get('unselected_features', [])
+
+        if dc is not None:
+            unselected_reason = {f: get_reason(f) for f in unselected_features}
+        else:
+            unselected_reason = None
+
+        return {**params,
+                **data_shapes,
+                'unselected_reason': unselected_reason,
+                }
 
 
 class MulticollinearityDetectStep(FeatureSelectStep):
@@ -319,20 +366,19 @@ class MulticollinearityDetectStep(FeatureSelectStep):
     def __init__(self, experiment, name):
         super().__init__(experiment, name)
 
+        # fitted
+        self.corr_linkage_ = None
+
     @cache(arg_keys='X_train',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='selected_features_')
+           attrs_to_restore='input_features_,selected_features_,corr_linkage_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if _is_notebook:
             display_markdown('### Drop features with collinearity', raw=True)
 
-        self.step_start('drop features with multicollinearity')
         corr_linkage, remained, dropped = select_by_multicollinearity(X_train)
-        self.output_multi_collinearity_ = {
-            'corr_linkage': corr_linkage,
-            'remained': remained,
-            'dropped': dropped
-        }
         self.step_progress('calc correlation')
 
         if dropped:
@@ -346,16 +392,22 @@ class MulticollinearityDetectStep(FeatureSelectStep):
             self.step_progress('drop features')
         else:
             self.selected_features_ = None
-        self.step_end(output=self.output_multi_collinearity_)
+        self.corr_linkage_ = corr_linkage
+
         if _is_notebook:
             display(pd.DataFrame([(k, v)
-                                  for k, v in self.output_multi_collinearity_.items()],
+                                  for k, v in self.output_.items()],
                                  columns=['key', 'value']),
                     display_id='output_drop_feature_with_collinearity')
         elif logger.is_info_enabled():
             logger.info(f'{self.name} drop {len(dropped)} columns, {len(remained)} kept')
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'corr_linkage': self.corr_linkage_,
+                }
 
 
 class DriftDetectStep(FeatureSelectStep):
@@ -373,17 +425,19 @@ class DriftDetectStep(FeatureSelectStep):
         self.num_folds = num_folds if num_folds > 1 else 5
 
         # fitted
-        self.output_drift_detection_ = None
+        self.history_ = None
+        self.scores_ = None
 
     @cache(arg_keys='X_train,X_test',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='selected_features_, output_drift_detection_')
+           attrs_to_restore='input_features_,selected_features_,history_,scores_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if X_test is not None:
             if _is_notebook:
                 display_markdown('### Drift detection', raw=True)
 
-            self.step_start('detect drifting')
             features, history, scores = dd.feature_selection(X_train, X_test,
                                                              remove_shift_variable=self.remove_shift_variable,
                                                              variable_shift_threshold=self.variable_shift_threshold,
@@ -401,8 +455,8 @@ class DriftDetectStep(FeatureSelectStep):
             else:
                 self.selected_features_ = None
 
-            self.output_drift_detection_ = {'no_drift_features': features, 'history': history}
-            self.step_end(output=self.output_drift_detection_)
+            self.history_ = history
+            self.scores_ = scores
 
             if _is_notebook:
                 display(pd.DataFrame((('no drift features', features),
@@ -415,6 +469,12 @@ class DriftDetectStep(FeatureSelectStep):
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'history': self.history_,
+                'scores': self.scores_,
+                }
+
 
 class FeatureImportanceSelectionStep(FeatureSelectStep):
     def __init__(self, experiment, name, strategy, threshold, quantile, number):
@@ -426,19 +486,16 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
         self.number = number
 
         # fitted
-        self.features_ = None
-        # self.selected_features_ = None # super attribute
-        self.unselected_features_ = None
         self.importances_ = None
 
     @cache(arg_keys='X_train,y_train',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='selected_features_,unselected_features_,features_,importances_')
+           attrs_to_restore='input_features_,selected_features_,importances_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if _is_notebook:
             display_markdown('### Evaluate feature importance', raw=True)
-
-        self.step_start('evaluate feature importance')
 
         preprocessor = general_preprocessor(X_train)
         estimator = general_estimator(X_train, task=self.task)
@@ -464,14 +521,7 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
             if X_test is not None:
                 X_test = X_test[selected_features]
 
-        output_feature_importances_ = {
-            'features': features,
-            'importances': importances,
-            'selected_features': selected_features,
-            'unselected_features': unselected_features}
-
         self.step_progress('drop features')
-        self.step_end(output=output_feature_importances_)
 
         if _is_notebook:
             display_markdown('#### feature selection', raw=True)
@@ -484,12 +534,15 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
         elif logger.is_info_enabled():
             logger.info(f'{self.name} drop {len(unselected_features)} columns, {len(selected_features)} kept')
 
-        self.features_ = features
         self.selected_features_ = selected_features if len(unselected_features) > 0 else None
-        self.unselected_features_ = unselected_features
         self.importances_ = importances
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'importances': self.importances_,
+                }
 
 
 class PermutationImportanceSelectionStep(FeatureSelectStep):
@@ -508,14 +561,13 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
         self.number = number
 
         # fixed
-        self.unselected_features_ = None
         self.importances_ = None
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if _is_notebook:
             display_markdown('### Evaluate permutation importance', raw=True)
-
-        self.step_start('evaluate permutation importance')
 
         best_trials = hyper_model.get_top_trials(self.estimator_size)
         estimators = [hyper_model.load_estimator(trial.model_file) for trial in best_trials]
@@ -561,12 +613,7 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
             if X_test is not None:
                 X_test = X_test[selected_features]
 
-        output_feature_importances_ = {
-            'importances': importances,
-            'selected_features': selected_features,
-            'unselected_features': unselected_features}
         self.step_progress('drop features')
-        self.step_end(output=output_feature_importances_)
 
         if _is_notebook:
             display(pd.DataFrame([('Selected', selected_features), ('Unselected', unselected_features)],
@@ -575,10 +622,14 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
             logger.info(f'{self.name} drop {len(unselected_features)} columns, {len(selected_features)} kept')
 
         self.selected_features_ = selected_features if len(unselected_features) > 0 else None
-        self.unselected_features_ = unselected_features
         self.importances_ = importances
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'importances': self.importances_,
+                }
 
 
 class SpaceSearchStep(ExperimentStep):
@@ -588,11 +639,15 @@ class SpaceSearchStep(ExperimentStep):
         self.cv = cv
         self.num_folds = num_folds
 
+        # fitted
+        self.history_ = None
+        self.best_reward_ = None
+
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if _is_notebook:
             display_markdown('### Pipeline search', raw=True)
-
-        self.step_start('first stage search')
 
         if not dex.is_dask_object(X_eval):
             kwargs['eval_set'] = (X_eval, y_eval)
@@ -604,7 +659,9 @@ class SpaceSearchStep(ExperimentStep):
             raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
 
         logger.info(f'{self.name} best_reward: {model.get_best_trial().reward}')
-        self.step_end(output={'best_reward': model.get_best_trial().reward})
+
+        self.history_ = model.history
+        self.best_reward_ = model.get_best_trial().reward
 
         return model, X_train, y_train, X_test, X_eval, y_eval
 
@@ -613,6 +670,12 @@ class SpaceSearchStep(ExperimentStep):
 
     def is_transform_skipped(self):
         return True
+
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'best_reward': self.best_reward_,
+                'history': self.history_,
+                }
 
 
 class DaskSpaceSearchStep(SpaceSearchStep):
@@ -637,6 +700,11 @@ class EstimatorBuilderStep(ExperimentStep):
     def is_transform_skipped(self):
         return True
 
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'estimator': self.estimator_,
+                }
+
 
 class EnsembleStep(EstimatorBuilderStep):
     def __init__(self, experiment, name, scorer=None, ensemble_size=7):
@@ -647,11 +715,12 @@ class EnsembleStep(EstimatorBuilderStep):
         self.ensemble_size = ensemble_size
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if _is_notebook:
             display_markdown('### Ensemble', raw=True)
         else:
             logger.info('start ensemble')
-        self.step_start('ensemble')
 
         best_trials = hyper_model.get_top_trials(self.ensemble_size)
         estimators = [hyper_model.load_estimator(trial.model_file) for trial in best_trials]
@@ -670,7 +739,6 @@ class EnsembleStep(EstimatorBuilderStep):
             ensemble.fit(X_eval, y_eval)
 
         self.estimator_ = ensemble
-        self.step_end(output={'ensemble': ensemble})
 
         if _is_notebook:
             display(ensemble)
@@ -725,10 +793,11 @@ class FinalTrainStep(EstimatorBuilderStep):
         self.retrain_on_wholedata = retrain_on_wholedata
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         if _is_notebook:
             display_markdown('### Load best estimator', raw=True)
 
-        self.step_start('load estimator')
         if self.retrain_on_wholedata:
             if _is_notebook:
                 display_markdown('#### retrain on whole data', raw=True)
@@ -741,7 +810,6 @@ class FinalTrainStep(EstimatorBuilderStep):
 
         self.estimator_ = estimator
         display(estimator)
-        self.step_end()
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
@@ -760,6 +828,11 @@ class PseudoLabelStep(ExperimentStep):
         self.sample_number = sample_number
         self.resplit = resplit
         self.random_state = random_state
+        self.plot_sample_size = 3000
+
+        # fitted
+        self.test_proba_ = None
+        self.pseudo_label_stat_ = None
 
     def transform(self, X, y=None, **kwargs):
         return X
@@ -768,6 +841,8 @@ class PseudoLabelStep(ExperimentStep):
         return True
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
         # build estimator
         hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
             self.estimator_builder.fit_transform(hyper_model, X_train, y_train, X_test=X_test,
@@ -778,20 +853,29 @@ class PseudoLabelStep(ExperimentStep):
         if _is_notebook:
             display_markdown('### Pseudo_label', raw=True)
 
-        self.step_start('pseudo_label')
-
         X_pseudo = None
         y_pseudo = None
+        test_proba = None
+        pseudo_label_stat = None
         if self.task in [const.TASK_BINARY, const.TASK_MULTICLASS] and X_test is not None:
             proba = estimator.predict_proba(X_test)
             proba_threshold = self.proba_threshold
-            X_pseudo, y_pseudo = sample_by_pseudo_labeling(X_test, estimator.classes_, proba,
+            classes = estimator.classes_
+            X_pseudo, y_pseudo = sample_by_pseudo_labeling(X_test, classes, proba,
                                                            strategy=self.strategy,
                                                            threshold=self.proba_threshold,
                                                            quantile=self.proba_quantile,
                                                            number=self.sample_number,
                                                            )
 
+            pseudo_label_stat = self.stat_pseudo_label(y_pseudo, classes)
+            test_proba = dex.compute(proba)[0] if dex.is_dask_object(proba) else proba
+            if test_proba.shape[0] > self.plot_sample_size:
+                test_proba, _ = dex.train_test_split(test_proba,
+                                                     train_size=self.plot_sample_size,
+                                                     random_state=self.random_state)
+
+            proba = test_proba[:, 1]  # fixme
             if _is_notebook:
                 display_markdown('### Pseudo label set', raw=True)
                 display(pd.DataFrame([(dex.compute(X_pseudo.shape)[0],
@@ -836,9 +920,26 @@ class PseudoLabelStep(ExperimentStep):
                                               'y_eval.shape',
                                               'X_test.shape']), display_id='output_cleaner_info2')
 
-        self.step_end(output={'pseudo_label': 'done'})
+        self.test_proba_ = test_proba
+        self.pseudo_label_stat_ = pseudo_label_stat
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    @staticmethod
+    def stat_pseudo_label(y_pseudo, classes):
+        stat = OrderedDict()
+
+        if dex.is_dask_object(y_pseudo):
+            u = dex.da.unique(y_pseudo, return_counts=True)
+            u = dex.compute(u)[0]
+        else:
+            u = np.unique(y_pseudo, return_counts=True)
+        u = {c: n for c, n in zip(*u)}
+
+        for c in classes:
+            stat[c] = u[c] if c in u.keys() else 0
+
+        return stat
 
     def merge_pseudo_label(self, X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs):
         if self.resplit:
@@ -865,6 +966,12 @@ class PseudoLabelStep(ExperimentStep):
             y_train = pd.concat([y_train, pd.Series(y_pseudo)], axis=0)
 
         return X_train, y_train, X_eval, y_eval
+
+    def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'test_proba': self.test_proba_,
+                'pseudo_label_stat': self.pseudo_label_stat_,
+                }
 
 
 class DaskPseudoLabelStep(PseudoLabelStep):
@@ -927,13 +1034,31 @@ class SteppedExperiment(Experiment):
                 [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
             logger.info(f'fit_transform {step.name}')
-            hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
-                step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval, **kwargs)
+            self.step_start(step.name)
+            try:
+                hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
+                    step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
+                                       **kwargs)
+                self.step_end(output=step.get_fitted_params())
+                if step.status_ is None:
+                    step.status_ = True
+            except Exception as e:
+                self.step_break(error=e)
+                if step.status_ is None:
+                    step.status_ = False
+                raise e
 
         estimator = self.to_estimator(self.steps)
         self.hyper_model = hyper_model
 
         return estimator
+
+    def get_step(self, name):
+        for step in self.steps:
+            if step.name == name:
+                return step
+
+        raise ValueError(f'Not found step "{name}"')
 
     @staticmethod
     def to_estimator(steps):
