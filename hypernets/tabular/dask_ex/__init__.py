@@ -346,12 +346,13 @@ def call_and_compute(fn_call, optimize_graph, *args, **kwargs):
 
     if is_dask_object(r):
         if logger.is_debug_enabled():
-            logger.debug('[call_and_compute] to dask type')
+            logger.debug('[call_and_compute] to local type')
         r = compute(r, traverse=False)[0]
     elif isinstance(r, (tuple, list)) and any(map(is_dask_object, r)):
         if logger.is_debug_enabled():
-            logger.debug('[call_and_compute] to dask type')
-        r = compute(*r, traverse=False, optimize_graph=optimize_graph)
+            logger.debug('[call_and_compute] to local type')
+        # r = compute(*r, traverse=False, optimize_graph=optimize_graph)
+        r = [x.compute() if is_dask_object(x) else x for x in r]
 
     if logger.is_debug_enabled():
         logger.debug('[call_and_compute] done')
