@@ -146,6 +146,9 @@ def decorate(fn, *, cache_dir, strategy,
             elif isinstance(obj, BaseEstimator) and 'params_' not in key_items:
                 key_items['params_'] = obj.get_params(deep=False)
 
+            if attrs_to_restore is not None:
+                key_items['attrs_to_restore_'] = attrs_to_restore
+
             cache_key = hash_data(key_items)
 
             # join cache_path
