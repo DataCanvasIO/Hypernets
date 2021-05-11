@@ -396,7 +396,7 @@ class MulticollinearityDetectStep(FeatureSelectStep):
 
         if _is_notebook:
             display(pd.DataFrame([(k, v)
-                                  for k, v in self.output_.items()],
+                                  for k, v in self.get_fitted_params().items()],
                                  columns=['key', 'value']),
                     display_id='output_drop_feature_with_collinearity')
         elif logger.is_info_enabled():
