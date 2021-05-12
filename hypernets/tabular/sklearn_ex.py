@@ -775,7 +775,7 @@ class TfidfEncoder(BaseEstimator):
         if self.flatten:
             dfs = [X]
             for c in self.columns:
-                encoder = ChineseTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
+                encoder = LocalizedTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
                 encoders[c] = encoder
                 t = encoder.fit_transform(X[c], y).toarray()
                 dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
@@ -784,7 +784,7 @@ class TfidfEncoder(BaseEstimator):
             X = pd.concat(dfs, axis=1)
         else:
             for c in self.columns:
-                encoder = ChineseTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
+                encoder = LocalizedTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
                 encoders[c] = encoder
                 t = encoder.fit_transform(X[c], y).toarray()
                 X[c] = t.tolist()
