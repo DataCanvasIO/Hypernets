@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor, LGBMClassifier
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import log_loss, mean_squared_error
 from sklearn.model_selection import train_test_split
@@ -18,6 +19,13 @@ from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular.column_selector import column_skewness_kurtosis, column_int, column_object_category_bool
 from hypernets.utils import logging, infer_task_type, const
+
+try:
+    import jieba
+
+    _jieba_installed = True
+except ImportError:
+    _jieba_installed = False
 
 logger = logging.get_logger(__name__)
 
@@ -686,4 +694,102 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
     def transform(self, X):
         for k, v in self.encoders_.items():
             X[k] = v.transform(X[k])
+        return X
+
+
+class ChineseTfidfVectorizer(TfidfVectorizer):
+    def decode(self, doc):
+        doc = super().decode(doc)
+
+        if _jieba_installed and self._exist_chinese(doc):
+            doc = ' '.join(jieba.cut(doc))
+            print(doc)
+
+        return doc
+
+    @staticmethod
+    def _exist_chinese(s):
+        for ch in s:
+            if u'\u4e00' <= ch <= u'\u9fff':
+                return True
+
+        return False
+
+
+class TfidfEncoder(BaseEstimator):
+    def __init__(self, columns=None, *args, flatten=False, **kwargs):
+        assert columns is None or isinstance(columns, (str, list, tuple))
+        if isinstance(columns, str):
+            columns = [columns]
+
+        super(TfidfEncoder, self).__init__()
+
+        self.columns = columns
+        self.flatten = flatten
+        self.encoder_args = args
+        self.encoder_kwargs = kwargs.copy()
+
+        # fitted
+        self.encoders_ = None
+
+    def fit(self, X, y=None):
+        if self.columns is None:
+            self.columns = X.select_dtypes(include='object').columns.tolist()
+
+        encoders = {}
+        for c in self.columns:
+            encoder = ChineseTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
+            encoders[c] = encoder.fit(X[c], y)
+
+        self.encoders_ = encoders
+
+        return self
+
+    def transform(self, X, y=None):
+        assert self.encoders_ is not None
+
+        X = X.copy()
+
+        if self.flatten:
+            dfs = [X]
+            for c in self.columns:
+                encoder = self.encoders_[c]
+                t = encoder.transform(X[c]).toarray()
+                dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
+                X.pop(c)
+            X = pd.concat(dfs, axis=1, ignore_index=True)
+        else:
+            for c in self.columns:
+                encoder = self.encoders_[c]
+                t = encoder.transform(X[c]).toarray()
+                X[c] = t.tolist()
+
+        return X
+
+    def fit_transform(self, X, y=None):
+        if self.columns is None:
+            self.columns = X.select_dtypes(include='object').columns.tolist()
+
+        X = X.copy()
+        encoders = {}
+
+        if self.flatten:
+            dfs = [X]
+            for c in self.columns:
+                encoder = ChineseTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
+                encoders[c] = encoder
+                t = encoder.fit_transform(X[c], y).toarray()
+                dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
+                X.pop(c)
+
+            X = pd.concat(dfs, axis=1)
+        else:
+            for c in self.columns:
+                encoder = ChineseTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
+                encoders[c] = encoder
+                t = encoder.fit_transform(X[c], y).toarray()
+                X[c] = t.tolist()
+
+        self.encoders_ = encoders
+
         return X

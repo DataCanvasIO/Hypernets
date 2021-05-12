@@ -2,7 +2,6 @@
 """
 
 """
-import pandas as pd
 import pytest
 from sklearn import preprocessing
 from sklearn.compose import make_column_transformer
@@ -253,3 +252,18 @@ class Test_Transformer():
             print(result_df)
 
             assert all(result_df.values == result.values)
+
+    def test_tfidf_encoder(self):
+        df = self.movie_lens.copy()
+        df['genres'] = df['genres'].apply(lambda s: s.replace('|', ' '))
+
+        encoder = skex.TfidfEncoder(['title', 'genres'], flatten=False)
+        Xt = encoder.fit_transform(df.copy())
+        assert 'title' in Xt.columns.tolist()
+        assert 'genres' in Xt.columns.tolist()
+        assert isinstance(Xt['genres'][0], list)
+
+        encoder = skex.TfidfEncoder(['title', 'genres'], flatten=True)
+        Xt = encoder.fit_transform(df.copy())
+        assert 'genres' not in Xt.columns.tolist()
+        assert 'genres_tfidf_0' in Xt.columns.tolist()
