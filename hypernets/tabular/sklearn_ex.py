@@ -697,13 +697,12 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
         return X
 
 
-class ChineseTfidfVectorizer(TfidfVectorizer):
+class LocalizedTfidfVectorizer(TfidfVectorizer):
     def decode(self, doc):
         doc = super().decode(doc)
 
         if _jieba_installed and self._exist_chinese(doc):
             doc = ' '.join(jieba.cut(doc))
-            print(doc)
 
         return doc
 
@@ -738,7 +737,7 @@ class TfidfEncoder(BaseEstimator):
 
         encoders = {}
         for c in self.columns:
-            encoder = ChineseTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
+            encoder = LocalizedTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
             encoders[c] = encoder.fit(X[c], y)
 
         self.encoders_ = encoders
