@@ -267,3 +267,30 @@ class Test_Transformer():
         Xt = encoder.fit_transform(df.copy())
         assert 'genres' not in Xt.columns.tolist()
         assert 'genres_tfidf_0' in Xt.columns.tolist()
+
+    def test_datetime_encoder(self):
+        def is_holiday(t):
+            holidays = {'0501', '0502', '0503'}
+            return int(t.strftime('%m%d') in holidays)
+
+        months = {'oct': 10, 'may': 5, 'apr': 4, 'jun': 6, 'feb': 2, 'aug': 8, 'jan': 1, 'jul': 7, 'nov': 11,
+                  'sep': 9, 'mar': 3, 'dec': 12}
+
+        df = dsutils.load_bank().sample(n=1000, random_state=9527)
+        df['year'] = 2000
+        df['month'] = df['month'].apply(lambda s: months[s])
+        df['date'] = pd.to_datetime(df[['year', 'month', 'day']])
+
+        encoder = skex.DataTimeEncoder()
+        X = encoder.fit_transform(df)
+        columns = X.columns.to_list()
+        assert 'date' not in columns
+        assert all([c in columns for c in ['date_month', 'date_day']])
+        assert all([c not in columns for c in ['date_hour', 'date_minute']])
+
+        encoder = skex.DataTimeEncoder(include=skex.DataTimeEncoder.default_include + ['timestamp'],
+                                       extra=[('holiday', is_holiday)], drop_constants=False)
+        X = encoder.fit_transform(df)
+        columns = X.columns.to_list()
+        assert 'date' not in columns
+        assert all([c in columns for c in ['date_holiday', 'date_timestamp']])

@@ -17,7 +17,7 @@ from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer, OrdinalEncoder
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
 
-from hypernets.tabular.column_selector import column_skewness_kurtosis, column_int, column_object_category_bool
+from hypernets.tabular import column_selector
 from hypernets.utils import logging, infer_task_type, const
 
 try:
@@ -292,8 +292,8 @@ class SkewnessKurtosisTransformer(BaseEstimator):
 
     def fit(self, X, y=None):
         assert len(X.shape) == 2
-        self.columns_ = column_skewness_kurtosis(X, skew_threshold=self.skewness_threshold,
-                                                 kurtosis_threshold=self.kurtosis_threshold)
+        self.columns_ = column_selector.column_skewness_kurtosis(X, skew_threshold=self.skewness_threshold,
+                                                                 kurtosis_threshold=self.kurtosis_threshold)
         logger.info(f'SkewnessKurtosisTransformer - selected columns:{self.columns_}')
         return self
 
@@ -332,8 +332,8 @@ class FeatureSelectionTransformer(BaseEstimator):
         self.columns_ = []
 
     def get_categorical_features(self, X):
-        cat_cols = column_object_category_bool(X)
-        int_cols = column_int(X)
+        cat_cols = column_selector.column_object_category_bool(X)
+        int_cols = column_selector.column_int(X)
         for c in int_cols:
             if X[c].min() >= 0 and X[c].max() < np.iinfo(np.int32).max:
                 cat_cols.append(c)
@@ -397,7 +397,7 @@ class FeatureSelectionTransformer(BaseEstimator):
             y_train = le.fit_transform(y_train)
             y_test = le.transform(y_test)
 
-        cat_cols = column_object_category_bool(X_train)
+        cat_cols = column_selector.column_object_category_bool(X_train)
 
         if len(cat_cols) > 0:
             logger.info('ordinal encoding...')
@@ -733,7 +733,7 @@ class TfidfEncoder(BaseEstimator):
 
     def fit(self, X, y=None):
         if self.columns is None:
-            self.columns = X.select_dtypes(include='object').columns.tolist()
+            self.columns = column_selector.column_object(X)
 
         encoders = {}
         for c in self.columns:
@@ -756,7 +756,7 @@ class TfidfEncoder(BaseEstimator):
                 t = encoder.transform(X[c]).toarray()
                 dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
                 X.pop(c)
-            X = pd.concat(dfs, axis=1, ignore_index=True)
+            X = pd.concat(dfs, axis=1)
         else:
             for c in self.columns:
                 encoder = self.encoders_[c]
@@ -767,7 +767,7 @@ class TfidfEncoder(BaseEstimator):
 
     def fit_transform(self, X, y=None):
         if self.columns is None:
-            self.columns = X.select_dtypes(include='object').columns.tolist()
+            self.columns = column_selector.column_object(X)
 
         X = X.copy()
         encoders = {}
@@ -792,3 +792,92 @@ class TfidfEncoder(BaseEstimator):
         self.encoders_ = encoders
 
         return X
+
+
+class DataTimeEncoder(BaseEstimator, TransformerMixin):
+    all_items = ['year', 'month', 'day', 'hour', 'minute', 'second',
+                 'week', 'weekday', 'dayofyear',
+                 'timestamp']
+    all_items = {k: k for k in all_items}
+    all_items['timestamp'] = lambda t: time.mktime(t.timetuple())
+
+    default_include = ['month', 'day', 'hour', 'minute',
+                       'week', 'weekday', 'dayofyear']
+
+    def __init__(self, columns=None, include=None, exclude=None, extra=None, drop_constants=True):
+        assert columns is None or isinstance(columns, (str, list, tuple))
+        assert include is None or isinstance(include, (str, list, tuple))
+        assert exclude is None or isinstance(exclude, (str, list, tuple))
+        assert extra is None or isinstance(extra, (tuple, list))
+        if extra is not None:
+            assert all(len(x) == 2 and isinstance(x[0], str)
+                       and (x[1] is None or isinstance(x[1], str) or callable(x[1]))
+                       for x in extra)
+
+        if isinstance(columns, str):
+            columns = [columns]
+
+        if include is None:
+            to_extract = self.default_include
+        elif isinstance(include, str):
+            to_extract = [include]
+        else:
+            to_extract = include
+
+        if isinstance(exclude, str):
+            exclude = [exclude]
+        if exclude is not None:
+            to_extract = [i for i in to_extract if i not in exclude]
+
+        assert all(i in self.all_items for i in to_extract)
+
+        to_extract = {k: self.all_items[k] for k in to_extract}
+        if isinstance(extra, (tuple, list)):
+            for k, c in extra:
+                to_extract[k] = c
+
+        super(DataTimeEncoder, self).__init__()
+
+        self.columns = columns
+        self.include = include
+        self.exclude = exclude
+        self.extra = extra
+        self.drop_constants = drop_constants
+
+        self.extract_ = to_extract
+
+    def fit(self, X, y=None):
+        if self.columns is None:
+            self.columns = column_selector.column_all_datetime(X)
+
+        return self
+
+    def transform(self, X, y=None):
+        if len(self.columns) > 0:
+            X = X.copy()
+            dfs = [df for c in self.columns for df in self.transform_column(X[c])]
+            X.drop(columns=self.columns, inplace=True)
+            if len(dfs) > 0:
+                dfs.insert(0, X)
+                X = pd.concat(dfs, axis=1)
+
+        return X
+
+    def transform_column(self, Xc):
+        assert getattr(Xc, 'dt', None) is not None
+        dfs = []
+
+        for k, c in self.extract_.items():
+            if c is None:
+                c = k
+            if isinstance(c, str):
+                t = getattr(Xc.dt, c)
+            else:
+                t = Xc.apply(c)
+            t.name = f'{Xc.name}_{k}'
+            dfs.append(t)
+
+        if self.drop_constants:
+            dfs = [t for t in dfs if t.nunique() > 1]
+
+        return dfs
