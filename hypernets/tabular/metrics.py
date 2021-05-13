@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 _DASK_METRICS = ('accuracy', 'logloss')
 
 
-def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1):
+def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1, average=None):
     data_list = (y_true, y_proba, y_preds)
     if any(map(dex.is_dask_object, data_list)):
         if all(map(dex.is_dask_object, data_list)) and len(set(metrics).difference(set(_DASK_METRICS))) == 0:
@@ -27,10 +27,11 @@ def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.
     else:
         fn = _calc_score_sklean
 
-    return fn(y_true, y_preds, y_proba, metrics, task, pos_label)
+    return fn(y_true, y_preds, y_proba, metrics, task, pos_label, average)
 
 
-def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1):
+def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1,
+                       average=None):
     score = {}
     if y_proba is None:
         y_proba = y_preds
@@ -43,10 +44,11 @@ def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), tas
             score[metric.__name__] = metric(y_true, y_preds)
         else:
             metric_lower = metric.lower()
-            if task == const.TASK_MULTICLASS:
-                average = 'micro'
-            else:
-                average = 'binary'
+            if average is None:
+                if task == const.TASK_MULTICLASS:
+                    average = 'macro'
+                else:
+                    average = 'binary'
 
             if metric_lower == 'auc':
                 if len(y_proba.shape) == 2:
@@ -87,7 +89,7 @@ def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), tas
     return score
 
 
-def _calc_score_dask(y_true, y_preds, y_proba=None, metrics=('accuracy',), task='binary', pos_label=1):
+def _calc_score_dask(y_true, y_preds, y_proba=None, metrics=('accuracy',), task='binary', pos_label=1, average=None):
     import dask_ml.metrics as dm_metrics
 
     def to_array(name, value):
