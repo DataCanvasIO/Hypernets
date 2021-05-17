@@ -794,7 +794,7 @@ class TfidfEncoder(BaseEstimator):
         return X
 
 
-class DataTimeEncoder(BaseEstimator, TransformerMixin):
+class DatetimeEncoder(BaseEstimator, TransformerMixin):
     all_items = ['year', 'month', 'day', 'hour', 'minute', 'second',
                  'week', 'weekday', 'dayofyear',
                  'timestamp']
@@ -836,7 +836,7 @@ class DataTimeEncoder(BaseEstimator, TransformerMixin):
             for k, c in extra:
                 to_extract[k] = c
 
-        super(DataTimeEncoder, self).__init__()
+        super(DatetimeEncoder, self).__init__()
 
         self.columns = columns
         self.include = include

@@ -281,14 +281,14 @@ class Test_Transformer():
         df['month'] = df['month'].apply(lambda s: months[s])
         df['date'] = pd.to_datetime(df[['year', 'month', 'day']])
 
-        encoder = skex.DataTimeEncoder()
+        encoder = skex.DatetimeEncoder()
         X = encoder.fit_transform(df)
         columns = X.columns.to_list()
         assert 'date' not in columns
         assert all([c in columns for c in ['date_month', 'date_day']])
         assert all([c not in columns for c in ['date_hour', 'date_minute']])
 
-        encoder = skex.DataTimeEncoder(include=skex.DataTimeEncoder.default_include + ['timestamp'],
+        encoder = skex.DatetimeEncoder(include=skex.DatetimeEncoder.default_include + ['timestamp'],
                                        extra=[('holiday', is_holiday)], drop_constants=False)
         X = encoder.fit_transform(df)
         columns = X.columns.to_list()
