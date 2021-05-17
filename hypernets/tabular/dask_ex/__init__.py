@@ -20,13 +20,25 @@ try:
     import dask_ml.preprocessing as dm_pre
     import dask_ml.model_selection as dm_sel
 
+    from dask_ml.impute import SimpleImputer
+    from dask_ml.compose import ColumnTransformer
+    from dask_ml.preprocessing import \
+        LabelEncoder, OneHotEncoder, OrdinalEncoder, \
+        StandardScaler, MinMaxScaler, RobustScaler
+
     from ._transformers import \
         MultiLabelEncoder, SafeOneHotEncoder, TruncatedSVD, \
         MaxAbsScaler, SafeOrdinalEncoder, DataInterceptEncoder, \
-        CallableAdapterEncoder, DataCacher, CacheCleaner
+        CallableAdapterEncoder, DataCacher, CacheCleaner, \
+        LgbmLeavesEncoder, CategorizeEncoder, MultiKBinsDiscretizer, \
+        MultiVarLenFeatureEncoder, DataFrameWrapper
+
+    from ..sklearn_ex import PassThroughEstimator
+
+    dask_ml_available = True
 except ImportError:
     # Not found dask_ml
-    pass
+    dask_ml_available = False
 
 logger = logging.get_logger(__name__)
 
@@ -229,6 +241,13 @@ def array_to_df(arrs, columns=None, meta=None):
 def concat_df(dfs, axis=0, repartition=False, **kwargs):
     if exist_dask_object(*dfs):
         dfs = [dd.from_dask_array(v) if is_dask_array(v) else v for v in dfs]
+
+        if all([isinstance(df, (dd.Series, pd.Series)) for df in dfs]):
+            values = vstack_array([df.values for df in dfs])
+            df = dd.from_dask_array(values, columns=dfs[0].name)
+            assert isinstance(df, dd.Series)
+            return df
+
         if axis == 0:
             values = [df[dfs[0].columns].to_dask_array(lengths=True) for df in dfs]
             df = array_to_df(vstack_array(values), meta=dfs[0])
@@ -278,7 +297,7 @@ def fix_binary_predict_proba_result(proba):
 
 
 def wrap_for_local_scorer(estimator, target_type):
-    def call_and_compute(fn_call, fn_fix, *args, **kwargs):
+    def _call_and_compute(fn_call, fn_fix, *args, **kwargs):
         r = fn_call(*args, **kwargs)
         if is_dask_object(r):
             r = r.compute()
@@ -290,12 +309,12 @@ def wrap_for_local_scorer(estimator, target_type):
         orig_predict_proba = estimator.predict_proba
         fix = fix_binary_predict_proba_result if target_type == 'binary' else None
         setattr(estimator, '_orig_predict_proba', orig_predict_proba)
-        setattr(estimator, 'predict_proba', partial(call_and_compute, orig_predict_proba, fix))
+        setattr(estimator, 'predict_proba', partial(_call_and_compute, orig_predict_proba, fix))
 
     if hasattr(estimator, 'predict'):
         orig_predict = estimator.predict
         setattr(estimator, '_orig_predict', orig_predict)
-        setattr(estimator, 'predict', partial(call_and_compute, orig_predict, None))
+        setattr(estimator, 'predict', partial(_call_and_compute, orig_predict, None))
 
     return estimator
 
@@ -320,8 +339,29 @@ def compute_and_call(fn_call, *args, **kwargs):
     return r
 
 
+def call_and_compute(fn_call, optimize_graph, *args, **kwargs):
+    if logger.is_debug_enabled():
+        logger.debug(f'[call_and_compute] call {fn_call.__name__}')
+    r = fn_call(*args, **kwargs)
+
+    if is_dask_object(r):
+        if logger.is_debug_enabled():
+            logger.debug('[call_and_compute] to local type')
+        r = compute(r, traverse=False)[0]
+    elif isinstance(r, (tuple, list)) and any(map(is_dask_object, r)):
+        if logger.is_debug_enabled():
+            logger.debug('[call_and_compute] to local type')
+        # r = compute(*r, traverse=False, optimize_graph=optimize_graph)
+        r = [x.compute() if is_dask_object(x) else x for x in r]
+
+    if logger.is_debug_enabled():
+        logger.debug('[call_and_compute] done')
+
+    return r
+
+
 def wrap_local_estimator(estimator):
-    for fn_name in ('fit', 'predict', 'predict_proba'):
+    for fn_name in ('fit', 'fit_cross_validation', 'predict', 'predict_proba'):
         fn_name_original = f'_wrapped_{fn_name}_by_wle'
         if hasattr(estimator, fn_name) and not hasattr(estimator, fn_name_original):
             fn = getattr(estimator, fn_name)

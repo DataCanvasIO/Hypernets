@@ -109,6 +109,15 @@ class Experiment(object):
         self.current_step = None
         self.step_start_time = None
 
+    def step_break(self, error=None):
+        if self.current_step is None:
+            raise RuntimeError('Make sure `step_start()` is called at the start of the current step.')
+
+        for callback in self.callbacks:
+            callback.step_break(self, self.current_step, error)
+        self.current_step = None
+        self.step_start_time = None
+
     def step_progress(self, progress, eta=None):
         elapsed = time.time() - self.step_start_time
         for callback in self.callbacks:

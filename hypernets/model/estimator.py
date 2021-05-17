@@ -9,9 +9,13 @@ from sklearn.model_selection import KFold, StratifiedKFold
 
 
 class Estimator():
-    def __init__(self, space_sample, task='binary'):
+    def __init__(self, space_sample, task='binary', discriminator=None):
         self.space_sample = space_sample
         self.task = task
+        self.discriminator = discriminator
+
+    def set_discriminator(self, discriminator):
+        self.discriminator = discriminator
 
     def summary(self):
         raise NotImplementedError
@@ -49,6 +53,10 @@ class Estimator():
         else:
             predict = (proba > proba_threshold).astype('int32')
         return predict
+
+    def get_iteration_scores(self):
+        raise NotImplementedError
+
 
 
 class CrossValidationEstimator():

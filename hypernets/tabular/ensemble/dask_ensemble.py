@@ -36,7 +36,10 @@ class DaskGreedyEnsemble(BaseEnsemble):
 
     def __predict(self, estimator, X):
         if self.task == 'regression':
-            pred = estimator.predict(X)
+            if isinstance(self.predict_kwargs, dict):
+                pred = estimator.predict(X, **self.predict_kwargs)
+            else:
+                pred = estimator.predict(X)
         else:
             if self.classes_ is None and hasattr(estimator, 'classes_'):
                 self.classes_ = estimator.classes_

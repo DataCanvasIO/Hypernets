@@ -80,6 +80,9 @@ class CustomizedLogFormatter(_logging.Formatter):
 
     @staticmethod
     def get_simple_name(name):
+        if name.endswith('@'):
+            return name
+
         sa = name.split('.')
         if len(sa) <= 1:
             return name
@@ -216,7 +219,15 @@ def set_level(v):
 
     global _log_level
 
-    if isinstance(v, str):
+    _log_level = to_level(v)
+
+
+def to_level(v):
+    assert isinstance(v, (int, str)) or v is None
+
+    if v is None:
+        v = _log_level
+    elif isinstance(v, str):
         if v.upper() in _name2level.keys():
             v = _name2level[v.upper()]
         elif re.match(r'^\d$', v):
@@ -224,7 +235,7 @@ def set_level(v):
         else:
             raise ValueError(f'Unrecognized log level {v}.')
 
-    _log_level = v
+    return v
 
 
 def _get_caller(offset=3):

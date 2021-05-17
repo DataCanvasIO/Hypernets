@@ -14,13 +14,16 @@ from hypernets.utils.common import isnotebook
 
 
 class Trial():
-    def __init__(self, space_sample, trial_no, reward, elapsed, model_file=None):
+    def __init__(self, space_sample, trial_no, reward, elapsed, model_file=None, succeeded=True):
         self.space_sample = space_sample
         self.trial_no = trial_no
         self.reward = reward
         self.elapsed = elapsed
         self.model_file = model_file
+        self.succeeded = succeeded
+
         self.memo = {}
+        self.iteration_scores = {}
 
     def _repr_html_(self):
         html = f'<div><h>Trial:</h>'
@@ -97,9 +100,10 @@ class TrialHistory():
             return top1[0]
 
     def get_top(self, n=10):
-        if len(self.trials) <= 0:
+        valid_trials = [t for t in self.trials if t.succeeded]
+        if len(valid_trials) <= 0:
             return []
-        sorted_trials = sorted(self.trials, key=lambda t: t.reward,
+        sorted_trials = sorted(valid_trials, key=lambda t: t.reward,
                                reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])
         if n > len(sorted_trials):
             n = len(sorted_trials)
@@ -261,12 +265,12 @@ class TrialHistory():
 
         parallel_axis = make_dims(df_train_params)
         chart = \
-            Parallel(init_opts=opts.InitOpts(width="%dpx" % (len(param_names) * 100), height="400px"))\
+            Parallel(init_opts=opts.InitOpts(width="%dpx" % (len(param_names) * 100), height="400px")) \
                 .add_schema(schema=parallel_axis).add(series_name="",
-                     data=df_train_params.values.tolist(),
-                     linestyle_opts=opts.LineStyleOpts(width=1, opacity=0.5),
+                                                      data=df_train_params.values.tolist(),
+                                                      linestyle_opts=opts.LineStyleOpts(width=1, opacity=0.5),
 
-            ).set_global_opts(
+                                                      ).set_global_opts(
                 visualmap_opts=[
                     opts.VisualMapOpts(
                         type_="color",

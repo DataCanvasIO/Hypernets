@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from functools import partial
 
 import dask
 import dask.array as da
@@ -10,72 +11,74 @@ from dask_ml import preprocessing as dm_pre, decomposition as dm_dec
 from sklearn import preprocessing as sk_pre
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from hypernets.utils import logging
+from hypernets.tabular import sklearn_ex as skex
+from hypernets.utils import logging, const
 
 logger = logging.get_logger(__name__)
 
 
-class MultiLabelEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self.encoders = {}
-
-    def fit(self, X, y=None):
-        assert len(X.shape) == 2
-
-        if isinstance(X, (pd.DataFrame, dd.DataFrame)):
-            return self._fit_df(X, y)
-        elif isinstance(X, (np.ndarray, da.Array)):
-            return self._fit_array(X, y)
-        else:
-            raise Exception(f'Unsupported type "{type(X)}"')
-
-    def _fit_df(self, X, y=None):
-        return self._fit_array(X.values, y.values if y else None)
-
-    def _fit_array(self, X, y=None):
-        n_features = X.shape[1]
-        for n in range(n_features):
-            le = dm_pre.LabelEncoder()
-            le.fit(X[:, n])
-            self.encoders[n] = le
-        return self
-
-    def transform(self, X):
-        assert len(X.shape) == 2
-
-        if isinstance(X, (dd.DataFrame, pd.DataFrame)):
-            return self._transform_dask_df(X)
-        elif isinstance(X, (da.Array, np.ndarray)):
-            return self._transform_dask_array(X)
-        else:
-            raise Exception(f'Unsupported type "{type(X)}"')
-
-    def _transform_dask_df(self, X):
-        data = self._transform_dask_array(X.values)
-
-        if isinstance(X, dd.DataFrame):
-            result = dd.from_dask_array(data, columns=X.columns)
-        else:
-            result = pd.DataFrame(data, columns=X.columns)
-        return result
-
-    def _transform_dask_array(self, X):
-        n_features = X.shape[1]
-        assert n_features == len(self.encoders.items())
-
-        data = []
-        for n in range(n_features):
-            data.append(self.encoders[n].transform(X[:, n]))
-
-        if isinstance(X, da.Array):
-            result = da.stack(data, axis=-1, allow_unknown_chunksizes=True)
-        else:
-            result = np.stack(data, axis=-1)
-
-        return result
-
-    # def fit_transform(self, X, y=None):
-    #     return self.fit(X, y).transform(X)
+#
+# class MultiLabelEncoder(BaseEstimator, TransformerMixin):
+#     def __init__(self):
+#         self.encoders = {}
+#
+#     def fit(self, X, y=None):
+#         assert len(X.shape) == 2
+#
+#         if isinstance(X, (pd.DataFrame, dd.DataFrame)):
+#             return self._fit_df(X, y)
+#         elif isinstance(X, (np.ndarray, da.Array)):
+#             return self._fit_array(X, y)
+#         else:
+#             raise Exception(f'Unsupported type "{type(X)}"')
+#
+#     def _fit_df(self, X, y=None):
+#         return self._fit_array(X.values, y.values if y else None)
+#
+#     def _fit_array(self, X, y=None):
+#         n_features = X.shape[1]
+#         for n in range(n_features):
+#             le = dm_pre.LabelEncoder()
+#             le.fit(X[:, n])
+#             self.encoders[n] = le
+#         return self
+#
+#     def transform(self, X):
+#         assert len(X.shape) == 2
+#
+#         if isinstance(X, (dd.DataFrame, pd.DataFrame)):
+#             return self._transform_dask_df(X)
+#         elif isinstance(X, (da.Array, np.ndarray)):
+#             return self._transform_dask_array(X)
+#         else:
+#             raise Exception(f'Unsupported type "{type(X)}"')
+#
+#     def _transform_dask_df(self, X):
+#         data = self._transform_dask_array(X.values)
+#
+#         if isinstance(X, dd.DataFrame):
+#             result = dd.from_dask_array(data, columns=X.columns)
+#         else:
+#             result = pd.DataFrame(data, columns=X.columns)
+#         return result
+#
+#     def _transform_dask_array(self, X):
+#         n_features = X.shape[1]
+#         assert n_features == len(self.encoders.items())
+#
+#         data = []
+#         for n in range(n_features):
+#             data.append(self.encoders[n].transform(X[:, n]))
+#
+#         if isinstance(X, da.Array):
+#             result = da.stack(data, axis=-1, allow_unknown_chunksizes=True)
+#         else:
+#             result = np.stack(data, axis=-1)
+#
+#         return result
+#
+#     # def fit_transform(self, X, y=None):
+#     #     return self.fit(X, y).transform(X)
 
 
 class SafeOneHotEncoder(dm_pre.OneHotEncoder):
@@ -170,7 +173,7 @@ class MaxAbsScaler(sk_pre.MaxAbsScaler):
 
         max_abs = X.reduction(lambda x: x.abs().max(),
                               aggregate=lambda x: x.max(),
-                              token=self.__class__.__name__
+                              token=f'{self.__class__.__name__}.fit'
                               ).compute()
         scale = handle_zeros_in_scale(max_abs)
 
@@ -297,7 +300,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
             Numpy array or pandas dataframe will return a pandas DataFrame
         """
         if isinstance(X, np.ndarray):
-            X = pd.DataFrame(X, columns=self.columns_)
+            X = pd.DataFrame(X, columns=self.categorical_columns_)
         elif isinstance(X, da.Array):
             # later on we concat(..., axis=1), which requires
             # known divisions. Suboptimal, but I think unavoidable.
@@ -307,7 +310,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
                 X = X.copy()
                 chunks = (tuple(lengths), X.chunks[1])
                 X._chunks = chunks
-            X = dd.from_dask_array(X, columns=self.columns_)
+            X = dd.from_dask_array(X, columns=self.categorical_columns_)
 
         decoder = self.make_decoder(self.categorical_columns_, self.categories_, self.dtypes_)
 
@@ -374,6 +377,10 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
             return pdf
 
         return safe_ordinal_decoder
+
+
+# alias
+MultiLabelEncoder = SafeOrdinalEncoder
 
 
 class DataInterceptEncoder(BaseEstimator, TransformerMixin):
@@ -492,3 +499,369 @@ class CacheCleaner(DataInterceptEncoder):
     # def _get_param_names(cls):
     #     params = super()._get_param_names()
     #     return [p for p in params if p != 'cache_dict']
+
+
+class DataFrameWrapper(skex.DataFrameWrapper):
+
+    def transform(self, X):
+        transformed = self.transformer.transform(X)
+
+        if isinstance(transformed, da.Array):
+            transformed = dd.from_dask_array(transformed, columns=self.columns)
+        elif isinstance(transformed, np.ndarray):
+            transformed = pd.DataFrame(transformed, columns=self.columns)
+        else:
+            transformed.columns = self.columns
+
+        return transformed
+
+
+class AdaptedTransformer(BaseEstimator):
+    """
+    Adapt sklearn style transformer to support dask data objects.
+    Note: adapted transformer uses locale resource only.
+    """
+
+    def __init__(self, cls, attributes, *args, **kwargs):
+        super(AdaptedTransformer, self).__init__()
+
+        assert isinstance(cls, type)
+        assert attributes is None or isinstance(attributes, (tuple, list, set))
+
+        self.adapted_transformer_ = cls(*args, **kwargs)
+        self.adapted_attributes_ = set(attributes) if attributes is not None else None
+
+    def fit(self, X, y=None, **kwargs):
+        if y is None:
+            self._adapt(self.adapted_transformer_.fit, X, **kwargs)
+        else:
+            self._adapt(self.adapted_transformer_.fit, X, y, **kwargs)
+        return self
+
+    def transform(self, X, *args, **kwargs):
+        return self._adapt(self.adapted_transformer_.transform, X, *args, **kwargs)
+
+    def inverse_transform(self, X, *args, **kwargs):
+        return self._adapt(self.adapted_transformer_.inverse_transform, X, *args, **kwargs)
+
+    def fit_transform(self, X, y=None, **kwargs):
+        transformer = self.adapted_transformer_
+
+        if hasattr(transformer, 'fit_transform'):
+            if y is None:
+                return self._adapt(transformer.fit_transform, X, **kwargs)
+            else:
+                return self._adapt(transformer.fit_transform, X, y, **kwargs)
+        else:
+            self.fit(X, y, **kwargs)
+            return self._adapt(transformer.transform, X, **kwargs)
+
+    @staticmethod
+    def _adapt(fn, X, *args, **kwargs):
+        is_dask_frame_X = isinstance(X, (dd.DataFrame, dd.Series))
+        is_dask_array_X = isinstance(X, da.Array)
+
+        if is_dask_frame_X:
+            npartitions = X.npartitions
+            X = X.compute()
+        elif is_dask_array_X:
+            chunks = X.chunks
+            X = X.compute()
+
+        args = [a.compute() if isinstance(a, (dd.DataFrame, dd.Series, da.Array)) else a for a in args]
+        r = fn(X, *args, **kwargs)
+
+        if isinstance(r, (pd.DataFrame, pd.Series, np.ndarray)):
+            if is_dask_frame_X:
+                r = dd.from_pandas(r, npartitions=npartitions)
+            elif is_dask_array_X:
+                r = da.from_array(r, chunks=chunks)
+
+        return r
+
+    def __getattribute__(self, name: str):
+        if name in {'adapted_attributes_', 'adapted_transformer_'}:
+            return super().__getattribute__(name)
+
+        adapted_attributes = self.adapted_attributes_
+        if adapted_attributes is not None and name in adapted_attributes:
+            adapted_transformer = self.adapted_transformer_
+            return getattr(adapted_transformer, name)
+
+        return super().__getattribute__(name)
+
+    def __dir__(self):
+        adapted_attributes = self.adapted_attributes_
+        if adapted_attributes is not None:
+            return set(list(adapted_attributes) + list(super().__dir__()))
+
+        return super().__dir__()
+
+
+class LgbmLeavesEncoder(AdaptedTransformer, TransformerMixin):
+
+    def __init__(self, cat_vars, cont_vars, task, **params):
+        attributes = {'lgbm', 'cat_vars', 'cont_vars', 'new_columns', 'task', 'lgbm_params'}
+        super(LgbmLeavesEncoder, self).__init__(skex.LgbmLeavesEncoder, attributes,
+                                                cat_vars, cont_vars, task, **params)
+
+
+class CategorizeEncoder(skex.CategorizeEncoder):
+
+    def fit(self, X, y=None):
+        super(CategorizeEncoder, self).fit(X, y)
+
+        if len(self.new_columns) > 0:
+            nuniques = [nunique for _, _, nunique in self.new_columns]
+            nuniques = dask.compute(*nuniques)
+
+            new_columns = [(col, dtype, nunique)
+                           for (col, dtype, _), nunique in zip(self.new_columns, nuniques)]
+            self.new_columns = new_columns
+
+        return self
+
+
+class MultiKBinsDiscretizer(BaseEstimator, TransformerMixin):
+    def __init__(self, columns=None, bins=None, strategy='quantile', dtype='float64'):
+        assert strategy in {'uniform', 'quantile'}
+        assert dtype is None or dtype.startswith('int') or dtype.startswith('float')
+
+        super(MultiKBinsDiscretizer, self).__init__()
+
+        self.columns = columns
+        self.bins = bins
+        self.strategy = strategy
+        self.dtype = dtype
+
+        # fitted
+        self.new_columns = []
+        self.bin_edges_ = {}
+
+    def fit(self, X, y=None):
+        assert isinstance(X, (dd.DataFrame, pd.DataFrame))
+        is_dask_X = isinstance(X, dd.DataFrame)
+
+        new_columns = []
+        if self.columns is None:
+            self.columns = X.select_dtypes(['float', 'float64', 'int', 'int64']).columns.tolist()
+
+            # define new_columns
+        for col in self.columns:
+            new_name = col + const.COLUMNNAME_POSTFIX_DISCRETE
+            c_bins = self.bins
+            if c_bins is None or c_bins <= 0:
+                n_unique = X.loc[:, col].nunique()
+                if is_dask_X:
+                    n_unique = n_unique.compute()
+                c_bins = int(round(n_unique ** 0.25)) + 1
+            new_columns.append((col, new_name, c_bins))
+
+        # compute bin_borders
+        if self.strategy == 'quantile':
+            bin_edges = {}
+            for col, _, c_bins in new_columns:
+                step = 1.0 / c_bins
+                qs = [i * step for i in range(1, int(c_bins))]
+                q = X[col].quantile(qs)
+                if is_dask_X:
+                    q = q.compute()
+                bin_edges[col] = q.to_list()
+        else:  # strategy == 'uniform'
+            X = X[self.columns]
+            mns, mxs = X.min(), X.max()
+            if is_dask_X:
+                mns, mxs = dask.compute(mns, mxs)
+            bin_edges = {col: [mns[col], mxs[col]] for col in self.columns}
+
+        self.new_columns = new_columns
+        self.bin_edges_ = bin_edges
+
+        return self
+
+    def transform(self, X):
+        assert isinstance(X, (dd.DataFrame, pd.DataFrame))
+
+        if self.strategy == 'quantile':
+            transformer = MultiKBinsDiscretizer._transform_df_quantile
+        else:  # strategy == 'uniform'
+            transformer = MultiKBinsDiscretizer._transform_df_uniform
+
+        if isinstance(X, dd.DataFrame):
+            meta = X.dtypes.to_dict()
+            dtype = self.dtype if self.dtype is not None else 'int'
+            for _, new_name, _ in self.new_columns:
+                meta[new_name] = dtype
+            fn = partial(transformer, self.new_columns, self.bin_edges_, self.dtype)
+            X = X.map_partitions(fn, meta=meta)
+        else:
+            X = transformer(self.new_columns, self.bin_edges_, self.dtype, X)
+
+        return X
+
+    @staticmethod
+    def _transform_df_quantile(new_columns, bin_edges, dtype, X):
+        for col, new_name, c_bins in new_columns:
+            edges = bin_edges[col]
+            X[new_name] = np.searchsorted(edges, X[col], side='left')
+
+            if dtype is not None and not str(dtype).startswith('int'):
+                X[new_name] = X[new_name].astype(dtype)
+
+        return X
+
+    @staticmethod
+    def _transform_df_uniform(new_columns, bin_edges, dtype, X):
+        for col, new_name, c_bins in new_columns:
+            mn, mx = bin_edges[col]
+            if dtype is not None and str(dtype).startswith('float'):
+                if mx > mn and c_bins > 1:
+                    step = (mx - mn) / c_bins
+                    fn = lambda v: 0. if v <= mn else c_bins - 1. if v >= mx else float(int((v - mn) / step))
+                else:
+                    fn = lambda v: float(v > mn)
+            else:
+                if mx > mn and c_bins > 1:
+                    step = (mx - mn) / c_bins
+                    fn = lambda v: 0 if v <= mn else c_bins - 1 if v >= mx else int((v - mn) / step)
+                else:
+                    fn = lambda v: int(v > mn)
+
+            X[new_name] = X[col].map(fn)
+
+        return X
+
+
+class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
+    """
+    Example:
+        features = [ ('feature_1','|'), ... ]
+        encoder = MultiVarLenFeatureEncoder(features)
+        ...
+    """
+
+    def __init__(self, features):
+        assert isinstance(features, (tuple, list))
+        assert all([isinstance(fs, (tuple, list)) and len(fs) > 1 for fs in features])
+        assert all([f[0] for f in features]), 'Feature name is required.'
+        assert all([f[1] for f in features]), 'Separator is required.'
+
+        super(MultiVarLenFeatureEncoder, self).__init__()
+
+        self.seps_ = {feature[0]: feature[1] for feature in features}
+
+        # fitted
+        self.keys_ = None
+        self.max_length_ = {}  # key: feature, value: max length
+
+    def fit(self, X, y=None):
+        assert isinstance(X, (dd.DataFrame, pd.DataFrame))
+
+        is_dask_X = isinstance(X, dd.DataFrame)
+        feature_keys = {}
+        max_length = {}
+
+        sep_to_features = defaultdict(list)
+        for f, sep in self.seps_.items():
+            sep_to_features[sep].append(f)
+
+        for sep, features in sep_to_features.items():
+            if is_dask_X:
+                meta = {f: 'str' for f in features}
+                fn_chunk = partial(MultiVarLenFeatureEncoder._fit_part, sep)
+                fn_agg = partial(MultiVarLenFeatureEncoder._agg_part, sep)
+                t = X[features].reduction(fn_chunk, aggregate=fn_agg, meta=meta,
+                                          token=f'{self.__class__.__name__}.fit'
+                                          ).compute()
+            else:  # pd.DataFrame
+                t = self._fit_part(sep, X[features])
+
+            assert isinstance(t, pd.Series)
+            for f, aggregated in t.to_dict().items():
+                a = aggregated.split(sep)
+                max_length[f] = int(a[0])
+                feature_keys[f] = a[1:]
+
+        self.max_length_ = max_length
+        self.keys_ = feature_keys
+
+        return self
+
+    def transform(self, X):
+        assert isinstance(X, (dd.DataFrame, pd.DataFrame))
+        assert len(set(self.seps_.keys()) - set(X.columns.to_list())) == 0, \
+            f'Not found {set(self.seps_.keys()) - set(X.columns.to_list())} in X'
+
+        if isinstance(X, dd.DataFrame):
+            meta = X.dtypes.to_dict()
+            for f in self.seps_.keys():
+                meta[f] = 'object'
+            fn = partial(MultiVarLenFeatureEncoder._transform_df, self.seps_, self.keys_, self.max_length_)
+            X = X.map_partitions(fn, meta=meta)
+        else:
+            X = self._transform_df(self.seps_, self.keys_, self.max_length_, X)
+
+        return X
+
+    @staticmethod
+    def _fit_part(sep, X):
+        assert isinstance(X, pd.DataFrame)
+        fn = partial(MultiVarLenFeatureEncoder._aggregate_key, sep, False)
+        return X.agg(fn, axis=0)
+
+    @staticmethod
+    def _agg_part(sep, X):
+        assert isinstance(X, pd.DataFrame)
+        fn = partial(MultiVarLenFeatureEncoder._aggregate_key, sep, True)
+        return X.agg(fn, axis=0)
+
+    @staticmethod
+    def _aggregate_key(sep, y_include_max_len, y):
+        key_set = set()
+        max_len = 0
+
+        for v in y:
+            a = list(filter(len, v.split(sep)))
+            if y_include_max_len:
+                len_a = int(a[0])
+                a = a[1:]
+            else:
+                len_a = len(a)
+            if len_a > max_len:
+                max_len = len_a
+            key_set.update(a)
+        key_set = list(key_set)
+        key_set.sort()
+
+        return sep.join([str(max_len)] + key_set)
+
+    @staticmethod
+    def _transform_df(feature_seps, feature_keys, feature_max_length, X):
+        for f, sep in feature_seps.items():
+            keys = feature_keys.get(f, [])
+            max_len = feature_max_length.get(f, 0)
+            assert isinstance(keys, (list, tuple)) and isinstance(max_len, int)
+            if len(keys) <= 1 or max_len < 1:
+                continue
+            X[f] = MultiVarLenFeatureEncoder._encode(sep, keys, max_len, X[f])
+
+        return X
+
+    @staticmethod
+    def _encode(sep, keys, max_len, y):
+        unseen = len(keys) + 1
+        key_values = dict(zip(keys, list(range(1, unseen + 1))))
+        result = np.empty(len(y), dtype=np.object)
+
+        for yi, v in enumerate(y):
+            result_yi = []
+            arr = filter(len, v.split(sep))
+            for vi, k in enumerate(arr):
+                result_yi.append(key_values[k] if k in key_values else unseen)
+                if vi >= max_len - 1:
+                    break
+            while len(result_yi) < max_len:
+                result_yi.append(0)
+            result[yi] = result_yi
+
+        return result

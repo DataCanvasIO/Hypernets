@@ -10,11 +10,12 @@ from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 
+from hypernets.core import set_random_state, get_random_state
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
 from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, Constant, HyperNode
 from hypernets.model import Estimator, HyperModel
-from hypernets.searchers import RandomSearcher
+from hypernets.searchers import make_searcher
 from hypernets.tabular.dask_ex import fix_binary_predict_proba_result
 from hypernets.tabular.metrics import calc_score
 from hypernets.utils import fs, logging, const, infer_task_type
@@ -22,7 +23,16 @@ from hypernets.utils import fs, logging, const, infer_task_type
 logger = logging.get_logger(__name__)
 
 
-class PlainSearchSpace:
+class PlainSearchSpace(object):
+    def __init__(self, enable_dt=True, enable_lr=True, enable_nn=True):
+        assert enable_dt or enable_lr or enable_nn
+
+        super(PlainSearchSpace, self).__init__()
+
+        self.enable_dt = enable_dt
+        self.enable_lr = enable_lr
+        self.enable_nn = enable_nn
+
     # DecisionTreeClassifier
     @property
     def dt(self):
@@ -31,6 +41,7 @@ class PlainSearchSpace:
             criterion=Choice(["gini", "entropy"]),
             splitter=Choice(["best", "random"]),
             max_depth=Choice([None, 3, 5, 10, 20, 50]),
+            random_state=get_random_state(),
         )
 
     # NN
@@ -43,7 +54,8 @@ class PlainSearchSpace:
             activation=Choice(['identity', 'logistic', 'tanh', 'relu']),
             solver=solver,
             learning_rate=Choice(['constant', 'invscaling', 'adaptive']),
-            learning_rate_init_stub=Cascade(partial(self._cascade, self._nn_learning_rate_init, 'slvr'), slvr=solver)
+            learning_rate_init_stub=Cascade(partial(self._cascade, self._nn_learning_rate_init, 'slvr'), slvr=solver),
+            random_state=get_random_state(),
         )
 
     @staticmethod
@@ -68,8 +80,9 @@ class PlainSearchSpace:
             cls=LogisticRegression,
             max_iter=Choice(iters),
             solver=solver,
-            penalty_sub=penalty,
+            penalty_stub=penalty,
             l1_ratio_stub=l1_ratio,
+            random_state=get_random_state(),
         )
 
     @staticmethod
@@ -101,8 +114,15 @@ class PlainSearchSpace:
 
         with space.as_default():
             hyper_input = HyperInput(name='input1')
-            estimators = [self.dt, self.nn, self.lr]
-            # estimators = [self.nn, ]
+
+            estimators = []
+            if self.enable_dt:
+                estimators.append(self.dt)
+            if self.enable_lr:
+                estimators.append(self.lr)
+            if self.enable_nn:
+                estimators.append(self.nn)
+
             modules = [ModuleSpace(name=f'{e["cls"].__name__}', **e) for e in estimators]
             outputs = ModuleChoice(modules)(hyper_input)
             space.set_inputs(hyper_input)
@@ -111,7 +131,7 @@ class PlainSearchSpace:
 
 
 class PlainEstimator(Estimator):
-    def __init__(self, space_sample, task=const.TASK_BINARY):
+    def __init__(self, space_sample, task=const.TASK_BINARY, transformer=None):
         assert task in {const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION}
 
         super(PlainEstimator, self).__init__(space_sample, task)
@@ -126,6 +146,7 @@ class PlainEstimator(Estimator):
         self.model = cls(**kwargs)
         self.cls = cls
         self.model_args = kwargs
+        self.transformer = transformer
 
         # fitted
         self.classes_ = None
@@ -136,6 +157,9 @@ class PlainEstimator(Estimator):
 
     def fit(self, X, y, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
+
+        if self.transformer is not None:
+            X = self.transformer.fit_transform(X, y)
 
         self.model.fit(X, y, **kwargs)
         self.classes_ = getattr(self.model, 'classes_', None)
@@ -149,6 +173,9 @@ class PlainEstimator(Estimator):
         assert isinstance(metrics, (list, tuple))
 
         eval_set = kwargs.pop('eval_set', None)  # ignore
+
+        if self.transformer is not None:
+            X = self.transformer.fit_transform(X, y)
 
         if stratified and self.task == const.TASK_BINARY:
             iterators = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=random_state)
@@ -209,6 +236,9 @@ class PlainEstimator(Estimator):
     def predict(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
+        if self.transformer is not None:
+            X = self.transformer.transform(X)
+
         if self.cv_models_:
             if self.task == const.TASK_REGRESSION:
                 pred_sum = None
@@ -229,6 +259,9 @@ class PlainEstimator(Estimator):
 
     def predict_proba(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
+
+        if self.transformer is not None:
+            X = self.transformer.transform(X)
 
         if self.cv_models_:
             proba_sum = None
@@ -281,14 +314,24 @@ class PlainEstimator(Estimator):
         with fs.open(model_file, 'rb') as f:
             return pickle.load(f)
 
+    def get_iteration_scores(self):
+        return []
+
 
 class PlainModel(HyperModel):
-    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None):
+    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None,
+                 transformer=None):
         super(PlainModel, self).__init__(searcher, dispatcher=dispatcher, callbacks=callbacks,
                                          reward_metric=reward_metric, task=task)
+        self.transformer = transformer
 
     def _get_estimator(self, space_sample):
-        return PlainEstimator(space_sample, task=self.task)
+        if callable(self.transformer):
+            transformer = self.transformer()
+        else:
+            transformer = self.transformer
+
+        return PlainEstimator(space_sample, task=self.task, transformer=transformer)
 
     def load_estimator(self, model_file):
         return PlainEstimator.load(model_file)
@@ -301,7 +344,7 @@ def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optim
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
 
     search_space = PlainSearchSpace()
-    searcher = RandomSearcher(search_space, optimize_direction=optimize_direction)
+    searcher = make_searcher('mcts', search_space, optimize_direction=optimize_direction)
     callbacks = [SummaryCallback()]
     hm = PlainModel(searcher=searcher, task=task, reward_metric=reward_metric, callbacks=callbacks)
     hm.search(X_train, y_train, X_eval, y_eval, **kwargs)
@@ -317,8 +360,10 @@ def train_heart_disease(**kwargs):
     X = dsutils.load_heart_disease_uci()
     y = X.pop('target')
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-    X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=0.3)
+    X_train, X_test, y_train, y_test = \
+        train_test_split(X, y, test_size=0.3, random_state=get_random_state())
+    X_train, X_eval, y_train, y_eval = \
+        train_test_split(X_train, y_train, test_size=0.3, random_state=get_random_state())
 
     kwargs = {'reward_metric': 'auc', 'max_trials': 10, **kwargs}
     hm, model = train(X_train, y_train, X_eval, y_eval, const.TASK_BINARY, **kwargs)
@@ -336,4 +381,5 @@ def train_heart_disease(**kwargs):
 
 
 if __name__ == '__main__':
+    set_random_state(335)
     train_heart_disease()
