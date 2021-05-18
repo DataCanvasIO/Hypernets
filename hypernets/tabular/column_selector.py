@@ -9,9 +9,19 @@ from dask import dataframe as dd
 from scipy.stats import skew, kurtosis
 from sklearn.compose import make_column_selector
 
+try:
+    import jieba
+
+    _jieba_installed = True
+except ImportError:
+    _jieba_installed = False
+
 
 class ColumnSelector(make_column_selector):
     __doc__ = make_column_selector.__doc__
+
+    def __init__(self, pattern=None, *, dtype_include=None, dtype_exclude=None):
+        super(ColumnSelector, self).__init__(pattern, dtype_include=dtype_include, dtype_exclude=dtype_exclude)
 
     def __call__(self, df):
         if isinstance(df, dd.DataFrame):
@@ -46,6 +56,78 @@ class ColumnSelector(make_column_selector):
 
         s = f'{self.__class__.__name__}({", ".join(attrs)})'
         return s
+
+
+class AutoCategoryColumnSelector(ColumnSelector):
+    def __init__(self, pattern=None, *, dtype_include=None, dtype_exclude=None, cat_exponent=0.5):
+        assert 0. < cat_exponent < 1.0
+
+        super(AutoCategoryColumnSelector, self).__init__(pattern,
+                                                         dtype_include=dtype_include,
+                                                         dtype_exclude=dtype_exclude)
+
+        self.cat_exponent = cat_exponent
+
+    def __call__(self, df, *args, **kwargs):
+        selected = super().__call__(df)
+
+        others = [c for c in df.columns.to_list() if c not in selected]
+        if len(others) > 0:
+            nuniques = df[others].nunique(axis=0)
+            if isinstance(df, dd.DataFrame):
+                nuniques = nuniques.compute()
+                nunique_limit = dd.compute(df.shape[0])[0] ** self.cat_exponent
+            else:
+                nunique_limit = df.shape[0] ** self.cat_exponent
+            selected += [c for c, n in nuniques.to_dict().items() if n <= nunique_limit]
+
+        return selected
+
+
+class TextColumnSelector(ColumnSelector):
+    def __init__(self, pattern=None, *, dtype_include=None, dtype_exclude=None, word_count_threshold=3):
+        assert isinstance(word_count_threshold, int) and word_count_threshold >= 1
+
+        if dtype_include is None:
+            dtype_include = ['object']
+
+        super(TextColumnSelector, self).__init__(pattern,
+                                                 dtype_include=dtype_include,
+                                                 dtype_exclude=dtype_exclude)
+
+        self.word_count_threshold = word_count_threshold
+
+    def __call__(self, df, *args, **kwargs):
+        selected = super().__call__(df)
+        if len(selected) > 0 and self.word_count_threshold > 1:
+            word_count = df[selected].applymap(self._word_count).max(axis=0)
+            if isinstance(df, dd.DataFrame):
+                word_count = word_count.compute()
+            selected = [c for c, n in word_count.to_dict().items() if n >= self.word_count_threshold]
+
+        return selected
+
+    @staticmethod
+    def _word_count(s):
+        if not isinstance(s, str):
+            return 0
+
+        exist_chinese = False
+        if _jieba_installed:
+            for ch in s:
+                if u'\u4e00' <= ch <= u'\u9fff':
+                    exist_chinese = True
+                    break
+
+        if exist_chinese:
+            word_count = 0
+            for w in jieba.cut(s):
+                if len(w.strip()) > 0:
+                    word_count += 1
+        else:
+            word_count = len(s.split())
+
+        return word_count
 
 
 class MinMaxColumnSelector(object):
@@ -112,6 +194,9 @@ class CompositedColumnSelector(object):
 
 column_all = ColumnSelector()
 column_object_category_bool = ColumnSelector(dtype_include=['object', 'category', 'bool'])
+column_object_category_bool_with_auto = AutoCategoryColumnSelector(dtype_include=['object', 'category', 'bool'],
+                                                                   cat_exponent=0.5)
+column_text = TextColumnSelector(dtype_include=['object'], word_count_threshold=3)
 column_object = ColumnSelector(dtype_include=['object'])
 column_category = ColumnSelector(dtype_include=['category'])
 column_bool = ColumnSelector(dtype_include=['bool'])
