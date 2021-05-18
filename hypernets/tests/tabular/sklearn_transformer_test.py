@@ -86,9 +86,11 @@ class Test_Transformer():
              ], input_df=True, df_out=True
         )
         x_new = dfm.fit_transform(X, y)
+        # assert x_new.columns.to_list() == ['b_c_d_l_0', 'b_c_d_l_1', 'a_a', 'a_b', 'a_missing_value', 'e_False',
+        #                                    'e_True', 'f_c', 'f_d', 'f_missing_value', '1', 'b', 'c', 'd', 'l',
+        #                                    'b^2', 'b c', 'b d', 'b l', 'c^2', 'c d', 'c l', 'd^2', 'd l', 'l^2']
         assert x_new.columns.to_list() == ['b_c_d_l_0', 'b_c_d_l_1', 'a_a', 'a_b', 'a_missing_value', 'e_False',
-                                           'e_True', 'f_c', 'f_d', 'f_missing_value', '1', 'b', 'c', 'd', 'l',
-                                           'b^2', 'b c', 'b d', 'b l', 'c^2', 'c d', 'c l', 'd^2', 'd l', 'l^2']
+                                           'e_True', 'f_c', 'f_d', 'f_missing_value']
 
     def test_no_feature(self):
         df = get_df()[0]

@@ -12,7 +12,7 @@ import pandas as pd
 import six
 from dask import array as da
 from dask import dataframe as dd
-from scipy import sparse
+from scipy import sparse as _sparse
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import _name_estimators, Pipeline
 from sklearn.utils import tosequence
@@ -209,68 +209,28 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                     as a pandas DataFrame or Series. Otherwise pass them as a
                     numpy array. Defaults to ``False``.
         """
+        if df_out and (sparse or default):
+            raise ValueError("Can not use df_out with sparse or default")
+
         self.features = features
-        self.built_features = None
         self.default = default
-        self.built_default = None
         self.sparse = sparse
         self.df_out = df_out
         self.input_df = input_df
-        self.transformed_names_ = []
         self.df_out_dtype_transforms = df_out_dtype_transforms
-        if (df_out and (sparse or default)):
-            raise ValueError("Can not use df_out with sparse or default")
 
-    def _build(self):
-        """
-        Build attributes built_features and built_default.
-        """
-        if isinstance(self.features, list):
-            self.built_features = [_build_feature(*f) for f in self.features]
+        # fitted
+        self.fitted_features_ = None
+
+    @staticmethod
+    def _build(features, default):
+        if isinstance(features, list):
+            built_features = [_build_feature(*f) for f in features]
         else:
-            self.built_features = self.features
-        self.built_default = _build_transformer(self.default)
+            built_features = features
+        built_default = _build_transformer(default)
 
-    def _selected_columns(self, X):
-        """
-        Return a set of selected columns in the feature list.
-        """
-        selected_columns = set()
-        for feature in self.features:
-            columns = feature[0]
-            if callable(columns):
-                columns = columns(X)
-            if isinstance(columns, list):
-                selected_columns = selected_columns.union(set(columns))
-            else:
-                selected_columns.add(columns)
-        return selected_columns
-
-    def _unselected_columns(self, X):
-        """
-        Return list of columns present in X and not selected explicitly in the
-        mapper.
-
-        Unselected columns are returned in the order they appear in the
-        dataframe to avoid issues with different ordering during default fit
-        and transform steps.
-        """
-        X_columns = list(X.columns)
-        selected = self._selected_columns(X)
-        return [column for column in X_columns if
-                column not in selected]
-
-    def __setstate__(self, state):
-        # compatibility for older versions of sklearn-pandas
-        self.features = [_build_feature(*feat) for feat in state['features']]
-        self.sparse = state.get('sparse', False)
-        self.default = state.get('default', False)
-        self.df_out = state.get('df_out', False)
-        self.input_df = state.get('input_df', False)
-        self.built_features = state.get('built_features', self.features)
-        self.built_default = state.get('built_default', self.default)
-        self.transformed_names_ = state.get('transformed_names_', [])
-        self.df_out_dtype_transforms = state.get('df_out_dtype_transforms', None)
+        return built_features, built_default
 
     def _get_col_subset(self, X, cols, input_df=False):
         """
@@ -310,36 +270,140 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
             return t.values
 
     def fit(self, X, y=None):
-        """
-        Fit a transformation from the pipeline
+        built_features, built_default = self._build(self.features, self.default)
 
-        X       the data to fit
+        fitted_features = []
+        selected_columns = []
 
-        y       the target vector relative to X, optional
+        for columns_def, transformers, options in built_features:
+            logger.debug(f'columns:({columns_def}), transformers:({transformers}), options:({options})')
+            if callable(columns_def):
+                columns = columns_def(X)
+            elif isinstance(columns_def, string_types):
+                columns = [columns_def]
+            else:
+                columns = columns_def
 
-        """
-        self._build()
-        for columns, transformers, options in self.built_features:
-            logger.debug(f'columns:({columns}), transformers:({transformers}), options:({options})')
-            if callable(columns):
-                columns = columns(X)
+            if isinstance(columns, (list, tuple)):
+                columns = [c for c in columns if c not in selected_columns]
+
+            fitted_features.append((columns, transformers, options))
             if columns is None or len(columns) <= 0:
                 continue
-            input_df = options.get('input_df', self.input_df)
 
+            selected_columns += columns
             if transformers is not None:
+                input_df = options.get('input_df', self.input_df)
                 with add_column_names_to_exception(columns):
                     Xt = self._get_col_subset(X, columns, input_df)
                     _call_fit(transformers.fit, Xt, y)
                     # print(f'{transformers}:{Xt.dtypes}')
 
         # handle features not explicitly selected
-        if self.built_default:  # not False and not None
-            unsel_cols = self._unselected_columns(X)
-            with add_column_names_to_exception(unsel_cols):
-                Xt = self._get_col_subset(X, unsel_cols, self.input_df)
-                _call_fit(self.built_default.fit, Xt, y)
+        if built_default is not False and len(X.columns) > len(selected_columns):
+            unselected_columns = [c for c in X.columns.to_list() if c not in selected_columns]
+            if built_default is not None:
+                with add_column_names_to_exception(unselected_columns):
+                    Xt = self._get_col_subset(X, unselected_columns, self.input_df)
+                    _call_fit(built_default.fit, Xt, y)
+            fitted_features.append((unselected_columns, built_default, {}))
+
+        self.fitted_features_ = fitted_features
+
         return self
+
+    def transform(self, X):
+        selected_columns = []
+        transformed_columns = []
+        extracted = []
+
+        for columns, transformers, options in self.fitted_features_:
+            if columns is None or len(columns) < 1:
+                continue
+            selected_columns += columns
+
+            input_df = options.get('input_df', self.input_df)
+            alias = options.get('alias')
+
+            Xt = self._get_col_subset(X, columns, input_df)
+            if transformers is not None:
+                with add_column_names_to_exception(columns):
+                    # print(f'before ---- {transformers}:{Xt.dtypes}')
+                    Xt = transformers.transform(Xt)
+                    # print(f'after ---- {transformers}:{pd.DataFrame(Xt).dtypes}')
+
+            extracted.append(_handle_feature(Xt))
+
+            transformed_columns += self.get_names(columns, transformers, Xt, alias)
+
+        return self._to_transform_result(X, extracted, transformed_columns)
+
+    def fit_transform(self, X, y=None, *fit_args):
+        fitted_features = []
+        selected_columns = []
+        transformed_columns = []
+        extracted = []
+
+        built_features, built_default = self._build(self.features, self.default)
+        for columns_def, transformers, options in built_features:
+            if callable(columns_def):
+                columns = columns_def(X)
+            elif isinstance(columns_def, string_types):
+                columns = [columns_def]
+            else:
+                columns = columns_def
+            if isinstance(columns, (list, tuple)) and len(set(selected_columns).intersection(set(columns))) > 0:
+                columns = [c for c in columns if c not in selected_columns]
+
+            if columns is None or len(columns) < 1:
+                continue
+
+            fitted_features.append((columns, transformers, options))
+            selected_columns += columns
+            if logger.is_debug_enabled():
+                logger.debug(f'fit_transform {len(columns)} columns with:\n{transformers}')
+
+            input_df = options.get('input_df', self.input_df)
+            alias = options.get('alias')
+
+            Xt = self._get_col_subset(X, columns, input_df)
+            if transformers is not None:
+                with add_column_names_to_exception(columns):
+                    if hasattr(transformers, 'fit_transform'):
+                        Xt = _call_fit(transformers.fit_transform, Xt, y)
+                    else:
+                        _call_fit(transformers.fit, Xt, y)
+                        Xt = transformers.transform(Xt)
+
+            extracted.append(_handle_feature(Xt))
+            if logger.is_debug_enabled():
+                logger.debug(f'columns:{len(columns)}')
+            transformed_columns += self.get_names(columns, transformers, Xt, alias)
+            if logger.is_debug_enabled():
+                logger.debug(f'transformed_names_:{len(transformed_columns)}')
+
+        # handle features not explicitly selected
+        if built_default is not False and len(X.columns) > len(selected_columns):
+            unselected_columns = [c for c in X.columns.to_list() if c not in selected_columns]
+            Xt = self._get_col_subset(X, unselected_columns, self.input_df)
+            if built_default is not None:
+                with add_column_names_to_exception(unselected_columns):
+                    if hasattr(built_default, 'fit_transform'):
+                        Xt = _call_fit(built_default.fit_transform, Xt, y)
+                    else:
+                        _call_fit(built_default.fit, Xt, y)
+                        Xt = built_default.transform(Xt)
+                transformed_columns += self.get_names(unselected_columns, built_default, Xt)
+            else:
+                # if not applying a default transformer, keep column names unmodified
+                transformed_columns += unselected_columns
+            extracted.append(_handle_feature(Xt))
+
+            fitted_features.append((unselected_columns, built_default, {}))
+
+        self.fitted_features_ = fitted_features
+
+        return self._to_transform_result(X, extracted, transformed_columns)
 
     def get_names(self, columns, transformer, x, alias=None):
         """
@@ -396,106 +460,28 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                 for dtype in dtype_feature]
 
     def get_dtype(self, ex):
-        if isinstance(ex, (np.ndarray, da.Array)) or sparse.issparse(ex):
+        if isinstance(ex, (np.ndarray, da.Array)) or _sparse.issparse(ex):
             return [ex.dtype] * ex.shape[1]
         elif isinstance(ex, (pd.DataFrame, dd.DataFrame)):
             return list(ex.dtypes)
         else:
             raise TypeError(type(ex))
 
-    def _transform(self, X, y=None, do_fit=False):
-        """
-        Transform the given data with possibility to fit in advance.
-        Avoids code duplication for implementation of transform and
-        fit_transform.
-        """
-        if do_fit:
-            self._build()
-
-        extracted = []
-        self.transformed_names_ = []
-        for columns, transformers, options in self.built_features:
-            if callable(columns):
-                columns = columns(X)
-            if columns is None or len(columns) < 1:
-                continue
-
-            if logger.is_debug_enabled():
-                action = 'fit_transform' if do_fit else 'transform'
-                logger.debug(f'{action} {len(columns)} columns with:\n{transformers}')
-
-            # columns could be a string or list of
-            # strings; we don't care because pandas
-            # will handle either.
-            input_df = options.get('input_df', self.input_df)
-            Xt = self._get_col_subset(X, columns, input_df)
-            if transformers is not None:
-                with add_column_names_to_exception(columns):
-                    # print(f'before ---- {transformers}:{Xt.dtypes}')
-
-                    if do_fit and hasattr(transformers, 'fit_transform'):
-                        Xt = _call_fit(transformers.fit_transform, Xt, y)
-                    else:
-                        if do_fit:
-                            _call_fit(transformers.fit, Xt, y)
-                        Xt = transformers.transform(Xt)
-                    # print(f'after ---- {transformers}:{pd.DataFrame(Xt).dtypes}')
-
-            extracted.append(_handle_feature(Xt))
-            if logger.is_debug_enabled():
-                # logger.debug(f'columns:{columns}')
-                logger.debug(f'columns:{len(columns)}')
-            alias = options.get('alias')
-            self.transformed_names_ += self.get_names(columns, transformers, Xt, alias)
-            if logger.is_debug_enabled():
-                # logger.debug(f'transformed_names_:{self.transformed_names_}')
-                logger.debug(f'transformed_names_:{len(self.transformed_names_)}')
-
-        # handle features not explicitly selected
-        if self.built_default is not False:
-            unsel_cols = self._unselected_columns(X)
-            Xt = self._get_col_subset(X, unsel_cols, self.input_df)
-            if self.built_default is not None:
-                with add_column_names_to_exception(unsel_cols):
-                    if do_fit and hasattr(self.built_default, 'fit_transform'):
-                        Xt = _call_fit(self.built_default.fit_transform, Xt, y)
-                    else:
-                        if do_fit:
-                            _call_fit(self.built_default.fit, Xt, y)
-                        Xt = self.built_default.transform(Xt)
-                self.transformed_names_ += self.get_names(
-                    unsel_cols, self.built_default, Xt)
-            else:
-                # if not applying a default transformer,
-                # keep column names unmodified
-                self.transformed_names_ += unsel_cols
-            extracted.append(_handle_feature(Xt))
-
-        # combine the feature outputs into one array.
-        # at this point we lose track of which features
-        # were created from which input columns, so it's
-        # assumed that that doesn't matter to the model.
+    def _to_transform_result(self, X, extracted, transformed_columns):
+        # combine the feature outputs into one array. at this point we lose track of which features
+        # were created from which input columns, so it's assumed that that doesn't matter to the model.
 
         # no data transformed, raise a error
         if extracted is None or len(extracted) == 0:
-            columns = []
-            input_cols = []
-            for columns, transformers, options in self.built_features:
-                if callable(columns):
-                    columns = columns(X)
-            input_cols.extend(columns)
-            if len(input_cols) > 0:
-                raise ValueError("No data output, ??? ")
-            else:
-                raise ValueError("No data output, maybe it's because your input feature is empty. ")
+            raise ValueError("No data output, ??? ")
 
         # If any of the extracted features is sparse, combine sparsely.
         # Otherwise, combine as normal arrays.
         if isinstance(X, dd.DataFrame):
             extracted = [a.values if isinstance(a, dd.DataFrame) else a for a in extracted]
             stacked = dex.hstack_array(extracted)
-        elif any(sparse.issparse(fea) for fea in extracted):
-            stacked = sparse.hstack(extracted).tocsr()
+        elif any(_sparse.issparse(fea) for fea in extracted):
+            stacked = _sparse.hstack(extracted).tocsr()
             # return a sparse matrix only if the mapper was initialized
             # with sparse=True
             if not self.sparse:
@@ -507,26 +493,17 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
             # if no rows were dropped preserve the original index,
             # otherwise use a new integer one
             if isinstance(X, dd.DataFrame):
-                df_out = dd.from_dask_array(
-                    stacked,
-                    columns=self.transformed_names_,
-                    index=None)
+                df_out = dd.from_dask_array(stacked, columns=transformed_columns, index=None)
             else:
                 no_rows_dropped = len(X) == len(stacked)
-                if no_rows_dropped:
-                    index = X.index
-                else:
-                    index = None
-                df_out = pd.DataFrame(
-                    stacked,
-                    columns=self.transformed_names_,
-                    index=index)
+                index = X.index if no_rows_dropped else None
+                df_out = pd.DataFrame(stacked, columns=transformed_columns, index=index)
 
             # output different data types, if appropriate
             dtypes = self.get_dtypes(extracted)
 
             # preserve types
-            for col, dtype, stype in zip(self.transformed_names_, dtypes, df_out.dtypes.tolist()):
+            for col, dtype, stype in zip(transformed_columns, dtypes, df_out.dtypes.tolist()):
                 if dtype != stype:
                     if logger.is_debug_enabled():
                         logger.debug(f'convert {col} as {dtype} from {stype}')
@@ -545,22 +522,3 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                     continue
                 df_out[columns] = df_out[columns].astype(dtype)
         return df_out
-
-    def transform(self, X):
-        """
-        Transform the given data. Assumes that fit has already been called.
-
-        X       the data to transform
-        """
-        return self._transform(X)
-
-    def fit_transform(self, X, y=None, *fit_args):
-        """
-        Fit a transformation from the pipeline and directly apply
-        it to the given data.
-
-        X       the data to fit
-
-        y       the target vector relative to X, optional
-        """
-        return self._transform(X, y, True)
