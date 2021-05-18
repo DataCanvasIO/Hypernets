@@ -2,9 +2,9 @@ const config = {
     entry: ['./src/index.js'],
     output: {
         path: __dirname + '/build',
-        filename: 'datUI.js',
+        filename: 'pipelineVis.js',
         libraryTarget: "commonjs", // commonjs, var
-        library: 'datUI'
+        library: 'pipelineVis'
     },
     module: {
         rules: [

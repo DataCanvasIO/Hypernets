@@ -22,12 +22,12 @@ export function DataCleaningStep({data}) {
     console.info("in DataCleaningStep data: ");
     console.info(data);
 
-    const dataSource = data.extension?.dropped_columns?.map((value, index, arr) => {
+    const dataSource = data.extension?.unselected_features?.map((value, index, arr) => {
         // const dataSource = [].map((value, index, arr) => {
         return {
             key: index,
-            feature_name: value.name,
-            reason: value.reason,
+            feature_name: value,
+            reason: 'Fixme', // fixme
         }
     });
 
@@ -54,7 +54,7 @@ export function DataCleaningStep({data}) {
         <Col span={10} >
             <Card title={title} bordered={false} style={{ width: '100%' }}>
                 {
-                    <ConfigurationCard configurationData={data.configuration}/>
+                    <ConfigurationCard configurationData={data.configuration.data_cleaner_params}/>
                 }
             </Card>
         </Col>
@@ -64,7 +64,6 @@ export function DataCleaningStep({data}) {
                 <Table dataSource={dataSource} columns={columns} />
             </Card>
         </Col>
-
     </Row>
 
 }

@@ -1,0 +1,152 @@
+import React from 'react';
+import  { useState, useEffect } from  "react";
+
+import "antd/dist/antd.css";
+import { Select, Button, Switch, Table, Steps, Progress, Card, Slider,  Form, Radio, Row, Col, Tooltip} from 'antd';
+import "antd/dist/antd.css";
+import { notification } from 'antd';
+import {connect, Provider} from "react-redux";
+
+import { Scrollbars } from 'react-custom-scrollbars';
+import { CollinearityDetectionStep, DriftDetectionStep, PipelineOptimizationStep } from '../components/steps'
+import { StepsKey } from '../constants'
+import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
+import { DataCleaningStep} from '../components/dataCleaningStep'
+const { Step } = Steps;
+
+export const showNotification = (message) => {
+    notification.error({
+        key: '123',
+        message: message,
+        duration: 10,
+    });
+};
+
+// step status: wait, process, finish, error
+
+
+
+
+const StepUIStatus = {
+    Wait : 'wait',
+    Process : 'process',
+    Finish : 'finish',
+    Fail : 'fail'
+};
+
+const ProgressBarStatus = {
+    Success: 'success',
+    Exception : 'exception',
+    Normal : 'normal',
+    Active : 'active',
+};
+
+export function ExperimentUI ({experimentData, newStepData, newTrailData} ) {
+
+    const [currentStepIndex , setCurrentStepIndex] = useState(0);
+    const [stepTabs, setStepTabs] = useState([]);
+    const [stepContents, setStepContents] = useState([]);
+
+    const stepTabComponents = [];
+    const stepContentComponents = [];
+
+
+    if(newStepData !== null && newStepData !== undefined){
+        experimentData.steps[newStepData.index] = newStepData;
+        // update next step running status
+        if(newStepData.status === StepUIStatus.Finish){
+            if(newStepData.index < experimentData.steps.length - 1){  // Current update step is not the latest
+                experimentData.steps[newStepData.index+1].status = StepUIStatus.Process
+            }
+        }
+    }
+    const getProcessBarStatus  = () => {
+        for (var step of experimentData.steps) {
+            if (step.status === StepUIStatus.Fail) {
+                return ProgressBarStatus.Exception
+            }
+        }
+        return ProgressBarStatus.Exception
+    };
+
+    const getProcessPercentage = () => {
+        // 1. find last finished step index
+        var lastFinishedStepIndex = -1;
+        for(var i = experimentData.steps.length - 1; i >= 0 ; i--){
+            if(experimentData.steps[i].status === 'finish'){
+                lastFinishedStepIndex = i;
+                break;
+            }
+        }
+        // 2. last finished step index / total step
+        return (((lastFinishedStepIndex + 1) / experimentData.steps.length) * 100).toFixed(0);
+    };
+
+    experimentData.steps.forEach(stepData=> {
+        if(stepData.kind  === StepsKey.DataCleaning.kind){
+            console.info("stepData");
+            console.info(stepData);
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.DataCleaning.name} />
+            );
+            stepContentComponents.push(
+                    <DataCleaningStep data={stepData}/>
+                )
+        }else if(stepData.kind  === StepsKey.CollinearityDetection.kind){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} />
+            );
+            stepContentComponents.push(
+                <CollinearityDetectionStep stepData={stepData}/>
+            );
+        } else if(stepData.kind  === StepsKey.DriftDetection.kind){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.DriftDetection.name} />
+            );
+            stepContentComponents.push(
+                <DriftDetectionStep stepData={stepData}/>
+            );
+        } else if(stepData.kind  === StepsKey.PipelineOptimization.kind){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.PipelineOptimization.name} />
+            );
+            stepContentComponents.push(
+                <PipelineOptimizationStep stepData={stepData}/>
+            );
+        }
+        else {
+            // showNotification("Unknown step kind");
+        }
+    });
+
+
+    // useEffect(() => {
+    //     if(cleanStepData !== null && cleanStepData !== undefined){
+    //         setCleanDataState(cleanStepData);
+    //     }
+    //     // Redux should check configData is the same as last
+    // }, [cleanStepData]);
+
+    const onStepChange = (c) => {
+        setCurrentStepIndex(c);
+    };
+
+    // navigation, default
+    // const processPercentage = getProcessPercentage()
+
+    return <Card title="Experiment progress" bordered={false} style={{ width: '100%' }}>
+            <Progress percent={  getProcessPercentage() } status={ getProcessBarStatus ()} />
+            <div style={ {width: '100%', overflow: 'auto', marginTop: 20} }>
+                <Steps
+                    type="navigation"
+                    size="small"
+                    current={currentStepIndex}
+                    onChange={onStepChange}
+                    className="site-navigation-steps"
+                >
+                    {stepTabComponents}
+                </Steps>
+            </div>
+            {stepContentComponents[currentStepIndex]}
+        </Card>
+}
