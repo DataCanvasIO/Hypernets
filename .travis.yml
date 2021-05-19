@@ -9,6 +9,7 @@ cache: pip
 # command to install dependencies
 install:
   - pip install -r requirements.txt
+  - pip install -q dask==2021.3.0 distributed==2021.3.0
   - pip install -r requirements-dask.txt
   - pip install -q pytest-cov==2.4.0
   - pip install -q python-coveralls
