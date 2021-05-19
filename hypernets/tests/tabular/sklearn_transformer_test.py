@@ -265,10 +265,28 @@ class Test_Transformer():
         assert 'genres' in Xt.columns.tolist()
         assert isinstance(Xt['genres'][0], list)
 
-        encoder = skex.TfidfEncoder(['title', 'genres'], flatten=True)
-        Xt = encoder.fit_transform(df.copy())
+        encoder = skex.TfidfEncoder(flatten=True)
+        Xt = encoder.fit_transform(df[['title', 'genres']].copy())
         assert 'genres' not in Xt.columns.tolist()
         assert 'genres_tfidf_0' in Xt.columns.tolist()
+
+        encoder = skex.TfidfEncoder(flatten=False)
+        Xt = encoder.fit_transform(df[['title', 'genres']].copy().values)
+        assert isinstance(Xt, np.ndarray)
+        assert isinstance(Xt[0, 0], list)
+        assert Xt.shape == (df.shape[0], 2)
+
+        encoder = skex.TfidfEncoder(flatten=False)
+        Xt = encoder.fit_transform(df[['title']].copy().values)
+        assert isinstance(Xt, np.ndarray)
+        assert isinstance(Xt[0, 0], list)
+        assert Xt.shape == (df.shape[0], 1)
+
+        encoder = skex.TfidfEncoder(flatten=True)
+        Xt = encoder.fit_transform(df[['genres']].copy().values)
+        assert isinstance(Xt, np.ndarray)
+        assert isinstance(Xt[0, 0], (np.int, np.float))
+        assert Xt.shape == (df.shape[0], 19)
 
     def test_datetime_encoder(self):
         def is_holiday(t):

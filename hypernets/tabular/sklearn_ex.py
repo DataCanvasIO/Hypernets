@@ -708,15 +708,16 @@ class LocalizedTfidfVectorizer(TfidfVectorizer):
 
     @staticmethod
     def _exist_chinese(s):
-        for ch in s:
-            if u'\u4e00' <= ch <= u'\u9fff':
-                return True
+        if isinstance(s, str):
+            for ch in s:
+                if u'\u4e00' <= ch <= u'\u9fff':
+                    return True
 
         return False
 
 
-class TfidfEncoder(BaseEstimator):
-    def __init__(self, columns=None, *args, flatten=False, **kwargs):
+class TfidfEncoder(BaseEstimator, TransformerMixin):
+    def __init__(self, columns=None, flatten=False, **kwargs):
         assert columns is None or isinstance(columns, (str, list, tuple))
         if isinstance(columns, str):
             columns = [columns]
@@ -725,20 +726,27 @@ class TfidfEncoder(BaseEstimator):
 
         self.columns = columns
         self.flatten = flatten
-        self.encoder_args = args
         self.encoder_kwargs = kwargs.copy()
 
         # fitted
         self.encoders_ = None
 
     def fit(self, X, y=None):
+        assert isinstance(X, (np.ndarray, pd.DataFrame)) and len(X.shape) == 2
+
         if self.columns is None:
-            self.columns = column_selector.column_object(X)
+            if isinstance(X, pd.DataFrame):
+                columns = column_selector.column_object(X)
+            else:
+                columns = range(X.shape[1])
+        else:
+            columns = self.columns
 
         encoders = {}
-        for c in self.columns:
-            encoder = LocalizedTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
-            encoders[c] = encoder.fit(X[c], y)
+        for c in columns:
+            encoder = LocalizedTfidfVectorizer(**self.encoder_kwargs)
+            Xc = X[c] if isinstance(X, pd.DataFrame) else X[:, c]
+            encoders[c] = encoder.fit(Xc, y)
 
         self.encoders_ = encoders
 
@@ -746,52 +754,41 @@ class TfidfEncoder(BaseEstimator):
 
     def transform(self, X, y=None):
         assert self.encoders_ is not None
+        assert isinstance(X, (np.ndarray, pd.DataFrame)) and len(X.shape) == 2
 
-        X = X.copy()
-
-        if self.flatten:
-            dfs = [X]
-            for c in self.columns:
-                encoder = self.encoders_[c]
-                t = encoder.transform(X[c]).toarray()
-                dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
-                X.pop(c)
-            X = pd.concat(dfs, axis=1)
+        if isinstance(X, pd.DataFrame):
+            X = X.copy()
+            if self.flatten:
+                dfs = [X]
+                for c, encoder in self.encoders_.items():
+                    t = encoder.transform(X[c]).toarray()
+                    dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
+                    X.pop(c)
+                X = pd.concat(dfs, axis=1)
+            else:
+                for c, encoder in self.encoders_.items():
+                    t = encoder.transform(X[c]).toarray()
+                    X[c] = t.tolist()
         else:
-            for c in self.columns:
-                encoder = self.encoders_[c]
-                t = encoder.transform(X[c]).toarray()
-                X[c] = t.tolist()
+            r = []
+            tolist = None if self.flatten else np.vectorize(self._tolist, otypes=[np.object], signature='(m)->()')
+            for i in range(X.shape[1]):
+                Xi = X[:, i]
+                if i in self.encoders_.keys():
+                    encoder = self.encoders_[i]
+                    t = encoder.transform(Xi).toarray()
+                    if tolist is not None:
+                        t = tolist(t).reshape((-1, 1))
+                    r.append(t)
+                else:
+                    r.append(Xi)
+            X = np.hstack(r)
 
         return X
 
-    def fit_transform(self, X, y=None):
-        if self.columns is None:
-            self.columns = column_selector.column_object(X)
-
-        X = X.copy()
-        encoders = {}
-
-        if self.flatten:
-            dfs = [X]
-            for c in self.columns:
-                encoder = LocalizedTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
-                encoders[c] = encoder
-                t = encoder.fit_transform(X[c], y).toarray()
-                dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
-                X.pop(c)
-
-            X = pd.concat(dfs, axis=1)
-        else:
-            for c in self.columns:
-                encoder = LocalizedTfidfVectorizer(*self.encoder_args, **self.encoder_kwargs)
-                encoders[c] = encoder
-                t = encoder.fit_transform(X[c], y).toarray()
-                X[c] = t.tolist()
-
-        self.encoders_ = encoders
-
-        return X
+    @staticmethod
+    def _tolist(x):
+        return x.tolist()
 
 
 class DatetimeEncoder(BaseEstimator, TransformerMixin):
@@ -848,18 +845,27 @@ class DatetimeEncoder(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         if self.columns is None:
+            if not isinstance(X, pd.DataFrame):
+                X = pd.DataFrame(X)
             self.columns = column_selector.column_all_datetime(X)
 
         return self
 
     def transform(self, X, y=None):
         if len(self.columns) > 0:
-            X = X.copy()
+            if isinstance(X, pd.DataFrame):
+                X = X.copy()
+                input_df = True
+            else:
+                X = pd.DataFrame(X)
+                input_df = False
             dfs = [df for c in self.columns for df in self.transform_column(X[c])]
             X.drop(columns=self.columns, inplace=True)
             if len(dfs) > 0:
                 dfs.insert(0, X)
                 X = pd.concat(dfs, axis=1)
+            if not input_df:
+                X = X.values
 
         return X
 
