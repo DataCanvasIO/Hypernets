@@ -263,7 +263,7 @@ class Test_Transformer():
         Xt = encoder.fit_transform(df.copy())
         assert 'title' in Xt.columns.tolist()
         assert 'genres' in Xt.columns.tolist()
-        assert isinstance(Xt['genres'][0], list)
+        assert isinstance(Xt['genres'][0], (list, np.ndarray))
 
         encoder = skex.TfidfEncoder(flatten=True)
         Xt = encoder.fit_transform(df[['title', 'genres']].copy())
@@ -273,13 +273,14 @@ class Test_Transformer():
         encoder = skex.TfidfEncoder(flatten=False)
         Xt = encoder.fit_transform(df[['title', 'genres']].copy().values)
         assert isinstance(Xt, np.ndarray)
-        assert isinstance(Xt[0, 0], list)
+        assert isinstance(Xt[0, 0], (list, np.ndarray))
+        assert len(Xt[0, 1]) == 19
         assert Xt.shape == (df.shape[0], 2)
 
         encoder = skex.TfidfEncoder(flatten=False)
         Xt = encoder.fit_transform(df[['title']].copy().values)
         assert isinstance(Xt, np.ndarray)
-        assert isinstance(Xt[0, 0], list)
+        assert isinstance(Xt[0, 0], (list, np.ndarray))
         assert Xt.shape == (df.shape[0], 1)
 
         encoder = skex.TfidfEncoder(flatten=True)

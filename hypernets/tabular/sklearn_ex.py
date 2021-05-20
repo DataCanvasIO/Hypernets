@@ -771,7 +771,7 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
                     X[c] = t.tolist()
         else:
             r = []
-            tolist = None if self.flatten else np.vectorize(self._tolist, otypes=[np.object], signature='(m)->()')
+            tolist = None if self.flatten else np.vectorize(self._to_array, otypes=[np.object], signature='(m)->()')
             for i in range(X.shape[1]):
                 Xi = X[:, i]
                 if i in self.encoders_.keys():
@@ -787,8 +787,12 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
         return X
 
     @staticmethod
-    def _tolist(x):
+    def _to_list(x):
         return x.tolist()
+
+    @staticmethod
+    def _to_array(x):
+        return x
 
 
 class DatetimeEncoder(BaseEstimator, TransformerMixin):
