@@ -49,7 +49,7 @@ def setup_dask(cls):
         setattr(cls, 'dask_client_', client)
 
 
-class XXTest_DaskCustomizedTransformer:
+class Test_DaskCustomizedTransformer:
     @classmethod
     def setup_class(cls):
         setup_dask(cls)
