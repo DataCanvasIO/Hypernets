@@ -12,7 +12,7 @@ install:
   - free -m
   - pip install -r requirements.txt
   - pip install -r requirements-dask.txt
-  - pip install dask==2021.3.0 distributed==2021.3.0 numpy==1.20.3
+  - pip install dask==2021.3.0 distributed==2021.3.0
   - pip install -q pytest-cov==2.4.0 python-coveralls codacy-coverage
   - pip list
 # command to run tests
