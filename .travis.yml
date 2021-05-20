@@ -8,9 +8,11 @@ python:
 cache: pip
 # command to install dependencies
 install:
+  - cat /proc/cpuinfo
+  - free -m
   - pip install -r requirements.txt
   - pip install -r requirements-dask.txt
-  - pip install -q dask==2021.3.0 distributed==2021.3.0 dask-ml==1.8.0
+  - pip install dask==2021.3.0 distributed==2021.3.0 numpy==1.20.3
   - pip install -q pytest-cov==2.4.0 python-coveralls codacy-coverage
   - pip list
 # command to run tests
