@@ -148,6 +148,20 @@ class DataCleaner:
         self.dropped_idness_columns_ = None
         self.dropped_duplicated_columns_ = None
 
+    def get_params(self):
+        return {
+            'nan_chars': self.nan_chars,
+            'correct_object_dtype': self.correct_object_dtype,
+            'drop_constant_columns': self.drop_constant_columns,
+            'drop_label_nan_rows': self.drop_label_nan_rows,
+            'drop_idness_columns': self.drop_idness_columns,
+            # 'replace_inf_values': self.replace_inf_values,
+            'drop_columns': self.drop_columns,
+            'drop_duplicated_columns': self.drop_duplicated_columns,
+            'reduce_mem_usage': self.reduce_mem_usage,
+            'int_convert_to': self.int_convert_to
+        }
+
     def _drop_columns(self, X, cols):
         if cols is None or len(cols) <= 0:
             return X

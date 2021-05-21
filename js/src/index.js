@@ -153,12 +153,13 @@ const experimentConfigData_  = (handler) =>{
 };
 
 const experimentConfigData  = (handler) =>{
-    return {
+    const pd = {
         steps: [
             {
+        "name": 'DataCleanStep',
         "index": 0,
         "kind": "DataCleanStep",
-        "status": "finish",
+        "status": "process",
         "configuration": {
             "cv": true,
             "data_cleaner_args": {},
@@ -182,9 +183,10 @@ const experimentConfigData  = (handler) =>{
         "start_datetime": "2020-11-11 22:22:22",
         "end_datetime": "2020-11-11 22:22:22"
     }, {
+        "name": 'DriftDetectStep',
         "index": 1,
         "kind": "DriftDetectStep",
-        "status": "finish",
+        "status": "wait",
         "configuration": {
             "min_features": 10,
             "name": "drift_detection",
@@ -198,9 +200,10 @@ const experimentConfigData  = (handler) =>{
         "start_datetime": "2020-11-11 22:22:22",
         "end_datetime": "2020-11-11 22:22:22"
     }, {
+        "name": 'SpaceSearchStep',
         "index": 2,
         "kind": "SpaceSearchStep",
-        "status": "finish",
+        "status": "wait",
         "configuration": {
             "cv": true,
             "name": "space_search",
@@ -210,9 +213,10 @@ const experimentConfigData  = (handler) =>{
         "start_datetime": "2020-11-11 22:22:22",
         "end_datetime": "2020-11-11 22:22:22"
     }, {
+        "name": 'DataCleanStep',
         "index": 3,
         "kind": "EnsembleStep",
-        "status": "finish",
+        "status": "wait",
         "configuration": {
             "ensemble_size": 20,
             "name": "final_ensemble",
@@ -222,23 +226,46 @@ const experimentConfigData  = (handler) =>{
         "start_datetime": "2020-11-11 22:22:22",
         "end_datetime": "2020-11-11 22:22:22"
     }]
-    }
+    };
+
+    return handler(pd);
 };
 
+const getNewTrialData = (trialNoIndex) => {
+    return {
+            trialNo: trialNoIndex,
+                hyperParams: {
+                max_depth: 10,
+                    n_estimator: 100
+            },
+            models: [
+                {
+                    reward: 0.7,
+                    fold: 1,
+                    importances: [
+                        {name: 'age', importance: 0.1}
+                    ]
+                }
+            ],
+            avgReward: 0.7,
+            elapsed: 100,
+            metricName: 'auc'
+    }
+
+};
 
 // Reducer
 function experimentReducer(state={} , action) {
     // Transform action to state
-    console.info("state");
-    console.info(state);
-    console.info("action");
-    console.info(action);
     const {type} = action;
     if(type === 'experimentData'){
         return {experimentData: action}
     }else if (type === 'stepFinished'){
         return {newStepData: action.data};
-    }else{
+    } else if (type === 'trialFinished') {
+        return {newTrialData: action.data};
+    }
+    else{
         return state;
     }
 }
@@ -289,123 +316,80 @@ ReactDOM.render(
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 
-var i = 0;
+//
+setTimeout(function () {
+    store.dispatch(
+        experimentConfigData(d => {
+            d.steps[0].extension =  { unselected_features: ['id']} ;
+            d.steps[0].status =  'finish' ;
+            return {
+                type: 'stepFinished',
+                data: d.steps[0]
+            }
+        })
+    )
+}, 2000);
 
-// store.dispatch( { type: 'increase', value: i});
-// setTimeout(setInterval(function () {
-//     i = i + 1;
-//     // console.info(i);
-//     //store.dispatch( { type: 'increase', value: i});
-//     //if(i === 10){
-//     // console.info("i="+i);
-//     store.dispatch({
-//         type: 'dataCleaning',
-//         timestamp: 1620896240,
-//         extension: {
-//             i: i,
-//             dropped_columns: [
-//                 {
-//                     "name": i,
-//                     "reason": "idness"
-//                 },{
-//                     "name": "default",
-//                     "reason": "constant"
-//                 },{
-//                     "name": "pdays",
-//                     "reason": "duplicate"
-//                 }
-//             ]
-//         }
-//     });
-//     //}
-// }, 1000), 3000);
+setTimeout(function () {
+    store.dispatch(
+        experimentConfigData(d => {
+            d.steps[1].extension =  { unselected_features: [{"removed": "age", "reserved": "data"}] } ;
+            d.steps[1].status =  'finish' ;
+            return {
+                type: 'stepFinished',
+                data: d.steps[1]
+            }
+        })
+    )
+}, 4000);
 
+
+
+
+var fakeTrialNo = 0;
+let trialInterval;
+setTimeout(function () {
+    trialInterval = setInterval(function () {
+        fakeTrialNo = fakeTrialNo + 1;
+        store.dispatch(
+            {
+                type: 'trialFinished',
+                data: getNewTrialData(fakeTrialNo)
+            }
+        )
+    }, 1000);
+}, 6000);
+
+
+// setTimeout(function () {
+//     store.dispatch(
+//         experimentConfigData(d => {
+//             d.steps[2].extension =  {
+//                 "estimator": null,
+//             };
+//             d.steps[2].status =  'finish' ;
+//             return {
+//                 type: 'stepFinished',
+//                 data: d.steps[2]
+//             }
+//         })
+//     )
+// }, 12000);
+//
 //
 // setTimeout(function () {
-//
 //     store.dispatch(
-//         {
+//         experimentConfigData(d => {
+//             d.steps[3].extension =  {
+//                 "estimator": null,
+//                 "weights": [0.1, 0.6, 0.3],
+//                 "lifting": [0.1, 0.2, 0.3]
+//             };
+//             d.steps[3].status =  'finish' ;
+//             return {
 //                 type: 'stepFinished',
-//                 data: {
-//                     "index": 0,
-//                     "kind": "DataCleanStep",
-//                     "status": "finish",
-//                     "configuration": {
-//                         "cv": true,
-//                         "data_cleaner_args": {
-//                         },
-//                         "name": "data_clean",
-//                         "random_state": 9527,
-//                         "train_test_split_strategy": null,
-//                         "data_cleaner_params": {
-//                             "nan_chars": null,
-//                             "correct_object_dtype": true,
-//                             "drop_constant_columns": true,
-//                             "drop_label_nan_rows": true,
-//                             "drop_idness_columns": true,
-//                             "drop_columns": null,
-//                             "drop_duplicated_columns": false,
-//                             "reduce_mem_usage": false,
-//                             "int_convert_to": "float"
-//                         }
-//                     },
-//                     "extension": {
-//                         "input_features": [
-//                             "id",
-//                             "age",
-//                             "job",
-//                             "marital",
-//                             "education",
-//                             "default",
-//                             "balance",
-//                             "housing",
-//                             "loan",
-//                             "contact",
-//                             "day",
-//                             "month",
-//                             "duration",
-//                             "campaign",
-//                             "pdays",
-//                             "previous",
-//                             "poutcome"
-//                         ],
-//                         "selected_features": [
-//                             "age",
-//                             "job",
-//                             "marital",
-//                             "education",
-//                             "default",
-//                             "balance",
-//                             "housing",
-//                             "loan",
-//                             "contact",
-//                             "day",
-//                             "month",
-//                             "duration",
-//                             "campaign",
-//                             "pdays",
-//                             "previous",
-//                             "poutcome"
-//                         ],
-//                         "unselected_features": [
-//                             "id"
-//                         ],
-//                         "X_train.shape": [
-//                             800,
-//                             16
-//                         ],
-//                         "y_train.shape": [
-//                             800
-//                         ],
-//                         "X_eval.shape": null,
-//                         "y_eval.shape": null,
-//                         "X_test.shape": null,
-//                         "unselected_reason": null
-//                     },
-//                     "start_datetime": "2020-11-11 22:22:22",
-//                     "end_datetime": "2020-11-11 22:22:22"
-//                 }
-//         }
+//                 data: d.steps[3]
+//             }
+//         })
 //     )
-// }, 3000);
-
+// }, 14000);

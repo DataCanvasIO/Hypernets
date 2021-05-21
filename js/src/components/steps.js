@@ -206,16 +206,16 @@ export function ConfigurationCard({configurationData}) {
             Object.keys(configurationData).map(key => {
                 const v = configurationData[key];
                 if (v === undefined || v === null){
-                    return <Form.Item label={key}>
+                    return <Form.Item label={key} key={key}>
                         <span>None</span>
                     </Form.Item>
                 }
                 if((typeof  v)  === "boolean"){
-                    return <Form.Item label={key}>
+                    return <Form.Item label={key} key={key}>
                         <Switch checked />
                     </Form.Item>
                 }else{
-                    return <Form.Item label={key}>
+                    return <Form.Item label={key} key={key}>
                         <span>{v}</span>
                     </Form.Item>
                 }
@@ -226,7 +226,8 @@ export function ConfigurationCard({configurationData}) {
 
 
 export function CollinearityDetectionStep({stepData}){
-    const dataSource = stepData.extension.dropped_columns?.map((value, index, arr) => {
+
+    const dataSource = stepData.extension?.unselected_features?.map((value, index, arr) => {
         return {
             key: index,
             removed: value.removed,
@@ -260,72 +261,11 @@ export function CollinearityDetectionStep({stepData}){
                 <Table dataSource={dataSource} columns={columns} />
             </Card>
         </Col>
-
     </Row>
 }
 
 
-function notEmpty(obj) {
-    return obj !== undefined && obj !== null;
-}
-
-function ImportanceBarChart(props) {
-
-    const {features, importances} = props;
-
-    if(notEmpty(features)){
-        if(notEmpty(importances)){
-            if(features.length !== importances.length){
-                showNotification('Draw feature importance error: features.length !== importances.length');
-            } else {
-                const featureImportanceChartOption = {
-                    title:{
-                        // text: 'feature importance',
-                        // subtext: 'feature importance',
-                    },
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: {
-                            type: 'shadow'
-                        }
-                    },
-                    legend: {
-                        data: []
-                    },
-                    grid: {
-                        // left: '3%',
-                        // right: '4%',
-                        // bottom: '3%',
-                        containLabel: true
-                    },
-                    xAxis: {
-                        type: 'value',
-                        boundaryGap: [0, 0.01]
-                    },
-                    yAxis: {
-                        type: 'category',
-                        data: features
-                    },
-                    series: [
-                        {
-                            name: 'Importances',
-                            type: 'bar',
-                            data: importances
-                        }
-                    ]
-                };
-                return <EchartsCore option={featureImportanceChartOption}/>
-            }
-        } else {
-            showNotification('Draw feature importance error: importances is empty.');
-        }
-    } else {
-        showNotification('Draw feature importance error: features is empty.');
-    }
-}
-
 export function DriftDetectionStep({stepData}){
-
 
     const driftFeatureAUCColumns = [
         {
@@ -401,212 +341,95 @@ export function DriftDetectionStep({stepData}){
         </>
 }
 
+export function EnsembleStep({stepData}) {
 
-export function PipelineOptimizationStep({stepData}){
+    const title = <span>
+        <Tooltip title={"Ensemble configuration"}>
+            Ensemble configuration
+        </Tooltip>
+    </span>;
 
-    const [importanceData, setImportanceData] = useState();
+    const getLiftEchartOpts = () => {
+        const lifting = stepData.extension?.lifting;
+        const yLabels = lifting !== null && lifting !== undefined ?  Array.from({length:lifting.length}, (v,k) => k) : [];
 
-    const colors = ['#5470C6', '#91CC75', '#EE6666'];
-    const trailsData = stepData.extension.trials;
-
-    // elapsedTime
-    // trailsData
-    // 1. generate cv series
-    if (stepData.configuration.cv === true){
-        // 1.1. cv models
-        // const cvModelSeries  = Array.from({length: stepData.configuration.num_folds}).map(i => {
-        //     return {
-        //         name: `fold-${i}`,
-        //         type: 'scatter',
-        //         color: '#9EDF81',
-        //         yAxisIndex: 1,
-        //         data: trailsData.map(v => {v.models[i].reward_score})
-        //     }
-        // });
-
-        // 1.2. average
-        // trailsData.map( v => {
-        //      return {
-        //          name: 'avg',
-        //          type: 'line',
-        //          color: 'red',
-        //          yAxisIndex: 1,
-        //          data: v.models.map( m => m.reward_score).reduce((a, b) => a+b) / stepData.configuration.num_folds
-        //      }
-        // })
-
-    }
-    // 2.
-
-
-
-    const echartOptions = {
-        color: colors,
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'cross'
-            }
-        },
-        grid: {
-            right: '20%'
-        },
-        toolbox: {
-
-        },
-        legend: {
-            data: []
-        },
-        xAxis: [
-            {
+        return  {
+            xAxis: {
                 type: 'category',
-                triggerEvent: false,
-                // axisTick: {
-                //     alignWithLabel: true
-                // },
-                data: [trailsData.map(v => `#${v.trial_no}`)]
+                data: yLabels
             },
-
-        ],
-        yAxis: [
-            {
-                type: 'value',
-                name: 'Elapsed',
-                min: 0,
-                max: 30,
-                position: 'right',
-                axisLine: {
-                    show: true,
-                    lineStyle: {
-                        color: colors[2]
-                    }
-                },
-                axisLabel: {
-                    formatter: '{value} min'
-                }
+            yAxis: {
+                type: 'value'
             },
-            {
-                type: 'value',
-                name: 'Score',
-                min: 0,
-                max: 1,
-                position: 'left',
-                axisLine: {
-                    show: true,
-                    lineStyle: {
-                        color: colors[0]
-                    }
-                },
-                axisLabel: {
-                    formatter: '{value}'
-                }
-            }
-        ],
-        series: [
-            {
-                name: 'fold1',
-                type: 'scatter',
-                color: '#9EDF81',
-                yAxisIndex: 1,
-                data: [0.01, 0.02, 0.2, 0.3, 0.6, 0.6, 0.6, 0.63, 0.62, 0.63, 0.65, 0.69]
-            },
-            {
-                name: 'fold2',
-                type: 'scatter',
-                color: '#9EDF81',
-                yAxisIndex: 1,
-                data: [0.1, 0.2, 0.3, 0.4, 0.8, 0.8, 0.8, 0.83, 0.82, 0.83, 0.85, 0.89]
-            },
-            {
-                name: 'fold3',
-                type: 'scatter',
-                color: '#9EDF81',
-                yAxisIndex: 1,
-                data: [0.2, 0.3, 0.4, 0.5, 0.9, 0.9, 0.9, 0.87, 0.87, 0.87, 0.86, 0.91]
-            },
-            {
-                name: 'avg',
+            series: [{
+                data: lifting,
                 type: 'line',
-                color: 'red',
-                yAxisIndex: 1,
-                data: [0.15, 0.23, 0.5, 0.5, 0.9, 0.9, 0.9, 0.87, 0.87, 0.87, 0.86, 0.91]
-            }
-            // ,
-            // {
-            //     name: 'Elapsed time',
-            //     type: 'bar',
-            //     color: '#4F69BB',
-            //     data: trailsData.map( _ => {_.elapsedTime}),
-            //     triggerEvent: false
-            // }
-        ]
+                smooth: true
+            }]
+        };
     };
 
-    const onTrialPointClick = (params) => {
-        console.info(params);
-        const SERIES_PREFIX = 'fold-';
-        // update importance charts
-        // stepData.extension.trials
-        // const currentTrial = stepData.extension.trials[params.dataIndex]
-        // 1. if (params.) componentType:series , seriesType: scatter should match
-        const seriesName = params.name ; // FIXME: this is a bug
-        if(seriesName.startsWith(SERIES_PREFIX)
-            && params.componentType === 'series'
-            && params.seriesType === 'scatter'){
-            // 2. get dataIndex to retrieve trail detail
-            const trialNo = params.dataIndex;
-            const trialData = trailsData[trialNo-1];
-            // 3. get model index from series
-            const seriesName = params.seriesName;
-            if(seriesName.startsWith(SERIES_PREFIX)){
-                const foldNo = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
-                const importanceData = trialData.models[foldNo - 1].feature_importance;
-                // 7. refresh importance charts
-                setImportanceData(importanceData);
+    const getWeightsEchartOpts = () => {
+        const weights = stepData.extension?.weights;
+        const yLabels = weights !== null && weights !== undefined ?  Array.from({length:weights.length}, (v,k) => k) : [];
+        return {
+                tooltip: {
+                    trigger: 'axis',
+                        axisPointer: {
+                        type: 'shadow'
+                    }
+                },
+                legend: {
+                    data: []
+                },
+                grid: {
+                    left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                        boundaryGap: [0, 0.01]
+                },
+                yAxis: {
+                    type: 'category',
+                        data: yLabels
+                },
+                series: [
+                    {
+                        name: 'weight',
+                        type: 'bar',
+                        data: weights
+                    }
+                ]
             }
-        }else{
-            console.info("Only model point take effect. ");
-        }
-    };
+        };
 
-    return <><Row gutter={[2, 2]}>
-        <Col span={24} >
-            <Card title="Pipeline optimization" bordered={ false } style={{ width: '100%' }}>
-                <Row>
-                <Col span={10} >
-                    <EchartsCore
-                        // loadingOption={{ color: '#1976d2' }}
-                        option={echartOptions}
-                        onClick={onTrialPointClick}
-                    />
-                </Col>
-                <Col span={10} offset={0}>
-                    {/*<EchartsCore*/}
-                    {/*    // loadingOption={{ color: '#1976d2' }}*/}
-                    {/*    option={featureImportanceChartOption}*/}
 
-                    {/*    // showLoading={loading}*/}
-                    {/*    // style={style}*/}
-                    {/*    // className={className}*/}
-                    {/*/>*/}
-                    <ImportanceBarChart
-                        features={['a', 'b']}
-                        importances={[0.1, 0.2]}
-                    />
-                </Col>
-                </Row>
+    return <>
+        <Row gutter={[4, 4]}>
+        <Col span={10} >
+            <Card title={title} bordered={false} style={{ width: '100%' }}>
+                {
+                    <ConfigurationCard configurationData={stepData.configuration}/>
+                }
             </Card>
         </Col>
 
-    </Row>
-        <Row gutter={[2, 2]}>
-            <Col span={10} offset={0} >
-                <Card title="Pipeline optimization configuration" bordered={false} style={{ width: '100%' }}>
-                    {
-                        <ConfigurationCard configurationData={stepData.configuration}/>
-                    }
+        <Col span={10} offset={2} >
+            <Card title="Weight" bordered={false} style={{ width: '100%' }}>
+                <EchartsCore option={getWeightsEchartOpts()}/>
+            </Card>
+        </Col>
+        </Row>
+        <Row gutter={[4, 4]}>
+            <Col span={10} offset={12} >
+                <Card title="Lifting" bordered={false} style={{ width: '100%' }}>
+                    <EchartsCore option={getLiftEchartOpts()}/>
                 </Card>
             </Col>
         </Row>
+
     </>
 }

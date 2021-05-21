@@ -9,18 +9,6 @@ import {store} from "../index";
 
 export function DataCleaningStep({data}) {
 
-    // const [configData, setConfigData] = useState(null);
-    //
-    // useEffect(() => {
-    //
-    // }, [data]);
-    //
-    // useEffect(() => {
-    //     setConfigData(config);
-    // }, [config]);
-
-    console.info("in DataCleaningStep data: ");
-    console.info(data);
 
     const dataSource = data.extension?.unselected_features?.map((value, index, arr) => {
         // const dataSource = [].map((value, index, arr) => {

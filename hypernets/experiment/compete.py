@@ -170,10 +170,18 @@ class DataCleanStep(FeatureSelectStep):
         self.train_test_split_strategy = train_test_split_strategy
         self.random_state = random_state
 
+        self.data_cleaner = DataCleaner(**self.data_cleaner_args)
+        self.get_params()
+
         # fitted
         self.data_cleaner_ = None
         self.detector_ = None
         self.data_shapes_ = None
+
+    def get_params(self, deep=True):
+        params = super(DataCleanStep, self).get_params()
+        params['data_cleaner_params'] = self.data_cleaner.get_params()
+        return params
 
     @cache(arg_keys='X_train,y_train,X_test,X_eval,y_eval',
            strategy='transform', transformer='cache_transform',
@@ -189,15 +197,13 @@ class DataCleanStep(FeatureSelectStep):
             X_eval = None
             y_eval = None
 
-        data_cleaner = DataCleaner(**self.data_cleaner_args)
-
         logger.info(f'{self.name} fit_transform with train data')
-        X_train, y_train = data_cleaner.fit_transform(X_train, y_train)
+        X_train, y_train = self.data_cleaner.fit_transform(X_train, y_train)
         self.step_progress('fit_transform train set')
 
         if X_test is not None:
             logger.info(f'{self.name} transform test data')
-            X_test = data_cleaner.transform(X_test)
+            X_test = self.data_cleaner.transform(X_test)
             self.step_progress('transform X_test')
 
         if not self.cv:
@@ -226,7 +232,7 @@ class DataCleanStep(FeatureSelectStep):
                         'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
                 self.step_progress('split into train set and eval set')
             else:
-                X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
+                X_eval, y_eval = self.data_cleaner.transform(X_eval, y_eval)
                 self.step_progress('transform eval set')
 
         selected_features = X_train.columns.to_list()
@@ -242,7 +248,7 @@ class DataCleanStep(FeatureSelectStep):
 
         if _is_notebook:
             display_markdown('### Data Cleaner', raw=True)
-            display(data_cleaner, display_id='output_cleaner_info1')
+            display(self.data_cleaner, display_id='output_cleaner_info1')
 
             display_markdown('### Cleaned Train set & Eval set', raw=True)
             display_data = {k: [v] for k, v in data_shapes.items()}
@@ -251,7 +257,7 @@ class DataCleanStep(FeatureSelectStep):
             logger.info(f'{self.name} keep {len(selected_features)} columns')
 
         self.selected_features_ = selected_features
-        self.data_cleaner_ = data_cleaner
+        # self.data_cleaner_ = self.data_cleaner
         self.data_shapes_ = data_shapes
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval

@@ -25,7 +25,7 @@ export const StepsKey = {
     },
     PipelineReoptimization: {
         name: 'Pipeline re-optimization',
-        kind: 'EnsembleStep'
+        kind: 'SpaceSearchStep'
     },
     Ensemble: {
         name: 'Ensemble',

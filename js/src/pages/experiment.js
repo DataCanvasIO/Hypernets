@@ -8,10 +8,11 @@ import { notification } from 'antd';
 import {connect, Provider} from "react-redux";
 
 import { Scrollbars } from 'react-custom-scrollbars';
-import { CollinearityDetectionStep, DriftDetectionStep, PipelineOptimizationStep } from '../components/steps'
+import { CollinearityDetectionStep, DriftDetectionStep, EnsembleStep } from '../components/steps'
 import { StepsKey } from '../constants'
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
 import { DataCleaningStep} from '../components/dataCleaningStep'
+import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
 const { Step } = Steps;
 
 export const showNotification = (message) => {
@@ -41,7 +42,7 @@ const ProgressBarStatus = {
     Active : 'active',
 };
 
-export function ExperimentUI ({experimentData, newStepData, newTrailData} ) {
+export function ExperimentUI ({experimentData, newStepData, newTrialData} ) {
 
     const [currentStepIndex , setCurrentStepIndex] = useState(0);
     const [stepTabs, setStepTabs] = useState([]);
@@ -61,12 +62,20 @@ export function ExperimentUI ({experimentData, newStepData, newTrailData} ) {
         }
     }
     const getProcessBarStatus  = () => {
+        var processFinish = true;
         for (var step of experimentData.steps) {
             if (step.status === StepUIStatus.Fail) {
                 return ProgressBarStatus.Exception
             }
+            if(step.status !== StepUIStatus.Finish){  // all step is finish so the ProcessBar is succeed
+                processFinish = false;
+            }
         }
-        return ProgressBarStatus.Exception
+        if(processFinish){
+            return ProgressBarStatus.Success
+        }else{
+            return ProgressBarStatus.Active
+        }
     };
 
     const getProcessPercentage = () => {
@@ -84,34 +93,40 @@ export function ExperimentUI ({experimentData, newStepData, newTrailData} ) {
 
     experimentData.steps.forEach(stepData=> {
         if(stepData.kind  === StepsKey.DataCleaning.kind){
-            console.info("stepData");
-            console.info(stepData);
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.DataCleaning.name} />
+                <Step status={stepData.status} title={StepsKey.DataCleaning.name} key={stepData.name}/>
             );
             stepContentComponents.push(
-                    <DataCleaningStep data={stepData}/>
-                )
+                <DataCleaningStep data={stepData}/>
+            );
         }else if(stepData.kind  === StepsKey.CollinearityDetection.kind){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} />
+                <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} key={stepData.name} />
             );
             stepContentComponents.push(
                 <CollinearityDetectionStep stepData={stepData}/>
             );
         } else if(stepData.kind  === StepsKey.DriftDetection.kind){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.DriftDetection.name} />
+                <Step status={stepData.status} title={StepsKey.DriftDetection.name} key={stepData.name} />
             );
             stepContentComponents.push(
                 <DriftDetectionStep stepData={stepData}/>
             );
         } else if(stepData.kind  === StepsKey.PipelineOptimization.kind){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.PipelineOptimization.name} />
+                <Step status={stepData.status} title={StepsKey.PipelineOptimization.name} key={stepData.name} />
             );
             stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData}/>
+                <PipelineOptimizationStep stepData={stepData} newTrialData={newTrialData}/>
+            );
+
+        }else if(stepData.kind  === StepsKey.Ensemble.kind){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.Ensemble.name} key={stepData.name} />
+            );
+            stepContentComponents.push(
+                <EnsembleStep stepData={stepData}/>
             );
         }
         else {

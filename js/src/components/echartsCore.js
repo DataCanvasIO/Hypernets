@@ -5,6 +5,10 @@ import PropTypes from 'prop-types';
 import { clear } from 'echarts/lib/util/throttle';
 import { isEqual } from 'date-fns';
 import { bind } from 'zrender/lib/core/util';
+import { LineChart } from 'echarts/charts';
+import { GridComponent } from 'echarts/components';
+import { TooltipComponent } from 'echarts/components';
+
 
 const pick = (obj, keys) => {
   const t = {};
@@ -28,11 +32,12 @@ class EchartsCore extends Component {
   }
 
   componentDidUpdate(prevProps) {
+    // 第二次更新时候执行了这个方法
     if (!isEqual(prevProps.theme, this.props.theme)
         || !isEqual(prevProps.opts, this.props.opts)
         || !isEqual(prevProps.onEvents, this.props.onEvents)
     ) {
-      this.dispose();
+      // this.dispose(); // 这个方法把之前的元素清掉了
       this.rerender();
       return;
     }
@@ -61,7 +66,16 @@ class EchartsCore extends Component {
   getEchartsInstance = () => this.echartsLib.getInstanceByDom(this.echartsElement) || this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts)
 
   renderEchartDom = () => {
+    echarts.use([LineChart, GridComponent]);  // this should be above of init echarts
+
     const echartsObj = this.getEchartsInstance();
+
+    // echarts.use([LineChart]);
+    // echarts.use([TooltipComponent, GridComponent, LineChart]);
+
+    console.info("option: ");
+    console.info(this.props.option);
+
     echartsObj.setOption(this.props.option, this.props.notMerge || false, this.props.lazyUpdate || false);
 
     const onClickFunc = this.props.onClick;
@@ -75,7 +89,7 @@ class EchartsCore extends Component {
     if (this.props.showLoading) echartsObj.showLoading(this.props.loadingOption || null);
     else echartsObj.hideLoading();
     return echartsObj;
-  }
+  };
 
   dispose = () => {
     if (this.echartsElement) {
@@ -86,23 +100,23 @@ class EchartsCore extends Component {
       }
       this.echartsLib.dispose(this.echartsElement);
     }
-  }
+  };
 
   rerender = () => {
     const { onEvents, onChartReady } = this.props;
     const echartsObj = this.renderEchartDom();
     this.bindEvents(echartsObj, onEvents || {});
     if (typeof onChartReady === 'function') this.props.onChartReady(echartsObj);
-    if (this.echartsElement) {
-      bind(this.echartsElement, () => {
-        try {
-          if (echartsObj) echartsObj.resize();
-        } catch (e) {
-          console.warn(e);
-        }
-      });
-    }
-  }
+    // if (this.echartsElement) {
+    //   bind( () => {
+    //     try {
+    //       if (echartsObj) echartsObj.resize();
+    //     } catch (e) {
+    //       console.warn(e);
+    //     }
+    //   }, this.echartsElement);
+    // }
+  };
 
   bindEvents = (instance, events) => {
     const bindEvent = (eventName, func) => {
@@ -117,7 +131,7 @@ class EchartsCore extends Component {
         bindEvent(eventName, events[eventName]);
       }
     }
-  }
+  };
 
   render() {
     const { style, className } = this.props;
