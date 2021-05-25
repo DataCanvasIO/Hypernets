@@ -216,7 +216,7 @@ class PlainEstimator(Estimator):
                     oof_ = np.full(y.shape, np.nan, proba.dtype)
                 else:
                     oof_ = np.full((y.shape[0], proba.shape[-1]), np.nan, proba.dtype)
-            fold_scores = calc_score(y_val_fold, preds, proba, metrics)
+            fold_scores = calc_score(y_val_fold, preds, proba, metrics, task=self.task)
 
             # save fold result
             oof_[valid_idx] = proba
