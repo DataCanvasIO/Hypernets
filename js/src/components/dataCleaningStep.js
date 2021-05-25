@@ -11,11 +11,10 @@ export function DataCleaningStep({data}) {
 
 
     const dataSource = data.extension?.unselected_features?.map((value, index, arr) => {
-        // const dataSource = [].map((value, index, arr) => {
         return {
             key: index,
-            feature_name: value,
-            reason: 'Fixme', // fixme
+            feature_name: value.name,
+            reason: value.reason, // fixme
         }
     });
 

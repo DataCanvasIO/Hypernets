@@ -158,7 +158,7 @@ const experimentConfigData  = (handler) =>{
             {
         "name": 'DataCleanStep',
         "index": 0,
-        "kind": "DataCleanStep",
+        "type": "DataCleanStep",
         "status": "process",
         "configuration": {
             "cv": true,
@@ -185,7 +185,7 @@ const experimentConfigData  = (handler) =>{
     }, {
         "name": 'DriftDetectStep',
         "index": 1,
-        "kind": "DriftDetectStep",
+        "type": "DriftDetectStep",
         "status": "wait",
         "configuration": {
             "min_features": 10,
@@ -202,7 +202,7 @@ const experimentConfigData  = (handler) =>{
     }, {
         "name": 'SpaceSearchStep',
         "index": 2,
-        "kind": "SpaceSearchStep",
+        "type": "SpaceSearchStep",
         "status": "wait",
         "configuration": {
             "cv": true,
@@ -215,7 +215,7 @@ const experimentConfigData  = (handler) =>{
     }, {
         "name": 'DataCleanStep',
         "index": 3,
-        "kind": "EnsembleStep",
+        "type": "EnsembleStep",
         "status": "wait",
         "configuration": {
             "ensemble_size": 20,
@@ -231,39 +231,102 @@ const experimentConfigData  = (handler) =>{
     return handler(pd);
 };
 
+
+
+const handleStepFinish = (state, action) => {
+    const experimentConfig = state;
+    const stepPayload = action.payload;
+    var found = false;
+    experimentConfig.steps.forEach((step, i, array) => {
+        if(step.index === stepPayload.index){
+            if(step.type !== 'SpaceSearchStep'){
+                experimentConfig.steps[i].extension = stepPayload.extension;
+            }
+            // experimentConfig.steps[i].extension = stepPayload.extension;
+            experimentConfig.steps[i].status = stepPayload.status;
+            found = true;
+        }
+    });
+    if(!found){
+        console.error("Step index = " + action.index + "not found for update step action/state is :");
+        console.error(action);
+        console.error(state);
+    }
+
+    return {...experimentConfig};
+
+};
+
+
 const getNewTrialData = (trialNoIndex) => {
     return {
-            trialNo: trialNoIndex,
+        type: 'trialFinished',
+        payload: {
+            stepIndex: 2,
+            trialData: {
+                trialNo: trialNoIndex,
                 hyperParams: {
-                max_depth: 10,
+                    max_depth: 10,
                     n_estimator: 100
-            },
-            models: [
-                {
-                    reward: 0.7,
-                    fold: 1,
-                    importances: [
-                        {name: 'age', importance: 0.1}
-                    ]
-                }
-            ],
-            avgReward: 0.7,
-            elapsed: 100,
-            metricName: 'auc'
+                },
+                models: [
+                    {
+                        reward: 0.7,
+                        fold: 1,
+                        importances: {'age': Math.random()}
+                    }
+                ],
+                avgReward: 0.7,
+                elapsed: 100,
+                metricName: 'auc'
+            }
+        }
     }
+};
+
+const handleTrailFinish = (state, action) => {
+    const experimentConfig = state;
+    const stepPayload = action.payload;
+
+    var found = false;
+    experimentConfig.steps.forEach((step, i, array) => {
+        if(step.index === stepPayload.stepIndex){
+            found = true;
+            const searchStepExtension = experimentConfig.steps[i].extension;
+            if(searchStepExtension === undefined || searchStepExtension == null){
+                experimentConfig.steps[i].extension = {}
+            }
+            const trials = experimentConfig.steps[i].extension.trials;
+            if (trials === undefined || trials === null){
+                experimentConfig.steps[i].extension.trials = []
+            }
+            experimentConfig.steps[i].extension.trials.push(stepPayload.trialData);
+        }
+    });
+
+    if(!found){
+        console.error("Step index = " + action.stepIndex + "not found for update trial and action/state is :");
+        console.error(action);
+        console.error(state);
+    }
+
+    return {...experimentConfig};
 
 };
 
 // Reducer
-function experimentReducer(state={} , action) {
+function experimentReducer(state , action) {
     // Transform action to state
     const {type} = action;
     if(type === 'experimentData'){
         return {experimentData: action}
     }else if (type === 'stepFinished'){
-        return {newStepData: action.data};
+        const newState =  handleStepFinish(state, action);
+        console.info("new state");
+        console.info(newState);
+        return newState;
     } else if (type === 'trialFinished') {
-        return {newTrialData: action.data};
+        return handleTrailFinish(state, action)
     }
     else{
         return state;
@@ -271,7 +334,7 @@ function experimentReducer(state={} , action) {
 }
 
 // Store
-export const store = createStore(experimentReducer);
+export const store = createStore(experimentReducer, experimentConfigData( d => d ));
 
 
 export function renderPipelineMatrixBundle(ele, experimentData){
@@ -286,7 +349,7 @@ export function renderPipelineMatrixBundle(ele, experimentData){
 
 // Map Redux state to component props
 function mapStateToProps(state) {
-    return state
+    return {experimentData: state}
 }
 
 // Map Redux actions to component props
@@ -305,91 +368,90 @@ const ExperimentUIContainer = connect(
 ReactDOM.render(
     // <MyComponent percentage={percentage} />,
     <Provider store={store}>
-        <ExperimentUIContainer
-            experimentData={experimentConfigData( d => d )}
-        />
+        <ExperimentUIContainer experimentData={store.getState()}/>
     </Provider>,
     document.getElementById('root')
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-
-//
-setTimeout(function () {
-    store.dispatch(
-        experimentConfigData(d => {
-            d.steps[0].extension =  { unselected_features: ['id']} ;
-            d.steps[0].status =  'finish' ;
-            return {
-                type: 'stepFinished',
-                data: d.steps[0]
-            }
-        })
-    )
-}, 2000);
 
 setTimeout(function () {
     store.dispatch(
-        experimentConfigData(d => {
-            d.steps[1].extension =  { unselected_features: [{"removed": "age", "reserved": "data"}] } ;
-            d.steps[1].status =  'finish' ;
-            return {
-                type: 'stepFinished',
-                data: d.steps[1]
+        {
+            type:'stepFinished',
+            payload: {
+                index: 0,
+                type: 'DataCleanStep',
+                extension: {unselected_features: [{name: "id", reason: 'unknown'}]},
+                status: 'finish',
+                datetime: ''
             }
-        })
+        }
     )
-}, 4000);
+}, 200);
 
 
 
+
+setTimeout(function () {
+    store.dispatch(
+        {
+            type:'stepFinished',
+            payload: {
+                index: 1,
+                type: 'DataCleanStep',
+                extension: {unselected_features: [{"removed": "age", "reserved": "data"}] },
+                status: 'finish',
+                datetime: ''
+            }
+        }
+    )
+}, 400);
 
 var fakeTrialNo = 0;
 let trialInterval;
 setTimeout(function () {
     trialInterval = setInterval(function () {
         fakeTrialNo = fakeTrialNo + 1;
-        store.dispatch(
-            {
-                type: 'trialFinished',
-                data: getNewTrialData(fakeTrialNo)
-            }
-        )
+        if(fakeTrialNo <= 5){
+            store.dispatch(
+                getNewTrialData(fakeTrialNo)
+            )
+        }else{
+            clearInterval(trialInterval);
+        }
     }, 1000);
-}, 6000);
+}, 1000);
 
+setTimeout(function () {
+    store.dispatch(
+        {
+            type:'stepFinished',
+            payload: {
+                index: 2,
+                type: 'SearchSpaceStep',
+                extension: {
+                    unselected_features: [{"removed": "age", "reserved": "data"}],
+                },
+                status: 'finish',
+                datetime: ''
+            }
+        }
+    )
+}, 11000);
 
-// setTimeout(function () {
-//     store.dispatch(
-//         experimentConfigData(d => {
-//             d.steps[2].extension =  {
-//                 "estimator": null,
-//             };
-//             d.steps[2].status =  'finish' ;
-//             return {
-//                 type: 'stepFinished',
-//                 data: d.steps[2]
-//             }
-//         })
-//     )
-// }, 12000);
-//
-//
-// setTimeout(function () {
-//     store.dispatch(
-//         experimentConfigData(d => {
-//             d.steps[3].extension =  {
-//                 "estimator": null,
-//                 "weights": [0.1, 0.6, 0.3],
-//                 "lifting": [0.1, 0.2, 0.3]
-//             };
-//             d.steps[3].status =  'finish' ;
-//             return {
-//                 type: 'stepFinished',
-//                 data: d.steps[3]
-//             }
-//         })
-//     )
-// }, 14000);
+setTimeout(function () {
+    store.dispatch(
+        {
+            type: 'stepFinished',
+            payload: {
+                index: 3,
+                type: 'EnsembleStep',
+                extension: {
+                    "weights": [0.1, 0.6, 0.3],
+                    "lifting": [0.1, 0.2, 0.3]
+                },
+                status: 'finish',
+                datetime: ''
+            }
+        })
+}, 12000);

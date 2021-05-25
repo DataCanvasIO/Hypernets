@@ -42,7 +42,7 @@ const ProgressBarStatus = {
     Active : 'active',
 };
 
-export function ExperimentUI ({experimentData, newStepData, newTrialData} ) {
+export function ExperimentUI ({experimentData} ) {
 
     const [currentStepIndex , setCurrentStepIndex] = useState(0);
     const [stepTabs, setStepTabs] = useState([]);
@@ -52,15 +52,15 @@ export function ExperimentUI ({experimentData, newStepData, newTrialData} ) {
     const stepContentComponents = [];
 
 
-    if(newStepData !== null && newStepData !== undefined){
-        experimentData.steps[newStepData.index] = newStepData;
-        // update next step running status
-        if(newStepData.status === StepUIStatus.Finish){
-            if(newStepData.index < experimentData.steps.length - 1){  // Current update step is not the latest
-                experimentData.steps[newStepData.index+1].status = StepUIStatus.Process
-            }
-        }
-    }
+    // if(newStepData !== null && newStepData !== undefined){
+    //     experimentData.steps[newStepData.index] = newStepData;
+    //     // update next step running status
+    //     if(newStepData.status === StepUIStatus.Finish){
+    //         if(newStepData.index < experimentData.steps.length - 1){  // Current update step is not the latest
+    //             experimentData.steps[newStepData.index+1].status = StepUIStatus.Process
+    //         }
+    //     }
+    // }
     const getProcessBarStatus  = () => {
         var processFinish = true;
         for (var step of experimentData.steps) {
@@ -92,36 +92,37 @@ export function ExperimentUI ({experimentData, newStepData, newTrialData} ) {
     };
 
     experimentData.steps.forEach(stepData=> {
-        if(stepData.kind  === StepsKey.DataCleaning.kind){
+        const stepType = stepData.type;
+        if(stepType  === StepsKey.DataCleaning.kind){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.DataCleaning.name} key={stepData.name}/>
             );
             stepContentComponents.push(
                 <DataCleaningStep data={stepData}/>
             );
-        }else if(stepData.kind  === StepsKey.CollinearityDetection.kind){
+        }else if(stepType  === StepsKey.CollinearityDetection.kind){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} key={stepData.name} />
             );
             stepContentComponents.push(
                 <CollinearityDetectionStep stepData={stepData}/>
             );
-        } else if(stepData.kind  === StepsKey.DriftDetection.kind){
+        } else if(stepType  === StepsKey.DriftDetection.kind){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.DriftDetection.name} key={stepData.name} />
             );
             stepContentComponents.push(
                 <DriftDetectionStep stepData={stepData}/>
             );
-        } else if(stepData.kind  === StepsKey.PipelineOptimization.kind){
+        } else if(stepType  === StepsKey.PipelineOptimization.kind){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.PipelineOptimization.name} key={stepData.name} />
+                <Step status={stepData.status} title={StepsKey.PipelineOptimization.name} key={`step_${stepData.name}`} />
             );
             stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} newTrialData={newTrialData}/>
+                <PipelineOptimizationStep stepData={stepData} />
             );
 
-        }else if(stepData.kind  === StepsKey.Ensemble.kind){
+        }else if(stepType  === StepsKey.Ensemble.kind){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.Ensemble.name} key={stepData.name} />
             );
