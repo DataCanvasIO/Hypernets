@@ -25,3 +25,9 @@ class TabularCfg(Configurable):
                allow_none=False,
                config=True,
                help='the directory to store cached data, read/write permissions are required.')
+
+    geohash_precision = \
+        Int(12,
+            config=True,
+            help=''
+            )
