@@ -11,7 +11,7 @@ install:
   - cat /proc/cpuinfo
   - free -m
   - pip install dask==2021.1.1 distributed==2021.1.1 dask-ml
-  - pip install -r requirements.txt
+  - pip install -r requirements.txt -r requirements-ft.txt
   - pip install -q pytest-cov==2.4.0 python-coveralls codacy-coverage
   - pip list
 # command to run tests
