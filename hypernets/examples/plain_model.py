@@ -320,7 +320,7 @@ class PlainEstimator(Estimator):
 
 class PlainModel(HyperModel):
     def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None,
-                 transformer=None):
+                 discriminator=None, transformer=None):
         super(PlainModel, self).__init__(searcher, dispatcher=dispatcher, callbacks=callbacks,
                                          reward_metric=reward_metric, task=task)
         self.transformer = transformer
