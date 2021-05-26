@@ -17,7 +17,7 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
 from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.feature_generators import FeatureGenerationTransformer, CrossCategorical
+from hypernets.tabular.feature_generators import FeatureGenerationTransformer
 from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
 from hypernets.utils import logging
 
@@ -50,9 +50,9 @@ class Test_FeatureGenerator():
     def test_pipeline(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        cross_cat = CrossCategorical()
         X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=[cross_cat])
+        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
+                                           categories_cols=column_object_category_bool(X_train))
         preprocessor = general_preprocessor()
         pipe = Pipeline(steps=[('feature_gen', ftt), ('processor', preprocessor)])
         X_t = pipe.fit_transform(X_train)
@@ -61,9 +61,9 @@ class Test_FeatureGenerator():
     def test_in_dataframe_mapper(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        cross_cat = CrossCategorical()
         X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=[cross_cat])
+        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
+                                           categories_cols=column_object_category_bool(X_train))
         dfm = DataFrameMapper(features=[(X_train.columns.to_list(), ftt)],
                               input_df=True,
                               df_out=True)
@@ -73,9 +73,9 @@ class Test_FeatureGenerator():
     def test_feature_tools_categorical_cross(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        cross_cat = CrossCategorical()
         X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=[cross_cat])
+        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
+                                           categories_cols=column_object_category_bool(X_train))
         ftt.fit(X_train)
         x_t = ftt.transform(X_train)
         assert len(set(x_t.columns.to_list()) - set(
@@ -104,9 +104,9 @@ class Test_FeatureGenerator():
         df = dsutils.load_bank().head(1000)
         df.drop(['id'], axis=1, inplace=True)
         y = df.pop('y')
-        cross_cat = CrossCategorical()
         ftt = FeatureGenerationTransformer(task='binary',
-                                           trans_primitives=['add_numeric', 'divide_numeric', cross_cat])
+                                           trans_primitives=['add_numeric', 'divide_numeric', 'cross_categorical'],
+                                           categories_cols=column_object_category_bool(df))
         ftt.fit(df)
         x_t = ftt.transform(df)
 
@@ -117,13 +117,33 @@ class Test_FeatureGenerator():
         x_t2 = fst.transform(x_t)
         assert x_t2.shape[1] == 35
 
+    def test_category_datetime_text(self):
+        df = dsutils.load_movielens()
+        df['genres'] = df['genres'].apply(lambda s: s.replace('|', ' '))
+        df['timestamp'] = df['timestamp'].apply(datetime.fromtimestamp)
+        ftt = FeatureGenerationTransformer(task='binary', text_cols=['title'], categories_cols=['gender', 'genres'])
+        x_t = ftt.fit_transform(df)
+        xt_columns = x_t.columns.to_list()
+        assert 'gender__genres' in xt_columns
+        assert 'LSA(title)[0]' in xt_columns
+        assert 'DAY(timestamp)' in xt_columns
+
+    def test_latlong(self):
+        df = pd.DataFrame()
+        df['latitude'] = [51.52, 9.93, 37.38]
+        df['longitude'] = [-0.17, 76.25, -122.08]
+        df['latlong'] = df[['latitude', 'longitude']].apply(tuple, axis=1)
+        ftt = FeatureGenerationTransformer(latlong_cols=['latlong'])
+        x_t = ftt.fit_transform(df)
+        assert 'GEOHASH(latlong)' in x_t.columns.to_list()
+
     def test_feature_generation_with_selection(self):
         df = dsutils.load_bank().head(1000)
         df.drop(['id'], axis=1, inplace=True)
         y = df.pop('y')
-        cross_cat = CrossCategorical()
         ftt = FeatureGenerationTransformer(task='binary',
-                                           trans_primitives=['add_numeric', 'divide_numeric', cross_cat],
+                                           trans_primitives=['add_numeric', 'divide_numeric', 'cross_categorical'],
+                                           categories_cols=column_object_category_bool(df),
                                            feature_selection_args={'ratio_select_cols': 0.2})
         with pytest.raises(AssertionError) as err:
             ftt.fit(df)
