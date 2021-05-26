@@ -366,17 +366,10 @@ class TransformerAdaptorStep(ExperimentStep):
     def __init__(self, experiment, name, transformer_creator, **kwargs):
         assert transformer_creator is not None
 
-        super(TransformerAdaptorStep, self).__init__(experiment, name)
-
         self.transformer_creator = transformer_creator
         self.transformer_kwargs = kwargs
 
-        for k, v in kwargs.items():
-            if not hasattr(self, name):
-                try:
-                    setattr(self, k, v)
-                except:
-                    pass
+        super(TransformerAdaptorStep, self).__init__(experiment, name)
 
         # fitted
         self.transformer_ = None
@@ -419,6 +412,20 @@ class TransformerAdaptorStep(ExperimentStep):
             return self.transformer_.transform(X)
         else:
             return self.transformer_.transform(X, y)
+
+    def __getattribute__(self, item):
+        try:
+            return super(TransformerAdaptorStep, self).__getattribute__(item)
+        except AttributeError as e:
+            transformer_kwargs = self.transformer_kwargs
+            if item in transformer_kwargs.keys():
+                return transformer_kwargs[item]
+            else:
+                raise e
+
+    def __dir__(self):
+        transformer_kwargs = self.transformer_kwargs
+        return set(super(TransformerAdaptorStep, self).__dir__()).union(set(transformer_kwargs.keys()))
 
 
 class FeatureGenerationStep(TransformerAdaptorStep):
@@ -1126,11 +1133,7 @@ class SteppedExperiment(Experiment):
             X_train, y_train, X_test, X_eval, y_eval = \
                 [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
-            if logger.is_debug_enabled():
-                logger.debug(f'fit_transform {step.name} with {X_train.columns.to_list()}')
-            else:
-                logger.info(f'fit_transform {step.name}')
-
+            logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
             self.step_start(step.name)
             try:
                 hyper_model, X_train, y_train, X_test, X_eval, y_eval = \

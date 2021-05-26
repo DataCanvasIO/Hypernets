@@ -69,7 +69,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         self.latlong_cols = latlong_cols
         self.text_cols = text_cols
         self.drop_cols = drop_cols
-        self.selection_args = feature_selection_args
+        self.feature_selection_args = feature_selection_args
 
         # fitted
         self._imputed_input = None
@@ -80,10 +80,10 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None, **kwargs):
         original_cols = X.columns.to_list()
 
-        if self.selection_args is not None:
+        if self.feature_selection_args is not None:
             assert y is not None, '`y` must be provided for feature selection.'
-            self.selection_args['reserved_cols'] = original_cols
-            self.selection_transformer = FeatureSelectionTransformer(task=self.task, **self.selection_args)
+            self.feature_selection_args['reserved_cols'] = original_cols
+            self.selection_transformer = FeatureSelectionTransformer(task=self.task, **self.feature_selection_args)
 
         # self._check_values(X)
         if self.categories_cols is None:
