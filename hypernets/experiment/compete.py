@@ -22,6 +22,7 @@ from hypernets.tabular import drift_detection as dd
 from hypernets.tabular.cache import cache
 from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
+from hypernets.tabular.feature_generators import FeatureGenerationTransformer
 from hypernets.tabular.feature_importance import permutation_importance_batch, select_by_feature_importance
 from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
@@ -359,6 +360,98 @@ class DataCleanStep(FeatureSelectStep):
                 **data_shapes,
                 'unselected_reason': unselected_reason,
                 }
+
+
+class TransformerAdaptorStep(ExperimentStep):
+    def __init__(self, experiment, name, transformer_creator, **kwargs):
+        assert transformer_creator is not None
+
+        super(TransformerAdaptorStep, self).__init__(experiment, name)
+
+        self.transformer_creator = transformer_creator
+        self.transformer_kwargs = kwargs
+
+        for k, v in kwargs.items():
+            if not hasattr(self, name):
+                try:
+                    setattr(self, k, v)
+                except:
+                    pass
+
+        # fitted
+        self.transformer_ = None
+
+    @cache(arg_keys='X_train, y_train, X_test, X_eval, y_eval',
+           strategy='transform', transformer='cache_transform',
+           attrs_to_restore='transformer_kwargs,transformer_')
+    def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
+        logger.info(f'{self.name} fit')
+
+        init_kwargs = self.transformer_kwargs.copy()
+        if 'task' in init_kwargs.keys():
+            init_kwargs['task'] = self.task
+
+        transformer = self.transformer_creator(**init_kwargs)
+        transformer.fit(X_train, y_train, **kwargs)
+        self.transformer_ = transformer
+
+        return self.cache_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
+                                    **kwargs)
+
+    def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        logger.info(f'{self.name} cache_transform')
+
+        transformer = self.transformer_
+        X_train = transformer.transform(X_train)
+
+        if X_eval is not None:
+            X_eval = transformer.transform(X_eval, y_eval)
+        if X_test is not None:
+            X_test = transformer.transform(X_test)
+
+        return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def transform(self, X, y=None, **kwargs):
+        logger.info(f'{self.name} transform')
+        if y is None:
+            return self.transformer_.transform(X)
+        else:
+            return self.transformer_.transform(X, y)
+
+
+class FeatureGenerationStep(TransformerAdaptorStep):
+    def __init__(self, experiment, name,
+                 trans_primitives=None,
+                 continuous_cols=None,
+                 datetime_cols=None,
+                 categories_cols=None,
+                 latlong_cols=None,
+                 text_cols=None,
+                 max_depth=1,
+                 fix_input=False,
+                 feature_selection_args=None):
+        drop_cols = []
+        if text_cols is not None:
+            drop_cols += list(text_cols)
+        if latlong_cols is not None:
+            drop_cols += list(latlong_cols)
+
+        super(FeatureGenerationStep, self).__init__(experiment, name,
+                                                    FeatureGenerationTransformer,
+                                                    trans_primitives=trans_primitives,
+                                                    fix_input=fix_input,
+                                                    continuous_cols=continuous_cols,
+                                                    datetime_cols=datetime_cols,
+                                                    categories_cols=categories_cols,
+                                                    latlong_cols=latlong_cols,
+                                                    text_cols=text_cols,
+                                                    drop_cols=drop_cols if len(drop_cols) > 0 else None,
+                                                    max_depth=max_depth,
+                                                    feature_selection_args=feature_selection_args,
+                                                    task=None,  # fixed by super
+                                                    )
 
 
 class MulticollinearityDetectStep(FeatureSelectStep):
@@ -1033,7 +1126,11 @@ class SteppedExperiment(Experiment):
             X_train, y_train, X_test, X_eval, y_eval = \
                 [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
-            logger.info(f'fit_transform {step.name}')
+            if logger.is_debug_enabled():
+                logger.debug(f'fit_transform {step.name} with {X_train.columns.to_list()}')
+            else:
+                logger.info(f'fit_transform {step.name}')
+
             self.step_start(step.name)
             try:
                 hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
@@ -1102,6 +1199,16 @@ class CompeteExperiment(SteppedExperiment):
                  random_state=9527,
                  scorer=None,
                  data_cleaner_args=None,
+                 feature_generation=False,
+                 feature_generation_trans_primitives=None,
+                 # feature_generation_fix_input=False,
+                 feature_generation_max_depth=1,
+                 feature_generation_categories_cols=None,
+                 feature_generation_continuous_cols=None,
+                 feature_generation_datetime_cols=None,
+                 feature_generation_latlong_cols=None,
+                 feature_generation_text_cols=None,
+                 # feature_generation_feature_selection_args=None,
                  collinearity_detection=False,
                  drift_detection=True,
                  drift_detection_remove_shift_variable=True,
@@ -1173,6 +1280,20 @@ class CompeteExperiment(SteppedExperiment):
         data_cleaner_args : dict, (default=None)
             dictionary of parameters to initialize the `DataCleaner` instance. If None, `DataCleaner` will initialized
             with default values.
+        feature_generation : bool (default False),
+            Whether to enable feature generation.
+        feature_generation_trans_primitives: list (default None)
+            FeatureTools transform primitives list.
+        feature_generation_categories_cols: list (default None),
+            Column names to generate new features as FeatureTools Categorical variables.
+        feature_generation_continuous_cols: list (default detected from X_train),
+            Column names to generate new features as FeatureTools Numeric variables.
+        feature_generation_datetime_cols: list (default detected from X_train),
+            Column names to generate new features as FeatureTools Datetime variables.
+        feature_generation_latlong_cols: list (default None),
+            Column names to generate new features as FeatureTools LatLong variables.
+        feature_generation_text_cols: list (default None),
+            Column names to generate new features as FeatureTools Text(NaturalLanguage) variables.
         collinearity_detection :  bool, (default=False)
             Whether to clear multicollinearity features
         drift_detection : bool,(default=True)
@@ -1256,6 +1377,18 @@ class CompeteExperiment(SteppedExperiment):
                                    data_cleaner_args=data_cleaner_args, cv=cv,
                                    train_test_split_strategy=train_test_split_strategy,
                                    random_state=random_state))
+        # feature generation
+        if feature_generation:
+            steps.append(FeatureGenerationStep(
+                self, 'feature_generation',
+                trans_primitives=feature_generation_trans_primitives,
+                max_depth=feature_generation_max_depth,
+                continuous_cols=feature_generation_continuous_cols,
+                datetime_cols=feature_generation_datetime_cols,
+                categories_cols=feature_generation_categories_cols,
+                latlong_cols=feature_generation_latlong_cols,
+                text_cols=feature_generation_text_cols,
+            ))
 
         # select by collinearity
         if collinearity_detection:

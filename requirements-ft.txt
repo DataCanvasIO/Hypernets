@@ -1,0 +1,3 @@
+featuretools
+python-geohash
+nlp-primitives

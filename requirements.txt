@@ -11,4 +11,3 @@ dask
 pyarrow
 ipython
 traitlets
-featuretools
