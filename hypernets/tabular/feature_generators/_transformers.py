@@ -156,7 +156,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         # 1. check is fitted and values
         assert self.feature_defs_ is not None, 'Please fit it first.'
 
