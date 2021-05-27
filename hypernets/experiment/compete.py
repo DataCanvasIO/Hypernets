@@ -22,7 +22,6 @@ from hypernets.tabular import drift_detection as dd
 from hypernets.tabular.cache import cache
 from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
-from hypernets.tabular.feature_generators import FeatureGenerationTransformer
 from hypernets.tabular.feature_importance import permutation_importance_batch, select_by_feature_importance
 from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
@@ -439,6 +438,8 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                  max_depth=1,
                  fix_input=False,
                  feature_selection_args=None):
+        from hypernets.tabular.feature_generators import FeatureGenerationTransformer
+
         drop_cols = []
         if text_cols is not None:
             drop_cols += list(text_cols)
