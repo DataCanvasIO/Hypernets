@@ -5,13 +5,13 @@
 
 from sklearn.metrics import get_scorer
 
-from hypernets.experiment import CompeteExperiment
+from hypernets.experiment import CompeteExperiment, SimpleNotebookCallback
 from hypernets.model import HyperModel
 from hypernets.searchers import make_searcher
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
-from hypernets.utils import load_data, infer_task_type, hash_data, logging, const
+from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook
 
 logger = logging.get_logger(__name__)
 
@@ -175,18 +175,14 @@ def make_experiment(hyper_model_cls,
 
     def default_search_callbacks():
         from hypernets.core.callbacks import SummaryCallback
-        if logging.get_level() < logging.WARN:
-            callbacks = [SummaryCallback()]
-        else:
-            callbacks = []
-        return callbacks
+        return [SummaryCallback()] if logging.get_level() < logging.WARN else []
 
-    def append_early_stopping_callbacks(callbacks):
+    def append_early_stopping_callbacks(cbs):
         from hypernets.core.callbacks import EarlyStoppingCallback
 
-        assert isinstance(callbacks, (tuple, list))
-        if any([isinstance(cb, EarlyStoppingCallback) for cb in callbacks]):
-            return callbacks
+        assert isinstance(cbs, (tuple, list))
+        if any([isinstance(cb, EarlyStoppingCallback) for cb in cbs]):
+            return cbs
 
         op = optimize_direction if optimize_direction is not None \
             else 'max' if scorer._sign > 0 else 'min'
@@ -194,7 +190,7 @@ def make_experiment(hyper_model_cls,
                                    time_limit=early_stopping_time_limit,
                                    expected_reward=early_stopping_reward)
 
-        return [es] + callbacks
+        return [es] + cbs
 
     X_train, X_eval, X_test = [load_data(data) if data is not None else None
                                for data in (train_data, eval_data, test_data)]
@@ -233,6 +229,9 @@ def make_experiment(hyper_model_cls,
 
     hm = hyper_model_cls(searcher, reward_metric=reward_metric, callbacks=search_callbacks,
                          discriminator=discriminator)
+
+    if callbacks is None and isnotebook():
+        callbacks = [SimpleNotebookCallback()]
 
     experiment = CompeteExperiment(hm, X_train, y_train, X_eval=X_eval, y_eval=y_eval, X_test=X_test,
                                    task=task, id=id, callbacks=callbacks, scorer=scorer, **kwargs)
