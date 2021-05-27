@@ -9,9 +9,9 @@ from collections import UserDict
 
 from ..core.meta_learner import MetaLearner
 from ..core.trial import *
+from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
 from ..utils import logging, infer_task_type as _infer_task_type
-from ..discriminators import UnPromisingTrial
 
 logger = logging.get_logger(__name__)
 
@@ -186,8 +186,22 @@ class HyperModel():
         self._before_search()
 
         dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
-        trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
-                                       **fit_kwargs)
+
+        for callback in self.callbacks:
+            callback.on_search_start(self, X, y, X_eval, y_eval,
+                                     cv, num_folds, max_trials, dataset_id, trial_store,
+                                     **fit_kwargs)
+        try:
+            trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval,
+                                           cv, num_folds, max_trials, dataset_id, trial_store,
+                                           **fit_kwargs)
+
+            for callback in self.callbacks:
+                callback.on_search_end(self)
+        except Exception as e:
+            for callback in self.callbacks:
+                callback.on_search_error(self)
+            raise e
 
         self._after_search(trial_no)
 

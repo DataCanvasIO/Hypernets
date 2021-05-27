@@ -192,6 +192,15 @@ def make_experiment(hyper_model_cls,
 
         return [es] + cbs
 
+    def append_notebook_callbacks(cbs):
+        from hypernets.core.callbacks import NotebookCallback
+
+        assert isinstance(cbs, (tuple, list))
+        if any([isinstance(cb, NotebookCallback) for cb in cbs]):
+            return cbs
+
+        return [NotebookCallback()] + cbs
+
     X_train, X_eval, X_test = [load_data(data) if data is not None else None
                                for data in (train_data, eval_data, test_data)]
 
@@ -222,6 +231,11 @@ def make_experiment(hyper_model_cls,
         search_callbacks = default_search_callbacks()
     search_callbacks = append_early_stopping_callbacks(search_callbacks)
 
+    if isnotebook():
+        if callbacks is None:
+            callbacks = [SimpleNotebookCallback()]
+        search_callbacks = append_notebook_callbacks(search_callbacks)
+
     if id is None:
         id = hash_data(dict(X_train=X_train, y_train=y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                             eval_size=kwargs.get('eval_size'), target=target, task=task))
@@ -229,9 +243,6 @@ def make_experiment(hyper_model_cls,
 
     hm = hyper_model_cls(searcher, reward_metric=reward_metric, callbacks=search_callbacks,
                          discriminator=discriminator)
-
-    if callbacks is None and isnotebook():
-        callbacks = [SimpleNotebookCallback()]
 
     experiment = CompeteExperiment(hm, X_train, y_train, X_eval=X_eval, y_eval=y_eval, X_test=X_test,
                                    task=task, id=id, callbacks=callbacks, scorer=scorer, **kwargs)
