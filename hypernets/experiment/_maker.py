@@ -5,13 +5,14 @@
 
 from sklearn.metrics import get_scorer
 
-from hypernets.experiment import CompeteExperiment, SimpleNotebookCallback
+from hypernets.experiment import CompeteExperiment
+from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.model import HyperModel
 from hypernets.searchers import make_searcher
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
-from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook
+from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook, load_module
 
 logger = logging.get_logger(__name__)
 
@@ -173,9 +174,15 @@ def make_experiment(hyper_model_cls,
 
         return sch
 
+    def default_experiment_callbacks():
+        cbs = cfg.experiment_callbacks_notebook if isnotebook() else cfg.experiment_callbacks_console
+        cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cbs]
+        return cbs
+
     def default_search_callbacks():
-        from hypernets.core.callbacks import SummaryCallback
-        return [SummaryCallback()] if logging.get_level() < logging.WARN else []
+        cbs = cfg.hyper_model_callbacks_notebook if isnotebook() else cfg.hyper_model_callbacks_console
+        cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cbs]
+        return cbs
 
     def append_early_stopping_callbacks(cbs):
         from hypernets.core.callbacks import EarlyStoppingCallback
@@ -191,15 +198,6 @@ def make_experiment(hyper_model_cls,
                                    expected_reward=early_stopping_reward)
 
         return [es] + cbs
-
-    def append_notebook_callbacks(cbs):
-        from hypernets.core.callbacks import NotebookCallback
-
-        assert isinstance(cbs, (tuple, list))
-        if any([isinstance(cb, NotebookCallback) for cb in cbs]):
-            return cbs
-
-        return [NotebookCallback()] + cbs
 
     X_train, X_eval, X_test = [load_data(data) if data is not None else None
                                for data in (train_data, eval_data, test_data)]
@@ -231,10 +229,8 @@ def make_experiment(hyper_model_cls,
         search_callbacks = default_search_callbacks()
     search_callbacks = append_early_stopping_callbacks(search_callbacks)
 
-    if isnotebook():
-        if callbacks is None:
-            callbacks = [SimpleNotebookCallback()]
-        search_callbacks = append_notebook_callbacks(search_callbacks)
+    if callbacks is None:
+        callbacks = default_experiment_callbacks()
 
     if id is None:
         id = hash_data(dict(X_train=X_train, y_train=y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
