@@ -197,6 +197,16 @@ def hash_data(data, method='md5'):
     return m.hexdigest()
 
 
+def load_module(mod_name):
+    assert isinstance(mod_name, str) and mod_name.find('.') > 0
+
+    cbs = mod_name.split('.')
+    pkg, mod = '.'.join(cbs[:-1]), cbs[-1]
+    pkg = __import__(pkg, fromlist=[''])
+    mod = getattr(pkg, mod)
+    return mod
+
+
 def load_data(data, **kwargs):
     assert isinstance(data, (str, pd.DataFrame, dd.DataFrame))
 
