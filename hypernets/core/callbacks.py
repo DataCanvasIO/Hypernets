@@ -52,6 +52,10 @@ class EarlyStoppingError(RuntimeError):
 
 
 class EarlyStoppingCallback(Callback):
+    REASON_TRIAL_LIMIT = 'trials'
+    REASON_TIME_LIMIT = 'time_limit'
+    REASON_EXPECTED_REWARD = 'expected_reward'
+
     def __init__(self, max_no_improvement_trials=0, mode='min', min_delta=0, time_limit=None, expected_reward=None):
         super(Callback, self).__init__()
         # assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
@@ -65,12 +69,21 @@ class EarlyStoppingCallback(Callback):
         self.time_limit = time_limit
         self.expected_reward = expected_reward
         self.start_time = None
+
+        self.triggered = None
+        self.triggered_reason = None
+
         if mode == 'min':
             self.op = np.less
         elif mode == 'max':
             self.op = np.greater
         else:
             raise ValueError(f'Unsupported mode:{mode}')
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        self.triggered = False
+        self.triggered_reason = None
 
     def on_trial_begin(self, hyper_model, space, trial_no):
         if self.start_time is None:
@@ -84,6 +97,8 @@ class EarlyStoppingCallback(Callback):
                 msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                 if logger.is_info_enabled():
                     logger.info(msg)
+                self.triggered_reason = self.REASON_TIME_LIMIT
+                self.triggered = True
                 raise EarlyStoppingError(msg)
 
         if self.expected_reward is not None and self.expected_reward != 0.0:
@@ -92,6 +107,8 @@ class EarlyStoppingCallback(Callback):
                 msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                 if logger.is_info_enabled():
                     logger.info(msg)
+                self.triggered_reason = self.REASON_EXPECTED_REWARD
+                self.triggered = True
                 raise EarlyStoppingError(msg)
 
         if self.max_no_improvement_trials is not None and self.max_no_improvement_trials > 0:
@@ -109,6 +126,8 @@ class EarlyStoppingCallback(Callback):
                         msg = f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                         if logger.is_info_enabled():
                             logger.info(msg)
+                        self.triggered_reason = self.REASON_TRIAL_LIMIT
+                        self.triggered = True
                         raise EarlyStoppingError(msg)
 
 
