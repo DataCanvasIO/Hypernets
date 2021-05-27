@@ -152,6 +152,10 @@ const experimentConfigData_  = (handler) =>{
     return handler(pd);
 };
 
+
+const CV = true ;  // 控制模拟数据是否开启cv
+const N_FOLDS = 3;
+
 const experimentConfigData  = (handler) =>{
     const pd = {
         steps: [
@@ -161,7 +165,7 @@ const experimentConfigData  = (handler) =>{
         "type": "DataCleanStep",
         "status": "process",
         "configuration": {
-            "cv": true,
+            "cv": CV,
             "data_cleaner_args": {},
             "name": "data_clean",
             "random_state": 9527,
@@ -205,15 +209,34 @@ const experimentConfigData  = (handler) =>{
         "type": "SpaceSearchStep",
         "status": "wait",
         "configuration": {
-            "cv": true,
+            "cv": CV,
             "name": "space_search",
-            "num_folds": 3
+            "num_folds": N_FOLDS,
+            "earlyStopping": {
+                "exceptedReward": 0.9,
+                "maxNoImprovedTrials": 8,
+                "maxElapsedTime": 100000,
+                "direction": 'max'
+            }
         },
-        "extension": null,
+        "extension": {
+            trials: [],
+            "earlyStopping": {
+                "conditionStatus": {
+                    "reward": 0,
+                    "maxNoImprovedTrials": 0,
+                    "elapsedTime": 0
+                },
+                "stopReason": {
+                    "condition": null,
+                    "value": null
+                }
+            }
+        },
         "start_datetime": "2020-11-11 22:22:22",
         "end_datetime": "2020-11-11 22:22:22"
     }, {
-        "name": 'DataCleanStep',
+        "name": 'EnsembleStep',
         "index": 3,
         "type": "EnsembleStep",
         "status": "wait",
@@ -230,7 +253,6 @@ const experimentConfigData  = (handler) =>{
 
     return handler(pd);
 };
-
 
 
 const handleStepFinish = (state, action) => {
@@ -258,7 +280,26 @@ const handleStepFinish = (state, action) => {
 };
 
 
-const getNewTrialData = (trialNoIndex) => {
+const getNewTrialData = (trialNoIndex, isLatest) => {
+    let models;
+    if(CV){
+        models = Array.from({length: N_FOLDS}, (k, v)=> v ).map(
+            i => {
+                return {
+                    reward: Math.random(),
+                    fold: i,
+                    importances: {'age': Math.random()}
+                }
+            }
+        )
+    }else{
+        models = [{
+            reward: 0.7,
+            fold: 1,
+            importances: {'age': Math.random()}
+        }]
+    }
+
     return {
         type: 'trialFinished',
         payload: {
@@ -269,16 +310,21 @@ const getNewTrialData = (trialNoIndex) => {
                     max_depth: 10,
                     n_estimator: 100
                 },
-                models: [
-                    {
-                        reward: 0.7,
-                        fold: 1,
-                        importances: {'age': Math.random()}
-                    }
-                ],
-                avgReward: 0.7,
+                models: models,
+                reward: 0.7,
                 elapsed: 100,
-                metricName: 'auc'
+                metricName: 'auc',
+                earlyStopping: {
+                    conditionStatus: {
+                        reward: 0.8,
+                        noImprovedTrials: trialNoIndex + 2,
+                        elapsedTime: 10000 + trialNoIndex * 5000
+                    },
+                    stopReason: {
+                        condition: isLatest ? 'reward': null,
+                        value: isLatest ? 0.9 : null,
+                    }
+                }
             }
         }
     }
@@ -387,7 +433,7 @@ setTimeout(function () {
             }
         }
     )
-}, 200);
+}, 100);
 
 
 
@@ -405,7 +451,7 @@ setTimeout(function () {
             }
         }
     )
-}, 400);
+}, 200);
 
 var fakeTrialNo = 0;
 let trialInterval;
@@ -414,13 +460,13 @@ setTimeout(function () {
         fakeTrialNo = fakeTrialNo + 1;
         if(fakeTrialNo <= 5){
             store.dispatch(
-                getNewTrialData(fakeTrialNo)
+                getNewTrialData(fakeTrialNo, fakeTrialNo === 5)
             )
         }else{
             clearInterval(trialInterval);
         }
     }, 1000);
-}, 1000);
+}, 500);
 
 setTimeout(function () {
     store.dispatch(

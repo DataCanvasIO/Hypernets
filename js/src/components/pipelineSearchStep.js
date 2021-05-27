@@ -22,6 +22,8 @@ import 'echarts/lib/component/legend';
 // 引入dataZoom
 import 'echarts/lib/component/dataZoom';
 import {showNotification} from "../pages/experiment";
+import { Progress, Tooltip } from 'antd';
+import {formatHumanDate} from "../util";
 
 
 const pick = (obj, keys) => {
@@ -30,11 +32,6 @@ const pick = (obj, keys) => {
         t[key] = obj[key];
     });
     return t;
-};
-
-const experimentConfig4Step = {
-    cv: true,
-    nFolds: 3,
 };
 
 class TrialChart extends React.Component {
@@ -49,33 +46,23 @@ class TrialChart extends React.Component {
 
     onChartClick(params){
 
-        const SERIES_PREFIX = 'fold-';
-
         // 1. if (params.) componentType:series , seriesType: scatter should match
-        const seriesName = params.name ; // FIXME: this is a bug
-        if(this.props.experimentConfig.cv === false){
-            const trainNo = parseInt(seriesName.substring(1, seriesName.length));
-            this.props.onTrialClick(trainNo, 0, this.props.experimentConfig.cv);
+        const xAxisName = params.name ; // FIXME: this is a bug
+        const trainNo = parseInt(xAxisName.substring(1, xAxisName.length));
+        if(this.props.stepConfig.cv === false){
+            this.props.onTrialClick(trainNo, 0);
+        }else{
+            //  params.seriesName  => fold_1
+            //  params.name  => #5
+            const seriesName = params.seriesName;
+            const SERIES_PREFIX = 'fold_';
+            if(seriesName.startsWith(SERIES_PREFIX) && params.componentType === 'series' && params.seriesType === 'scatter'){
+                const modelIndex = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
+                // console.info('modelIndex');
+                // console.info(modelIndex);
+                this.props.onTrialClick(trainNo, modelIndex);
+            }
         }
-
-        // if(seriesName.startsWith(SERIES_PREFIX) && params.componentType === 'series' && params.seriesType === 'scatter'){
-        //     // 2. get dataIndex to retrieve trail detail
-        //     const trialNo = params.dataIndex;
-        //     const modelIndex = 0;
-        //     // const trialData = trailsData[trialNo-1];
-        //     // // 3. get model index from series
-        //     // const seriesName = params.seriesName;
-        //     // if(seriesName.startsWith(SERIES_PREFIX)){
-        //     //     const foldNo = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
-        //     //     const importanceData = trialData.models[foldNo - 1].feature_importance;
-        //     //     // 7. refresh importance charts
-        //     //     setImportanceData(importanceData);
-        //     //     this.props.onTrialClick(trialNo, modelIndex);
-        //     // }
-        // }else{
-        //     console.info("Only model point take effect. ");
-        // }
-
     }
 
     componentDidMount() {
@@ -84,7 +71,7 @@ class TrialChart extends React.Component {
 
         const echartsObj = this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts);
         this.renderChart(echartsObj);
-        // const options = this.getChartOptions([], [], [], this.props.experimentConfig.cv, this.props.experimentConfig.nFolds);
+        // const options = this.getChartOptions([], [], [], this.props.stepConfig.cv, this.props.stepConfig.num_folds);
         // echartsObj.setOption(options, false, false);
         echartsObj.on('click', this.onChartClick.bind(this));
 
@@ -119,8 +106,8 @@ class TrialChart extends React.Component {
 
         // 生成模型的 reward 数据
         var nModles = 1;
-        if (this.props.experimentConfig.cv === true) {
-            nModles = this.props.experimentConfig.nFolds;
+        if (this.props.stepConfig.cv === true) {
+            nModles = this.props.stepConfig.num_folds;
         }
 
         // 生成模型的分数数据
@@ -128,10 +115,13 @@ class TrialChart extends React.Component {
             return trials.map(v => v.models[i].reward)
         });
 
-        const chartOptions = this.getChartOptions(xAxisData, elapseSeriesData, rewardSeriesData, trials, this.props.experimentConfig.cv, this.props.experimentConfig.nFolds);
+        const chartOptions = this.getChartOptions(xAxisData, elapseSeriesData, rewardSeriesData, trials, this.props.stepConfig.cv, this.props.stepConfig.num_folds);
 
         // fixme check echartsElement is not empty
         // const echartsObj = this.echartsLib.getInstanceByDom(this.echartsElement);
+        console.info("chartOptions");
+        console.info(chartOptions);
+
         echartsObj.setOption(chartOptions, false, false);
     }
     componentWillUnmount(){
@@ -163,10 +153,10 @@ class TrialChart extends React.Component {
             />
         );
     }
-    getChartOptions(xAxisData, elapsedSeriesData, modelsScore, trials, cv, nFolds){
+    getChartOptions(xAxisData, elapsedSeriesData, modelsScore, trials, cv, num_folds){
         // [ [0.5,0.5,0.9], [0.5,0.5,0.9] ]
 
-        const getTooltipBody = (name, paramsObj)=> {
+        const getSelection = (name, paramsObj)=> {
 
             const rows = Object.keys(paramsObj).map(key => {
                 return `<tr>
@@ -186,35 +176,54 @@ class TrialChart extends React.Component {
             return s;
         };
 
+        const getTooltipBody = (trial, cv_fold)=> {
+
+            const trialDetail = {
+                "Reward": trial.reward,
+                "Elapsed time": `${(trial.elapsed/60).toFixed(0)} min`,
+                "Trial no": trial.trialNo,
+                "Status": 'finish'
+            };
+
+            if(cv_fold !== undefined && cv_fold !== null){
+                trialDetail["CV fold"] = cv_fold;
+            }
+
+           const trialSection = getSelection('Trial', trialDetail);
+           const paramsSection = getSelection('Params', trial.hyperParams);
+
+           return trialSection + `<br/>` + paramsSection;
+
+        };
 
         const scoreSeries = [];
         if(cv === false){
-            scoreSeries.push( {
+            scoreSeries.push({
                 name: 'Reward',
                 type: 'line',
-                color: '#9EDF81',
+                color: '#f59311',
                 yAxisIndex: 1,
                 data: modelsScore[0]
             })
         }else{
-
-            Array.from({length: nFolds}, (k, v)=>v).map(i=>{
-                scoreSeries.push( {
-                    name: `fold_${i}`,
+            modelsScore.map((value, index , array)=>{
+                scoreSeries.push({
+                    name: `fold_${index}`,
                     type: 'scatter',
-                    color: '#9EDF81',
+                    color: '#6ca30f',
                     yAxisIndex: 1,
-                    data: scoreSeries.map( (scores) => scores[i])
+                    data: value  // 点的个数不对，应该有n个点 也就是5个点而不是3个点
                 })
             });
+            // [[1]]
 
             // calc avg
             scoreSeries.push({
                 name: 'Average',
                 type: 'line',
-                color: 'red',
+                color: '#16afcc',
                 yAxisIndex: 1,
-                data: scoreSeries.map(v => v.avgReward)
+                data: trials.map(v => v.reward)
             })}
 
         const colors = ['#5470C6', '#91CC75', '#EE6666'];
@@ -223,22 +232,35 @@ class TrialChart extends React.Component {
             color: colors,
             title: {subtext: 'Trials' },
             tooltip: {
-                trigger: 'axis',
+                trigger: 'item',
                 axisPointer: {
                     type: 'cross'
                 },
                 formatter(params){
-                    const param = params[0];
-                    const trialNo = parseInt(param.axisValue.substring(1, param.axisValue.length));
-                    console.log('trialNo');
-                    console.log(trialNo);
-                    var body = '';
-                    trials.forEach(trial => {
-                        if(trial.trialNo === trialNo){
-                            body = getTooltipBody('Params', trial.hyperParams)
+                    // const param = params[0];
+                    const trialNo = parseInt(params.name.substring(1, params.name.length));
+                    // 还需要解析出 modelIndex
+                    const getTipBody = (modelIndex) => {
+                        // 要求必须在模型上才能看到Tooltip
+                        var body = '';
+                        trials.forEach(trial => {
+                            if(trial.trialNo === trialNo){
+                                body = getTooltipBody(trial, modelIndex)
+                            }
+                        });
+                        return body;
+                    };
+
+                    if(cv === true){
+                        const seriesName = params.seriesName;
+                        const SERIES_PREFIX = 'fold_';
+                        if(seriesName.startsWith(SERIES_PREFIX) && params.componentType === 'series' && params.seriesType === 'scatter'){
+                            const modelIndex = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
+                            return getTipBody(modelIndex);
                         }
-                    });
-                    return body;
+                    }else{
+                        return getTipBody(null);
+                    }
                 }
             },
             grid: {
@@ -283,7 +305,7 @@ class TrialChart extends React.Component {
                     axisLine: {
                         show: true,
                         lineStyle: {
-                            color: colors[2]
+
                         }
                     },
                     axisLabel: {
@@ -299,7 +321,7 @@ class TrialChart extends React.Component {
                     axisLine: {
                         show: true,
                         lineStyle: {
-                            color: colors[0]
+
                         }
                     },
                     axisLabel: {
@@ -323,7 +345,7 @@ class TrialChart extends React.Component {
 
 TrialChart.propTypes = {
     trials: PropTypes.array,
-    experimentConfig: PropTypes.object,
+    stepConfig: PropTypes.object,
     showLoading: PropTypes.bool,
     loadingOption: PropTypes.object,
     theme: PropTypes.oneOfType([
@@ -335,7 +357,7 @@ TrialChart.propTypes = {
 
 TrialChart.defaultProps = {
     trials: [],
-    experimentConfig: {},
+    stepConfig: {},
     showLoading: false,
     loadingOption: null,
     theme: null,
@@ -390,77 +412,136 @@ function ImportanceBarChart({importances}) {
 
 }
 
+function CircleProgress({title, style, strokeColor, data}) {
+    const {percent, value, tip} = data;
+    return <Tooltip title={tip}>
+        <Progress type="circle"
+                  width={80}
+                  strokeColor={strokeColor}
+                  percent={percent}
+                  style={{...style}}
+                  format={percent => {
+                      return <><div style={{fontSize: 12}}>
+                          {title}
+                      </div >
+                          <div>{value}</div>
+                      </>
+                  }} />
+    </Tooltip>
+}
 
 export function PipelineOptimizationStep({stepData}){
 
     const [importanceData, setImportanceData] = useState({});
+    const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
 
     const trailsData = stepData.extension?.trials;
 
-    useEffect(() => {
-        if(trailsData !== undefined && trailsData !== null && trailsData.length > 0){
-            setImportanceData(trailsData[trailsData.length-1].models[0].importances);
-        }
-    }, [trailsData]);
-
-
-    // elapsedTime
-    // trailsData
-    // 1. generate cv series
-    if (stepData.configuration.cv === true){
-        // 1.1. cv models
-        // const cvModelSeries  = Array.from({length: stepData.configuration.num_folds}).map(i => {
-        //     return {
-        //         name: `fold-${i}`,
-        //         type: 'scatter',
-        //         color: '#9EDF81',
-        //         yAxisIndex: 1,
-        //         data: trailsData.map(v => {v.models[i].reward_score})
-        //     }
-        // });
-
-        // 1.2. average
-        // trailsData.map( v => {
-        //      return {
-        //          name: 'avg',
-        //          type: 'line',
-        //          color: 'red',
-        //          yAxisIndex: 1,
-        //          data: v.models.map( m => m.reward_score).reduce((a, b) => a+b) / stepData.configuration.num_folds
-        //      }
-        // })
-
+    var lastTrial;
+    if(trailsData !== undefined && trailsData !== null && trailsData.length > 0){
+        lastTrial =  trailsData[trailsData.length-1]
+    }else{
+        lastTrial = null;
     }
-    // 2.
 
-    const  b = {'a': 0.1, 'b': 0.2 };
+    // SearchSpaceStep的配置数据要剔除EarlyStopping数据
+    const configurationForPanel =   {...stepData.configuration};
+    delete configurationForPanel['earlyStopping'];
+
+
+    useEffect(() => {
+        if(lastTrial !== null){
+            setImportanceData(lastTrial.models[0].importances);
+            setEarlyStoppingRewardData(getEarlyStoppingRewardData(lastTrial));
+            setEarlyStoppingTrialsData(getEarlyStoppingTrialsData(lastTrial));
+            setEarlyStoppingElapsedTimeData(getEarlyStoppingElapsedTimeData(lastTrial));
+        }
+    }, [lastTrial]);
 
     const onTrialClick = (trialNo, modelIndex, cv) => {
         const trials = stepData.extension.trials;
-        if(cv === false){
-            trials.forEach(trial => {
-                if(trial.trialNo === trialNo){
-                    setImportanceData(trial.models[0].importances)
-                }
-            });
-        }
-        // const SERIES_PREFIX = 'fold-';
-        // update importance charts
-        // stepData.extension.trials
-        // const currentTrial = stepData.extension.trials[params.dataIndex]
-        // 1. if (params.) componentType:series , seriesType: scatter should match
-        // 2. get dataIndex to retrieve trail detail
-        // const trialNo = params.dataIndex;
-        // const trialData = trailsData[trialNo-1];
-        // // 3. get model index from series
-        // const seriesName = params.seriesName;
-        // if(seriesName.startsWith(SERIES_PREFIX)){
-        //     const foldNo = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
-        //     const importanceData = trialData.models[foldNo - 1].feature_importance;
-        //     // 7. refresh importance charts
-        //     setImportanceData(importanceData);
-        // }
+        trials.forEach(trial => {
+            if(trial.trialNo === trialNo){
+                setImportanceData(trial.models[modelIndex].importances)
+            }
+        });
+    };
 
+    const getEarlyStoppingRewardData = (lastTrial) => {
+
+        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
+
+        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.conditionStatus;
+        let percent;
+        let tip;
+        let value;
+        if(exceptedReward !== undefined && exceptedReward !== null){
+            // early stopping is opening
+            if(direction === 'max'){
+                if(reward !== undefined && reward !== null){
+                    percent = (reward / exceptedReward) * 100;
+                    value = reward;
+                }
+            }else{
+                percent = 0;
+                if(reward !== undefined && reward !== null){
+                    value = reward;
+                }else{
+                    value = '-';
+                }
+            }
+            tip = `Excepted reward is ${exceptedReward}, now best reward is ${value}`;
+        }else{
+            percent = 0;
+            value = '-';
+            tip = `This strategy is off`;
+        }
+        return {percent, value, tip}
+    };
+
+    const getEarlyStoppingTrialsData = (lastTrial) => {
+        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
+
+        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.conditionStatus;
+        let percent;
+        let tip;
+        let value;
+        if(maxNoImprovedTrials !== undefined && maxNoImprovedTrials !== null && maxNoImprovedTrials > 0){
+            // early stopping by trials num  is opening
+            percent = (noImprovedTrials / maxNoImprovedTrials) * 100;
+            value = noImprovedTrials;
+            tip =  `Max no improved trials is ${maxNoImprovedTrials}, now is ${value}`;
+        }else{
+            percent = 0;
+            value = '-';
+            tip = `This strategy is off`;
+        }
+        return {percent, value, tip}
+    };
+
+    const getEarlyStoppingElapsedTimeData = (lastTrial) => {
+        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
+
+        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.conditionStatus;
+        let percent;
+        let tip;
+        let value;
+        if(maxElapsedTime !== undefined && maxElapsedTime !== null && maxElapsedTime > 0){
+            // early stopping by trials num  is opening
+            percent = (elapsedTime / maxElapsedTime) * 100;
+            value = formatHumanDate(elapsedTime);
+            tip =  `Limited time is ${formatHumanDate(maxElapsedTime)}, now running for ${value}`;
+        }else{
+            percent = 0;
+            value = '-';
+            tip = `This strategy is off`;
+        }
+        return {percent, value, tip}
     };
 
     return <><Row gutter={[2, 2]}>
@@ -470,7 +551,7 @@ export function PipelineOptimizationStep({stepData}){
                     <Col span={10} >
                         <TrialChart
                             trials={trailsData}
-                            experimentConfig={{cv: false ,nFolds: 0}}
+                            stepConfig={stepData.configuration}
                             onTrialClick={onTrialClick}
                         />
                     </Col>
@@ -488,8 +569,27 @@ export function PipelineOptimizationStep({stepData}){
             <Col span={10} offset={0} >
                 <Card title="Pipeline optimization configuration" bordered={false} style={{ width: '100%' }}>
                     {
-                        <ConfigurationCard configurationData={stepData.configuration}/>
+                        <ConfigurationCard configurationData={configurationForPanel}/>
                     }
+                </Card>
+            </Col>
+            <Col span={10} offset={0} >
+                <Card title="Early stopping" bordered={false} style={{ width: '100%' }}>
+                        <CircleProgress
+                            title={'Reward'}
+                            strokeColor ='#6ca30f'
+                            data={earlyStoppingRewardData}
+                            />
+                        <CircleProgress
+                            title={'Trials'}
+                            strokeColor ='#0e72cc'
+                            style={{marginLeft: 20}}
+                            data={earlyStoppingTrialsData}/>
+                        <CircleProgress
+                            title={'Time'}
+                            strokeColor ='#fa4343'
+                            style={{marginLeft: 20}}
+                            data={earlyStoppingElapsedTimeData}/>
                 </Card>
             </Col>
         </Row>

@@ -32,3 +32,6 @@ export const StepsKey = {
         kind: 'EnsembleStep'
     }
 };
+
+
+export const MAX_FEATURES_OF_IMPORTANCES = 10;

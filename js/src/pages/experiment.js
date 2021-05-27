@@ -149,7 +149,7 @@ export function ExperimentUI ({experimentData} ) {
 
     // navigation, default
     // const processPercentage = getProcessPercentage()
-
+    //                   fixme  current={currentStepIndex}
     return <Card title="Experiment progress" bordered={false} style={{ width: '100%' }}>
             <Progress percent={  getProcessPercentage() } status={ getProcessBarStatus ()} />
             <div style={ {width: '100%', overflow: 'auto', marginTop: 20} }>
