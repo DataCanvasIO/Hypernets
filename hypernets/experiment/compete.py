@@ -433,7 +433,6 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                  latlong_cols=None,
                  text_cols=None,
                  max_depth=1,
-                 fix_input=False,
                  feature_selection_args=None):
         from hypernets.tabular.feature_generators import FeatureGenerationTransformer
 
@@ -446,7 +445,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
         super(FeatureGenerationStep, self).__init__(experiment, name,
                                                     FeatureGenerationTransformer,
                                                     trans_primitives=trans_primitives,
-                                                    fix_input=fix_input,
+                                                    fix_input=False,
                                                     continuous_cols=continuous_cols,
                                                     datetime_cols=datetime_cols,
                                                     categories_cols=categories_cols,
@@ -457,6 +456,13 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                                                     feature_selection_args=feature_selection_args,
                                                     task=None,  # fixed by super
                                                     )
+
+    def get_fitted_params(self):
+        t = self.transformer_
+        return {**super(FeatureGenerationStep, self).get_fitted_params(),
+                'trans_primitives': t.trans_primitives if t is not None else None,
+                'output_feature_names': t.transformed_feature_names_ if t is not None else None,
+                }
 
 
 class MulticollinearityDetectStep(FeatureSelectStep):
