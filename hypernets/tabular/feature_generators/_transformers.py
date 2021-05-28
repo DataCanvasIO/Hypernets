@@ -1,3 +1,5 @@
+import re
+
 import featuretools as ft
 import numpy as np
 import pandas as pd
@@ -41,7 +43,8 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
                  max_depth=1,
                  max_features=-1,
                  drop_cols=None,
-                 feature_selection_args=None):
+                 feature_selection_args=None,
+                 fix_feature_names=True):
         """
 
         Args:
@@ -70,12 +73,14 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         self.text_cols = text_cols
         self.drop_cols = drop_cols
         self.feature_selection_args = feature_selection_args
+        self.fix_feature_names = fix_feature_names
 
         # fitted
         self._imputed_input = None
         self.original_cols = []
         self.selection_transformer = None
         self.feature_defs_ = None
+        self.transformed_feature_names_ = None
 
     def fit(self, X, y=None, **kwargs):
         original_cols = X.columns.to_list()
@@ -118,10 +123,10 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
                          {c: variable_types.Unknown for c in unknown_cols},
                          )
 
-        if self.trans_primitives is not None:
-            trans_primitives = self.trans_primitives
-        else:
-            trans_primitives = self._default_trans_primitives(X, y)
+        if self.trans_primitives is None:
+            self.trans_primitives = self._default_trans_primitives(X, y)
+
+        trans_primitives = self.trans_primitives
         if any([isinstance(p, str) and p in _named_primitives.keys() for p in trans_primitives]):
             trans_primitives = [_named_primitives.get(p, p) if isinstance(p, str) else p
                                 for p in trans_primitives]
@@ -145,6 +150,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
 
         self.feature_defs_ = feature_defs
         self.original_cols = original_cols
+        self.transformed_feature_names_ = self._get_transformed_feature_names(feature_defs)
 
         if self.selection_transformer is not None:
             self.selection_transformer.fit(feature_matrix, y)
@@ -170,6 +176,9 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
                                  index=self.ft_index)
         feature_matrix = ft.calculate_feature_matrix(self.feature_defs_, entityset=es, n_jobs=1, verbose=10)
         feature_matrix.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+        if self.fix_feature_names:
+            feature_matrix = self._fix_transformed_feature_names(feature_matrix)
 
         return feature_matrix
 
@@ -233,3 +242,19 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
                 if _df[col].nunique(dropna=False) < 1 or _df[col].dropna().shape[0] < 1:
                     result.append(col)
         return result
+
+    def _get_transformed_feature_names(self, feature_defs):
+        names = [n for f in feature_defs for n in f.get_feature_names()]
+        if self.fix_feature_names:
+            p = re.compile(r'[()\[\]]')
+            names = [p.sub('__', n) for n in names]
+        return names
+
+    def _fix_transformed_feature_names(self, df):
+        if self.fix_feature_names and hasattr(df, 'columns'):
+            columns = df.columns.to_list()
+            p = re.compile(r'[()\[\]]')
+            columns = [p.sub('__', n) for n in columns]
+            df.columns = columns
+
+        return df
