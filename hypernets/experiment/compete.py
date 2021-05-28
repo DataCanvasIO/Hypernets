@@ -7,6 +7,7 @@ __author__ = 'yangjian'
 import copy
 import inspect
 from collections import OrderedDict
+import json
 
 import numpy as np
 import pandas as pd
@@ -1254,6 +1255,50 @@ class CompeteExperiment(SteppedExperiment):
         kwargs :
 
         """
+
+    def show_details(self, X_train, y_train):
+        cnt_x_num, cnt_x_text, cnt_x_date = 0, 0, 0
+        
+        for dtype in X_train.dtypes:
+            if dtype == 'int64' or dtype == 'float64':
+                cnt_x_num += 1
+            if dtype == 'object':
+                cnt_x_text += 1
+            if dtype == 'datetime64[ns]'or dtype == 'timedelta64[ns]':
+                cnt_x_date += 1
+
+        max_y, min_y, mean_y = 0, 0, 0
+        Missing_y = y_train.isnull().sum()
+        Unique_y = len(y_train.unique())
+        Freq_y = y_train.value_counts()[0]
+        
+        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
+            max_y = '-'
+        else:
+            max_y = max(y_train)
+        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
+            min_y = '-'
+        else:
+            min_y = min(y_train)
+        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
+            mean_y = '-'
+        else:
+            mean_y = pd.Series.mean(mean_y)
+        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
+            Stdev_y = '-'
+        else:
+            Stdev_y = y_train.std()
+        
+        dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
+        datatype_y = dtype2usagetype[str(y_train.dtypes)]
+
+        
+
+        details_dict = {'cnt_x_num':cnt_x_num, 'cnt_x_text':cnt_x_text, 'cnt_x_date':cnt_x_date, 'max_y':max_y, 'min_y':min_y, 'mean_y':mean_y, 'Stdev_y':Stdev_y, 'datatype_y':datatype_y, 'shape_X_train':X_train.shape, 'shape_y_train':y_train.shape, 'shape_X_eval':X_eval.shape, 'shape_y_eval':y_eval.shape, 'shape_X_test':X_test.shape}
+
+        return json.dumps(details_dict)
+
+
         steps = []
         two_stage = False
         enable_dask = dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
