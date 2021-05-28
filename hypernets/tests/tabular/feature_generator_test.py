@@ -125,8 +125,8 @@ class Test_FeatureGenerator():
         x_t = ftt.fit_transform(df)
         xt_columns = x_t.columns.to_list()
         assert 'gender__genres' in xt_columns
-        assert 'LSA(title)[0]' in xt_columns
-        assert 'DAY(timestamp)' in xt_columns
+        assert 'LSA__title____0__' in xt_columns
+        assert 'DAY__timestamp__' in xt_columns
 
     def test_latlong(self):
         df = pd.DataFrame()
@@ -135,7 +135,7 @@ class Test_FeatureGenerator():
         df['latlong'] = df[['latitude', 'longitude']].apply(tuple, axis=1)
         ftt = FeatureGenerationTransformer(latlong_cols=['latlong'])
         x_t = ftt.fit_transform(df)
-        assert 'GEOHASH(latlong)' in x_t.columns.to_list()
+        assert 'GEOHASH__latlong__' in x_t.columns.to_list()
 
     def test_feature_generation_with_selection(self):
         df = dsutils.load_bank().head(1000)
@@ -179,9 +179,9 @@ class Test_FeatureGenerator():
         ftt.fit(df)
 
         x_t = ftt.transform(df)
-        assert "YEAR(x1)" in x_t
-        assert "MONTH(x1)" in x_t
-        assert "WEEK(x1)" in x_t
+        assert "YEAR__x1__" in x_t
+        assert "MONTH__x1__" in x_t
+        assert "WEEK__x1__" in x_t
 
     def test_persist(self, tmp_path: str):
         from os import path as P
@@ -199,6 +199,6 @@ class Test_FeatureGenerator():
             ftt1 = pickle.load(f)
 
         x_t = ftt1.transform(df)
-        assert "YEAR(x1)" in x_t
-        assert "MONTH(x1)" in x_t
-        assert "WEEK(x1)" in x_t
+        assert "YEAR__x1__" in x_t
+        assert "MONTH__x1__" in x_t
+        assert "WEEK__x1__" in x_t
