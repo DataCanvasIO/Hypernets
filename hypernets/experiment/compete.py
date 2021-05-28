@@ -1256,7 +1256,7 @@ class CompeteExperiment(SteppedExperiment):
 
         """
 
-    def show_details(self, X_train, y_train):
+    def show_details(self, X_train, y_train, X_eval, y_eval, X_test):
         cnt_x_num, cnt_x_text, cnt_x_date = 0, 0, 0
         
         for dtype in X_train.dtypes:
