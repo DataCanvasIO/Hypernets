@@ -265,6 +265,50 @@ export function CollinearityDetectionStep({stepData}){
 }
 
 
+export function FeatureSelectionStep({stepData}){
+
+    const dataSource = stepData.extension?.importances?.map((value, index, arr) => {
+        return {
+            key: index,
+            featureName: value.name,
+            importance: value.importance,
+            dropped: value.dropped,
+        }
+    });
+    const columns = [
+        {
+            title: 'Feature name',
+            dataIndex: 'featureName',
+            key: 'featureName',
+        }, {
+            title: 'Importance',
+            dataIndex: 'importance',
+            key: 'importance',
+        }, {
+            title: 'Dropped',
+            dataIndex: 'dropped',
+            key: 'dropped',
+        }
+    ];
+
+    return <Row gutter={[4, 4]}>
+        <Col span={10} >
+            <Card title="Collinearity detection configuration" bordered={false} style={{ width: '100%' }}>
+                {
+                    <ConfigurationCard configurationData={stepData.configuration}/>
+                }
+            </Card>
+        </Col>
+
+        <Col span={10} offset={2} >
+            <Card title="Removed features" bordered={false} style={{ width: '100%' }}>
+                <Table dataSource={dataSource} columns={columns} />
+            </Card>
+        </Col>
+    </Row>
+}
+
+
 export function DriftDetectionStep({stepData}){
 
     const driftFeatureAUCColumns = [

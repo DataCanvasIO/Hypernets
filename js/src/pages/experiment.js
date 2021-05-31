@@ -8,7 +8,7 @@ import { notification } from 'antd';
 import {connect, Provider} from "react-redux";
 
 import { Scrollbars } from 'react-custom-scrollbars';
-import { CollinearityDetectionStep, DriftDetectionStep, EnsembleStep } from '../components/steps'
+import {CollinearityDetectionStep, DriftDetectionStep, EnsembleStep, FeatureSelectionStep} from '../components/steps'
 import { StepsKey } from '../constants'
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
 import { DataCleaningStep} from '../components/dataCleaningStep'
@@ -93,36 +93,62 @@ export function ExperimentUI ({experimentData} ) {
 
     experimentData.steps.forEach(stepData=> {
         const stepType = stepData.type;
-        if(stepType  === StepsKey.DataCleaning.kind){
+        if(stepType  === StepsKey.DataCleaning.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.DataCleaning.name} key={stepData.name}/>
             );
             stepContentComponents.push(
                 <DataCleaningStep data={stepData}/>
             );
-        }else if(stepType  === StepsKey.CollinearityDetection.kind){
+        }else if(stepType  === StepsKey.CollinearityDetection.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} key={stepData.name} />
             );
             stepContentComponents.push(
                 <CollinearityDetectionStep stepData={stepData}/>
             );
-        } else if(stepType  === StepsKey.DriftDetection.kind){
+        } else if(stepType  === StepsKey.DriftDetection.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.DriftDetection.name} key={stepData.name} />
             );
             stepContentComponents.push(
                 <DriftDetectionStep stepData={stepData}/>
             );
-        } else if(stepType  === StepsKey.PipelineOptimization.kind){
+        } else if(stepType  === StepsKey.SpaceSearch.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.PipelineOptimization.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={StepsKey.SpaceSearch.name} key={`step_${stepData.name}`} />
             );
             stepContentComponents.push(
                 <PipelineOptimizationStep stepData={stepData} />
             );
 
-        }else if(stepType  === StepsKey.Ensemble.kind){
+        } else if(stepType  === StepsKey.FeatureSelection.type){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.FeatureSelection.name} key={`step_${stepData.name}`} />
+            );
+            stepContentComponents.push(
+                <FeatureSelectionStep stepData={stepData} />
+            );
+
+        } else if(stepType  === StepsKey.PsudoLabeling.type){
+            // todo add psudo
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.PsudoLabeling.name} key={`step_${stepData.name}`} />
+            );
+            stepContentComponents.push(
+                <PipelineOptimizationStep stepData={stepData} />
+            );
+
+        } else if(stepType  === StepsKey.ReSpaceSearch.type){
+            // todo add ReSpaceSearch
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.ReSpaceSearch.name} key={`step_${stepData.name}`} />
+            );
+            stepContentComponents.push(
+                <PipelineOptimizationStep stepData={stepData} />
+            );
+
+        } else if(stepType  === StepsKey.Ensemble.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.Ensemble.name} key={stepData.name} />
             );
@@ -131,7 +157,7 @@ export function ExperimentUI ({experimentData} ) {
             );
         }
         else {
-            // showNotification("Unknown step kind");
+            // showNotification("Unknown step type");
         }
     });
 

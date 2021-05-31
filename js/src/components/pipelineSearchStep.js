@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {Card, Col, Row} from "antd";
+import {Card, Col, Row, Table} from "antd";
 import EchartsCore from "./echartsCore";
 import {ConfigurationCard} from "./steps";
 
@@ -544,6 +544,21 @@ export function PipelineOptimizationStep({stepData}){
         return {percent, value, tip}
     };
 
+    const dataSource = stepData.extension.input_features?.map((value, index, arr) => {
+        return {
+            key: index,
+            name: value.name,
+        }
+    });
+
+    const columns = [
+        {
+            title: 'Name',
+            dataIndex: 'name',
+            key: 'name',
+        }
+    ];
+
     return <><Row gutter={[2, 2]}>
         <Col span={24} >
             <Card title="Pipeline optimization" bordered={ false } style={{ width: '100%' }}>
@@ -565,34 +580,41 @@ export function PipelineOptimizationStep({stepData}){
         </Col>
 
     </Row>
-        <Row gutter={[2, 2]}>
-            <Col span={10} offset={0} >
-                <Card title="Pipeline optimization configuration" bordered={false} style={{ width: '100%' }}>
-                    {
-                        <ConfigurationCard configurationData={configurationForPanel}/>
-                    }
-                </Card>
-            </Col>
-            <Col span={10} offset={0} >
-                <Card title="Early stopping" bordered={false} style={{ width: '100%' }}>
-                        <CircleProgress
-                            title={'Reward'}
-                            strokeColor ='#6ca30f'
-                            data={earlyStoppingRewardData}
-                            />
-                        <CircleProgress
-                            title={'Trials'}
-                            strokeColor ='#0e72cc'
-                            style={{marginLeft: 20}}
-                            data={earlyStoppingTrialsData}/>
-                        <CircleProgress
-                            title={'Time'}
-                            strokeColor ='#fa4343'
-                            style={{marginLeft: 20}}
-                            data={earlyStoppingElapsedTimeData}/>
-                </Card>
-            </Col>
-        </Row>
+    <Row gutter={[2, 2]}>
+        <Col span={10} offset={0} >
+            <Card title="Pipeline optimization configuration" bordered={false} style={{ width: '100%' }}>
+                {
+                    <ConfigurationCard configurationData={configurationForPanel}/>
+                }
+            </Card>
+        </Col>
+        <Col span={10} offset={0} >
+            <Card title="Early stopping" bordered={false} style={{ width: '100%' }}>
+                    <CircleProgress
+                        title={'Reward'}
+                        strokeColor ='#6ca30f'
+                        data={earlyStoppingRewardData}
+                        />
+                    <CircleProgress
+                        title={'Trials'}
+                        strokeColor ='#0e72cc'
+                        style={{marginLeft: 20}}
+                        data={earlyStoppingTrialsData}/>
+                    <CircleProgress
+                        title={'Time'}
+                        strokeColor ='#fa4343'
+                        style={{marginLeft: 20}}
+                        data={earlyStoppingElapsedTimeData}/>
+            </Card>
+        </Col>
+    </Row>
+    <Row gutter={[2, 2]}>
+        <Col span={10} offset={10} >
+            <Card title="Input features" bordered={false} style={{ width: '100%' }}>
+                <Table dataSource={dataSource} columns={columns} />
+            </Card>
+        </Col>
+    </Row>
     </>
 }
 

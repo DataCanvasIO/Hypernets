@@ -1,0 +1,39 @@
+import React from 'react';
+import ReactDOM from 'react-dom';
+import { Dataset } from './pages/dataset'
+const fakeData = {
+    featureDistribution: {
+        nContinuous: 10,
+        nCategoricalCols: 20,
+        nDatetimeCols: 10,
+        nTextCols: 20,
+        nOthers: 20,
+    },
+    target: {
+        name: 'y',
+        taskType: 'binary classification',
+        freq: 2222,
+        unique: 10,
+        missing: 10,
+        mean: null,
+        min: null,
+        max: null,
+        stdev: null,
+        dataType: 'str',
+    },
+    targetDistribution: {
+        yes: 100,
+        no: 20
+    },
+    datasetShape: {
+        X_train: "(120,4)",
+        X_test: "(120,4)",
+        X_eval: "(120,4)",
+    }
+};
+
+ReactDOM.render(
+    <Dataset data={fakeData}/>,
+    document.getElementById('root')
+);
+

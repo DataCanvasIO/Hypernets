@@ -1,35 +1,36 @@
 export const StepsKey = {
     DataCleaning: {
         name: 'Data cleaning',
-        kind: 'DataCleanStep'
+        type: 'DataCleanStep'
     },
     CollinearityDetection: {
         name: 'Collinearity detection',
-        kind: 'DriftDetectStep'},
+        type: 'MulticollinearityDetectStep'
+    },
     DriftDetection: {
         name: 'Drift detection',
-        kind: 'drift_detection'
+        type: 'DriftDetectStep'
     },
-    PipelineOptimization: {
+    SpaceSearch: {
         name: 'Pipeline optimization',
-        kind: 'SpaceSearchStep'
+        type: 'SpaceSearchStep'
     },
     FeatureSelection: {
         name: 'Feature selection',
-        kind: 'feature_selection'
+        type: 'FeatureImportanceSelectionStep'
         // drift_detection
     },
     PsudoLabeling: {
         name: 'Psudo labeling',
-        kind: 'Psudo labeling'
+        type: 'PseudoLabelStep'
     },
-    PipelineReoptimization: {
+    ReSpaceSearch: {
         name: 'Pipeline re-optimization',
-        kind: 'SpaceSearchStep'
+        type: 'ReSpaceSearch'
     },
     Ensemble: {
         name: 'Ensemble',
-        kind: 'EnsembleStep'
+        type: 'EnsembleStep'
     }
 };
 
