@@ -5,20 +5,17 @@
 import math
 from datetime import datetime
 
-import featuretools as ft
-import numpy as np
+import dask.dataframe as dd
 import pandas as pd
 import pytest
-from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
+from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
 from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.feature_generators import FeatureGenerationTransformer
-from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
+from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 from hypernets.utils import logging
 
 logger = logging.getLogger(__name__)
@@ -26,8 +23,11 @@ logger = logging.getLogger(__name__)
 
 def general_preprocessor():
     cat_transformer = Pipeline(
-        steps=[('imputer_cat', SimpleImputer(strategy='constant')), ('encoder', OrdinalEncoder())])
-    num_transformer = Pipeline(steps=[('imputer_num', SimpleImputer(strategy='mean')), ('scaler', StandardScaler())])
+        steps=[('imputer_cat', dex.SimpleImputer(strategy='constant', fill_value='')),
+               ('encoder', dex.OrdinalEncoder())])
+    num_transformer = Pipeline(
+        steps=[('imputer_num', dex.SimpleImputer(strategy='mean')),
+               ('scaler', dex.StandardScaler())])
 
     preprocessor = DataFrameMapper(features=[(column_object_category_bool, cat_transformer),
                                              (column_number_exclude_timedelta, num_transformer)],
@@ -36,45 +36,43 @@ def general_preprocessor():
     return preprocessor
 
 
-class Test_FeatureGenerator():
-    def test_char_add(self):
-        x1 = ['1', '2']
-        x2 = ['c', 'd']
-        x3 = np.char.add(x1, x2)
-        assert list(x3) == ['1c', '2d']
-
-    def test_ft_primitives(self):
-        tps = ft.primitives.get_transform_primitives()
-        assert tps
+class Test_FeatureGeneratorWithDask:
+    @classmethod
+    def setup_class(cls):
+        setup_dask(cls)
 
     def test_pipeline(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
+        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
+        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
         ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
                                            categories_cols=column_object_category_bool(X_train))
         preprocessor = general_preprocessor()
         pipe = Pipeline(steps=[('feature_gen', ftt), ('processor', preprocessor)])
         X_t = pipe.fit_transform(X_train)
-        print(X_t.columns)
-        assert X_t.shape == (80, 62)
+        X_t = X_t.compute()
+        assert X_t.shape[1] == 62
 
     def test_in_dataframe_mapper(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
+        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
+        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
         ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
                                            categories_cols=column_object_category_bool(X_train))
         dfm = DataFrameMapper(features=[(X_train.columns.to_list(), ftt)],
                               input_df=True,
                               df_out=True)
         X_t = dfm.fit_transform(X_train)
-        assert X_t.shape == (80, 62)
+        X_t = X_t.compute()
+        assert X_t.shape[1] == 62
 
     def test_feature_tools_categorical_cross(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
+        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
+        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
         cat_cols = column_object_category_bool(X_train)
         ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
                                            categories_cols=cat_cols)
@@ -90,35 +88,37 @@ class Test_FeatureGenerator():
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         y = df.pop('y')
-        X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
+        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
+        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
         ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['add_numeric', 'divide_numeric'])
         ftt.fit(X_train)
         x_t = ftt.transform(X_train)
         assert x_t is not None
 
-    def test_feature_selection(self):
-        df = dsutils.load_bank().head(1000)
-        df.drop(['id'], axis=1, inplace=True)
-        y = df.pop('y')
-        ftt = FeatureGenerationTransformer(task='binary',
-                                           trans_primitives=['add_numeric', 'divide_numeric', 'cross_categorical'],
-                                           categories_cols=column_object_category_bool(df))
-        ftt.fit(df)
-        x_t = ftt.transform(df)
-
-        fst = FeatureSelectionTransformer('binary', ratio_select_cols=0.2, reserved_cols=ftt.original_cols)
-        fst.fit(x_t, y)
-        assert len(fst.scores_.items()) == 99
-        assert len(fst.columns_) == 35
-        x_t2 = fst.transform(x_t)
-        assert x_t2.shape[1] == 35
+    # def test_feature_selection(self):
+    #     df = dsutils.load_bank().head(1000)
+    #     df.drop(['id'], axis=1, inplace=True)
+    #     y = df.pop('y')
+    #     ftt = FeatureGenerationTransformer(task='binary',
+    #                                        trans_primitives=['add_numeric', 'divide_numeric', 'cross_categorical'],
+    #                                        categories_cols=column_object_category_bool(df))
+    #     ftt.fit(df)
+    #     x_t = ftt.transform(df)
+    #
+    #     fst = FeatureSelectionTransformer('binary', ratio_select_cols=0.2, reserved_cols=ftt.original_cols)
+    #     fst.fit(x_t, y)
+    #     assert len(fst.scores_.items()) == 99
+    #     assert len(fst.columns_) == 35
+    #     x_t2 = fst.transform(x_t)
+    #     assert x_t2.shape[1] == 35
 
     def test_category_datetime_text(self):
         df = dsutils.load_movielens()
         df['genres'] = df['genres'].apply(lambda s: s.replace('|', ' '))
         df['timestamp'] = df['timestamp'].apply(datetime.fromtimestamp)
+        ddf = dd.from_pandas(df, npartitions=2)
         ftt = FeatureGenerationTransformer(task='binary', text_cols=['title'], categories_cols=['gender', 'genres'])
-        x_t = ftt.fit_transform(df)
+        x_t = ftt.fit_transform(ddf)
         xt_columns = x_t.columns.to_list()
         assert 'CROSS_CATEGORICAL_gender__genres' in xt_columns
         assert 'TFIDF__title____0__' in xt_columns
@@ -129,33 +129,39 @@ class Test_FeatureGenerator():
         df['latitude'] = [51.52, 9.93, 37.38]
         df['longitude'] = [-0.17, 76.25, -122.08]
         df['latlong'] = df[['latitude', 'longitude']].apply(tuple, axis=1)
-        ftt = FeatureGenerationTransformer(latlong_cols=['latlong'])
+        df['latitude2'] = [51.22, 9.22, 37.22]
+        df['longitude2'] = [-0.22, 76.22, -122.22]
+        df['latlong2'] = df[['latitude2', 'longitude2']].apply(tuple, axis=1)
+        df = dd.from_pandas(df, npartitions=1)
+        ftt = FeatureGenerationTransformer(latlong_cols=['latlong', 'latlong2'])
         x_t = ftt.fit_transform(df)
+        print(x_t.head(3))
         assert 'GEOHASH__latlong__' in x_t.columns.to_list()
 
-    def test_feature_generation_with_selection(self):
-        df = dsutils.load_bank().head(1000)
-        df.drop(['id'], axis=1, inplace=True)
-        y = df.pop('y')
-        ftt = FeatureGenerationTransformer(task='binary',
-                                           trans_primitives=['add_numeric', 'divide_numeric', 'cross_categorical'],
-                                           categories_cols=column_object_category_bool(df),
-                                           feature_selection_args={'ratio_select_cols': 0.2})
-        with pytest.raises(AssertionError) as err:
-            ftt.fit(df)
-            assert err.value == '`y` must be provided for feature selection.'
-        ftt.fit(df, y)
-        x_t = ftt.transform(df)
-        assert x_t.shape[1] == 35
+    # def test_feature_generation_with_selection(self):
+    #     df = dsutils.load_bank().head(1000)
+    #     df.drop(['id'], axis=1, inplace=True)
+    #     y = df.pop('y')
+    #     ftt = FeatureGenerationTransformer(task='binary',
+    #                                        trans_primitives=['add_numeric', 'divide_numeric', 'cross_categorical'],
+    #                                        categories_cols=column_object_category_bool(df),
+    #                                        feature_selection_args={'ratio_select_cols': 0.2})
+    #     with pytest.raises(AssertionError) as err:
+    #         ftt.fit(df)
+    #         assert err.value == '`y` must be provided for feature selection.'
+    #     ftt.fit(df, y)
+    #     x_t = ftt.transform(df)
+    #     assert x_t.shape[1] == 35
 
     @pytest.mark.parametrize('fix_input', [True, False])
     def test_fix_input(self, fix_input: bool):
         df = pd.DataFrame(data={"x1": [None, 2, 3], 'x2': [4, 5, 6]})
-
+        df = dex.dd.from_pandas(df, npartitions=1)
         ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['add_numeric', 'divide_numeric'],
                                            fix_input=fix_input)
         ftt.fit(df)
         x_t = ftt.transform(df)
+        x_t = x_t.compute()
         assert "x1__+__x2" in x_t
         assert "x1__/__x2" in x_t
 
