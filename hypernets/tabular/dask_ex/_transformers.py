@@ -865,3 +865,64 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
             result[yi] = result_yi
 
         return result
+
+
+class LocalizedTfidfVectorizer(BaseEstimator, TransformerMixin):
+    def __init__(self, max_features=None, max_df=1.0, min_df=1):
+        super(LocalizedTfidfVectorizer, self).__init__()
+
+        self.max_features = max_features
+        self.max_df = max_df
+        self.min_df = min_df
+
+        # fitted
+        self.vocabulary_ = None
+
+    def fit(self, X, y=None, **kwargs):
+        chunk_kwargs = dict(max_features=self.max_features, max_df=self.max_df, min_df=self.min_df)
+
+        if isinstance(X, dd.Series):
+            voc_df = X.reduction(self.fit_part, aggregate=self.agg_part, chunk_kwargs=chunk_kwargs, meta=(None, 'f8'))
+            voc_df = voc_df.compute()
+        elif isinstance(X, (pd.Series, np.ndarray)):
+            voc_df = self.fit_part(X, **chunk_kwargs)
+        else:
+            raise ValueError(f'Unsupported data type: {type(X).__name__}')
+
+        vocabulary = {v: i for v, i in zip(voc_df.index, range(len(voc_df)))}
+        self.vocabulary_ = vocabulary
+
+        return self
+
+    def transform(self, X, y=None):
+        if isinstance(X, dd.Series):
+            meta = {f'x{i}': 'f8' for _, i in self.vocabulary_.items()}
+            r = X.map_partitions(self.transform_part, self.vocabulary_, meta=meta)
+        elif isinstance(X, (pd.Series, np.ndarray)):
+            r = self.transform_part(X, self.vocabulary_)
+        else:
+            raise ValueError(f'Unsupported data type: {type(X).__name__}')
+
+        return r
+
+    @staticmethod
+    def fit_part(part, max_features=None, max_df=None, min_df=None):
+        t = skex.LocalizedTfidfVectorizer(use_idf=False, max_features=max_features, max_df=max_df, min_df=min_df)
+        t.fit(part)
+        return pd.Series(t.vocabulary_)
+
+    @staticmethod
+    def agg_part(part):
+        return pd.Series(index=part.columns)
+
+    @staticmethod
+    def transform_part(part, voc):
+        t = skex.LocalizedTfidfVectorizer(use_idf=False, vocabulary=voc)
+        t.fit(np.array(['']))
+        result = t.transform(part).toarray()
+
+        if isinstance(part, pd.Series):
+            columns = [f'x{i}' for _, i in voc.items()]
+            result = pd.DataFrame(result, index=part.index, columns=columns)
+
+        return result
