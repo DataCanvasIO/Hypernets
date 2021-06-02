@@ -16,6 +16,7 @@ from sklearn.metrics import get_scorer
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
+from hypernets.tabular import column_selector as col_se
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
@@ -1256,49 +1257,6 @@ class CompeteExperiment(SteppedExperiment):
 
         """
 
-    def show_details(self, X_train, y_train, X_eval, y_eval, X_test):
-        cnt_x_num, cnt_x_text, cnt_x_date = 0, 0, 0
-        
-        for dtype in X_train.dtypes:
-            if dtype == 'int64' or dtype == 'float64':
-                cnt_x_num += 1
-            if dtype == 'object':
-                cnt_x_text += 1
-            if dtype == 'datetime64[ns]'or dtype == 'timedelta64[ns]':
-                cnt_x_date += 1
-
-        max_y, min_y, mean_y = 0, 0, 0
-        Missing_y = y_train.isnull().sum()
-        Unique_y = len(y_train.unique())
-        Freq_y = y_train.value_counts()[0]
-        
-        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
-            max_y = '-'
-        else:
-            max_y = max(y_train)
-        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
-            min_y = '-'
-        else:
-            min_y = min(y_train)
-        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
-            mean_y = '-'
-        else:
-            mean_y = pd.Series.mean(mean_y)
-        if y_train.dtypes != 'int64' and y_train.dtypes != 'float64':
-            Stdev_y = '-'
-        else:
-            Stdev_y = y_train.std()
-        
-        dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
-        datatype_y = dtype2usagetype[str(y_train.dtypes)]
-
-        
-
-        details_dict = {'cnt_x_num':cnt_x_num, 'cnt_x_text':cnt_x_text, 'cnt_x_date':cnt_x_date, 'max_y':max_y, 'min_y':min_y, 'mean_y':mean_y, 'Stdev_y':Stdev_y, 'datatype_y':datatype_y, 'shape_X_train':X_train.shape, 'shape_y_train':y_train.shape, 'shape_X_eval':X_eval.shape, 'shape_y_eval':y_eval.shape, 'shape_X_test':X_test.shape}
-
-        return json.dumps(details_dict)
-
-
         steps = []
         two_stage = False
         enable_dask = dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
@@ -1325,6 +1283,118 @@ class CompeteExperiment(SteppedExperiment):
                 latlong_cols=feature_generation_latlong_cols,
                 text_cols=feature_generation_text_cols,
             ))
+
+        @override
+        def show_details(self):
+            cnt_x_all = len(col_se.column_all(self.X_train))
+            cnt_x_date = len(col_se.column_all_datetime(self.X_train))
+            cnt_x_category = len(col_se.column_category(self.X_train))
+            cnt_x_num = len(col_se.column_number(self.X_train))
+
+            kwargs = self.steps.get_step('feature_generation').transformer_kwargs
+            if kwargs['text_cols'] == None:
+                cnt_x_text = len(col_se.column_text(self.X_train))
+            else:
+                cnt_x_text = len(kwargs['text_cols'])
+                cnt_x_all -= len(col_se.column_text(self.X_train)) - len(kwargs['text_cols'])
+
+            if kwargs['latlong_cols'] == None:
+                cnt_x_latlong = cnt_x_all - cnt_x_date - cnt_x_category - cnt_x_num - cnt_x_text
+                # cnt_x_latlong_cols = len()这里不知道要写啥,column_selector里面好像没有这个
+            else:
+                cnt_x_latlong = len(kwargs['latlong_cols'])
+
+          # for step in steps:
+            #     args = step.transformer_kwargs
+            #     cols_list = [args['latlong_cols'], args['text_cols']]
+            #     for cols in filter(None, cols_list):
+            #         for col_name in cols:
+            #             pass # 我不是太懂这里的输入，输入的是一列列的数据呢还是数据的名字呀，关系到直接用column selector还是直接求len。
+
+            # cnt_x_num, cnt_x_text, cnt_x_date = 0, 0, 0
+        
+            # for dtype in self.X_train.dtypes:
+            #     if dtype == 'int64' or dtype == 'float64':
+            #         cnt_x_num += 1
+            #     if dtype == 'object':
+            #         cnt_x_text += 1
+            #     if dtype == 'datetime64[ns]'or dtype == 'timedelta64[ns]':
+            #         cnt_x_date += 1
+
+            Missing_y = self.y_train.isnull().sum()
+            Unique_y = len(self.y_train.unique())
+            Freq_y = self.y_train.value_counts()[0]
+            
+            if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+                max_y = None
+            else:
+                max_y = max(self.y_train)
+            if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+                min_y = None
+            else:
+                min_y = min(self.y_train)
+            if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+                mean_y = None
+            else:
+                mean_y = pd.Series.mean(self.y_train)
+            if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+                Stdev_y = None
+            else:
+                Stdev_y = self.y_train.std()
+            
+            dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
+            datatype_y = dtype2usagetype[str(self.y_train.dtypes)]
+
+            if datatype_y == 'str' or datatype_y == 'date':
+                disc_y_num = 10
+                Freq_y = y_train.value_counts()[0:disc_y_num-1]
+                names_y = Freq_y.keys()
+
+            if datatype_y == 'int' or datatype_y == 'float':
+                cont_y_num = 10
+                interval = max(y_train)/10
+                intervals = [0]
+                for i in range(1,cont_y_num+1):
+                    intervals.append(i*interval)
+                Freq_y = pd.cut(y_train, intervals).value_counts()[0:cont_y_num-1]
+                names_y = Freq_y.keys()
+            
+            details_dict = {
+                'xTypes':{
+                'cntXNum':cnt_x_num, 
+                'cntXText':cnt_x_text, 
+                'cntXDate':cnt_x_date,
+                'cntXCategory':cnt_x_category,
+                'cntXLatlong':cnt_x_latlong,
+                },
+                'yCharacters':{
+                    'tasktypeY':self.task,
+                    'maxY':max_y,
+                    'minY':min_y, 
+                    'meanY':mean_y, 
+                    'StdevY':Stdev_y, 
+                    'datatypeY':datatype_y,
+                    'MissingY':Missing_y,
+                    'UniqueY':Unique_y,
+                    'FreqY':Freq_y,
+                    'datatypeY':datatype_y
+                },
+                'shapes':{
+                    'shapeXTrain':self.X_train.shape, 
+                    'shapeYTrain':self.y_train.shape, 
+                    'shapeXEval':self.X_eval.shape, 
+                    'shapeYEval':self.y_eval.shape, 
+                    'shapeXTest':self.X_test.shape
+                },
+                'yDistribution':{
+                    'discYNum':disc_y_num,
+                    'contYNum':cont_y_num,
+                    'FreqY':Freq_y,
+                    'namesY':names_y
+                }
+                }
+
+            return details_dict
 
         # select by collinearity
         if collinearity_detection:

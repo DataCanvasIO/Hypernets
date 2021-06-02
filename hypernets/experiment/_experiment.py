@@ -63,6 +63,75 @@ class Experiment(object):
         self.start_time = None
         self.end_time = None
 
+    def show_details(self):
+        Missing_y = self.y_train.isnull().sum()
+        Unique_y = len(self.y_train.unique())
+        Freq_y = self.y_train.value_counts()[0]
+        
+        if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+            max_y = None
+        else:
+            max_y = max(self.y_train)
+        if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+            min_y = None
+        else:
+            min_y = min(self.y_train)
+        if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+            mean_y = None
+        else:
+            mean_y = pd.Series.mean(self.y_train)
+        if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
+            Stdev_y = None
+        else:
+            Stdev_y = self.y_train.std()
+        
+        dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
+        datatype_y = dtype2usagetype[str(self.y_train.dtypes)]
+
+        if datatype_y == 'str' or datatype_y == 'date':
+            disc_y_num = 10
+            Freq_y = y_train.value_counts()[0:disc_y_num-1]
+            names_y = Freq_y.keys()
+
+        if datatype_y == 'int' or datatype_y == 'float':
+            cont_y_num = 10
+            interval = max(y_train)/10
+            intervals = [0]
+            for i in range(1,cont_y_num+1):
+                intervals.append(i*interval)
+            Freq_y = pd.cut(y_train, intervals).value_counts()[0:cont_y_num-1]
+            names_y = Freq_y.keys()
+        
+        details_dict = {
+            'yCharacters':{
+                'tasktypeY':self.task,
+                'maxY':max_y,
+                'minY':min_y, 
+                'meanY':mean_y, 
+                'StdevY':Stdev_y, 
+                'datatypeY':datatype_y,
+                'MissingY':Missing_y,
+                'UniqueY':Unique_y,
+                'FreqY':Freq_y,
+                'datatypeY':datatype_y
+            },
+            'shapes':{
+                'shapeXTrain':self.X_train.shape, 
+                'shapeYTrain':self.y_train.shape, 
+                'shapeXEval':self.X_eval.shape, 
+                'shapeYEval':self.y_eval.shape, 
+                'shapeXTest':self.X_test.shape
+            },
+            'yDistribution':{
+                'discYNum':disc_y_num,
+                'contYNum':cont_y_num,
+                'FreqY':Freq_y,
+                'namesY':names_y
+            }
+            }
+
+        return details_dict
+
     def run(self, **kwargs):
         self.start_time = time.time()
 
