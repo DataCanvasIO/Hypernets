@@ -1,3 +1,0 @@
-featuretools
-python-geohash
-jieba
