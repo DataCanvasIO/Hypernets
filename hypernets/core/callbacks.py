@@ -60,25 +60,26 @@ class EarlyStoppingCallback(Callback):
         super(Callback, self).__init__()
         # assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
 
-        self.max_no_improvement_trials = max_no_improvement_trials
-        self.mode = mode
-        self.min_delta = min_delta
-        self.best_reward = None
-        self.best_trial_no = None
-        self.counter_no_improvement_trials = 0
-        self.time_limit = time_limit
-        self.expected_reward = expected_reward
-        self.start_time = None
-
-        self.triggered = None
-        self.triggered_reason = None
-
+        # settings
         if mode == 'min':
             self.op = np.less
         elif mode == 'max':
             self.op = np.greater
         else:
             raise ValueError(f'Unsupported mode:{mode}')
+        self.max_no_improvement_trials = max_no_improvement_trials
+        self.mode = mode
+        self.min_delta = min_delta
+        self.time_limit = time_limit
+        self.expected_reward = expected_reward
+
+        # running state
+        self.start_time = None
+        self.best_reward = None
+        self.best_trial_no = None
+        self.counter_no_improvement_trials = 0
+        self.triggered = None
+        self.triggered_reason = None
 
     def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                         **fit_kwargs):
