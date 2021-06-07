@@ -385,6 +385,99 @@ export function DriftDetectionStep({stepData}){
         </>
 }
 
+export function PseudoLabelStep({stepData}) {
+
+    const title = <span>
+        <Tooltip title={"Pseudo label configuration"}>
+            Ensemble configuration
+        </Tooltip>
+    </span>;
+
+    const getLiftEchartOpts = () => {
+        const lifting = stepData.extension?.lifting;
+        const yLabels = lifting !== null && lifting !== undefined ?  Array.from({length:lifting.length}, (v,k) => k) : [];
+
+        return  {
+            xAxis: {
+                type: 'category',
+                data: yLabels
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [{
+                data: lifting,
+                type: 'line',
+                smooth: true
+            }]
+        };
+    };
+
+    const getWeightsEchartOpts = () => {
+        const weights = stepData.extension?.weights;
+        const yLabels = weights !== null && weights !== undefined ?  Array.from({length:weights.length}, (v,k) => k) : [];
+        return {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {
+                data: []
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'value',
+                boundaryGap: [0, 0.01]
+            },
+            yAxis: {
+                type: 'category',
+                data: yLabels
+            },
+            series: [
+                {
+                    name: 'weight',
+                    type: 'bar',
+                    data: weights
+                }
+            ]
+        }
+    };
+
+
+    return <>
+        <Row gutter={[4, 4]}>
+            <Col span={10} >
+                <Card title={title} bordered={false} style={{ width: '100%' }}>
+                    {
+                        <ConfigurationCard configurationData={stepData.configuration}/>
+                    }
+                </Card>
+            </Col>
+
+            <Col span={10} offset={2} >
+                <Card title="Weight" bordered={false} style={{ width: '100%' }}>
+                    <EchartsCore option={getWeightsEchartOpts()}/>
+                </Card>
+            </Col>
+        </Row>
+        <Row gutter={[4, 4]}>
+            <Col span={10} offset={12} >
+                <Card title="Lifting" bordered={false} style={{ width: '100%' }}>
+                    <EchartsCore option={getLiftEchartOpts()}/>
+                </Card>
+            </Col>
+        </Row>
+
+    </>
+}
+
 export function EnsembleStep({stepData}) {
 
     const title = <span>

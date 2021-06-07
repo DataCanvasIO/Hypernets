@@ -13,6 +13,7 @@
     "bizcharts": "3.5.8",
     "echarts": "^5.1.1",
     "react": "^17.0.2",
+    "react-blocks": "^1.1.4",
     "react-custom-scrollbars": "^4.2.1",
     "react-dom": "^17.0.2",
     "react-redux": "^7.2.4",

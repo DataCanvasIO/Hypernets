@@ -9,97 +9,37 @@
   color: #ffffff;
 }
 
-.barNumber {
-  background-color: rgb(0, 183, 182);
-  border-radius: 20px 0 0 20px;
-}
-
-.barType {
-  background-color: rgb(0, 156, 234);
-}
-
-.barDate {
-  background-color: rgb(244, 148, 49);
-}
-
-.barText {
-  background-color: rgb(125, 0, 249);
-  border-radius: 0 20px 20px 0;
-}
-
-.barOther {
-  background-color: rgb(125, 0, 249);
-  border-radius: 0 20px 20px 0;
-}
-
-
 .legend {
   width: 100%;
   line-height: 40px;
   display: flex;
-  margin-top: 20px;
   text-align: center;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
 }
 
-.number {
-  width: 25%;
+.legendItem {
+  width: 16.6%;
 }
 
-.numberCir {
+.legendPoint {
   display: inline-block;
   width: 20px;
   height: 20px;
   border: 2px solid #ffffff;
   border-radius: 50%;
-  background-color: rgb(0, 183, 182);
-  vertical-align: middle;
-}
-
-
-.typeCir {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  background-color: rgb(0, 156, 234);
-  vertical-align: middle;
-}
-
-.type {
-  width: 25%;
-}
-
-.dateCir {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  background-color: rgb(244, 148, 49);
-  vertical-align: middle;
-}
-
-.textCir {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  background-color: rgb(125, 0, 249);
   vertical-align: middle;
 }
 
 .symbol {
   font-size: 14px;
-  margin-left: 20px;
+  margin-left: 15px;
 }
 
 .comment {
   font-size: 12px;
   color: #c4c4c4;
-  margin-left: 20px;
+  margin-left: 15px;
 }
+
+
+
 
