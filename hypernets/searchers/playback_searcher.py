@@ -15,7 +15,7 @@ class PlaybackSearcher(Searcher):
 
         self.history = trail_history
         self.top_n = top_n if top_n is not None else len(trail_history.trials)
-        self.samples = [t.space_sample for t in self.history.get_top(top_n)]
+        self.samples = [t.space_sample for t in self.history.get_top(self.top_n)]
         self.index = 0
         self.reverse = reverse
 
