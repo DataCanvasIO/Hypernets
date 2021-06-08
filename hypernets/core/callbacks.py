@@ -215,6 +215,15 @@ class FileStorageLoggingCallback(FileLoggingCallback):
 
 
 class SummaryCallback(Callback):
+    def __init__(self):
+        super(SummaryCallback, self).__init__()
+
+        self.start_search_time = None
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        self.start_search_time = time.time()
+
     def on_build_estimator(self, hyper_model, space, estimator, trial_no):
         # if logger.is_info_enabled():
         #     logger.info(f'\nTrial No:{trial_no}')
@@ -229,7 +238,7 @@ class SummaryCallback(Callback):
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
         if logger.is_info_enabled():
             logger.info(f'trial end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
-            logger.info(f'Total elapsed:{time.time() - hyper_model.start_search_time}')
+            logger.info(f'Total elapsed:{time.time() - self.start_search_time}')
 
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         if logger.is_info_enabled():

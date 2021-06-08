@@ -10,7 +10,7 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
-from ..utils import logging, infer_task_type as _infer_task_type, hash_data
+from ..utils import logging, infer_task_type as _infer_task_type, hash_data, const
 
 logger = logging.get_logger(__name__)
 
@@ -30,7 +30,6 @@ class HyperModel:
         self.callbacks = callbacks if callbacks is not None else []
         self.reward_metric = reward_metric
         self.history = TrialHistory(searcher.optimize_direction)
-        self.start_search_time = None
         self.task = task
         self.discriminator = discriminator
         if self.discriminator:
@@ -165,9 +164,10 @@ class HyperModel:
         :param fit_kwargs: Optional, dict, parameters for fit method of model
         :return:
         """
-        self.start_search_time = time.time()
-
-        self.task, _ = self.infer_task_type(y)
+        if self.task is None or self.task == const.TASK_AUTO:
+            self.task, _ = self.infer_task_type(y)
+        if self.task not in [const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION, const.TASK_MULTILABEL]:
+            logger.warning(f'Unexpected task "{self.task}"')
 
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
