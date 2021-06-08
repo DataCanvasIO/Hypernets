@@ -104,6 +104,8 @@ class NotebookFeatureImportanceSelectionStepCallback(NotebookStepCallback):
         fitted_params = exp.get_step(step).get_fitted_params()
         input_features = fitted_params.get('input_features')
         selected = fitted_params.get('selected_features')
+        if selected is None:
+            selected = input_features
         importances = fitted_params.get('importances', [])
         is_selected = [input_features[i] in selected for i in range(len(importances))]
         df = pd.DataFrame(
