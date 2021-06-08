@@ -8,7 +8,7 @@ from sklearn.metrics import get_scorer
 from hypernets.experiment import CompeteExperiment
 from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.model import HyperModel
-from hypernets.searchers import make_searcher
+from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
@@ -16,7 +16,7 @@ from hypernets.utils import load_data, infer_task_type, hash_data, logging, cons
 
 logger = logging.get_logger(__name__)
 
-DEFAULT_TARGET_SET = {'y', 'target'}
+AUTO_DOWN_SAMPLE_SEARCH_THRESHOLD = 10000
 
 
 def make_experiment(hyper_model_cls,
@@ -148,9 +148,10 @@ def make_experiment(hyper_model_cls,
     def find_target(df):
         columns = df.columns.to_list()
         for col in columns:
-            if col.lower() in DEFAULT_TARGET_SET:
+            if col.lower() in cfg.experiment_default_target_set:
                 return col
-        raise ValueError(f'Not found one of {DEFAULT_TARGET_SET} from your data, implicit target must be specified.')
+        raise ValueError(f'Not found one of {cfg.experiment_default_target_set} from your data,'
+                         f' implicit target must be specified.')
 
     def default_searcher(cls):
         assert search_space is not None, '"search_space" should be specified when "searcher" is None or str.'
@@ -225,6 +226,12 @@ def make_experiment(hyper_model_cls,
 
     searcher = to_search_object(searcher)
 
+    if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
+            and 'down_sample_search' not in kwargs.keys():
+        train_data_shape = dex.compute(X_train.shape)[0] if dex.is_dask_object(X_train) else X_train.shape
+        if train_data_shape[0] > cfg.experiment_auto_down_sample_rows_threshold:
+            kwargs['down_sample_search'] = True
+
     if search_callbacks is None:
         search_callbacks = default_search_callbacks()
     search_callbacks = append_early_stopping_callbacks(search_callbacks)
@@ -237,7 +244,7 @@ def make_experiment(hyper_model_cls,
                             eval_size=kwargs.get('eval_size'), target=target, task=task))
         id = f'{hyper_model_cls.__name__}_{id}'
 
-    hm = hyper_model_cls(searcher, reward_metric=reward_metric, callbacks=search_callbacks,
+    hm = hyper_model_cls(searcher, reward_metric=reward_metric, task=task, callbacks=search_callbacks,
                          discriminator=discriminator)
 
     experiment = CompeteExperiment(hm, X_train, y_train, X_eval=X_eval, y_eval=y_eval, X_test=X_test,
