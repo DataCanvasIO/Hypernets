@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import display, update_display, display_markdown
 
-from ..utils import logging, fs
+from ..utils import logging, fs, to_repr
 
 logger = logging.get_logger(__name__)
 
@@ -44,6 +44,9 @@ class Callback():
 
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         pass
+
+    def __repr__(self):
+        return to_repr(self)
 
 
 class EarlyStoppingError(RuntimeError):
