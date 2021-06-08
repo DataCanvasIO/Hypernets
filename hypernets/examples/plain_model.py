@@ -339,7 +339,7 @@ class PlainModel(HyperModel):
 
 def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optimize_direction='max', **kwargs):
     if task is None:
-        task = infer_task_type(y_train)
+        task, _ = infer_task_type(y_train)
     if reward_metric is None:
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
 
