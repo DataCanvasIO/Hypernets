@@ -4,7 +4,7 @@ import {ExperimentUI} from "./pages/experiment"
 import {Steps} from "antd";
 import {createStore} from "redux";
 import {connect, Provider} from "react-redux";
-import {StepsKey} from "./constants";
+import {StepsKey, StepStatus} from "./constants";
 
 const CV = true;  // 控制模拟数据是否开启cv
 const N_FOLDS = 3;
@@ -121,15 +121,11 @@ const experimentConfigData = (handler) => {
                 "type": StepsKey.PsudoLabeling.type,
                 "status": "wait",
                 "configuration": {
-                    "min_features": 10,
-                    "name": "drift_detection",
-                    "num_folds": 5,
-                    "remove_shift_variable": true,
-                    "remove_size": 0.1,
-                    "threshold": 0.7,
-                    "variable_shift_threshold": 0.7
+                    "proba_threshold": 0.8,
+                    "resplit": false,
+                    "strategy": "s1"
                 },
-                "extension": null,
+                "extension": {},
                 "start_datetime": "2020-11-11 22:22:22",
                 "end_datetime": "2020-11-11 22:22:22"
             }, {
@@ -212,6 +208,25 @@ const handleStepFinish = (state, action) => {
 
 };
 
+const handleProbaDensityLabelChanged = (state, action) => {
+    const experimentConfig = state;
+    const stepPayload = action.payload;
+    const stepIndex = action.payload.stepIndex;
+    var found = false;
+    experimentConfig.steps.forEach((step, i, array) => {
+        if (step.index === stepIndex) {
+            experimentConfig.steps[i].extension.selectedLabel = stepPayload.selectedLabel;
+            found = true;
+        }
+    });
+    if (!found) {
+        console.error("Step index = " + action.index + "not found for update selected label, action/state is :");
+        console.error(action);
+        console.error(state);
+    }
+    return {...experimentConfig};
+
+};
 
 const getNewTrialData = (trialNoIndex, isLatest) => {
     let models;
@@ -304,6 +319,9 @@ function experimentReducer(state, action) {
         console.info("new state");
         console.info(newState);
         return newState;
+    } else if (type === 'probaDensityLabelChange') {
+        const newState = {...state};
+        return handleProbaDensityLabelChanged(newState, action)
     } else if (type === 'trialFinished') {
         return handleTrailFinish(state, action)
     } else {
@@ -360,7 +378,7 @@ setTimeout(function () {
                 index: 0,
                 type: 'DataCleanStep',
                 extension: {unselected_features: [{name: "id", reason: 'unknown'}]},
-                status: 'finish',
+                status: StepStatus.Finish,
                 datetime: ''
             }
         }
@@ -376,7 +394,7 @@ setTimeout(function () {
                 index: 1,
                 type: 'MulticollinearityDetectStep',
                 extension: {unselected_features: [{"removed": "age", "reserved": "data"}]} ,
-                status: 'finish',
+                status: StepStatus.Finish,
                 datetime: ''
             }
         }
@@ -425,7 +443,7 @@ setTimeout(function () {
                         }
                     ]
                 },
-                status: 'finish',
+                status: StepStatus.Finish,
                 datetime: ''
             }
         }
@@ -446,7 +464,7 @@ setTimeout(function () {
         } else {
             clearInterval(trialInterval);
         }
-    }, 1000);
+    }, 200);
 }, 500);
 
 setTimeout(function () {
@@ -459,7 +477,7 @@ setTimeout(function () {
                 extension: {
                     input_features: [{"name": "age"}, {"name": "data"}],
                 },
-                status: 'finish',
+                status: StepStatus.Finish,
                 datetime: ''
             }
         }
@@ -481,11 +499,27 @@ setTimeout(function () {
                         {name: 'id2', importance: 0.1, dropped: true}
                     ]
                 },
-                status: 'finish',
+                status: StepStatus.Finish,
                 datetime: ''
             }
         })
-}, 5000);
+}, 4000);
+
+// setTimeout(function () {
+//     store.dispatch(
+//         {
+//             type: 'stepFinished',
+//             payload: {
+//                 index: 5,
+//                 type: 'SpaceSearchStep',
+//                 extension: {unselected_features: [{"removed": "age", "reserved": "data"}]},
+//                 status: StepStatus.Finish,
+//                 datetime: ''
+//             }
+//         }
+//     )
+// }, 200);
+
 
 setTimeout(function () {
     store.dispatch(
@@ -493,14 +527,34 @@ setTimeout(function () {
             type: 'stepFinished',
             payload: {
                 index: 5,
-                type: 'SpaceSearchStep',
-                extension: {unselected_features: [{"removed": "age", "reserved": "data"}]},
-                status: 'finish',
+                type: StepsKey.PsudoLabeling.name,
+                extension: {
+                    probabilityDensity: {
+                        yes: {
+                            gaussian: {
+                                X: [-1,0,1],
+                                probaDensity: [0.1, 0.2]
+                            }
+                        },
+                        no: {
+                            gaussian: {
+                                X: [-1,0,1],
+                                probaDensity: [0.9, 0.8]
+                            }
+                        },
+                    },
+                    samples: {
+                        1: 1000,
+                        2: 2000
+                    },
+                    selectedLabel: "yes"
+                },
+                status: StepStatus.Finish,
                 datetime: ''
             }
-        }
-    )
-}, 200);
+        })
+}, 5000);
+
 
 setTimeout(function () {
     store.dispatch(
@@ -513,8 +567,9 @@ setTimeout(function () {
                     "weights": [0.1, 0.6, 0.3],
                     "lifting": [0.1, 0.2, 0.3]
                 },
-                status: 'finish',
+                status: StepStatus.Finish,
                 datetime: ''
             }
         })
-}, 12000);
+}, 6000);
+

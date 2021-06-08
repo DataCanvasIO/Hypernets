@@ -35,4 +35,12 @@ export const StepsKey = {
 };
 
 
+export const StepStatus = {
+  Wait: 'wait',
+  Process: 'process',
+  Finish: 'finish',
+  Error: 'error'
+};
+
+
 export const MAX_FEATURES_OF_IMPORTANCES = 10;

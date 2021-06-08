@@ -8,7 +8,7 @@ import { notification } from 'antd';
 import {connect, Provider} from "react-redux";
 
 import { Scrollbars } from 'react-custom-scrollbars';
-import {CollinearityDetectionStep, DriftDetectionStep, EnsembleStep, FeatureSelectionStep} from '../components/steps'
+import {CollinearityDetectionStep, DriftDetectionStep, EnsembleStep, FeatureSelectionStep, PseudoLabelStep} from '../components/steps'
 import { StepsKey } from '../constants'
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
 import { DataCleaningStep} from '../components/dataCleaningStep'
@@ -42,7 +42,7 @@ const ProgressBarStatus = {
     Active : 'active',
 };
 
-export function ExperimentUI ({experimentData} ) {
+export function ExperimentUI ({experimentData, dispatch} ) {
 
     const [currentStepIndex , setCurrentStepIndex] = useState(0);
     const [stepTabs, setStepTabs] = useState([]);
@@ -136,7 +136,7 @@ export function ExperimentUI ({experimentData} ) {
                 <Step status={stepData.status} title={StepsKey.PsudoLabeling.name} key={`step_${stepData.name}`} />
             );
             stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} />
+                <PseudoLabelStep stepData={stepData} dispatch={dispatch}/>
             );
 
         } else if(stepType  === StepsKey.ReSpaceSearch.type){

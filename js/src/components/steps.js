@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Card, Col, Form, Row, Switch, Table, Tabs, Radio, Tooltip} from "antd";
+import {Card, Col, Form, Row, Switch, Table, Tabs, Radio, Tooltip, Select} from "antd";
 import * as echarts from 'echarts';
 import React, { PureComponent } from 'react';
 import { Empty } from 'antd';
@@ -7,6 +7,8 @@ import EchartsCore from './echartsCore';
 import {showNotification} from "../pages/experiment";
 import {connect, Provider} from "react-redux";
 import {createStore} from "redux";
+import {isEmpty} from "../util";
+import {StepStatus} from "../constants";
 
 // import { toPercent, toFix } from '@/utils/util';
 // import IconSpace from '../IconSpace';
@@ -385,37 +387,18 @@ export function DriftDetectionStep({stepData}){
         </>
 }
 
-export function PseudoLabelStep({stepData}) {
+export function PseudoLabelStep({stepData, dispatch}) {
 
-    const title = <span>
-        <Tooltip title={"Pseudo label configuration"}>
-            Ensemble configuration
-        </Tooltip>
-    </span>;
+    const getProbaDensityEchartOpts = (labelName) => {
+        const seriesData = [];
 
-    const getLiftEchartOpts = () => {
-        const lifting = stepData.extension?.lifting;
-        const yLabels = lifting !== null && lifting !== undefined ?  Array.from({length:lifting.length}, (v,k) => k) : [];
-
-        return  {
-            xAxis: {
-                type: 'category',
-                data: yLabels
-            },
-            yAxis: {
-                type: 'value'
-            },
-            series: [{
-                data: lifting,
-                type: 'line',
-                smooth: true
-            }]
-        };
-    };
-
-    const getWeightsEchartOpts = () => {
-        const weights = stepData.extension?.weights;
-        const yLabels = weights !== null && weights !== undefined ?  Array.from({length:weights.length}, (v,k) => k) : [];
+        if(!isEmpty(labelName)){
+            const probabilityDensityLabelData = probabilityDensity[labelName];
+            const gaussianData = probabilityDensityLabelData['gaussian'];
+            for(var i = 0 ;i < gaussianData['X'].length; i++){
+                seriesData.push([gaussianData['X'][i], gaussianData['probaDensity'][i]])
+            }
+        }
         return {
             tooltip: {
                 trigger: 'axis',
@@ -423,33 +406,96 @@ export function PseudoLabelStep({stepData}) {
                     type: 'shadow'
                 }
             },
-            legend: {
-                data: []
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                containLabel: true
-            },
             xAxis: {
-                type: 'value',
-                boundaryGap: [0, 0.01]
+                type: 'category',
+                boundaryGap: false
             },
             yAxis: {
-                type: 'category',
-                data: yLabels
+                type: 'value',
+                boundaryGap: [0, '30%']
             },
             series: [
                 {
-                    name: 'weight',
-                    type: 'bar',
-                    data: weights
+                    type: 'line',
+                    smooth: 0.6,
+                    symbol: 'none',
+                    lineStyle: {
+                        color: '#5470C6',
+                        width: 3
+                    },
+                    areaStyle: {},
+                    data: seriesData
                 }
             ]
-        }
+        };
     };
 
+    const probabilityDensity = stepData.extension.probabilityDensity;
+    const labels =  isEmpty(probabilityDensity) ? null : Object.keys(probabilityDensity);
+    let selectedLabel;
+    if(stepData.status === 'finish'){
+        if(labels === null || labels.length < 2){
+            showNotification("Pseudo step is success but labels is empty");
+            return ;
+        }
+        selectedLabel = stepData.extension.selectedLabel;
+    }else{
+        selectedLabel = null;
+    }
+
+    const probaDensityChartOption = getProbaDensityEchartOpts(selectedLabel);
+
+    const onLabelChanged = (value) => {
+        dispatch(
+            {
+                type: 'probaDensityLabelChange',
+                payload: {
+                    stepIndex: stepData.index,
+                    selectedLabel: value
+                }
+            }
+        )
+    };
+
+    if (!isEmpty(labels)){
+        if(labels.length < 2){
+            console.error("labels should not < 2");
+        }
+    }
+
+    const defaultLabel = isEmpty(labels) ? "None" : labels[0];
+
+    const samplesObj = stepData.extension.samples;
+
+    const samplesDataSource = isEmpty(samplesObj) ? null : Object.keys(samplesObj).map((value,index, array) => {
+        return {
+            key: index,
+            label: value,
+            count: samplesObj[value]
+        }
+    });
+
+
+    const samplesColumns = [
+        {
+            title: 'Label',
+            dataIndex: 'label',
+            key: 'Label',
+        },
+        {
+            title: 'Count',
+            dataIndex: 'count',
+            key: 'Count',
+        }
+    ];
+
+    const title = <span>
+        <Tooltip title={"Pseudo label configuration"}>
+            Pseudo label configuration
+        </Tooltip>
+    </span>;
+
+    const { Option } = Select;
 
     return <>
         <Row gutter={[4, 4]}>
@@ -462,21 +508,31 @@ export function PseudoLabelStep({stepData}) {
             </Col>
 
             <Col span={10} offset={2} >
-                <Card title="Weight" bordered={false} style={{ width: '100%' }}>
-                    <EchartsCore option={getWeightsEchartOpts()}/>
+                <Card title="Density Plot of Probability" bordered={false} style={{ width: '100%' }}>
+                        <span>
+                             <span style={{marginLeft: '20px'}}>Select label: </span>
+                             <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: 280 }} onChange={onLabelChanged} disabled={ isEmpty(labels)} >
+                                {
+                                    isEmpty(labels) ? null: labels.map( v => {
+                                        return <Option value={v}>{v}</Option>
+                                    })
+                                }
+                            </Select>
+                        </span>
+                    <EchartsCore option={probaDensityChartOption}/>
                 </Card>
             </Col>
         </Row>
         <Row gutter={[4, 4]}>
             <Col span={10} offset={12} >
-                <Card title="Lifting" bordered={false} style={{ width: '100%' }}>
-                    <EchartsCore option={getLiftEchartOpts()}/>
+                <Card title="Number of samples" bordered={false} style={{ width: '100%' }} >
+                    <Table dataSource={samplesDataSource} columns = {samplesColumns} pagination={false} />
                 </Card>
             </Col>
         </Row>
-
     </>
 }
+
 
 export function EnsembleStep({stepData}) {
 
@@ -556,10 +612,12 @@ export function EnsembleStep({stepData}) {
 
         <Col span={10} offset={2} >
             <Card title="Weight" bordered={false} style={{ width: '100%' }}>
+
                 <EchartsCore option={getWeightsEchartOpts()}/>
             </Card>
         </Col>
         </Row>
+
         <Row gutter={[4, 4]}>
             <Col span={10} offset={12} >
                 <Card title="Lifting" bordered={false} style={{ width: '100%' }}>

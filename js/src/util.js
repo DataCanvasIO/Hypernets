@@ -15,3 +15,7 @@ export function formatHumanDate(seconds) {
         return `${min}m`
     }
 }
+
+export function isEmpty(obj){
+    return obj === null || obj === undefined;
+}
