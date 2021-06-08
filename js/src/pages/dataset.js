@@ -9,6 +9,7 @@ import {createStore} from "redux";
 import {ConfigurationCard} from "../components/steps";
 import EchartsCore from "../components/echartsCore";
 import Block from "react-blocks";
+import {isEmpty} from "../util";
 
 function FeatureBar({first, latest, color, typeName, nFeatures, percent}) {
 
@@ -42,8 +43,8 @@ function FeatureLegend({typeName, nFeatures, percent, color}) {
 
 export function FeatureDistributionBar({data}) {
 
-    const { nContinuous, nCategoricalCols, nDatetimeCols, nTextCols, nLocation, nOthers } = data;
-    const total = nContinuous + nCategoricalCols + nDatetimeCols + nTextCols + nLocation + nOthers;
+    const { nContinuous, nCategorical, nDatetime, nText, nLocation, nOthers } = data;
+    const total = nContinuous + nCategorical + nDatetime + nText + nLocation + nOthers;
 
     const barList = [
         {
@@ -54,12 +55,12 @@ export function FeatureDistributionBar({data}) {
         {
             typeName: "Categorical",
             color: "rgb(0, 156, 234)",
-            nFeatures: nCategoricalCols
+            nFeatures: nCategorical
         },
         {
             typeName: "Datetime",
             color: "rgb(244, 148, 49)",
-            nFeatures: nDatetimeCols
+            nFeatures: nDatetime
         },
         {
             typeName: "Location",
@@ -69,7 +70,7 @@ export function FeatureDistributionBar({data}) {
         {
             typeName: "Text",
             color: "rgb(125, 0, 249)",
-            nFeatures: nTextCols
+            nFeatures: nText
         },
         {
             typeName: "Other",
@@ -157,10 +158,26 @@ export function Dataset({data}){
     };
 
     const dataSource = Object.keys(targetData).map(key=> {
+
+        const v = targetData[key];
+        let displayValue ;
+        if(isEmpty(v)){
+            displayValue = '-';
+        }else{
+            if(!isNaN(v)){
+                if(Number.isInteger(v)){
+                    displayValue = v;
+                }else{
+                    displayValue = v.toFixed(4)
+                }
+            }else{
+                displayValue = v;
+            }
+        }
         return {
             key: key,
             name: displayKeyMapping[key],
-            value: targetData[key] === null ? '-' : targetData[key],
+            value: displayValue
         }
     });
     const columns = [
@@ -180,10 +197,16 @@ export function Dataset({data}){
 
     const dataShapeDataSource = Object.keys(dataShapeObj).map(key=> {
         const v = dataShapeObj[key];
+        let displayValue;
+        if(isEmpty(v) || v.length < 1){
+            displayValue = '-'
+        }else{
+            displayValue = `(${v.join(",")})`
+        }
         return {
             key: key,
             name: key,
-            value: v === null ? '-' : `(${v[0]}, ${v[1]})`,
+            value: displayValue
         }
     });
 
@@ -248,6 +271,12 @@ export function Dataset({data}){
         }else{
             const xAxisData = targetDistribution.region.map(v => `[${v[0]}, ${v[1]})`);
             option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    }
+                },
                 xAxis: {
                     type: 'category',
                     data: xAxisData
