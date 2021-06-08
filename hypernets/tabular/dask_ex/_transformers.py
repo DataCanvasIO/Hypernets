@@ -360,7 +360,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
                 return cat[xi - 1]
             else:
                 dtype = dtypes[col]
-                if dtype in (np.float32, np.float64, np.float):
+                if dtype in (np.float32, np.float64, float):
                     return np.nan
                 elif dtype in (np.int32, np.int64, np.int, np.uint32, np.uint64, np.uint):
                     return -1
