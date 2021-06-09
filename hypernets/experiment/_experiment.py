@@ -91,17 +91,6 @@ class Experiment(object):
                 mean_y = None
                 Stdev_y = None
 
-            # if self.y_train.dtypes != 'int64' and self.y_train.dtypes != 'float64':
-            #     max_y = None
-            #     min_y = None
-            #     mean_y = None
-            #     Stdev_y = None
-            # else:
-            #     max_y = max(self.y_train)
-            #     min_y = min(self.y_train)
-            #     mean_y = pd.Series.mean(self.y_train)
-            #     Stdev_y = self.y_train.std()
-
             if self.task == 'regression':
                 Freq_y = None
                 disc_y_num = None
@@ -118,24 +107,6 @@ class Experiment(object):
                 target_distribution = dict(self.y_train.value_counts()[0:disc_y_num])
                 for key in target_distribution:
                     target_distribution[key] = int(target_distribution[key])
-
-            # if datatype_y == 'str' or datatype_y == 'date':
-            #     cont_y_num = None
-            #     disc_y_num = 10
-            #     target_distribution = dict(self.y_train.value_counts()[0:disc_y_num])
-            #     for key in target_distribution:
-            #         target_distribution[key] = int(target_distribution[key])
-
-            # if datatype_y == 'int' or datatype_y == 'float':
-            #     Freq_y = None
-            #     disc_y_num = None
-            #     cont_y_num = 10
-            #     interval = (max(self.y_train)-min(self.y_train))/cont_y_num
-            #     intervals = np.linspace(min(self.y_train), max(self.y_train), cont_y_num+1)
-            #     Freqs_y = pd.cut(self.y_train, intervals).value_counts()[0:cont_y_num]
-            #     count = list(Freqs_y)
-            #     region = list(map(lambda x: [x.left, x.right], list(Freqs_y.keys())))
-            #     target_distribution = {'count':count, 'region':region}
             
             shape_x_train = list(self.X_train.shape)
             shape_y_train = list(self.y_train.shape)
@@ -154,14 +125,6 @@ class Experiment(object):
             else:
                 shape_x_test = list(self.X_test.shape)
 
-            # # 检查类型
-            # print(type(int(Freq_y)))
-            # print(type(Unique_y))
-            # print(type(Missing_y))
-            # keyyy = list(target_distribution.keys())[0]
-            # print(type(target_distribution[keyyy]))
-            # print(type(list(self.X_train.shape)[0]))
-
         else:
             datatype_y = dtype2usagetype[str(self.y_train.dtype)]
 
@@ -169,25 +132,18 @@ class Experiment(object):
             Unique_y = len(self.y_train.unique().compute().tolist())
             Freq_y = self.y_train.value_counts().compute().tolist()[0]
 
-            if self.y_train.dtype != 'int64' and self.y_train.dtype != 'float64':
-                max_y = None
-                min_y = None
-                mean_y = None
-                Stdev_y = None
-            else:
+            if self.task == 'regression':
                 max_y = self.y_train.max().compute().tolist()
                 min_y = self.y_train.min().compute().tolist()
                 mean_y = self.y_train.mean().compute().tolist()
                 Stdev_y = self.y_train.std().compute().tolist()
+            else:
+                max_y = None
+                min_y = None
+                mean_y = None
+                Stdev_y = None
             
-            if datatype_y == 'str' or datatype_y == 'date':
-                cont_y_num = None
-                disc_y_num = 10
-                target_distribution = dict(dd.compute(self.y_train.value_counts())[0])
-                for key in target_distribution:
-                    target_distribution[key] = int(target_distribution[key])
-
-            if datatype_y == 'int' or datatype_y == 'float':
+            if self.task == 'regression':
                 Freq_y = None
                 disc_y_num = None
                 cont_y_num = 10
@@ -197,6 +153,12 @@ class Experiment(object):
                 count = list(Freqs_y)
                 region = list(map(lambda x: [x.left, x.right], list(Freqs_y.keys())))
                 target_distribution = {'count':count, 'region':region}
+            else:
+                cont_y_num = None
+                disc_y_num = 10
+                target_distribution = dict(dd.compute(self.y_train.value_counts())[0])
+                for key in target_distribution:
+                    target_distribution[key] = int(target_distribution[key])
 
             shape_x_train = list(self.X_train.shape)
             for idx, num in enumerate(shape_x_train):
