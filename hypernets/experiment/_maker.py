@@ -5,6 +5,7 @@
 
 from sklearn.metrics import get_scorer
 
+from hypernets.discriminators import make_discriminator
 from hypernets.experiment import CompeteExperiment
 from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.model import HyperModel
@@ -15,8 +16,6 @@ from hypernets.tabular.metrics import metric_to_scoring
 from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook, load_module
 
 logger = logging.get_logger(__name__)
-
-AUTO_DOWN_SAMPLE_SEARCH_THRESHOLD = 10000
 
 
 def make_experiment(hyper_model_cls,
@@ -155,10 +154,8 @@ def make_experiment(hyper_model_cls,
 
     def default_searcher(cls):
         assert search_space is not None, '"search_space" should be specified when "searcher" is None or str.'
-        op = optimize_direction if optimize_direction is not None \
-            else 'max' if scorer._sign > 0 else 'min'
-
-        s = make_searcher(cls, search_space, optimize_direction=op)
+        assert optimize_direction in {'max', 'min'}
+        s = make_searcher(cls, search_space, optimize_direction=optimize_direction)
 
         return s
 
@@ -224,6 +221,9 @@ def make_experiment(hyper_model_cls,
     if isinstance(scorer, str):
         scorer = get_scorer(scorer)
 
+    if optimize_direction is None or len(optimize_direction) == 0:
+        optimize_direction = 'max' if scorer._sign > 0 else 'min'
+
     searcher = to_search_object(searcher)
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
@@ -238,6 +238,11 @@ def make_experiment(hyper_model_cls,
 
     if callbacks is None:
         callbacks = default_experiment_callbacks()
+
+    if discriminator is None and cfg.experiment_discriminator is not None and len(cfg.experiment_discriminator) > 0:
+        discriminator = make_discriminator(cfg.experiment_discriminator,
+                                           optimize_direction=optimize_direction,
+                                           **(cfg.experiment_discriminator_options or {}))
 
     if id is None:
         id = hash_data(dict(X_train=X_train, y_train=y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,

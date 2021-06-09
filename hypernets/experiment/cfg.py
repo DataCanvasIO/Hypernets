@@ -1,21 +1,21 @@
-from hypernets.conf import configure, Configurable, List, Bool, Int
+from hypernets.conf import configure, Configurable, Bool, Int, String, List, Dict
 
 
 @configure()
 class ExperimentCfg(Configurable):
     experiment_callbacks_console = \
-        List([],
+        List(default_value=[],
              allow_none=True, config=True,
              help='ExperimentCallback instance or name list.'
              )
     experiment_callbacks_notebook = \
-        List(['hypernets.experiment.SimpleNotebookCallback', ],
+        List(default_value=['hypernets.experiment.SimpleNotebookCallback', ],
              allow_none=True, config=True,
              help='ExperimentCallback instance or name list.'
              )
 
     experiment_default_target_set = \
-        List(['y', 'target'],
+        List(default_value=['y', 'target'],
              allow_none=True, config=True,
              help='Default target name list.'
              )
@@ -29,14 +29,25 @@ class ExperimentCfg(Configurable):
             allow_none=True, config=True,
             help=''
             )
+    experiment_discriminator = \
+        String('percentile',
+               allow_none=True, config=True,
+               help='experiment id',
+               )
+    experiment_discriminator_options = \
+        Dict(default_value={'percentile': 50, 'min_trials': 10, 'min_steps': 5, 'stride': 1},
+             key_trait=String,
+             allow_none=True, config=True,
+             help='experiment id',
+             )
 
     hyper_model_callbacks_console = \
-        List(['hypernets.core.callbacks.SummaryCallback', ],
+        List(default_value=['hypernets.core.callbacks.SummaryCallback', ],
              allow_none=True, config=True,
              help='Callback instance or name list.'
              )
     hyper_model_callbacks_notebook = \
-        List(['hypernets.core.callbacks.NotebookCallback', ],
+        List(default_value=['hypernets.core.callbacks.NotebookCallback', ],
              allow_none=True, config=True,
              help='Callback instance or name list.'
              )
