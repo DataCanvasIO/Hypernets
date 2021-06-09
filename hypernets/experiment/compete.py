@@ -1365,42 +1365,49 @@ class CompeteExperiment(SteppedExperiment):
                                                 callbacks=callbacks,
                                                 random_state=random_state)
 
-    def show_x_details(self):
+    def get_x_data_character(self):
 
         cnt_x_all = len(col_se.column_all(self.X_train))
         cnt_x_date = len(col_se.column_all_datetime(self.X_train))
-        cnt_x_category = len(col_se.column_category(self.X_train))
+        cnt_x_category = len(col_se.column_object_category_bool(self.X_train))
         cnt_x_num = len(col_se.column_number(self.X_train))
 
-        kwargs = self.steps.get_step('feature_generation').transformer_kwargs
-        if kwargs['text_cols'] != None:
-            cnt_x_text = len(kwargs['text_cols'])
-            cnt_x_all -= len(col_se.column_text(self.X_train)) - len(kwargs['text_cols'])
-        else:
+        try:
+            kwargs = self.get_step('feature_generation').transformer_kwargs
+            if kwargs['text_cols'] != None:
+                cnt_x_text = len(kwargs['text_cols'])
+                cnt_x_all -= len(col_se.column_text(self.X_train)) - len(kwargs['text_cols'])
+            else:
+                cnt_x_text = len(col_se.column_text(self.X_train))
+                
+            if kwargs['latlong_cols'] != None:
+                cnt_x_latlong = len(kwargs['latlong_cols'])
+                cnt_x_all += len(kwargs['latlong_cols'])
+            else:
+                cnt_x_latlong = 0
+        except:
             cnt_x_text = len(col_se.column_text(self.X_train))
-            
-        if kwargs['latlong_cols'] != None:
-            cnt_x_latlong = len(kwargs['latlong_cols'])
-            cnt_x_all += len(kwargs['latlong_cols'])
-        else:
             cnt_x_latlong = 0
-        
+
         cnt_x_others = cnt_x_all - cnt_x_date - cnt_x_category - cnt_x_num - cnt_x_text - cnt_x_latlong
 
         x_types = {
-            'xType':{
-            'cntXNum':cnt_x_num, 
-            'cntXText':cnt_x_text, 
-            'cntXDate':cnt_x_date,
-            'cntXCategory':cnt_x_category,
-            'cntXLatlong':cnt_x_latlong,
-            'cnt_x_others':cnt_x_others
+            'experimentType': 'compete',
+            'featureDistribution':{
+            'nContinuous':cnt_x_num, 
+            'nText':cnt_x_text,
+            'nDatetime':cnt_x_date,
+            'nCategorical':cnt_x_category,
+            'nLocation':cnt_x_latlong,
+            'nOthers':cnt_x_others
             }
         }
         
-        data_character = self.show_details()
-
-        return data_character.update(x_type)
+        data_character = self.get_data_character()
+        
+        data_character.update(x_types)
+        
+        return data_character
 
 
     def run(self, **kwargs):
