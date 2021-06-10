@@ -4,6 +4,7 @@ __author__ = 'yangjian'
 
 """
 
+from ._doc_lens import DocLens
 from ._fsutils import filesystem as fs
 from ._tic_tok import tic_toc, report as tic_toc_report, report_as_dataframe as tic_toc_report_as_dataframe
 from .common import generate_id, combinations, isnotebook, Counter, to_repr
