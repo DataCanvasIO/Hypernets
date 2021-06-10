@@ -35,6 +35,19 @@ export const StepsKey = {
 };
 
 
+
+export function getStepName(stepType) {
+    const keys = Object.keys(StepsKey);
+    for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        const v = StepsKey[k];
+        if(v.type === stepType){
+            return v.name;
+        }
+    }
+    return null;
+}
+
 export const StepStatus = {
   Wait: 'wait',
   Process: 'process',
