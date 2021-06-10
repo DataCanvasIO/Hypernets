@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sklearn.metrics import get_scorer
 from sklearn.preprocessing import LabelEncoder
 
@@ -55,6 +57,55 @@ def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask
     assert score
 
 
+def experiment_with_movie_lens(init_kwargs, run_kwargs, row_count=None, with_dask=False):
+    hyper_model = create_plain_model(reward_metric='f1', with_encoder=True, with_dask=with_dask)
+    scorer = get_scorer(metric_to_scoring(hyper_model.reward_metric))
+    X = dsutils.load_movielens()
+    # X['genres'] = X['genres'].apply(lambda s: s.replace('|', ' '))
+    X['timestamp'] = X['timestamp'].apply(datetime.fromtimestamp)
+    if row_count is not None:
+        X = X.head(row_count)
+
+    if with_dask:
+        setup_dask(None)
+        X = dex.dd.from_pandas(X, npartitions=1)
+
+    y = X.pop('rating')
+
+    X_train, X_test, y_train, y_test = \
+        dex.train_test_split(X, y, test_size=0.3, random_state=9527)
+    X_train, X_eval, y_train, y_eval = \
+        dex.train_test_split(X_train, y_train, test_size=0.3, random_state=9527)
+
+    init_kwargs = {
+        'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
+        'scorer': scorer,
+        'ensemble_size': 0,
+        'drift_detection': False,
+        **init_kwargs
+    }
+    run_kwargs = {
+        'max_trials': 3,
+        **run_kwargs
+    }
+    experiment = CompeteExperiment(hyper_model, X_train, y_train, **init_kwargs)
+    estimator = experiment.run(**run_kwargs)
+
+    assert estimator
+
+    preds = estimator.predict(X_test)
+    proba = estimator.predict_proba(X_test)
+
+    if with_dask:
+        preds, proba = dex.compute(preds, proba)
+
+    score = calc_score(y_test, preds, proba,
+                       metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'],
+                       task=experiment.task)
+    print('evaluate score:', score)
+    assert score
+
+
 def test_simple():
     experiment_with_bank_data({}, {})
 
@@ -84,6 +135,11 @@ def test_with_ensemble():
 
 def test_without_cv():
     experiment_with_bank_data(dict(cv=False), {})
+
+
+def test_with_feature_generation():
+    experiment_with_movie_lens(dict(feature_generation=True,
+                                    feature_generation_text_cols=['title']), {})
 
 
 def test_with_dd():

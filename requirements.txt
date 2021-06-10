@@ -5,9 +5,10 @@ scipy
 lightgbm>=2.2.0
 fsspec>=0.8.0
 seaborn==0.11.0
-tables>=3.6.1
 six
 dask
 pyarrow
 ipython
 traitlets
+featuretools
+python-geohash

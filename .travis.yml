@@ -8,12 +8,12 @@ python:
 cache: pip
 # command to install dependencies
 install:
-  - pip install -r requirements.txt
-  - pip install -r requirements-dask.txt
-  - pip install -q pytest-cov==2.4.0
-  - pip install -q python-coveralls
-  - pip install -q codacy-coverage
-
+  - cat /proc/cpuinfo
+  - free -m
+  - pip install dask==2021.1.1 distributed==2021.1.1 dask-ml
+  - pip install -r requirements.txt -r requirements-cn.txt
+  - pip install -q pytest-cov==2.4.0 python-coveralls codacy-coverage
+  - pip list
 # command to run tests
 script:
   - pytest --cov=hypernets --durations=30

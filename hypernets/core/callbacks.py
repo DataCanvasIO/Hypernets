@@ -8,14 +8,26 @@ import os
 import time
 
 import numpy as np
+import pandas as pd
+from IPython.display import display, update_display, display_markdown
 
-from ..utils import logging, fs
+from ..utils import logging, fs, to_repr
 
 logger = logging.get_logger(__name__)
 
 
 class Callback():
     def __init__(self):
+        pass
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        pass
+
+    def on_search_end(self, hyper_model):
+        pass
+
+    def on_search_error(self, hyper_model):
         pass
 
     def on_build_estimator(self, hyper_model, space, estimator, trial_no):
@@ -33,6 +45,9 @@ class Callback():
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         pass
 
+    def __repr__(self):
+        return to_repr(self)
+
 
 class EarlyStoppingError(RuntimeError):
     def __init__(self, *arg):
@@ -40,25 +55,39 @@ class EarlyStoppingError(RuntimeError):
 
 
 class EarlyStoppingCallback(Callback):
+    REASON_TRIAL_LIMIT = 'trials'
+    REASON_TIME_LIMIT = 'time_limit'
+    REASON_EXPECTED_REWARD = 'expected_reward'
+
     def __init__(self, max_no_improvement_trials=0, mode='min', min_delta=0, time_limit=None, expected_reward=None):
         super(Callback, self).__init__()
         # assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
 
-        self.max_no_improvement_trials = max_no_improvement_trials
-        self.mode = mode
-        self.min_delta = min_delta
-        self.best_reward = None
-        self.best_trial_no = None
-        self.counter_no_improvement_trials = 0
-        self.time_limit = time_limit
-        self.expected_reward = expected_reward
-        self.start_time = None
+        # settings
         if mode == 'min':
             self.op = np.less
         elif mode == 'max':
             self.op = np.greater
         else:
             raise ValueError(f'Unsupported mode:{mode}')
+        self.max_no_improvement_trials = max_no_improvement_trials
+        self.mode = mode
+        self.min_delta = min_delta
+        self.time_limit = time_limit
+        self.expected_reward = expected_reward
+
+        # running state
+        self.start_time = None
+        self.best_reward = None
+        self.best_trial_no = None
+        self.counter_no_improvement_trials = 0
+        self.triggered = None
+        self.triggered_reason = None
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        self.triggered = False
+        self.triggered_reason = None
 
     def on_trial_begin(self, hyper_model, space, trial_no):
         if self.start_time is None:
@@ -72,6 +101,8 @@ class EarlyStoppingCallback(Callback):
                 msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                 if logger.is_info_enabled():
                     logger.info(msg)
+                self.triggered_reason = self.REASON_TIME_LIMIT
+                self.triggered = True
                 raise EarlyStoppingError(msg)
 
         if self.expected_reward is not None and self.expected_reward != 0.0:
@@ -80,6 +111,8 @@ class EarlyStoppingCallback(Callback):
                 msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                 if logger.is_info_enabled():
                     logger.info(msg)
+                self.triggered_reason = self.REASON_EXPECTED_REWARD
+                self.triggered = True
                 raise EarlyStoppingError(msg)
 
         if self.max_no_improvement_trials is not None and self.max_no_improvement_trials > 0:
@@ -97,6 +130,8 @@ class EarlyStoppingCallback(Callback):
                         msg = f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
                         if logger.is_info_enabled():
                             logger.info(msg)
+                        self.triggered_reason = self.REASON_TRIAL_LIMIT
+                        self.triggered = True
                         raise EarlyStoppingError(msg)
 
 
@@ -180,6 +215,15 @@ class FileStorageLoggingCallback(FileLoggingCallback):
 
 
 class SummaryCallback(Callback):
+    def __init__(self):
+        super(SummaryCallback, self).__init__()
+
+        self.start_search_time = None
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        self.start_search_time = time.time()
+
     def on_build_estimator(self, hyper_model, space, estimator, trial_no):
         # if logger.is_info_enabled():
         #     logger.info(f'\nTrial No:{trial_no}')
@@ -194,10 +238,101 @@ class SummaryCallback(Callback):
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
         if logger.is_info_enabled():
             logger.info(f'trial end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
-            logger.info(f'Total elapsed:{time.time() - hyper_model.start_search_time}')
+            logger.info(f'Total elapsed:{time.time() - self.start_search_time}')
 
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         if logger.is_info_enabled():
             logger.info(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
             logger.info(f'trial skip. reason:{reason},  reward:{reward}, improved:{improved}, elapsed:{elapsed}')
             logger.info(f'&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
+
+
+class NotebookCallback(Callback):
+    def __init__(self):
+        super(NotebookCallback, self).__init__()
+
+        self.current_trial_display_id = None
+        self.search_summary_display_id = None
+        self.best_trial_display_id = None
+        self.title_display_id = None
+
+        self.last_trial_no = 0
+        self.last_reward = 0
+        self.start_time = 0
+        self.max_trials = 0
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        self.start_time = time.time()
+        self.max_trials = max_trials
+
+    def on_search_end(self, hyper_model):
+        df_summary = pd.DataFrame([(self.last_trial_no, self.last_reward, hyper_model.best_trial_no,
+                                    hyper_model.best_reward,
+                                    time.time() - self.start_time,
+                                    len([t for t in hyper_model.history.trials if t.succeeded]),
+                                    self.max_trials)],
+                                  columns=['Trial No.', 'Previous reward', 'Best trial', 'Best reward',
+                                           'Total elapsed', 'Valid trials',
+                                           'Max trials'])
+        if self.search_summary_display_id is None:
+            display_markdown('#### Trials Summary:', raw=True)
+            handle = display(df_summary, display_id=True)
+            if handle is not None:
+                self.search_summary_display_id = handle.display_id
+        else:
+            update_display(df_summary, display_id=self.search_summary_display_id)
+
+        if self.title_display_id is not None:
+            update_display({'text/markdown': '#### Top trials:'}, raw=True, include=['text/markdown'],
+                           display_id=self.title_display_id)
+
+        df_best_trials = pd.DataFrame([
+            (t.trial_no, t.reward, t.elapsed, t.space_sample.vectors) for t in hyper_model.get_top_trials(5)],
+            columns=['Trial No.', 'Reward', 'Elapsed', 'Space Vector'])
+        if self.current_trial_display_id is None:
+            display(df_best_trials, display_id=True)
+        else:
+            update_display(df_best_trials, display_id=self.current_trial_display_id)
+
+    def on_trial_begin(self, hyper_model, space, trial_no):
+        df_summary = pd.DataFrame([(trial_no, self.last_reward, hyper_model.best_trial_no,
+                                    hyper_model.best_reward,
+                                    time.time() - self.start_time,
+                                    len([t for t in hyper_model.history.trials if t.succeeded]),
+                                    self.max_trials)],
+                                  columns=['Trial No.', 'Previous reward', 'Best trial', 'Best reward',
+                                           'Total elapsed', 'Valid trials',
+                                           'Max trials'])
+        if self.search_summary_display_id is None:
+            display_markdown('#### Trials Summary:', raw=True)
+            handle = display(df_summary, display_id=True)
+            if handle is not None:
+                self.search_summary_display_id = handle.display_id
+        else:
+            update_display(df_summary, display_id=self.search_summary_display_id)
+
+        if self.current_trial_display_id is None:
+            handle = display({'text/markdown': '#### Current Trial:'}, raw=True, include=['text/markdown'],
+                             display_id=True)
+            if handle is not None:
+                self.title_display_id = handle.display_id
+            handle = display(space, display_id=True)
+            if handle is not None:
+                self.current_trial_display_id = handle.display_id
+        else:
+            update_display(space, display_id=self.current_trial_display_id)
+
+    def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        self.last_trial_no = trial_no
+        self.last_reward = reward
+
+        best_trial = hyper_model.get_best_trial()
+        if best_trial is not None:
+            if self.best_trial_display_id is None:
+                display_markdown('#### Best Trial:', raw=True)
+                handle = display(best_trial.space_sample, display_id=True)
+                if handle is not None:
+                    self.best_trial_display_id = handle.display_id
+            else:
+                update_display(best_trial.space_sample, display_id=self.best_trial_display_id)

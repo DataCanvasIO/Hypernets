@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator
 
 from hypernets import __version__
 from hypernets.utils import fs, hash_data, logging
-from .cfg import TabularCfg as conf
+from .cfg import TabularCfg as cfg
 from .persistence import to_parquet, read_parquet
 
 logger = logging.get_logger(__name__)
@@ -96,16 +96,16 @@ def decorate(fn, *, cache_dir, strategy,
     if isinstance(transformer, str) or attr_keys is not None or attrs_to_restore is not None:
         assert 'self' in sig.parameters.keys()
 
-    if conf.cache_strategy == 'disabled':
+    if cfg.cache_strategy == 'disabled':
         return fn
 
     if callbacks is None:
         callbacks = []
 
     if cache_dir is None:
-        cache_dir = f'{conf.cache_dir}{fs.sep}{".".join([fn.__module__, fn.__qualname__])}'
+        cache_dir = f'{cfg.cache_dir}{fs.sep}{".".join([fn.__module__, fn.__qualname__])}'
 
-    if conf.cache_strategy != 'disabled' and not fs.exists(cache_dir):
+    if cfg.cache_strategy != 'disabled' and not fs.exists(cache_dir):
         try:
             fs.mkdirs(cache_dir, exist_ok=True)
         except:
@@ -193,7 +193,7 @@ def decorate(fn, *, cache_dir, strategy,
                     c.on_store(fn, result, *args, **kwargs)
 
                 # store cache
-                cache_strategy = strategy if strategy is not None else conf.cache_strategy
+                cache_strategy = strategy if strategy is not None else cfg.cache_strategy
                 if cache_strategy == 'transform' and (result is None or transformer is not None):
                     cache_data = None
                     meta = {'strategy': 'transform'}
@@ -302,7 +302,7 @@ def clear(cache_dir=None, fn=None):
     assert fn is None or callable(fn)
 
     if cache_dir is None:
-        cache_dir = conf.cache_dir
+        cache_dir = cfg.cache_dir
     if callable(fn):
         cache_dir = f'{cache_dir}{fs.sep}{".".join([fn.__module__, fn.__qualname__])}'
 

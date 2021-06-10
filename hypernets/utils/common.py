@@ -5,6 +5,7 @@ __author__ = 'yangjian'
 """
 
 import hashlib
+import inspect
 import math
 import pickle
 import uuid
@@ -24,6 +25,28 @@ logger = logging.get_logger(__name__)
 
 def generate_id():
     return str(uuid.uuid1())
+
+
+def to_repr(obj):
+    def _get_init_params(cls):
+        init = cls.__init__  # getattr(cls.__init__, 'deprecated_original', cls.__init__)
+        if init is object.__init__:
+            return []
+
+        init_signature = inspect.signature(init)
+        parameters = [p for p in init_signature.parameters.values()
+                      if p.name != 'self' and p.kind != p.VAR_KEYWORD]
+        return parameters
+
+    out = []
+    cls_ = type(obj)
+    for p in _get_init_params(cls_):
+        name = p.name
+        value = getattr(obj, name, None)
+        if value is not p.default:
+            out.append('%s=%r' % (name, value))
+    repr_ = ', '.join(out)
+    return f'{cls_.__name__}({repr_})'
 
 
 def combinations(n, m_max, m_min=1):
@@ -195,6 +218,16 @@ def hash_data(data, method='md5'):
     m = getattr(hashlib, method)()
     m.update(data)
     return m.hexdigest()
+
+
+def load_module(mod_name):
+    assert isinstance(mod_name, str) and mod_name.find('.') > 0
+
+    cbs = mod_name.split('.')
+    pkg, mod = '.'.join(cbs[:-1]), cbs[-1]
+    pkg = __import__(pkg, fromlist=[''])
+    mod = getattr(pkg, mod)
+    return mod
 
 
 def load_data(data, **kwargs):

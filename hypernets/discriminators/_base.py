@@ -4,19 +4,25 @@ __author__ = 'yangjian'
 
 """
 import numpy as np
+
 from ..core import TrialHistory
+from ..utils import to_repr
+
 
 class UnPromisingTrial(Exception):
     pass
 
-class BaseDiscriminator():
+
+class BaseDiscriminator(object):
     """
     Discriminator is used to determine whether to continue training
     """
 
     def __init__(self, min_trials=5, min_steps=5, stride=1, history: TrialHistory = None, optimize_direction='min'):
+        super(BaseDiscriminator, self).__init__()
+
         self.history = history
-        self.min_trilas = min_trials
+        self.min_trials = min_trials
         self.min_steps = min_steps
         self.stride = stride
         self.optimize_direction = optimize_direction.lower()
@@ -36,7 +42,7 @@ class BaseDiscriminator():
             return True
 
         trial_scores = get_previous_trials_scores(self.history, n_step - 1, n_step - 1, group_id)
-        if len(trial_scores) < self.min_trilas:
+        if len(trial_scores) < self.min_trials:
             return True
         if self.stride > 1:
             if ((n_step - self.min_steps) % self.stride) > 0:
@@ -57,6 +63,9 @@ class BaseDiscriminator():
             A boolean value representing whether the trial should be stop.
         """
         raise NotImplementedError()
+
+    def __repr__(self):
+        return to_repr(self)
 
 
 def get_percentile_score(history, n_step, group_id, percentile, sign=1):

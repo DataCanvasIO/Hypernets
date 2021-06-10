@@ -86,9 +86,11 @@ class Test_Transformer():
              ], input_df=True, df_out=True
         )
         x_new = dfm.fit_transform(X, y)
+        # assert x_new.columns.to_list() == ['b_c_d_l_0', 'b_c_d_l_1', 'a_a', 'a_b', 'a_missing_value', 'e_False',
+        #                                    'e_True', 'f_c', 'f_d', 'f_missing_value', '1', 'b', 'c', 'd', 'l',
+        #                                    'b^2', 'b c', 'b d', 'b l', 'c^2', 'c d', 'c l', 'd^2', 'd l', 'l^2']
         assert x_new.columns.to_list() == ['b_c_d_l_0', 'b_c_d_l_1', 'a_a', 'a_b', 'a_missing_value', 'e_False',
-                                           'e_True', 'f_c', 'f_d', 'f_missing_value', '1', 'b', 'c', 'd', 'l',
-                                           'b^2', 'b c', 'b d', 'b l', 'c^2', 'c d', 'c l', 'd^2', 'd l', 'l^2']
+                                           'e_True', 'f_c', 'f_d', 'f_missing_value']
 
     def test_no_feature(self):
         df = get_df()[0]
@@ -261,12 +263,31 @@ class Test_Transformer():
         Xt = encoder.fit_transform(df.copy())
         assert 'title' in Xt.columns.tolist()
         assert 'genres' in Xt.columns.tolist()
-        assert isinstance(Xt['genres'][0], list)
+        assert isinstance(Xt['genres'][0], (list, np.ndarray))
 
-        encoder = skex.TfidfEncoder(['title', 'genres'], flatten=True)
-        Xt = encoder.fit_transform(df.copy())
+        encoder = skex.TfidfEncoder(flatten=True)
+        Xt = encoder.fit_transform(df[['title', 'genres']].copy())
         assert 'genres' not in Xt.columns.tolist()
         assert 'genres_tfidf_0' in Xt.columns.tolist()
+
+        encoder = skex.TfidfEncoder(flatten=False)
+        Xt = encoder.fit_transform(df[['title', 'genres']].copy().values)
+        assert isinstance(Xt, np.ndarray)
+        assert isinstance(Xt[0, 0], (list, np.ndarray))
+        assert len(Xt[0, 1]) == 19
+        assert Xt.shape == (df.shape[0], 2)
+
+        encoder = skex.TfidfEncoder(flatten=False)
+        Xt = encoder.fit_transform(df[['title']].copy().values)
+        assert isinstance(Xt, np.ndarray)
+        assert isinstance(Xt[0, 0], (list, np.ndarray))
+        assert Xt.shape == (df.shape[0], 1)
+
+        encoder = skex.TfidfEncoder(flatten=True)
+        Xt = encoder.fit_transform(df[['genres']].copy().values)
+        assert isinstance(Xt, np.ndarray)
+        assert isinstance(Xt[0, 0], (np.int, np.float))
+        assert Xt.shape == (df.shape[0], 19)
 
     def test_datetime_encoder(self):
         def is_holiday(t):
@@ -281,14 +302,14 @@ class Test_Transformer():
         df['month'] = df['month'].apply(lambda s: months[s])
         df['date'] = pd.to_datetime(df[['year', 'month', 'day']])
 
-        encoder = skex.DataTimeEncoder()
+        encoder = skex.DatetimeEncoder()
         X = encoder.fit_transform(df)
         columns = X.columns.to_list()
         assert 'date' not in columns
         assert all([c in columns for c in ['date_month', 'date_day']])
         assert all([c not in columns for c in ['date_hour', 'date_minute']])
 
-        encoder = skex.DataTimeEncoder(include=skex.DataTimeEncoder.default_include + ['timestamp'],
+        encoder = skex.DatetimeEncoder(include=skex.DatetimeEncoder.default_include + ['timestamp'],
                                        extra=[('holiday', is_holiday)], drop_constants=False)
         X = encoder.fit_transform(df)
         columns = X.columns.to_list()

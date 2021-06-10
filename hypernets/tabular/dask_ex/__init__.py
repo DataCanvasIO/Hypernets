@@ -31,6 +31,7 @@ try:
         MaxAbsScaler, SafeOrdinalEncoder, DataInterceptEncoder, \
         CallableAdapterEncoder, DataCacher, CacheCleaner, \
         LgbmLeavesEncoder, CategorizeEncoder, MultiKBinsDiscretizer, \
+        LocalizedTfidfVectorizer, \
         MultiVarLenFeatureEncoder, DataFrameWrapper
 
     from ..sklearn_ex import PassThroughEstimator

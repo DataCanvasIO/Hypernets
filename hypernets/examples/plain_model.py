@@ -216,7 +216,7 @@ class PlainEstimator(Estimator):
                     oof_ = np.full(y.shape, np.nan, proba.dtype)
                 else:
                     oof_ = np.full((y.shape[0], proba.shape[-1]), np.nan, proba.dtype)
-            fold_scores = calc_score(y_val_fold, preds, proba, metrics)
+            fold_scores = calc_score(y_val_fold, preds, proba, metrics, task=self.task)
 
             # save fold result
             oof_[valid_idx] = proba
@@ -320,7 +320,7 @@ class PlainEstimator(Estimator):
 
 class PlainModel(HyperModel):
     def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None,
-                 transformer=None):
+                 discriminator=None, transformer=None):
         super(PlainModel, self).__init__(searcher, dispatcher=dispatcher, callbacks=callbacks,
                                          reward_metric=reward_metric, task=task)
         self.transformer = transformer
@@ -339,7 +339,7 @@ class PlainModel(HyperModel):
 
 def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optimize_direction='max', **kwargs):
     if task is None:
-        task = infer_task_type(y_train)
+        task, _ = infer_task_type(y_train)
     if reward_metric is None:
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
 
