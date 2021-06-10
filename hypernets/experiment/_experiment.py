@@ -4,13 +4,10 @@ __author__ = 'yangjian'
 
 """
 import time
+import json
 
 from hypernets.dispatchers.cfg import DispatchCfg
-from hypernets.utils import logging
-
-import numpy as np
-import pandas as pd
-from dask import dataframe as dd
+from hypernets.utils import logging, df_utils
 
 logger = logging.get_logger(__name__)
 
@@ -66,164 +63,11 @@ class Experiment(object):
 
         self.start_time = None
         self.end_time = None
-
+    
     def get_data_character(self):
-
-        dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
-        
-        self.task, _ = self.hyper_model.infer_task_type(self.y_train)
-
-        if isinstance(self.y_train, pd.core.series.Series):
-            datatype_y = dtype2usagetype[str(self.y_train.dtypes)]
-
-            Missing_y = self.y_train.isnull().sum().tolist()
-            Unique_y = len(self.y_train.unique())
-            Freq_y = self.y_train.value_counts()[0].tolist()
-            
-            if self.task == 'regression':
-                max_y = max(self.y_train)
-                min_y = min(self.y_train)
-                mean_y = pd.Series.mean(self.y_train)
-                Stdev_y = self.y_train.std()
-            else:
-                max_y = None
-                min_y = None
-                mean_y = None
-                Stdev_y = None
-
-            if self.task == 'regression':
-                Freq_y = None
-                disc_y_num = None
-                cont_y_num = 10
-                interval = (max_y-min_y)/cont_y_num
-                intervals = np.linspace(min_y, max_y, cont_y_num+1)
-                Freqs_y = pd.cut(self.y_train, intervals).value_counts()[0:cont_y_num]
-                count = list(Freqs_y)
-                region = list(map(lambda x: [x.left, x.right], list(Freqs_y.keys())))
-                target_distribution = {'count':count, 'region':region}
-            else:
-                cont_y_num = None
-                disc_y_num = 10
-                target_distribution = dict(self.y_train.value_counts()[0:disc_y_num])
-                for key in target_distribution:
-                    target_distribution[key] = int(target_distribution[key])
-            
-            shape_x_train = list(self.X_train.shape)
-            shape_y_train = list(self.y_train.shape)
-            if self.X_eval == None:
-                shape_x_eval = []
-            else:
-                shape_x_eval = list(self.X_eval.shape)
-
-            if self.y_eval == None:
-                shape_y_eval = []
-            else:
-                shape_y_eval = list(self.y_eval.shape)
-
-            if self.X_test == None:
-                shape_x_test = []
-            else:
-                shape_x_test = list(self.X_test.shape)
-
-        else:
-            datatype_y = dtype2usagetype[str(self.y_train.dtype)]
-
-            Missing_y = self.y_train.isnull().compute().tolist().count(True)
-            Unique_y = len(self.y_train.unique().compute().tolist())
-            Freq_y = self.y_train.value_counts().compute().tolist()[0]
-
-            if self.task == 'regression':
-                max_y = self.y_train.max().compute().tolist()
-                min_y = self.y_train.min().compute().tolist()
-                mean_y = self.y_train.mean().compute().tolist()
-                Stdev_y = self.y_train.std().compute().tolist()
-            else:
-                max_y = None
-                min_y = None
-                mean_y = None
-                Stdev_y = None
-            
-            if self.task == 'regression':
-                Freq_y = None
-                disc_y_num = None
-                cont_y_num = 10
-                interval = (max_y-min_y)/cont_y_num
-                intervals = np.linspace(min_y, max_y, cont_y_num+1)
-                Freqs_y = pd.cut(self.y_train, intervals).value_counts()[0:cont_y_num]
-                count = list(Freqs_y)
-                region = list(map(lambda x: [x.left, x.right], list(Freqs_y.keys())))
-                target_distribution = {'count':count, 'region':region}
-            else:
-                cont_y_num = None
-                disc_y_num = 10
-                target_distribution = dict(dd.compute(self.y_train.value_counts())[0])
-                for key in target_distribution:
-                    target_distribution[key] = int(target_distribution[key])
-
-            shape_x_train = list(self.X_train.shape)
-            for idx, num in enumerate(shape_x_train):
-                if isinstance(num, int):
-                    continue
-                else:
-                    shape_x_train[idx] = num.compute()
-
-            shape_y_train = list(map(lambda x: x.compute(), list(self.y_train.shape)))
-
-            if self.X_eval == None:
-                shape_x_eval = []
-            else:
-                shape_x_eval = list(self.X_eval.shape)
-                for idx, num in enumerate(shape_x_eval):
-                    if isinstance(num, int):
-                        continue
-                    else:
-                        shape_x_eval[idx] = num.compute()
-            
-            if self.y_eval == None:
-                shape_y_eval = []
-            else:
-                shape_y_eval = list(self.y_eval.shape)
-                for idx, num in enumerate(shape_y_eval):
-                    if isinstance(num, int):
-                        continue
-                    else:
-                        shape_y_eval[idx] = num.compute()
-
-            if self.X_test == None:
-                shape_x_test = []
-            else:
-                shape_x_test = list(self.X_test.shape)
-                for idx, num in enumerate(shape_x_test):
-                    if isinstance(num, int):
-                        continue
-                    else:
-                        shape_x_test[idx] = num.compute()
-        
-        details_dict = {
-            'experimentType': 'base',
-            'target':{
-                'name':'y',
-                'taskType':self.task,
-                'freq':Freq_y,
-                'unique':Unique_y,
-                'missing':Missing_y,
-                'mean':mean_y, 
-                'min':min_y,
-                'max':max_y,
-                'stdev':Stdev_y, 
-                'dataType':datatype_y
-            },
-            'targetDistribution': target_distribution,
-            'datasetShape':{
-                'X_train':shape_x_train, 
-                'y_train':shape_y_train, 
-                'X_eval':shape_x_eval, 
-                'y_eval':shape_y_eval, 
-                'X_test':shape_x_test
-            }
-            }
-
-        return details_dict
+        data_character = df_utils.get_data_character(self.hyper_model, self.X_train, self.y_train, self.X_eval,
+                                                     self.y_eval, self.X_test, self.task)
+        return data_character
 
     def run(self, **kwargs):
         self.start_time = time.time()

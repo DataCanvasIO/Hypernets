@@ -16,7 +16,6 @@ from sklearn.metrics import get_scorer
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
-from hypernets.tabular import column_selector as col_se
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
@@ -28,7 +27,7 @@ from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
-from hypernets.utils import logging, const
+from hypernets.utils import logging, const, df_utils
 
 logger = logging.get_logger(__name__)
 
@@ -1364,51 +1363,12 @@ class CompeteExperiment(SteppedExperiment):
                                                 id=id,
                                                 callbacks=callbacks,
                                                 random_state=random_state)
-
-    def get_x_data_character(self):
-
-        cnt_x_all = len(col_se.column_all(self.X_train))
-        cnt_x_date = len(col_se.column_all_datetime(self.X_train))
-        cnt_x_category = len(col_se.column_object_category_bool(self.X_train))
-        cnt_x_num = len(col_se.column_number(self.X_train))
-
-        try:
-            kwargs = self.get_step('feature_generation').transformer_kwargs
-            if kwargs['text_cols'] != None:
-                cnt_x_text = len(kwargs['text_cols'])
-                cnt_x_all -= len(col_se.column_text(self.X_train)) - len(kwargs['text_cols'])
-            else:
-                cnt_x_text = len(col_se.column_text(self.X_train))
-                
-            if kwargs['latlong_cols'] != None:
-                cnt_x_latlong = len(kwargs['latlong_cols'])
-                cnt_x_all += len(kwargs['latlong_cols'])
-            else:
-                cnt_x_latlong = 0
-        except:
-            cnt_x_text = len(col_se.column_text(self.X_train))
-            cnt_x_latlong = 0
-
-        cnt_x_others = cnt_x_all - cnt_x_date - cnt_x_category - cnt_x_num - cnt_x_text - cnt_x_latlong
-
-        x_types = {
-            'experimentType': 'compete',
-            'featureDistribution':{
-            'nContinuous':cnt_x_num, 
-            'nText':cnt_x_text,
-            'nDatetime':cnt_x_date,
-            'nCategorical':cnt_x_category,
-            'nLocation':cnt_x_latlong,
-            'nOthers':cnt_x_others
-            }
-        }
-        
-        data_character = self.get_data_character()
-        
+    
+    def get_data_character(self):
+        data_character = super(CompeteExperiment, self).get_data_character()
+        x_types = df_utils.get_x_data_character(self.X_train, self.get_step)
         data_character.update(x_types)
-        
         return data_character
-
 
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
