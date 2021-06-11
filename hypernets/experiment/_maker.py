@@ -39,7 +39,7 @@ def make_experiment(hyper_model_cls,
                     log_level=None,
                     **kwargs):
     """
-    Ulitily to make CompeteExperiment instance with specified settings.
+    Utility to make CompeteExperiment instance with specified settings.
 
     Parameters
     ----------
