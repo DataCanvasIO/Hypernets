@@ -7,11 +7,9 @@ import "antd/dist/antd.css";
 import { notification } from 'antd';
 import {connect, Provider} from "react-redux";
 
-import { Scrollbars } from 'react-custom-scrollbars';
-import {CollinearityDetectionStep, DriftDetectionStep, EnsembleStep, FeatureSelectionStep, PseudoLabelStep} from '../components/steps'
+import {CollinearityDetectionStep, DriftDetectionStep, EnsembleStep, FeatureSelectionStep, PseudoLabelStep, DataCleaningStep} from '../components/steps'
 import { StepsKey } from '../constants'
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
-import { DataCleaningStep} from '../components/dataCleaningStep'
 import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
 const { Step } = Steps;
 
@@ -98,7 +96,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
                 <Step status={stepData.status} title={StepsKey.DataCleaning.name} key={stepData.name}/>
             );
             stepContentComponents.push(
-                <DataCleaningStep data={stepData}/>
+                <DataCleaningStep stepData={stepData}/>
             );
         }else if(stepType  === StepsKey.CollinearityDetection.type){
             stepTabComponents.push(

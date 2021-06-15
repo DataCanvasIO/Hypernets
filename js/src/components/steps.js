@@ -7,7 +7,7 @@ import EchartsCore from './echartsCore';
 import {showNotification} from "../pages/experiment";
 import {connect, Provider} from "react-redux";
 import {createStore} from "redux";
-import {isEmpty} from "../util";
+import {formatFloat, isEmpty} from "../util";
 import {StepStatus} from "../constants";
 
 // import { toPercent, toFix } from '@/utils/util';
@@ -227,6 +227,55 @@ export function ConfigurationCard({configurationData}) {
 }
 
 
+export function DataCleaningStep({stepData}) {
+
+    var removedFeaturesDataSource = null;
+    if(stepData.status === StepStatus.Finish){
+        const unselectedFeatures = stepData.extension.unselected_reason;
+        if(!isEmpty(unselectedFeatures)){
+            removedFeaturesDataSource = Object.keys(unselectedFeatures).map((value, index, arr) => {
+                return {
+                    key: index,
+                    feature_name: value,
+                    reason: unselectedFeatures[value]
+                }
+            });
+        }
+    }
+
+    const removedFeaturesColumns = [
+        {
+            title: 'Feature name',
+            dataIndex: 'feature_name',
+            key: 'feature_name',
+        },
+        {
+            title: 'Reason',
+            dataIndex: 'reason',
+            key: 'reason',
+        }
+    ];
+
+    return <Row gutter={[4, 4]}>
+        <Col span={10} >
+            <Card title={'Data cleaning configuration'} bordered={false} style={{ width: '100%' }}>
+                {
+                    <ConfigurationCard configurationData={stepData.configuration.data_cleaner_params}/>
+                }
+            </Card>
+        </Col>
+
+        <Col span={10} offset={2} >
+            <Card title="Removed features" bordered={false} style={{ width: '100%' }}>
+                <Table dataSource={removedFeaturesDataSource} columns={removedFeaturesColumns} />
+            </Card>
+        </Col>
+    </Row>
+
+}
+
+
+
 export function CollinearityDetectionStep({stepData}){
 
     const dataSource = stepData.extension?.unselected_features?.map((value, index, arr) => {
@@ -330,7 +379,7 @@ export function DriftDetectionStep({stepData}){
         return {
             key: index,
             feature: value.feature,
-            score: value.score,
+            score: formatFloat(value.score),
         }
     });
 
@@ -366,7 +415,7 @@ export function DriftDetectionStep({stepData}){
                                     return {
                                         key: index,
                                         feature: value.feature,
-                                        importance: value.importance,
+                                        importance: formatFloat(value.importance),
                                     }
                                 })} columns={removedFeaturesInEpochColumns} />
                             </TabPane>

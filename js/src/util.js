@@ -19,3 +19,11 @@ export function formatHumanDate(seconds) {
 export function isEmpty(obj){
     return obj === null || obj === undefined;
 }
+
+export function formatFloat(num, length=4) {
+    if(num !== undefined && num !== null){
+        return num.toFixed(4)
+    }else{
+        return null;
+    }
+}
