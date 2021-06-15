@@ -13,7 +13,7 @@ from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
-from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook, load_module
+from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook, load_module, DocLens
 
 logger = logging.get_logger(__name__)
 
@@ -39,12 +39,12 @@ def make_experiment(hyper_model_cls,
                     log_level=None,
                     **kwargs):
     """
-    Ulitily to make CompeteExperiment instance with specified settings.
+    Utility to make CompeteExperiment instance with specified settings.
 
     Parameters
     ----------
     hyper_model_cls: subclass of HyperModel
-        Subclass of HyperModel to run trials within the experiemnt.
+        Subclass of HyperModel to run trials within the experiment.
     train_data : str, Pandas or Dask DataFrame
         Feature data for training with target column.
         For str, it's should be the data path in file system,
@@ -72,9 +72,7 @@ def make_experiment(hyper_model_cls,
         For class, should be one of EvolutionSearcher, MCTSSearcher, RandomSearcher, or subclass of hypernets Searcher.
         For other, should be instance of hypernets Searcher.
     search_space : callable, optional
-        Used to initialize searcher instance (if searcher is None, str or class),
-        default is hypergbm.search_space.search_space_general (if Dask isn't enabled)
-        or hypergbm.dask.search_space.search_space_general (if Dask is enabled) .
+        Used to initialize searcher instance (if searcher is None, str or class).
     search_callbacks
         Hypernets search callbacks, used to initialize searcher instance (if searcher is None, str or class).
         If log_level >= WARNNING, default is EarlyStoppingCallback only.
@@ -268,3 +266,19 @@ def make_experiment(hyper_model_cls,
                     f'test data:{test_shape}, eval data:{eval_shape}, target:{target}')
 
     return experiment
+
+
+def _merge_doc():
+    my_doc = DocLens(make_experiment.__doc__)
+    exp_doc = DocLens(CompeteExperiment.__init__.__doc__)
+    excluded = ['hyper_model', 'X_train', 'y_train', 'X_eval', 'y_eval', 'X_test']
+    params = my_doc.merge_parameters(exp_doc, exclude=excluded)
+    for k in ['clear_cache', 'log_level']:
+        params.move_to_end(k)
+    params.pop('kwargs')
+    my_doc.parameters = params
+
+    make_experiment.__doc__ = my_doc.render()
+
+
+_merge_doc()

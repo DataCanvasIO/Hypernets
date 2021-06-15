@@ -220,7 +220,9 @@ def array_to_df(arrs, columns=None, meta=None):
         meta_df = meta
         if columns is None:
             columns = meta_df.columns
-        meta = dd.utils.make_meta(meta_df.dtypes.to_dict())
+        # meta = dd.utils.make_meta(meta_df.dtypes.to_dict())
+        if isinstance(meta, dd.DataFrame):
+            meta = meta.head(0)
     elif isinstance(meta, (dd.Series, pd.Series)):
         meta_df = meta
         if columns is None:

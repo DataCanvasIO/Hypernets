@@ -1445,7 +1445,7 @@ class CompeteExperiment(SteppedExperiment):
             steps.append(MulticollinearityDetectStep(self, StepNames.MULITICOLLINEARITY_DETECTION))
 
         # drift detection
-        if drift_detection:
+        if drift_detection and X_test is not None:
             steps.append(DriftDetectStep(self, StepNames.DRIFT_DETECTION,
                                          remove_shift_variable=drift_detection_remove_shift_variable,
                                          variable_shift_threshold=drift_detection_variable_shift_threshold,
@@ -1471,7 +1471,7 @@ class CompeteExperiment(SteppedExperiment):
                 self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
 
         # pseudo label
-        if pseudo_labeling and task != const.TASK_REGRESSION:
+        if pseudo_labeling and X_test is not None and task != const.TASK_REGRESSION:
             if ensemble_size is not None and ensemble_size > 1:
                 estimator_builder = ensemble_cls(self, StepNames.ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
             else:
