@@ -11,9 +11,9 @@ import pandas as pd
 from sklearn.metrics import get_scorer
 from sklearn.metrics._scorer import _PredictScorer
 
-from .. import dask_ex as dex
 from hypernets.utils import logging
 from .base_ensemble import BaseEnsemble
+from .. import dask_ex as dex
 
 logger = logging.get_logger(__name__)
 
@@ -166,6 +166,7 @@ class DaskGreedyEnsemble(BaseEnsemble):
             proba = None
             for estimator, weight in zip(self.estimators, self.weights_):
                 est_proba = estimator.predict_proba(X) * weight
+                est_proba = dex.make_chunk_size_known(est_proba)
                 if proba is None:
                     proba = est_proba
                 else:
