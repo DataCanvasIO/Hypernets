@@ -7,7 +7,6 @@ from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 from hypernets.tabular.datasets import dsutils
-from tabular_toolbox.datasets import dsutils as dsu
 
 import tensorflow as tf
 import seaborn as sns
@@ -75,7 +74,7 @@ def experiment_with_Bike_Sharing(init_kwargs, run_kwargs, row_count=3000, with_d
 # A test for binary task
 def experiment_with_load_blood(init_kwargs, run_kwargs, row_count=3000, with_dask=False):
 	hyper_model = create_plain_model(with_encoder=True)
-	X = dsu.load_blood()
+	X = dsutils.load_blood()
 	if row_count is not None:
 		X = X.head(row_count)
 	X['Class'] = LabelEncoder().fit_transform(X['Class'])
