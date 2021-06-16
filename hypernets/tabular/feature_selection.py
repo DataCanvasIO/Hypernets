@@ -43,5 +43,5 @@ def select_by_multicollinearity(X, method=None):
         cluster_id_to_feature_ids[cluster_id].append(idx)
     selected = [X.columns[v[0]] for v in cluster_id_to_feature_ids.values()]
     unselected = list(set(X.columns.to_list()) - set(selected))
-
-    return corr_linkage, selected, unselected
+    feature_clusters = [[X.columns[i] for i in v] for v in cluster_id_to_feature_ids.values()]
+    return feature_clusters, selected, unselected

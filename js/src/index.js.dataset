@@ -1,0 +1,204 @@
+import React from 'react';
+import ReactDOM from 'react-dom';
+import { Dataset } from './pages/dataset'
+import Block from 'react-blocks';
+
+const fakeData1 = {
+    featureDistribution: {
+        nContinuous: 10,
+        nCategorical: 20,
+        nDatetime: 10,
+        nText: 0,
+        nLocation: 0,
+        nOthers: 0,
+    },
+    target: {
+        name: 'y',
+        taskType: 'regression',
+        freq: 2222,
+        unique: 10,
+        missing: 10,
+        mean: null,
+        min: null,
+        max: null,
+        stdev: null,
+        dataType: 'str',
+    },
+    targetDistribution: {
+        yes: 100,
+        no: 20
+    },
+    datasetShape: {
+        X_train: [120,4],
+        y_train: [120,4],
+        X_eval: [120,4],
+        y_eval: [120,4],
+        X_test: [120,4]
+    }
+};
+
+// only for regression
+// fakeData['targetDistribution'] = {
+//     count: [1, 1, 1, 1, 1, 1, 1, 1, 19, 10],
+//     region: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5,6], [6, 7], [7, 8], [8, 9], [9, 10]]
+// };
+
+
+const fakeData2 = {
+    "target": {
+        "name": "y",
+        "taskType": null,
+        "freq": 24720,
+        "unique": 2,
+        "missing": 0,
+        "mean": null,
+        "min": null,
+        "max": null,
+        "stdev": null,
+        "dataType": "str"
+    },
+    "targetDistribution": {
+        " <=50K": 24720,
+        " >50K": 7841
+    },
+    "datasetShape": {
+        "X_train": [
+            32561,
+            14
+        ],
+        "y_train": [
+            32561
+        ],
+        "X_eval": [
+
+        ],
+        "y_eval": [
+
+        ],
+        "X_test": [
+
+        ]
+    },
+    "experimentType": "compete",
+    "featureDistribution": {
+        "nContinuous": 6,
+        "nText": 0,
+        "nDatetime": 0,
+        "nCategorical": 0,
+        "nLocation": 0,
+        "nOthers": 8
+    }
+};
+
+
+const fakeData = {
+    "target": {
+        "name": "y",
+        "taskType": 'regression',
+        "freq": 1,
+        "unique": 301,
+        "missing": 0,
+        "mean": 152.36928104575162,
+        "min": 0,
+        "max": 300,
+        "stdev": 88.26129744696932,
+        "dataType": "int"
+    },
+    "targetDistribution": {
+        "count": [
+            35,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30,
+            30
+        ],
+        "region": [
+            [
+                270.0,
+                300.0
+            ],
+            [
+                240.0,
+                270.0
+            ],
+            [
+                210.0,
+                240.0
+            ],
+            [
+                180.0,
+                210.0
+            ],
+            [
+                150.0,
+                180.0
+            ],
+            [
+                120.0,
+                150.0
+            ],
+            [
+                90.0,
+                120.0
+            ],
+            [
+                60.0,
+                90.0
+            ],
+            [
+                30.0,
+                60.0
+            ],
+            [
+                0.0,
+                30.0
+            ]
+        ]
+    },
+    "datasetShape": {
+        "X_train": [
+            32561,
+            15
+        ],
+        "y_train": [
+            306
+        ],
+        "X_eval": [
+
+        ],
+        "y_eval": [
+
+        ],
+        "X_test": [
+
+        ]
+    },
+    "experimentType": "compete",
+    "featureDistribution": {
+        "nContinuous": 6,
+        "nText": 0,
+        "nDatetime": 0,
+        "nCategorical": 0,
+        "nLocation": 0,
+        "nOthers": 9
+    }
+};
+
+
+console.info(JSON.stringify(fakeData));
+
+ReactDOM.render(
+    <Dataset data={fakeData}/>,
+    document.getElementById('root')
+);
+
+
+// ReactDOM.render(
+//     <App data={fakeData}/>,
+//     document.getElementById('root')
+// );

@@ -197,7 +197,7 @@ class DataCleanStep(FeatureSelectStep):
         self.random_state = random_state
 
         # fitted
-        self.data_cleaner_ = None
+        self.data_cleaner_ = DataCleaner(**self.data_cleaner_args)
         self.detector_ = None
         self.data_shapes_ = None
 
@@ -214,9 +214,7 @@ class DataCleanStep(FeatureSelectStep):
             y_train = dex.concat_df([y_train, y_eval], axis=0)
             X_eval = None
             y_eval = None
-
-        data_cleaner = DataCleaner(**self.data_cleaner_args)
-
+        data_cleaner = self.data_cleaner_
         logger.info(f'{self.name} fit_transform with train data')
         X_train, y_train = data_cleaner.fit_transform(X_train, y_train)
         self.step_progress('fit_transform train set')
@@ -273,6 +271,11 @@ class DataCleanStep(FeatureSelectStep):
         self.data_shapes_ = data_shapes
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def get_params(self, deep=True):
+        params = super(DataCleanStep, self).get_params()
+        params['data_cleaner_args'] = self.data_cleaner_.get_params()
+        return params
 
     def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         # 1. Clean Data
@@ -488,15 +491,15 @@ class MulticollinearityDetectStep(FeatureSelectStep):
         super().__init__(experiment, name)
 
         # fitted
-        self.corr_linkage_ = None
+        self.feature_clusters_ = None
 
     @cache(arg_keys='X_train',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='input_features_,selected_features_,corr_linkage_')
+           attrs_to_restore='input_features_,selected_features_,feature_clusters_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
-        corr_linkage, remained, dropped = select_by_multicollinearity(X_train)
+        feature_clusters_, remained, dropped = select_by_multicollinearity(X_train)
         self.step_progress('calc correlation')
 
         if dropped:
@@ -510,16 +513,14 @@ class MulticollinearityDetectStep(FeatureSelectStep):
             self.step_progress('drop features')
         else:
             self.selected_features_ = None
-        self.corr_linkage_ = corr_linkage
-
+        self.feature_clusters_ = feature_clusters_
         logger.info(f'{self.name} drop {len(dropped)} columns, {len(remained)} kept')
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def get_fitted_params(self):
         return {**super().get_fitted_params(),
-                'corr_linkage': self.corr_linkage_,
-                }
+                'feature_clusters': self.feature_clusters_}
 
 
 class DriftDetectStep(FeatureSelectStep):
@@ -903,6 +904,11 @@ class EnsembleStep(EstimatorBuilderStep):
 
         self.scorer = scorer if scorer is not None else get_scorer('neg_log_loss')
         self.ensemble_size = ensemble_size
+
+    def get_params(self, deep=True):
+        params = super(EnsembleStep, self).get_params()
+        del params['scorer']
+        return params
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
@@ -1525,6 +1531,11 @@ class CompeteExperiment(SteppedExperiment):
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
         return super().run(**run_kwargs)
+
+    def _repr_html_(self):
+        from hn_widget.widget import ExperimentSummary
+        from IPython.display import display
+        display(ExperimentSummary(self))
 
 
 def evaluate_oofs(hyper_model, ensemble_estimator, y_train, metrics):
