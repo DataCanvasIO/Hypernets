@@ -11,14 +11,18 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 
 	dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
 	
-	# task, _ = hyper_model.infer_task_type(y_train) #This line is just used to test
+	task, _ = hyper_model.infer_task_type(y_train) #This line is just used to test
 
 	if isinstance(y_train, pd.core.series.Series):
 		datatype_y = dtype2usagetype[str(y_train.dtypes)]
 
 		Missing_y = y_train.isnull().sum().tolist()
 		Unique_y = len(y_train.unique())
-		Freq_y = y_train.value_counts()[0].tolist()
+
+		if task == 'binary':
+			Freq_y = y_train.value_counts()[0].tolist()
+		else:
+			Freq_y = None
 		
 		if task == 'regression':
 			max_y = max(y_train)
@@ -50,17 +54,17 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 		
 		shape_x_train = list(X_train.shape)
 		shape_y_train = list(y_train.shape)
-		if X_eval == None:
+		if X_eval is None:
 			shape_x_eval = []
 		else:
 			shape_x_eval = list(X_eval.shape)
 
-		if y_eval == None:
+		if y_eval is None:
 			shape_y_eval = []
 		else:
 			shape_y_eval = list(y_eval.shape)
 
-		if X_test == None:
+		if X_test is None:
 			shape_x_test = []
 		else:
 			shape_x_test = list(X_test.shape)
@@ -70,7 +74,11 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 
 		Missing_y = y_train.isnull().compute().tolist().count(True)
 		Unique_y = len(y_train.unique().compute().tolist())
-		Freq_y = y_train.value_counts().compute().tolist()[0]
+
+		if task == 'binary':	
+			Freq_y = y_train.value_counts().compute().tolist()[0]
+		else:
+			Freq_y = None
 
 		if task == 'regression':
 			max_y = y_train.max().compute().tolist()
@@ -96,7 +104,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 		else:
 			cont_y_num = None
 			disc_y_num = 10
-			target_distribution = dict(dd.compute(y_train.value_counts())[0])
+			target_distribution = dict(dd.compute(y_train.value_counts())[0][0:disc_y_num])
 			for key in target_distribution:
 				target_distribution[key] = int(target_distribution[key])
 
@@ -109,7 +117,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 
 		shape_y_train = list(map(lambda x: x.compute(), list(y_train.shape)))
 
-		if X_eval == None:
+		if X_eval is None:
 			shape_x_eval = []
 		else:
 			shape_x_eval = list(X_eval.shape)
@@ -119,7 +127,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 				else:
 					shape_x_eval[idx] = num.compute()
 		
-		if y_eval == None:
+		if y_eval is None:
 			shape_y_eval = []
 		else:
 			shape_y_eval = list(y_eval.shape)
@@ -129,7 +137,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 				else:
 					shape_y_eval[idx] = num.compute()
 
-		if X_test == None:
+		if X_test is None:
 			shape_x_test = []
 		else:
 			shape_x_test = list(X_test.shape)
