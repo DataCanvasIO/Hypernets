@@ -8,8 +8,6 @@ from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 from hypernets.tabular.datasets import dsutils
 
-import tensorflow as tf
-import seaborn as sns
 import numpy as np
 import pandas as pd
 
@@ -126,9 +124,8 @@ def experiment_with_load_blood(init_kwargs, run_kwargs, row_count=3000, with_das
 # A test for regression task
 def experiment_with_MPG_Data_Set(init_kwargs, run_kwargs, row_count=3000, with_dask=False):
 	hyper_model = create_plain_model(with_encoder=True)
-	datasetPath = tf.keras.utils.get_file("auto-mpg.data","http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data")
 	columnNames = ["MPG","Cylinders","Displacement","Horsepower","Weight","Accleration","Model Year","Origin"]
-	rawDataset = pd.read_csv(datasetPath, names=columnNames, na_values="?",comment="\t",sep=" ",skipinitialspace=True)
+	rawDataset = pd.read_csv('http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data', names=columnNames, na_values="?",comment="\t",sep=" ",skipinitialspace=True)
 	X = rawDataset.copy()
 	if row_count is not None:
 		X = X.head(row_count)
@@ -192,4 +189,4 @@ def test_multiclass_with_Bike_Sharing():
 def test_binary_with_load_blood():
 	experiment_with_load_blood({}, {})
 	experiment_with_load_blood({}, {}, with_dask=True)
-
+	
