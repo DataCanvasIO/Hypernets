@@ -195,10 +195,9 @@ class DataCleanStep(FeatureSelectStep):
         self.cv = cv
         self.train_test_split_strategy = train_test_split_strategy
         self.random_state = random_state
-        self.data_cleaner = DataCleaner(**self.data_cleaner_args)
 
         # fitted
-        self.data_cleaner_ = None
+        self.data_cleaner_ = DataCleaner(**self.data_cleaner_args)
         self.detector_ = None
         self.data_shapes_ = None
 
@@ -215,9 +214,7 @@ class DataCleanStep(FeatureSelectStep):
             y_train = dex.concat_df([y_train, y_eval], axis=0)
             X_eval = None
             y_eval = None
-
-        data_cleaner = self.data_cleaner
-
+        data_cleaner = self.data_cleaner_
         logger.info(f'{self.name} fit_transform with train data')
         X_train, y_train = data_cleaner.fit_transform(X_train, y_train)
         self.step_progress('fit_transform train set')
@@ -277,7 +274,7 @@ class DataCleanStep(FeatureSelectStep):
 
     def get_params(self, deep=True):
         params = super(DataCleanStep, self).get_params()
-        params['data_cleaner_params'] = self.data_cleaner.get_params()
+        params['data_cleaner_args'] = self.data_cleaner_.get_params()
         return params
 
     def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
