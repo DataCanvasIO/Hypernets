@@ -4,7 +4,7 @@ from hypernets.experiment.compete import StepNames
 from hypernets.tabular.datasets import dsutils
 
 
-def test_experiemnt_with_blood_simple():
+def test_experiment_with_blood_simple():
     df = dsutils.load_blood()
     experiment = make_experiment(PlainModel, df, target='Class', search_space=PlainSearchSpace())
     estimator = experiment.run(max_trials=3)
@@ -12,10 +12,11 @@ def test_experiemnt_with_blood_simple():
     assert estimator is not None
 
 
-def test_experiemnt_with_blood_downsample():
+def test_experiment_with_blood_down_sample():
     df = dsutils.load_blood()
     experiment = make_experiment(PlainModel, df, target='Class', search_space=PlainSearchSpace(),
-                                 down_sample_search=True, down_sample_search_frac=0.1,
+                                 down_sample_search=True, down_sample_search_size=0.1,
+                                 down_sample_search_time_limit=300, down_sample_search_max_trials=100,
                                  # log_level='info',
                                  )
     estimator = experiment.run(max_trials=3)
@@ -23,14 +24,14 @@ def test_experiemnt_with_blood_downsample():
     assert estimator is not None
 
 
-def test_experiemnt_with_blood_full_features():
+def test_experiment_with_blood_full_features():
     df = dsutils.load_blood()
     experiment = make_experiment(PlainModel, df, target='Class', search_space=PlainSearchSpace(),
                                  feature_generation=True,
                                  collinearity_detection=True,
                                  drift_detection=True,
                                  feature_selection=True,
-                                 down_sample_search=True, down_sample_search_frac=0.2,
+                                 down_sample_search=True, down_sample_search_size=0.2,
                                  feature_reselection=True,
                                  pseudo_labeling=True,
                                  random_state=335,
