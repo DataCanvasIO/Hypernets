@@ -94,6 +94,9 @@ class EarlyStoppingCallback(Callback):
             self.start_time = time.time()
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        if self.start_time is None:
+            self.start_time = time.time()
+
         time_total = time.time() - self.start_time
 
         if self.time_limit is not None and self.time_limit > 0:
