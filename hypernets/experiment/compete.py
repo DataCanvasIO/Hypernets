@@ -733,7 +733,7 @@ class SpaceSearchStep(ExperimentStep):
         return model, X_train, y_train, X_test, X_eval, y_eval
 
     def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-        if X_eval is not None and not dex.is_dask_object(X_eval):
+        if X_eval is not None:
             kwargs['eval_set'] = (X_eval, y_eval)
 
         model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
