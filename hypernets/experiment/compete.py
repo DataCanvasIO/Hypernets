@@ -363,7 +363,7 @@ class DataCleanStep(FeatureSelectStep):
         data_shapes = self.data_shapes_ if self.data_shapes_ is not None else {}
         unselected_features = params.get('unselected_features', [])
 
-        if dc is not None:
+        if dc is not None and unselected_features is not None:
             unselected_reason = {f: get_reason(f) for f in unselected_features}
         else:
             unselected_reason = None
@@ -735,7 +735,6 @@ class SpaceSearchStep(ExperimentStep):
     def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         if X_eval is not None and not dex.is_dask_object(X_eval):
             kwargs['eval_set'] = (X_eval, y_eval)
-
         model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         es = self.find_early_stopping_callback(model.callbacks)
         if es is not None and es.time_limit is not None and es.time_limit > 0:
@@ -904,11 +903,6 @@ class EnsembleStep(EstimatorBuilderStep):
 
         self.scorer = scorer if scorer is not None else get_scorer('neg_log_loss')
         self.ensemble_size = ensemble_size
-
-    def get_params(self, deep=True):
-        params = super(EnsembleStep, self).get_params()
-        del params['scorer']
-        return params
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)

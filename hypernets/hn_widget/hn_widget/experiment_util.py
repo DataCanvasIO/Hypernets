@@ -1,4 +1,6 @@
 import json, copy
+import numpy as np
+
 
 class StepType:
     DataCleaning = 'DataCleanStep'
@@ -7,6 +9,8 @@ class StepType:
     SpaceSearch = 'SpaceSearchStep'
     FeatureSelection = 'FeatureImportanceSelectionStep'
     PsudoLabeling  = 'PseudoLabelStep'
+    FeatureGeneration  = 'FeatureGenerationStep'
+    PermutationImportanceSelection  = 'PermutationImportanceSelectionStep'
     ReSpaceSearch = 'ReSpaceSearch'
     Ensemble = 'EnsembleStep'
 
@@ -143,10 +147,84 @@ def extract_multi_linearity_step(step, extension):
     output_extension['unselected_features'] = unselected_features
     return output_extension
 
+def extract_ensemble_step(config, extension, step):
+    if get_step_status(step) != StepStatus.Finish:
+        return extension
+
+    ensemble = extension['estimator']
+    return {
+        'weights': np.array(ensemble.weights_).tolist(),
+        'scores': np.array(ensemble.scores_).tolist(),
+    }
+
+def extract_psedudo_step(step):
+    configuration = copy.deepcopy(step.get_params())
+    del configuration['estimator_builder']
+    del configuration['estimator_builder__scorer']
+    del configuration['name']
+
+    if get_step_status(step) != StepStatus.Finish:
+        return configuration, {}
+
+    extension = step.get_fitted_params()
+
+    # step.estimator_builder.estimator_.classes_
+    # step.test_proba_
+    # step.pseudo_label_stat_
+    # todo 要的数据基本都有, 写一个util方法放到
+    #
+    return configuration, extension
+
+
+def extract_permutation_importance_step(step):
+    configuration = copy.deepcopy(step.get_params())
+    configuration['scorer'] = str(configuration['scorer'])
+
+    if get_step_status(step) != StepStatus.Finish:
+        return configuration, {}
+
+    selected_features = step.selected_features_ if step.selected_features_  is not None else []
+
+    importances = step.importances_
+    columns = importances.columns if importances.columns is not None else []
+    importances_data = importances.importances_mean.tolist() if importances.importances_mean is not None else []
+
+    features = []
+    for col, imp in zip(columns, importances_data):
+        features.append({
+            'name': col,
+            'importance': imp,
+            'dropped': col not in selected_features
+        })
+
+    extension = {
+        'importances': features
+    }
+
+    return configuration, extension
+
+def extract_feature_generation_step(step):
+    configuration = copy.deepcopy(step.get_params())
+
+    if get_step_status(step) != StepStatus.Finish:
+        return configuration, {}
+
+    def get_feature_detail(f):
+        return {
+            'name': f.get_name(),
+            'primitive': type(f.primitive).__name__,
+            'parentFeatures': list(map(lambda x: x.get_name(), f.base_features)),
+            'variableType': f.variable_type.type_string,
+            'derivationType': type(f).__name__
+        }
+    feature_defs = step.transformer_.feature_defs_
+    output_features = list(map(lambda f: get_feature_detail(f), feature_defs))
+    extension = {"outputFeatures": output_features}
+    return configuration, extension
+
 
 def extract_step(index, step):
     stepType = step.__class__.__name__
-
     configuration = copy.deepcopy(step.get_params())
     del configuration['name']  # Ignore name
     extension = step.get_fitted_params()
@@ -155,19 +233,24 @@ def extract_step(index, step):
 
     if stepType == StepType.Ensemble:
         configuration['scorer'] = None
+        configuration['scorer'] = None
+        extension = extract_ensemble_step(configuration, extension, step)
     elif stepType == StepType.SpaceSearch:
         extension['history'] = None
     elif stepType == StepType.CollinearityDetection:
         extension = extract_multi_linearity_step(step, extension)
     elif stepType == StepType.DriftDetection:
         extension = extract_drift_step(configuration, extension, step)
+    elif stepType == StepType.PermutationImportanceSelection:
+        configuration, extension = extract_permutation_importance_step(step)
+    elif stepType == StepType.FeatureGeneration:
+        configuration, extension = extract_feature_generation_step( step)
+    elif stepType == StepType.PsudoLabeling:
+        configuration, extension = extract_psedudo_step(step)
     elif stepType == StepType.DataCleaning:
         pass
         # extension['unselected_features'] = extension['unselected_reason']  # fixme
         # status = 'finish'
-    elif stepType == StepType.Ensemble:
-        configuration['scorer'] = None
-        extension['estimator'] = None
     else:
         pass
 
@@ -188,5 +271,3 @@ def extract_experiment(compete_experiment):
     for i, step in enumerate(compete_experiment.steps):
         step_dict_list.append(extract_step(i, step))
     return {"steps": step_dict_list}
-
-

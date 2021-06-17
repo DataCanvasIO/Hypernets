@@ -23,7 +23,8 @@ import 'echarts/lib/component/legend';
 import 'echarts/lib/component/dataZoom';
 import {showNotification} from "../pages/experiment";
 import { Progress, Tooltip } from 'antd';
-import {formatHumanDate} from "../util";
+import {formatFloat, formatHumanDate} from "../util";
+import {StepStatus} from "../constants";
 
 
 const pick = (obj, keys) => {
@@ -49,20 +50,8 @@ class TrialChart extends React.Component {
         // 1. if (params.) componentType:series , seriesType: scatter should match
         const xAxisName = params.name ; // FIXME: this is a bug
         const trainNo = parseInt(xAxisName.substring(1, xAxisName.length));
-        if(this.props.stepConfig.cv === false){
-            this.props.onTrialClick(trainNo, 0);
-        }else{
-            //  params.seriesName  => fold_1
-            //  params.name  => #5
-            const seriesName = params.seriesName;
-            const SERIES_PREFIX = 'fold_';
-            if(seriesName.startsWith(SERIES_PREFIX) && params.componentType === 'series' && params.seriesType === 'scatter'){
-                const modelIndex = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
-                // console.info('modelIndex');
-                // console.info(modelIndex);
-                this.props.onTrialClick(trainNo, modelIndex);
-            }
-        }
+        this.props.onTrialClick(trainNo, 0);
+
     }
 
     componentDidMount() {
@@ -78,6 +67,7 @@ class TrialChart extends React.Component {
         window.addEventListener('resize', () => {
             if (echartsObj) echartsObj.resize();
         });
+
         if (this.props.showLoading) {
             echartsObj.showLoading(this.props.loadingOption || null);
         } else {
@@ -153,6 +143,15 @@ class TrialChart extends React.Component {
             />
         );
     }
+
+    limitStrLen(str, len){
+        if(str.length > len){
+            return str.substring(0, len)
+        }else {
+            return len;
+        }
+    }
+
     getChartOptions(xAxisData, elapsedSeriesData, modelsScore, trials, cv, num_folds){
         // [ [0.5,0.5,0.9], [0.5,0.5,0.9] ]
 
@@ -161,7 +160,7 @@ class TrialChart extends React.Component {
             const rows = Object.keys(paramsObj).map(key => {
                 return `<tr>
                     <td>${key}: </td>
-                    <td>${paramsObj[key]}</td>
+                    <td>${this.limitStrLen(paramsObj[key])}</td>
                 </tr>`
             });
 
@@ -176,7 +175,7 @@ class TrialChart extends React.Component {
             return s;
         };
 
-        const getTooltipBody = (trial, cv_fold)=> {
+        const getTooltipBody = (trial)=> {
 
             const trialDetail = {
                 "Reward": trial.reward,
@@ -184,10 +183,6 @@ class TrialChart extends React.Component {
                 "Trial no": trial.trialNo,
                 "Status": 'finish'
             };
-
-            if(cv_fold !== undefined && cv_fold !== null){
-                trialDetail["CV fold"] = cv_fold;
-            }
 
            const trialSection = getSelection('Trial', trialDetail);
            const paramsSection = getSelection('Params', trial.hyperParams);
@@ -197,70 +192,37 @@ class TrialChart extends React.Component {
         };
 
         const scoreSeries = [];
-        if(cv === false){
-            scoreSeries.push({
-                name: 'Reward',
-                type: 'line',
-                color: '#f59311',
-                yAxisIndex: 1,
-                data: modelsScore[0]
-            })
-        }else{
-            modelsScore.map((value, index , array)=>{
-                scoreSeries.push({
-                    name: `fold_${index}`,
-                    type: 'scatter',
-                    color: '#6ca30f',
-                    yAxisIndex: 1,
-                    data: value  // 点的个数不对，应该有n个点 也就是5个点而不是3个点
-                })
-            });
-            // [[1]]
 
-            // calc avg
-            scoreSeries.push({
-                name: 'Average',
-                type: 'line',
-                color: '#16afcc',
-                yAxisIndex: 1,
-                data: trials.map(v => v.reward)
-            })}
+        scoreSeries.push({
+            name: 'Reward',
+            type: 'line',
+            // color: '#f59311',
+            color: '#6ca30f',
+            yAxisIndex: 1,
+            data: trials.map(t => t.reward)
+        });
 
         const colors = ['#5470C6', '#91CC75', '#EE6666'];
 
         return {
             color: colors,
-            title: {subtext: 'Trials' },
+            title: {
+                // subtext: 'Trials'
+            },
             tooltip: {
                 trigger: 'item',
                 axisPointer: {
                     type: 'cross'
                 },
                 formatter(params){
-                    // const param = params[0];
                     const trialNo = parseInt(params.name.substring(1, params.name.length));
-                    // 还需要解析出 modelIndex
-                    const getTipBody = (modelIndex) => {
-                        // 要求必须在模型上才能看到Tooltip
-                        var body = '';
-                        trials.forEach(trial => {
-                            if(trial.trialNo === trialNo){
-                                body = getTooltipBody(trial, modelIndex)
-                            }
-                        });
-                        return body;
-                    };
-
-                    if(cv === true){
-                        const seriesName = params.seriesName;
-                        const SERIES_PREFIX = 'fold_';
-                        if(seriesName.startsWith(SERIES_PREFIX) && params.componentType === 'series' && params.seriesType === 'scatter'){
-                            const modelIndex = parseInt(seriesName.substring(SERIES_PREFIX.length, seriesName.length));
-                            return getTipBody(modelIndex);
+                    var body = '';
+                    trials.forEach(trial => {
+                        if(trial.trialNo === trialNo){
+                            body = getTooltipBody(trial)
                         }
-                    }else{
-                        return getTipBody(null);
-                    }
+                    });
+                    return body;
                 }
             },
             grid: {
@@ -275,9 +237,6 @@ class TrialChart extends React.Component {
             xAxis: [
                 {
                     type: 'category',
-                    // axisTick: {
-                    //     alignWithLabel: true
-                    // },
                     data: xAxisData
                 }
             ],
@@ -368,14 +327,36 @@ function notEmpty(obj) {
     return obj !== undefined && obj !== null;
 }
 
+/***
+ *
+ * @param importances  [[{'name': 'age', 'imp': 0.6}]]
+ * @returns {*}
+ * @constructor
+ */
 function ImportanceBarChart({importances}) {
 
-    const features = Object.keys(importances);
+    const features = [...importances[0].map(v => v.name)].reverse();
+    const legends = [];
+    const series = importances.map((value, index, array) => {
+        let name;
+        if(importances.length > 1){
+            name = `fold-${index}`;
+            legends.push(name);
+        }else{
+            name = 'Importances'
+        }
+        return {
+            name: name,
+            type: 'bar',
+            data: [...value.map(t => t.imp)].reverse()
+        }
+    });
+
 
     const featureImportanceChartOption = {
         title:{
             // text: 'feature importance',
-            subtext: 'Feature importance',
+            // todo subtext: 'Importance',
         },
         tooltip: {
             trigger: 'axis',
@@ -384,7 +365,7 @@ function ImportanceBarChart({importances}) {
             }
         },
         legend: {
-            data: []
+            data: legends
         },
         grid: {
             // left: '3%',
@@ -400,13 +381,7 @@ function ImportanceBarChart({importances}) {
             type: 'category',
             data: features
         },
-        series: [
-            {
-                name: 'Importances',
-                type: 'bar',
-                data: Object.keys(importances).map(v => importances[v])
-            }
-        ]
+        series: series
     };
     return <EchartsCore option={featureImportanceChartOption}/>
 
@@ -432,10 +407,12 @@ function CircleProgress({title, style, strokeColor, data}) {
 
 export function PipelineOptimizationStep({stepData}){
 
-    const [importanceData, setImportanceData] = useState({});
+    const [importanceData, setImportanceData] = useState([[]]);
     const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
     const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
     const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+
+    const PROCESS_EMPTY_DATA = {percent: 0, value: '-', tip: 'Empty data'}
 
     const trailsData = stepData.extension?.trials;
 
@@ -453,28 +430,34 @@ export function PipelineOptimizationStep({stepData}){
 
     useEffect(() => {
         if(lastTrial !== null){
-            setImportanceData(lastTrial.models[0].importances);
+            setImportanceData(lastTrial.models.map(m => m.importances));
             setEarlyStoppingRewardData(getEarlyStoppingRewardData(lastTrial));
             setEarlyStoppingTrialsData(getEarlyStoppingTrialsData(lastTrial));
             setEarlyStoppingElapsedTimeData(getEarlyStoppingElapsedTimeData(lastTrial));
+
         }
     }, [lastTrial]);
 
-    const onTrialClick = (trialNo, modelIndex, cv) => {
+    const onTrialClick = (trialNo, modelIndex) => {
         const trials = stepData.extension.trials;
         trials.forEach(trial => {
             if(trial.trialNo === trialNo){
-                setImportanceData(trial.models[modelIndex].importances)
+                setImportanceData(trial.models.map(m => m.importances))
             }
         });
     };
 
     const getEarlyStoppingRewardData = (lastTrial) => {
 
-        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const earlyStoppingConfig = lastTrial.earlyStopping.config;
+
+        if(earlyStoppingConfig === null || earlyStoppingConfig === undefined){
+            return PROCESS_EMPTY_DATA
+        }
+
         const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
 
-        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.conditionStatus;
+        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.status;
         let percent;
         let tip;
         let value;
@@ -483,7 +466,7 @@ export function PipelineOptimizationStep({stepData}){
             if(direction === 'max'){
                 if(reward !== undefined && reward !== null){
                     percent = (reward / exceptedReward) * 100;
-                    value = reward;
+                    value = formatFloat(reward, 4)
                 }
             }else{
                 percent = 0;
@@ -503,10 +486,14 @@ export function PipelineOptimizationStep({stepData}){
     };
 
     const getEarlyStoppingTrialsData = (lastTrial) => {
-        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const earlyStoppingConfig = lastTrial.earlyStopping.config;
+        if(earlyStoppingConfig === null || earlyStoppingConfig === undefined){
+            return PROCESS_EMPTY_DATA
+        }
+
         const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
 
-        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.conditionStatus;
+        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.status;
         let percent;
         let tip;
         let value;
@@ -524,10 +511,15 @@ export function PipelineOptimizationStep({stepData}){
     };
 
     const getEarlyStoppingElapsedTimeData = (lastTrial) => {
-        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const earlyStoppingConfig = lastTrial.earlyStopping.config;
+
+        if(earlyStoppingConfig === null || earlyStoppingConfig === undefined){
+            return PROCESS_EMPTY_DATA
+        }
+
         const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
 
-        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.conditionStatus;
+        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.status;
         let percent;
         let tip;
         let value;
@@ -543,15 +535,20 @@ export function PipelineOptimizationStep({stepData}){
         }
         return {percent, value, tip}
     };
+    let featuresDataSource;
+    if(stepData.status === StepStatus.Finish){
+        featuresDataSource = stepData.extension.input_features.map((value, index, arr) => {
+            return {
+                key: index,
+                name: value,
+                index: index
+            }
+        });
+    }else{
+        featuresDataSource = null;
+    }
 
-    const dataSource = stepData.extension.input_features?.map((value, index, arr) => {
-        return {
-            key: index,
-            name: value.name,
-        }
-    });
-
-    const columns = [
+    const featuresColumns = [
         {
             title: 'Name',
             dataIndex: 'name',
@@ -611,7 +608,7 @@ export function PipelineOptimizationStep({stepData}){
     <Row gutter={[2, 2]}>
         <Col span={10} offset={10} >
             <Card title="Input features" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={dataSource} columns={columns} />
+                <Table dataSource={featuresDataSource} columns={featuresColumns} pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}} showHeader={false} />
             </Card>
         </Col>
     </Row>

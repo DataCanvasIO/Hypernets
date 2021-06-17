@@ -97,7 +97,7 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
         const value = this.model.get('value');
         console.log("Received value_changed from backend: ");
         console.log(JSON.stringify(value));
-        this.reactStore.dispatch({ type: 'stepFinished' , payload: value });
+        this.reactStore.dispatch(value);
     }
 });
 

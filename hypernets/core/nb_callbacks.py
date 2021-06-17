@@ -5,26 +5,122 @@ from hypernets.core.callbacks import Callback
 import json
 from IPython.display import display_html, HTML, display
 import pickle
+
+from hypernets.experiment.compete import SpaceSearchStep
 from hypernets.utils import fs
 from hypernets.core.callbacks import EarlyStoppingCallback
 import time
+import lightgbm as lgb
+import xgboost as xgb
+import catboost
+from xgboost.sklearn import XGBModel
+from lightgbm.sklearn import LGBMModel
+from catboost.core import CatBoost
+
+from hn_widget.widget import ExperimentProcessWidget
+
+MAX_IMPORTANCE_NUM = 10
+
+
+def extract_importances(gbm_model):
+
+    def get_imp(n_features):
+        try:
+            return gbm_model.feature_importances_
+        except Exception as e:
+            print(e)
+            return [0 for i in range(n_features)]
+
+    if isinstance(gbm_model, XGBModel):
+        importances_pairs = list(zip(gbm_model._Booster.feature_names, get_imp(len(gbm_model._Booster.feature_names))))
+    elif isinstance(gbm_model, LGBMModel):
+        if hasattr(gbm_model, 'feature_name_'):
+            names = gbm_model.feature_name_
+        else:
+            names = [f'col_{i}' for i in range(gbm_model.feature_importances_.shape[0])]
+        importances_pairs = list(zip(names, get_imp(len(names))))
+    elif isinstance(gbm_model, CatBoost):
+        importances_pairs = list(zip(gbm_model.feature_names_, get_imp(len(gbm_model.feature_names_))))
+    else:
+        importances_pairs = []
+
+    importances = {}
+    for name, imp in importances_pairs:
+        importances[name] = imp
+
+    return importances
+
+
+def sort_imp(imp_dict, sort_imp_dict):
+    sort_imps = []
+    for k in sort_imp_dict:
+        sort_imps.append({
+            'name': k,
+            'imp': sort_imp_dict[k]
+        })
+
+    top_features = list(map(lambda x: x['name'], sorted(sort_imps, key=lambda v: v['imp'], reverse=True)[: MAX_IMPORTANCE_NUM]))
+
+    imps = []
+    for f in top_features:
+        imps.append({
+            'name': f,
+            'imp': imp_dict[f]
+        })
+    return imps
+
+
+
+
+def send_action(widget_id, data, action_type):
+    dom_widget = DOM_WIDGETS.get(widget_id)
+    if dom_widget is None:
+        raise Exception(f"widget_id: {widget_id} not exists ")
+    action = {'type': action_type, 'payload': data}
+    dom_widget.value = action
+
+
+class ActionType:
+    EarlyStopped = 'earlyStopped'
+    StepFinished = 'stepFinished'
+    TrialFinished = 'trialFinished'
 
 
 class JupyterHyperModelCallback(Callback):
 
     def __init__(self):
         super(JupyterHyperModelCallback, self).__init__()
-        self.dom_widget = None
+        self.widget_id = None
+        self.step_index = None
 
-    def set_dom_widget(self, dom_widget):
-        self.dom_widget = dom_widget
+    def set_widget_id(self, widget_id):
+        self.widget_id = widget_id
+
+    def set_step_index(self, value):
+        self.step_index = value
 
     def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                         **fit_kwargs):
         pass
 
     def on_search_end(self, hyper_model):
-        pass
+        for c in hyper_model.callbacks:
+            if isinstance(c, EarlyStoppingCallback):
+                if c.triggered:
+                    if c.triggered_reason == EarlyStoppingCallback.REASON_TIME_LIMIT:
+                        value = c.time_limit
+                    elif c.triggered_reason == EarlyStoppingCallback.REASON_TRIAL_LIMIT:
+                        value = c.counter_no_improvement_trials
+                    elif c.triggered_reason == EarlyStoppingCallback.REASON_EXPECTED_REWARD:
+                        value = c.best_reward
+                    else:
+                        raise Exception("Unseen reason " + c.triggered_reason)
+
+                    stop_reason = {
+                        'condition': c.triggered_reason,
+                        'value': value
+                    }
+                    send_action(self.widget_id, stop_reason, ActionType.EarlyStopped)
 
     def on_search_error(self, hyper_model):
         pass
@@ -46,7 +142,8 @@ class JupyterHyperModelCallback(Callback):
             # if isinstance(param_value, int) or isinstance(param_value, float):
             #     if not isinstance(param_value, bool):
             #         params_dict[param_name] = param_value
-            params_dict[param_name] = param_value
+            if param_name is not None and param_value is not None:
+                params_dict[param_name] = str(param_value)
         return params_dict
 
     def ensure_number(self, value, var_name):
@@ -57,19 +154,9 @@ class JupyterHyperModelCallback(Callback):
                 raise ValueError(f"Var {var_name} = {value} not a number.")
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
-        # 1. 获取超参数
-        # 2. 获取模型重要性信息，还有reward
-        # 3. 还有指标的名称 #
-        # 4. 然后就是earlystopping 的信息
-        # 5.
-
-        print(hyper_model)
-        print(hyper_model)
         self.ensure_number(reward, 'reward')
         self.ensure_number(trial_no, 'trail_no')
         self.ensure_number(elapsed, 'elapsed')
-
-
         trial = None
         for t in hyper_model.history.trials:
             if t.trial_no == trial_no:
@@ -82,54 +169,67 @@ class JupyterHyperModelCallback(Callback):
         model_file = trial.model_file
         with fs.open(model_file, 'rb') as input:
             model = pickle.load(input)
-            print(model)
-            print(model)
 
         cv_models = model.cv_gbm_models_
         models_json = []
         is_cv = cv_models is not None and len(cv_models) > 0
-        if is_cv :
+        if is_cv:
             # cv is opening
+            imps = []
+            for m in cv_models:
+                imps.append(extract_importances(m))
+
+            imps_avg = {}
+            for k in imps[0]:
+                imps_avg[k] = sum([imp.get(k, 0) for imp in imps]) / 3
+
             for fold, m in enumerate(cv_models):
                 models_json.append({
                     'fold': fold,
-                    'importances': m.feature_importances_.tolist()
+                    'importances': sort_imp(extract_importances(m), imps_avg)
                 })
         else:
             gbm_model = model.gbm_model
             if gbm_model is None:
                 raise Exception("Both cv_models or gbm_model is None ")
+            imp_dict = extract_importances(gbm_model)
             models_json.append({
                 'fold': None,
-                'importances': gbm_model.feature_importances_.tolist()
+                'importances': sort_imp(imp_dict, imp_dict)
             })
-
-        earlyStopping_status = {
-            'reward': None,
-            'noImprovedTrials': None,
-            'elapsedTime': None
-        }
-
-        earlyStoppingCallback = None
+        early_stopping_status = None
+        early_stopping_config = None
         for c in hyper_model.callbacks:
             if isinstance(c, EarlyStoppingCallback):
-                earlyStopping_status = {
+                early_stopping_status = {
                     'reward': hyper_model.best_reward,
-                    'noImprovedTrials': c.counter_no_improvement_trials + 2,
+                    'noImprovedTrials': c.counter_no_improvement_trials,
                     'elapsedTime': time.time() - c.start_time
                 }
+                early_stopping_config = {
+                    "exceptedReward": c.expected_reward,
+                    "maxNoImprovedTrials": c.max_no_improvement_trials,
+                    "maxElapsedTime": c.time_limit,
+                    "direction": str(c.mode)
+                }
                 break
-
-        return {
-            "trialNo": trial_no,
-            "hyperParams": self.get_space_params(space),
-            "models": models_json,
-            "reward": reward,
-            "elapsed": elapsed,
-            "is_cv": is_cv,
-            "metricName": hyper_model.reward_metric,
-            "earlyStoppingStatus": earlyStopping_status
+        data = {
+            'stepIndex': self.step_index,
+            'trialData': {
+                "trialNo": trial_no,
+                "hyperParams": self.get_space_params(space),
+                "models": models_json,
+                "reward": reward,
+                "elapsed": elapsed,
+                "is_cv": is_cv,
+                "metricName": hyper_model.reward_metric,
+                "earlyStopping": {
+                    "status": early_stopping_status,
+                    "config": early_stopping_config
+                }
+            }
         }
+        send_action(self.widget_id, data, ActionType.TrialFinished)
 
     def on_trial_error(self, hyper_model, space, trial_no):
 
@@ -139,16 +239,29 @@ class JupyterHyperModelCallback(Callback):
         pass
 
 
+DOM_WIDGETS = {}
+
+
 class JupyterWidgetExperimentCallback(ExperimentCallback):
 
     def __init__(self):
-        from hn_widget.widget import ExperimentProcessWidget
-        self.dom_widget = ExperimentProcessWidget()
+        self.widget_id = id(self)
+        DOM_WIDGETS[self.widget_id] = ExperimentProcessWidget()
 
     def experiment_start(self, exp):
-        display(self.dom_widget)
+        for c in exp.hyper_model.callbacks:
+            if isinstance(c, JupyterHyperModelCallback):
+                for i, s in enumerate(exp.steps):
+                    if isinstance(s, SpaceSearchStep):
+                        c.set_step_index(i)
+                        c.set_widget_id(self.widget_id)
+                        break
+                break
+        dom_widget = DOM_WIDGETS[self.widget_id]
+        display(dom_widget)
         from hn_widget.experiment_util import extract_experiment
-        self.dom_widget.initData = json.dumps(extract_experiment(exp))
+        d = extract_experiment(exp)
+        dom_widget.initData = json.dumps(d)
 
     def experiment_end(self, exp, elapsed):
         pass
@@ -173,7 +286,7 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
 
         step_index = experiment_util.get_step_index(exp, step_name)
         experiment_util.extract_step(step_index, step)
-        self.dom_widget.value = experiment_util.extract_step(step_index, step)
+        send_action(self.widget_id, experiment_util.extract_step(step_index, step), ActionType.StepFinished)
 
     def step_break(self, exp, step, error):
         pass

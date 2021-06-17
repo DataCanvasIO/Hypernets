@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Card, Col, Form, Row, Switch, Table, Tabs, Radio, Tooltip, Select} from "antd";
+import {Card, Col, Form, Row, Switch, Table, Tabs, Radio, Tooltip, Select, Tag} from "antd";
 import * as echarts from 'echarts';
 import React, { PureComponent } from 'react';
 import { Empty } from 'antd';
@@ -199,6 +199,7 @@ export function TrialChart() {
     var myChart = echarts.init(chartDom);
 
 }
+
 export function ConfigurationCard({configurationData}) {
     return <Form
         labelCol={{ span: 10 }}
@@ -225,7 +226,6 @@ export function ConfigurationCard({configurationData}) {
         }
     </Form>
 }
-
 
 export function DataCleaningStep({stepData}) {
 
@@ -260,7 +260,7 @@ export function DataCleaningStep({stepData}) {
         <Col span={10} >
             <Card title={'Data cleaning configuration'} bordered={false} style={{ width: '100%' }}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration.data_cleaner_params}/>
+                    <ConfigurationCard configurationData={stepData.configuration.data_cleaner_args}/>
                 }
             </Card>
         </Col>
@@ -274,7 +274,62 @@ export function DataCleaningStep({stepData}) {
 
 }
 
+export function FeatureGenerationStep({stepData}){
 
+    let dataSource;
+
+    if(stepData.status === StepStatus.Finish){
+        dataSource = stepData.extension.outputFeatures.map((value, index, arr) => {
+            return {
+                key: index,
+                name: value.name,
+                parentFeatures: value.parentFeatures !== null ? value.parentFeatures.join(",") : "-",
+                primitive: value.primitive
+            }
+        });
+    }else{
+        dataSource = null;
+    }
+
+    const columns = [
+        {
+            title: 'Feature',
+            dataIndex: 'name',
+            key: 'name'
+        }, {
+            title: 'Source features',
+            dataIndex: 'parentFeatures',
+            key: 'parentFeatures',
+        },{
+            title: 'Primitive',
+            dataIndex: 'primitive',
+            key: 'primitive',
+            render: function (text, record, index) {
+                if(text !== null && text !== undefined){
+                    return <Tag color="#108ee9">{text}</Tag>;
+                }else{
+                    return '-';
+                }
+            }
+        }
+    ];
+
+    return <Row gutter={[2, 2]}>
+        <Col span={10} >
+            <Card title="Configuration" bordered={false} style={{ width: '100%' }}>
+                {
+                    <ConfigurationCard configurationData={stepData.configuration}/>
+                }
+            </Card>
+        </Col>
+
+        <Col span={10} offset={2} >
+            <Card title="Importances" bordered={false} style={{ width: '100%' }}>
+                <Table dataSource={dataSource} columns={columns}  pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}} />
+            </Card>
+        </Col>
+    </Row>
+}
 
 export function CollinearityDetectionStep({stepData}){
 
@@ -314,51 +369,6 @@ export function CollinearityDetectionStep({stepData}){
         </Col>
     </Row>
 }
-
-
-export function FeatureSelectionStep({stepData}){
-
-    const dataSource = stepData.extension?.importances?.map((value, index, arr) => {
-        return {
-            key: index,
-            featureName: value.name,
-            importance: value.importance,
-            dropped: value.dropped,
-        }
-    });
-    const columns = [
-        {
-            title: 'Feature name',
-            dataIndex: 'featureName',
-            key: 'featureName',
-        }, {
-            title: 'Importance',
-            dataIndex: 'importance',
-            key: 'importance',
-        }, {
-            title: 'Dropped',
-            dataIndex: 'dropped',
-            key: 'dropped',
-        }
-    ];
-
-    return <Row gutter={[4, 4]}>
-        <Col span={10} >
-            <Card title="Collinearity detection configuration" bordered={false} style={{ width: '100%' }}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration}/>
-                }
-            </Card>
-        </Col>
-
-        <Col span={10} offset={2} >
-            <Card title="Removed features" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={dataSource} columns={columns} />
-            </Card>
-        </Col>
-    </Row>
-}
-
 
 export function DriftDetectionStep({stepData}){
 
@@ -434,6 +444,63 @@ export function DriftDetectionStep({stepData}){
             </Col>
         </Row>
         </>
+}
+
+export function GeneralImportanceSelectionStep({stepData}){
+
+    let dataSource;
+    if(stepData.status === StepStatus.Finish){
+        dataSource = stepData.extension.importances.map((value, index, arr) => {
+            return {
+                key: index,
+                featureName: value.name,
+                importance: value.importance,
+                dropped: value.dropped
+            }
+        });
+    }else{
+        dataSource = null;
+    }
+
+    const columns = [
+        {
+            title: 'Feature',
+            dataIndex: 'featureName',
+            key: 'featureName'
+        }, {
+            title: 'Importance',
+            dataIndex: 'importance',
+            key: 'importance',
+
+        },{
+            title: 'Status',
+            dataIndex: 'dropped',
+            key: 'dropped',
+            render: function(text, record, index) {
+                if(record.dropped){
+                    return <Tag color="red">Unselected</Tag>
+                }else{
+                    return <Tag color="green">Selected</Tag>
+                }
+            }
+        }
+    ];
+
+    return <Row gutter={[2, 2]}>
+        <Col span={10} >
+            <Card title="Configuration" bordered={false} style={{ width: '100%' }}>
+                {
+                    <ConfigurationCard configurationData={stepData.configuration}/>
+                }
+            </Card>
+        </Col>
+
+        <Col span={10} offset={2} >
+            <Card title="Importances" bordered={false} style={{ width: '100%' }}>
+                <Table dataSource={dataSource} columns={columns}  pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}} />
+            </Card>
+        </Col>
+    </Row>
 }
 
 export function PseudoLabelStep({stepData, dispatch}) {
@@ -582,7 +649,6 @@ export function PseudoLabelStep({stepData, dispatch}) {
     </>
 }
 
-
 export function EnsembleStep({stepData}) {
 
     const title = <span>
@@ -592,8 +658,8 @@ export function EnsembleStep({stepData}) {
     </span>;
 
     const getLiftEchartOpts = () => {
-        const lifting = stepData.extension?.lifting;
-        const yLabels = lifting !== null && lifting !== undefined ?  Array.from({length:lifting.length}, (v,k) => k) : [];
+        const scores = stepData.extension?.scores;
+        const yLabels = scores !== null && scores !== undefined ?  Array.from({length:scores.length}, (v,k) => k) : [];
 
         return  {
             xAxis: {
@@ -604,7 +670,7 @@ export function EnsembleStep({stepData}) {
                 type: 'value'
             },
             series: [{
-                data: lifting,
+                data: scores,
                 type: 'line',
                 smooth: true
             }]
@@ -674,6 +740,34 @@ export function EnsembleStep({stepData}) {
                 </Card>
             </Col>
         </Row>
+    </>
+}
 
+export function FinalTrainStep({stepData}) {
+
+    const title = <span>
+        <Tooltip title={"Final train configuration"}>
+            Final train  configuration
+        </Tooltip>
+    </span>;
+
+    return <>
+        <Row gutter={[4, 4]}>
+            <Col span={10} >
+                <Card title={title} bordered={false} style={{ width: '100%' }}>
+                    {
+                        <ConfigurationCard configurationData={stepData.configuration}/>
+                    }
+                </Card>
+            </Col>
+
+            <Col span={10} offset={2} >
+                <Card title="Weight" bordered={false} style={{ width: '100%' }}>
+                    {
+                        <ConfigurationCard configurationData={stepData.extension}/>
+                    }
+                </Card>
+            </Col>
+        </Row>
     </>
 }

@@ -3,6 +3,10 @@ export const StepsKey = {
         name: 'Data cleaning',
         type: 'DataCleanStep'
     },
+    FeatureGeneration: {
+        name: 'Feature generation',
+        type: 'FeatureGenerationStep'
+    },
     CollinearityDetection: {
         name: 'Collinearity detection',
         type: 'MulticollinearityDetectStep'
@@ -24,9 +28,17 @@ export const StepsKey = {
         name: 'Psudo labeling',
         type: 'PseudoLabelStep'
     },
+    PermutationImportanceSelection: {
+        name: 'Permutation importance selection',
+        type: 'PermutationImportanceSelectionStep'
+    },
     ReSpaceSearch: {
         name: 'Pipeline re-optimization',
         type: 'ReSpaceSearch'
+    },
+    FinalTrain: {
+        name: 'FinalTrain',
+        type: 'FinalTrainStep'
     },
     Ensemble: {
         name: 'Ensemble',

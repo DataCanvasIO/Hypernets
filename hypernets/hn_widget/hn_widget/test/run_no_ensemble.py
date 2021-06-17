@@ -12,6 +12,7 @@ from hypergbm.experiment import CompeteExperiment
 import json
 from hypernets.core.nb_callbacks import JupyterHyperModelCallback
 from hypernets.core.callbacks import EarlyStoppingCallback
+import json
 
 df = dsutils.load_bank()
 # df.drop(['id'], axis=1, inplace=True)
@@ -29,3 +30,9 @@ ce = CompeteExperiment(hk, X_train, y_train, callbacks=[JupyterWidgetExperimentC
 ce.run()
 
 print(ce)
+
+from hn_widget import experiment_util
+
+steps_dict = experiment_util.extract_experiment(ce)
+print(steps_dict)
+print(json.dumps(steps_dict))
