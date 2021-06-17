@@ -71,6 +71,15 @@ class Trial():
 </div>'''
         return html
 
+    def __getstate__(self):
+        try:
+            state = super().__getstate__()
+        except AttributeError:
+            state = self.__dict__
+
+        state = {k: v for k, v in state.items() if k != 'memo'}
+        return state
+
 
 class TrialHistory():
     def __init__(self, optimize_direction):
