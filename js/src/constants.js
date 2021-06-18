@@ -17,7 +17,8 @@ export const StepsKey = {
     },
     SpaceSearch: {
         name: 'Pipeline optimization',
-        type: 'SpaceSearchStep'
+        type: 'SpaceSearchStep',
+        key: 'space_searching'
     },
     FeatureSelection: {
         name: 'Feature selection',
@@ -32,12 +33,13 @@ export const StepsKey = {
         name: 'Permutation importance selection',
         type: 'PermutationImportanceSelectionStep'
     },
-    ReSpaceSearch: {
-        name: 'Pipeline re-optimization',
-        type: 'ReSpaceSearch'
+    TwoStageSpaceSearch: {
+        name: 'Two-stage pipeline optimization',
+        type: 'SpaceSearchStep',
+        key: 'two_stage_searching'
     },
     FinalTrain: {
-        name: 'FinalTrain',
+        name: 'Final train',
         type: 'FinalTrainStep'
     },
     Ensemble: {
@@ -66,6 +68,17 @@ export const StepStatus = {
   Finish: 'finish',
   Error: 'error'
 };
+
+export const ActionType = {
+    EarlyStopped: 'earlyStopped',
+    StepFinished: 'stepFinished',
+    StepBegin: 'stepBegin',
+    StepError: 'stepError',
+    TrialFinished: 'trialFinished',
+    ProbaDensityLabelChange: 'probaDensityLabelChange',
+    ExperimentData: 'experimentData'
+};
+
 
 
 export const MAX_FEATURES_OF_IMPORTANCES = 10;

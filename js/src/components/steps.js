@@ -1,25 +1,13 @@
-import {useEffect, useState} from "react";
-import {Card, Col, Form, Row, Switch, Table, Tabs, Radio, Tooltip, Select, Tag} from "antd";
-import * as echarts from 'echarts';
+import {Card, Col, Form, Row, Switch, Table, Tabs, Tooltip, Select, Tag} from "antd";
 import React, { PureComponent } from 'react';
 import { Empty } from 'antd';
 import EchartsCore from './echartsCore';
-import {showNotification} from "../pages/experiment";
-import {connect, Provider} from "react-redux";
-import {createStore} from "redux";
+import {showNotification} from "../util";
 import {formatFloat, isEmpty} from "../util";
 import {StepStatus} from "../constants";
 
-// import { toPercent, toFix } from '@/utils/util';
-// import IconSpace from '../IconSpace';
-
 const { TabPane } = Tabs;
-const colors = ['#ff002f', '#1976d2', '#13c2c2'];
-
-
-function print(msg) {
-    console.info(msg);
-}
+const CONFIGURATION_CARD_TITLE = "Configuration";
 
 export class Line extends PureComponent {
     getOption = (min, max) => {
@@ -78,128 +66,6 @@ export class Line extends PureComponent {
     }
 }
 
-export function TrialChart() {
-
-    const colors = ['#5470C6', '#91CC75', '#EE6666'];
-
-    const option = {
-        color: colors,
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'cross'
-            }
-        },
-        grid: {
-            right: '20%'
-        },
-        toolbox: {
-            feature: {
-                dataView: {show: true, readOnly: false},
-                restore: {show: true},
-                saveAsImage: {show: true}
-            }
-        },
-        legend: {
-            data: ['耗时', '指标']
-        },
-        xAxis: [
-            {
-                type: 'category',
-                axisTick: {
-                    alignWithLabel: true
-                },
-                data: ['#1', '#2', '#3', '#4', '#5', '#6', '#7', '#8', '#9', '#10', '#11', '#12']
-            }
-        ],
-        yAxis: [
-            {
-                type: 'value',
-                name: '耗时',
-                min: 0,
-                max: 30,
-                position: 'right',
-                axisLine: {
-                    show: true,
-                    lineStyle: {
-                        color: colors[2]
-                    }
-                },
-                axisLabel: {
-                    formatter: '{value} min'
-                }
-            },
-            {
-                type: 'value',
-                name: '指标',
-                min: 0,
-                max: 1,
-                position: 'left',
-                axisLine: {
-                    show: true,
-                    lineStyle: {
-                        color: colors[0]
-                    }
-                },
-                axisLabel: {
-                    formatter: '{value}'
-                }
-            }
-        ],
-        series: [
-            {
-                name: '耗时1',
-                type: 'bar',
-                color: '4F69BB',
-                data: [20, 25, 26, 23, 21, 18, 25, 15, 17, 20, 19, 20]
-            },
-            {
-                name: '耗时2',
-                type: 'bar',
-                color: '4F69BB',
-                data: [20, 25, 26, 23, 21, 18, 25, 15, 17, 20, 19, 20]
-            },
-            {
-                name: '耗时3',
-                type: 'bar',
-                color: '4F69BB',
-                data: [20, 25, 26, 23, 21, 18, 25, 15, 17, 20, 19, 20]
-            },
-            {
-                name: 'fold1',
-                type: 'scatter',
-                color: '9EDF81',
-                yAxisIndex: 1,
-                data: [0.01, 0.02, 0.2, 0.3, 0.6, 0.6, 0.6, 0.63, 0.62, 0.63, 0.65, 0.69]
-            },
-            {
-                name: 'fold2',
-                type: 'scatter',
-                color: '9EDF81',
-                yAxisIndex: 1,
-                data: [0.1, 0.2, 0.3, 0.4, 0.8, 0.8, 0.8, 0.83, 0.82, 0.83, 0.85, 0.89]
-            },
-            {
-                name: 'fold3',
-                type: 'scatter',
-                color: '9EDF81',
-                yAxisIndex: 1,
-                data: [0.2, 0.3, 0.4, 0.5, 0.9, 0.9, 0.9, 0.87, 0.87, 0.87, 0.86, 0.91]
-            },
-            {
-                name: 'avg',
-                type: 'line',
-                color: 'red',
-                yAxisIndex: 1,
-                data: [0.15, 0.23, 0.5, 0.5, 0.9, 0.9, 0.9, 0.87, 0.87, 0.87, 0.86, 0.91]
-            },
-        ]
-    };
-    var chartDom = document.getElementById('main');
-    var myChart = echarts.init(chartDom);
-
-}
-
 export function ConfigurationCard({configurationData}) {
     return <Form
         labelCol={{ span: 10 }}
@@ -208,20 +74,19 @@ export function ConfigurationCard({configurationData}) {
         {
             Object.keys(configurationData).map(key => {
                 const v = configurationData[key];
+                let content;
                 if (v === undefined || v === null){
-                    return <Form.Item label={key} key={key}>
-                        <span>None</span>
-                    </Form.Item>
+                    content = <span>None</span>
+                } else if((typeof  v)  === "boolean"){
+                    content =  <Switch checked />
+                } else  if(v instanceof Array){
+                    content =   <span>{ v.join(",") }</span>
+                } else {
+                    content =  <span>{v}</span>
                 }
-                if((typeof  v)  === "boolean"){
-                    return <Form.Item label={key} key={key}>
-                        <Switch checked />
-                    </Form.Item>
-                }else{
-                    return <Form.Item label={key} key={key}>
-                        <span>{v}</span>
-                    </Form.Item>
-                }
+                return <Form.Item label={key} key={key}>
+                    <span>{content}</span>
+                </Form.Item>
             })
         }
     </Form>
@@ -258,7 +123,7 @@ export function DataCleaningStep({stepData}) {
 
     return <Row gutter={[4, 4]}>
         <Col span={10} >
-            <Card title={'Data cleaning configuration'} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                 {
                     <ConfigurationCard configurationData={stepData.configuration.data_cleaner_args}/>
                 }
@@ -316,7 +181,7 @@ export function FeatureGenerationStep({stepData}){
 
     return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title="Configuration" bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                 {
                     <ConfigurationCard configurationData={stepData.configuration}/>
                 }
@@ -333,13 +198,19 @@ export function FeatureGenerationStep({stepData}){
 
 export function CollinearityDetectionStep({stepData}){
 
-    const dataSource = stepData.extension?.unselected_features?.map((value, index, arr) => {
-        return {
-            key: index,
-            removed: value.removed,
-            reserved: value.reserved,
-        }
-    });
+    let dataSource;
+    if(stepData.status === StepStatus.Finish){
+        dataSource = stepData.extension.unselected_features?.map((value, index, arr) => {
+            return {
+                key: index,
+                removed: value.removed,
+                reserved: value.reserved,
+            }
+        });
+    }else{
+        dataSource = null;
+    }
+
     const columns = [
         {
             title: 'Removed',
@@ -355,7 +226,7 @@ export function CollinearityDetectionStep({stepData}){
 
     return <Row gutter={[4, 4]}>
         <Col span={10} >
-            <Card title="Collinearity detection configuration" bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                 {
                     <ConfigurationCard configurationData={stepData.configuration}/>
                 }
@@ -372,6 +243,19 @@ export function CollinearityDetectionStep({stepData}){
 
 export function DriftDetectionStep({stepData}){
 
+    let driftFeatureAUCDataSource;
+    if(stepData.status === StepStatus.Finish){
+        driftFeatureAUCDataSource = stepData.extension.drifted_features_auc?.map((value, index, arr) => {
+            return {
+                key: index,
+                feature: value.feature,
+                score: formatFloat(value.score),
+            }
+        });
+    }else{
+        driftFeatureAUCDataSource = null;
+    }
+
     const driftFeatureAUCColumns = [
         {
             title: 'Feature',
@@ -385,13 +269,7 @@ export function DriftDetectionStep({stepData}){
         }
     ];
 
-    const driftFeatureAUCDataSource = stepData.extension.drifted_features_auc?.map((value, index, arr) => {
-        return {
-            key: index,
-            feature: value.feature,
-            score: formatFloat(value.score),
-        }
-    });
+
 
     const removedFeaturesInEpochColumns = [
         {
@@ -408,7 +286,7 @@ export function DriftDetectionStep({stepData}){
 
     return <><Row gutter={[4, 4]}>
         <Col span={10} >
-            <Card title="Collinearity detection configuration" bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                 {
                     <ConfigurationCard configurationData={stepData.configuration}/>
                 }
@@ -450,11 +328,11 @@ export function GeneralImportanceSelectionStep({stepData}){
 
     let dataSource;
     if(stepData.status === StepStatus.Finish){
-        dataSource = stepData.extension.importances.map((value, index, arr) => {
+        dataSource = stepData.extension.importances?.map((value, index, arr) => {
             return {
                 key: index,
                 featureName: value.name,
-                importance: value.importance,
+                importance: formatFloat(value.importance),
                 dropped: value.dropped
             }
         });
@@ -466,7 +344,16 @@ export function GeneralImportanceSelectionStep({stepData}){
         {
             title: 'Feature',
             dataIndex: 'featureName',
-            key: 'featureName'
+            key: 'featureName',
+            ellipsis: {
+                showTitle: false,
+
+            },
+            render: function (text, record, index) {
+                return <Tooltip placement="topLeft" title={text}>
+                    {text}
+                </Tooltip>
+            }
         }, {
             title: 'Importance',
             dataIndex: 'importance',
@@ -488,7 +375,7 @@ export function GeneralImportanceSelectionStep({stepData}){
 
     return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title="Configuration" bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                 {
                     <ConfigurationCard configurationData={stepData.configuration}/>
                 }
@@ -549,7 +436,7 @@ export function PseudoLabelStep({stepData, dispatch}) {
     const probabilityDensity = stepData.extension.probabilityDensity;
     const labels =  isEmpty(probabilityDensity) ? null : Object.keys(probabilityDensity);
     let selectedLabel;
-    if(stepData.status === 'finish'){
+    if(stepData.status === StepStatus.Finish){
         if(labels === null || labels.length < 2){
             showNotification("Pseudo step is success but labels is empty");
             return ;
@@ -605,18 +492,14 @@ export function PseudoLabelStep({stepData, dispatch}) {
         }
     ];
 
-    const title = <span>
-        <Tooltip title={"Pseudo label configuration"}>
-            Pseudo label configuration
-        </Tooltip>
-    </span>;
+
 
     const { Option } = Select;
 
     return <>
         <Row gutter={[4, 4]}>
             <Col span={10} >
-                <Card title={title} bordered={false} style={{ width: '100%' }}>
+                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                     {
                         <ConfigurationCard configurationData={stepData.configuration}/>
                     }
@@ -650,17 +533,21 @@ export function PseudoLabelStep({stepData, dispatch}) {
 }
 
 export function EnsembleStep({stepData}) {
+    let scores;
+    let weights;
+    if(stepData.status === StepStatus.Finish){
+        scores = stepData.extension.scores;
+        scores = scores === null ? [] : scores;
 
-    const title = <span>
-        <Tooltip title={"Ensemble configuration"}>
-            Ensemble configuration
-        </Tooltip>
-    </span>;
+        weights = stepData.extension.weights;
+        weights = weights === null ? [] : weights;
+    }else{
+        scores =  null;
+        weights = null;
+    }
 
     const getLiftEchartOpts = () => {
-        const scores = stepData.extension?.scores;
         const yLabels = scores !== null && scores !== undefined ?  Array.from({length:scores.length}, (v,k) => k) : [];
-
         return  {
             xAxis: {
                 type: 'category',
@@ -678,7 +565,6 @@ export function EnsembleStep({stepData}) {
     };
 
     const getWeightsEchartOpts = () => {
-        const weights = stepData.extension?.weights;
         const yLabels = weights !== null && weights !== undefined ?  Array.from({length:weights.length}, (v,k) => k) : [];
         return {
                 tooltip: {
@@ -718,7 +604,7 @@ export function EnsembleStep({stepData}) {
     return <>
         <Row gutter={[4, 4]}>
         <Col span={10} >
-            <Card title={title} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                 {
                     <ConfigurationCard configurationData={stepData.configuration}/>
                 }
@@ -745,16 +631,11 @@ export function EnsembleStep({stepData}) {
 
 export function FinalTrainStep({stepData}) {
 
-    const title = <span>
-        <Tooltip title={"Final train configuration"}>
-            Final train  configuration
-        </Tooltip>
-    </span>;
 
     return <>
         <Row gutter={[4, 4]}>
             <Col span={10} >
-                <Card title={title} bordered={false} style={{ width: '100%' }}>
+                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
                     {
                         <ConfigurationCard configurationData={stepData.configuration}/>
                     }
@@ -762,7 +643,7 @@ export function FinalTrainStep({stepData}) {
             </Col>
 
             <Col span={10} offset={2} >
-                <Card title="Weight" bordered={false} style={{ width: '100%' }}>
+                <Card title="Estimator" bordered={false} style={{ width: '100%' }}>
                     {
                         <ConfigurationCard configurationData={stepData.extension}/>
                     }

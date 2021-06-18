@@ -1,3 +1,7 @@
+import {notification} from "antd";
+import uuidv4 from 'uuid/v4';
+
+
 export function formatHumanDate(seconds) {
 
     const getMinutes = (seconds) => {
@@ -15,11 +19,14 @@ export function formatHumanDate(seconds) {
         hours = null;
         min = getMinutes(seconds);
     }
-
     if (hours !== null) {
         return `${hours}h ${min}m`
     } else {
-        return `${min}m`
+        if (min < 1){
+            return `<1m`
+        }else{
+            return `${min}m`
+        }
     }
 }
 
@@ -34,3 +41,11 @@ export function formatFloat(num, length=4) {
         return null;
     }
 }
+
+export const showNotification = (message) => {
+    notification.error({
+        key: uuidv4(),
+        message: message,
+        duration: 10,
+    });
+};

@@ -4,7 +4,7 @@ import { ExperimentSummary } from './pages/experimentSummary'
 import { StepsKey, StepStatus } from "./constants";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
-import { getInitData, sendFinishData } from './mock/featureGenerationStepMockData'
+import { getInitData, sendFinishData } from './mock/errorStepMockData'
 import { connect, Provider } from "react-redux";
 import { createStore } from "redux";
 
@@ -130,9 +130,9 @@ const experimentConfigData = (handler) => {
                 "start_datetime": "2020-11-11 22:22:22",
                 "end_datetime": "2020-11-11 22:22:22"
             }, {
-                "name": StepsKey.ReSpaceSearch.type,
+                "name": StepsKey.SpaceSearch.type,
                 "index": 9,
-                "type": StepsKey.ReSpaceSearch.type,
+                "type": StepsKey.SpaceSearch.type,
                 "status": "wait",
                 "configuration": {
                     "cv": CV,
@@ -217,7 +217,7 @@ export function renderExperimentProcess(experimentData, domElement) {
 // const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
 //
 // sendFinishData(store);
-
+//
 
 // setTimeout(function () {
 //     store.dispatch(

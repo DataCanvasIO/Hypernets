@@ -21,7 +21,7 @@ import { BarChart } from 'echarts/charts';
 import 'echarts/lib/component/legend';
 // 引入dataZoom
 import 'echarts/lib/component/dataZoom';
-import {showNotification} from "../pages/experiment";
+import {showNotification} from "../util";
 import { Progress, Tooltip } from 'antd';
 import {formatFloat, formatHumanDate} from "../util";
 import {StepStatus} from "../constants";
@@ -109,7 +109,7 @@ class TrialChart extends React.Component {
 
         // fixme check echartsElement is not empty
         // const echartsObj = this.echartsLib.getInstanceByDom(this.echartsElement);
-        console.info("chartOptions");
+        console.info("Trails chartOptions");
         console.info(chartOptions);
 
         echartsObj.setOption(chartOptions, false, false);
@@ -144,23 +144,28 @@ class TrialChart extends React.Component {
         );
     }
 
-    limitStrLen(str, len){
-        if(str.length > len){
-            return str.substring(0, len)
-        }else {
-            return len;
-        }
-    }
+
 
     getChartOptions(xAxisData, elapsedSeriesData, modelsScore, trials, cv, num_folds){
         // [ [0.5,0.5,0.9], [0.5,0.5,0.9] ]
+        const limitStrLen = (str, len=12, fromBegin=true) => {
+            if(str.length > len){
+                if(fromBegin){
+                    return str.substring(0, len)
+                }else{
+                    return str.substring(str.length - len, str.length)
+                }
+            }else {
+                return str;
+            }
+        };
 
         const getSelection = (name, paramsObj)=> {
 
             const rows = Object.keys(paramsObj).map(key => {
                 return `<tr>
-                    <td>${key}: </td>
-                    <td>${this.limitStrLen(paramsObj[key])}</td>
+                    <td>${limitStrLen(key, false)}: </td>
+                    <td>${limitStrLen(paramsObj[key])}</td>
                 </tr>`
             });
 

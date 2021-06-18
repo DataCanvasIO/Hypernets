@@ -17,30 +17,11 @@ import {
     GeneralImportanceSelectionStep,
     FeatureGenerationStep
 } from '../components/steps'
-import { StepsKey } from '../constants'
+import {StepsKey, StepStatus} from '../constants'
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
 import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
 const { Step } = Steps;
 
-export const showNotification = (message) => {
-    notification.error({
-        key: '123',
-        message: message,
-        duration: 10,
-    });
-};
-
-// step status: wait, process, finish, error
-
-
-
-
-const StepUIStatus = {
-    Wait : 'wait',
-    Process : 'process',
-    Finish : 'finish',
-    Fail : 'fail'
-};
 
 const ProgressBarStatus = {
     Success: 'success',
@@ -62,10 +43,10 @@ export function ExperimentUI ({experimentData, dispatch} ) {
     const getProcessBarStatus  = () => {
         var processFinish = true;
         for (var step of experimentData.steps) {
-            if (step.status === StepUIStatus.Fail) {
+            if (step.status === StepStatus.Error) {
                 return ProgressBarStatus.Exception
             }
-            if(step.status !== StepUIStatus.Finish){  // all step is finish so the ProcessBar is succeed
+            if(step.status !== StepStatus.Finish){  // all step is finish so the ProcessBar is succeed
                 processFinish = false;
             }
         }
@@ -120,13 +101,19 @@ export function ExperimentUI ({experimentData, dispatch} ) {
                 <DriftDetectionStep stepData={stepData}/>
             );
         } else if(stepType  === StepsKey.SpaceSearch.type){
+            const stepName = stepData.configuration.name;
+            let title;
+            if (stepName === StepsKey.TwoStageSpaceSearch.key){
+                title = StepsKey.TwoStageSpaceSearch.name;
+            }else{
+                title = StepsKey.SpaceSearch.name;
+            }
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.SpaceSearch.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={title} key={`step_${stepName}`} />
             );
             stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} />
+                <PipelineOptimizationStep stepData={stepData} key={`step_ui_${stepName}`} />
             );
-
         } else if(stepType  === StepsKey.FeatureSelection.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.FeatureSelection.name} key={`step_${stepData.name}`} />
@@ -149,16 +136,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
                 <PseudoLabelStep stepData={stepData} dispatch={dispatch}/>
             );
 
-        } else if(stepType  === StepsKey.ReSpaceSearch.type){
-            // todo add ReSpaceSearch
-            stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.ReSpaceSearch.name} key={`step_${stepData.name}`} />
-            );
-            stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} />
-            );
-
-        }else if(stepType  === StepsKey.FinalTrain.type){
+        } else if(stepType  === StepsKey.FinalTrain.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.FinalTrain.name} key={stepData.name} />
             );

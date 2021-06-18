@@ -8,7 +8,7 @@ export function getInitData() {
                 "name": StepsKey.PermutationImportanceSelection.name,
                 "index": 0,
                 "type": StepsKey.PermutationImportanceSelection.type,
-                "status": "process",
+                "status": "wait",
                 "configuration": {
                     "cv": 100,
                 }

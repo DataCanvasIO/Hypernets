@@ -1,5 +1,7 @@
 
 # hk.search(X_train, y_train, X_test, y_test, cv=False, max_trials=3)
+from hn_widget.experiment_util import StepStatus
+
 from hypernets.experiment import ExperimentCallback
 from hypernets.core.callbacks import Callback
 import json
@@ -70,19 +72,21 @@ def sort_imp(imp_dict, sort_imp_dict):
     return imps
 
 
-
-
 def send_action(widget_id, data, action_type):
     dom_widget = DOM_WIDGETS.get(widget_id)
     if dom_widget is None:
         raise Exception(f"widget_id: {widget_id} not exists ")
     action = {'type': action_type, 'payload': data}
+    # print("----action-----")
+    # print(action)
     dom_widget.value = action
 
 
 class ActionType:
     EarlyStopped = 'earlyStopped'
     StepFinished = 'stepFinished'
+    StepBegin = 'stepBegin'
+    StepError = 'stepError'
     TrialFinished = 'trialFinished'
 
 
@@ -232,7 +236,6 @@ class JupyterHyperModelCallback(Callback):
         send_action(self.widget_id, data, ActionType.TrialFinished)
 
     def on_trial_error(self, hyper_model, space, trial_no):
-
         pass
 
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
@@ -248,15 +251,16 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         self.widget_id = id(self)
         DOM_WIDGETS[self.widget_id] = ExperimentProcessWidget()
 
-    def experiment_start(self, exp):
+    @staticmethod
+    def set_up_hyper_model_callback(exp, handler):
         for c in exp.hyper_model.callbacks:
             if isinstance(c, JupyterHyperModelCallback):
-                for i, s in enumerate(exp.steps):
-                    if isinstance(s, SpaceSearchStep):
-                        c.set_step_index(i)
-                        c.set_widget_id(self.widget_id)
-                        break
+                handler(c)
                 break
+
+    def experiment_start(self, exp):
+        self.set_up_hyper_model_callback(exp, lambda c: c.set_widget_id(self.widget_id))
+        # c.set_step_index(i)
         dom_widget = DOM_WIDGETS[self.widget_id]
         display(dom_widget)
         from hn_widget.experiment_util import extract_experiment
@@ -270,7 +274,16 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         pass
 
     def step_start(self, exp, step):
-        pass
+        from hn_widget.experiment_util import get_step_index
+        from hn_widget.experiment_util import StepStatus
+        step_name = step
+        step_index = get_step_index(exp, step_name)
+        self.set_up_hyper_model_callback(exp, lambda c: c.set_step_index(step_index))
+        payload = {
+            'index': step_index,
+            'status': StepStatus.Process
+        }
+        send_action(self.widget_id, ActionType.StepBegin, payload)
 
     def step_progress(self, exp, step, progress, elapsed, eta=None):
         pass
@@ -279,14 +292,24 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         from hn_widget import experiment_util
         from hn_widget.experiment_util import StepStatus
         step_name = step
-
         step = exp.get_step(step_name)
         setattr(step, 'status', StepStatus.Finish)
         # todo set time setattr(step, 'status', StepStatus.Finish)
 
         step_index = experiment_util.get_step_index(exp, step_name)
-        experiment_util.extract_step(step_index, step)
         send_action(self.widget_id, experiment_util.extract_step(step_index, step), ActionType.StepFinished)
 
     def step_break(self, exp, step, error):
-        pass
+        from hn_widget.experiment_util import get_step_index
+        from hn_widget.experiment_util import StepStatus
+        step_name = step
+        step_index = get_step_index(exp, step_name)
+        self.set_up_hyper_model_callback(exp, lambda c: c.set_step_index(step_index))
+        payload = {
+            'index': step_index,
+            'extension': {
+                'reason': str(error)
+            },
+            'status': StepStatus.Error
+        }
+        send_action(self.widget_id, ActionType.StepBegin, payload)
