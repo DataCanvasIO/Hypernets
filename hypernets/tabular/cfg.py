@@ -27,7 +27,19 @@ class TabularCfg(Configurable):
                help='the directory to store cached data, read/write permissions are required.')
 
     geohash_precision = \
-        Int(12,
+        Int(12, min=2,
+            config=True,
+            help=''
+            )
+
+    tfidf_max_feature_count = \
+        Int(100, min=2,
+            config=True,
+            help=''
+            )
+
+    tfidf_primitive_output_feature_count = \
+        Int(3, min=2,
             config=True,
             help=''
             )

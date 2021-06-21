@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import display, update_display, display_markdown
 
-from ..utils import logging, fs
+from ..utils import logging, fs, to_repr
 
 logger = logging.get_logger(__name__)
 
@@ -45,6 +45,9 @@ class Callback():
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         pass
 
+    def __repr__(self):
+        return to_repr(self)
+
 
 class EarlyStoppingError(RuntimeError):
     def __init__(self, *arg):
@@ -52,7 +55,7 @@ class EarlyStoppingError(RuntimeError):
 
 
 class EarlyStoppingCallback(Callback):
-    REASON_TRIAL_LIMIT = 'trials'
+    REASON_TRIAL_LIMIT = 'max_no_improvement_trials'
     REASON_TIME_LIMIT = 'time_limit'
     REASON_EXPECTED_REWARD = 'expected_reward'
 
@@ -60,25 +63,26 @@ class EarlyStoppingCallback(Callback):
         super(Callback, self).__init__()
         # assert time_limit is None or time_limit > 60, 'If `time_limit` is not None, it must be greater than 60.'
 
-        self.max_no_improvement_trials = max_no_improvement_trials
-        self.mode = mode
-        self.min_delta = min_delta
-        self.best_reward = None
-        self.best_trial_no = None
-        self.counter_no_improvement_trials = 0
-        self.time_limit = time_limit
-        self.expected_reward = expected_reward
-        self.start_time = None
-
-        self.triggered = None
-        self.triggered_reason = None
-
+        # settings
         if mode == 'min':
             self.op = np.less
         elif mode == 'max':
             self.op = np.greater
         else:
             raise ValueError(f'Unsupported mode:{mode}')
+        self.max_no_improvement_trials = max_no_improvement_trials
+        self.mode = mode
+        self.min_delta = min_delta
+        self.time_limit = time_limit
+        self.expected_reward = expected_reward
+
+        # running state
+        self.start_time = None
+        self.best_reward = None
+        self.best_trial_no = None
+        self.counter_no_improvement_trials = 0
+        self.triggered = None
+        self.triggered_reason = None
 
     def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                         **fit_kwargs):
@@ -90,26 +94,20 @@ class EarlyStoppingCallback(Callback):
             self.start_time = time.time()
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        if self.start_time is None:
+            self.start_time = time.time()
+
+        time_total = time.time() - self.start_time
+
         if self.time_limit is not None and self.time_limit > 0:
-            time_total = time.time() - self.start_time
             if time_total > self.time_limit:
-                msg = 'The time limit has been exceeded, stop early.\r\n'
-                msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
-                if logger.is_info_enabled():
-                    logger.info(msg)
-                self.triggered_reason = self.REASON_TIME_LIMIT
                 self.triggered = True
-                raise EarlyStoppingError(msg)
+                self.triggered_reason = self.REASON_TIME_LIMIT
 
         if self.expected_reward is not None and self.expected_reward != 0.0:
             if self.op(reward, self.expected_reward):
-                msg = 'Has met the expected reward, stop early.\r\n'
-                msg += f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
-                if logger.is_info_enabled():
-                    logger.info(msg)
-                self.triggered_reason = self.REASON_EXPECTED_REWARD
                 self.triggered = True
-                raise EarlyStoppingError(msg)
+                self.triggered_reason = self.REASON_EXPECTED_REWARD
 
         if self.max_no_improvement_trials is not None and self.max_no_improvement_trials > 0:
             if self.best_reward is None:
@@ -123,12 +121,16 @@ class EarlyStoppingCallback(Callback):
                 else:
                     self.counter_no_improvement_trials += 1
                     if self.counter_no_improvement_trials >= self.max_no_improvement_trials:
-                        msg = f'Early stopping on trial : {trial_no}, best reward: {self.best_reward}, best_trial: {self.best_trial_no}'
-                        if logger.is_info_enabled():
-                            logger.info(msg)
-                        self.triggered_reason = self.REASON_TRIAL_LIMIT
                         self.triggered = True
-                        raise EarlyStoppingError(msg)
+                        self.triggered_reason = self.REASON_TRIAL_LIMIT
+
+        if self.triggered:
+            msg = f'Early stopping on trial : {trial_no}, reason: {self.triggered_reason}, ' \
+                  f'best reward: {self.best_reward}, best trial: {self.best_trial_no}, ' \
+                  f'elapsed seconds: {time_total}'
+            if logger.is_info_enabled():
+                logger.info(msg)
+            raise EarlyStoppingError(msg)
 
 
 class FileLoggingCallback(Callback):
@@ -211,6 +213,15 @@ class FileStorageLoggingCallback(FileLoggingCallback):
 
 
 class SummaryCallback(Callback):
+    def __init__(self):
+        super(SummaryCallback, self).__init__()
+
+        self.start_search_time = None
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+                        **fit_kwargs):
+        self.start_search_time = time.time()
+
     def on_build_estimator(self, hyper_model, space, estimator, trial_no):
         # if logger.is_info_enabled():
         #     logger.info(f'\nTrial No:{trial_no}')
@@ -225,7 +236,7 @@ class SummaryCallback(Callback):
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
         if logger.is_info_enabled():
             logger.info(f'trial end. reward:{reward}, improved:{improved}, elapsed:{elapsed}')
-            logger.info(f'Total elapsed:{time.time() - hyper_model.start_search_time}')
+            logger.info(f'Total elapsed:{time.time() - self.start_search_time}')
 
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         if logger.is_info_enabled():

@@ -56,6 +56,7 @@ class Test_FeatureGenerator():
         preprocessor = general_preprocessor()
         pipe = Pipeline(steps=[('feature_gen', ftt), ('processor', preprocessor)])
         X_t = pipe.fit_transform(X_train)
+        print(X_t.columns)
         assert X_t.shape == (80, 62)
 
     def test_in_dataframe_mapper(self):
@@ -74,21 +75,16 @@ class Test_FeatureGenerator():
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         X_train, X_test = train_test_split(df.head(100), test_size=0.2, random_state=42)
+        cat_cols = column_object_category_bool(X_train)
         ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
-                                           categories_cols=column_object_category_bool(X_train))
+                                           categories_cols=cat_cols)
         ftt.fit(X_train)
         x_t = ftt.transform(X_train)
-        assert len(set(x_t.columns.to_list()) - set(
-            ['job', 'marital', 'education', 'default', 'housing', 'loan', 'contact', 'month', 'poutcome', 'y', 'age',
-             'balance', 'day', 'duration', 'campaign', 'pdays', 'previous', 'contact__marital', 'job__poutcome',
-             'contact__default', 'housing__month', 'housing__marital', 'loan__y', 'housing__job', 'loan__poutcome',
-             'month__poutcome', 'default__month', 'default__education', 'education__loan', 'education__housing',
-             'housing__loan', 'housing__poutcome', 'contact__housing', 'contact__loan', 'marital__y', 'contact__job',
-             'education__poutcome', 'default__marital', 'job__month', 'job__y', 'default__loan', 'education__marital',
-             'default__poutcome', 'default__y', 'contact__month', 'education__month', 'contact__education',
-             'contact__poutcome', 'job__marital', 'education__job', 'job__loan', 'contact__y', 'month__y',
-             'default__housing', 'default__job', 'poutcome__y', 'loan__marital', 'education__y', 'loan__month',
-             'marital__month', 'housing__y', 'marital__poutcome'])) == 0
+        columns = set(x_t.columns.to_list())
+        for i_left in range(len(cat_cols) - 1):
+            for i_right in range(i_left + 1, len(cat_cols)):
+                assert f'CROSS_CATEGORICAL_{cat_cols[i_left]}__{cat_cols[i_right]}' in columns \
+                       or f'CROSS_CATEGORICAL_{cat_cols[i_right]}__{cat_cols[i_left]}' in columns
 
     def test_feature_tools_transformer(self):
         df = dsutils.load_bank()
@@ -124,9 +120,9 @@ class Test_FeatureGenerator():
         ftt = FeatureGenerationTransformer(task='binary', text_cols=['title'], categories_cols=['gender', 'genres'])
         x_t = ftt.fit_transform(df)
         xt_columns = x_t.columns.to_list()
-        assert 'gender__genres' in xt_columns
-        assert 'LSA(title)[0]' in xt_columns
-        assert 'DAY(timestamp)' in xt_columns
+        assert 'CROSS_CATEGORICAL_gender__genres' in xt_columns
+        assert 'TFIDF__title____0__' in xt_columns
+        assert 'DAY__timestamp__' in xt_columns
 
     def test_latlong(self):
         df = pd.DataFrame()
@@ -135,7 +131,7 @@ class Test_FeatureGenerator():
         df['latlong'] = df[['latitude', 'longitude']].apply(tuple, axis=1)
         ftt = FeatureGenerationTransformer(latlong_cols=['latlong'])
         x_t = ftt.fit_transform(df)
-        assert 'GEOHASH(latlong)' in x_t.columns.to_list()
+        assert 'GEOHASH__latlong__' in x_t.columns.to_list()
 
     def test_feature_generation_with_selection(self):
         df = dsutils.load_bank().head(1000)
@@ -160,17 +156,17 @@ class Test_FeatureGenerator():
                                            fix_input=fix_input)
         ftt.fit(df)
         x_t = ftt.transform(df)
-        assert "x1 + x2" in x_t
-        assert "x1 / x2" in x_t
+        assert "x1__+__x2" in x_t
+        assert "x1__/__x2" in x_t
 
         if fix_input is True:
             # should no NaN value not only input nor output
             assert not math.isnan(x_t["x1"][0])
-            assert not math.isnan(x_t["x1 / x2"][0])
+            assert not math.isnan(x_t["x1__/__x2"][0])
         else:
             # x1 is NaN, it's children is NaN too.
             assert math.isnan(x_t["x1"][0])
-            assert math.isnan(x_t["x1 / x2"][0])
+            assert math.isnan(x_t["x1__/__x2"][0])
 
     def test_datetime_derivation(self):
 
@@ -179,9 +175,9 @@ class Test_FeatureGenerator():
         ftt.fit(df)
 
         x_t = ftt.transform(df)
-        assert "YEAR(x1)" in x_t
-        assert "MONTH(x1)" in x_t
-        assert "WEEK(x1)" in x_t
+        assert "YEAR__x1__" in x_t
+        assert "MONTH__x1__" in x_t
+        assert "WEEK__x1__" in x_t
 
     def test_persist(self, tmp_path: str):
         from os import path as P
@@ -199,6 +195,6 @@ class Test_FeatureGenerator():
             ftt1 = pickle.load(f)
 
         x_t = ftt1.transform(df)
-        assert "YEAR(x1)" in x_t
-        assert "MONTH(x1)" in x_t
-        assert "WEEK(x1)" in x_t
+        assert "YEAR__x1__" in x_t
+        assert "MONTH__x1__" in x_t
+        assert "WEEK__x1__" in x_t

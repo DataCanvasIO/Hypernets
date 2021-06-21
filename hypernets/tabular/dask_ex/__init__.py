@@ -31,6 +31,7 @@ try:
         MaxAbsScaler, SafeOrdinalEncoder, DataInterceptEncoder, \
         CallableAdapterEncoder, DataCacher, CacheCleaner, \
         LgbmLeavesEncoder, CategorizeEncoder, MultiKBinsDiscretizer, \
+        LocalizedTfidfVectorizer, \
         MultiVarLenFeatureEncoder, DataFrameWrapper
 
     from ..sklearn_ex import PassThroughEstimator
@@ -92,6 +93,8 @@ def exist_dask_object(*args):
     for a in args:
         if isinstance(a, (da.Array, dd.DataFrame, dd.Series)):
             return True
+        if isinstance(a, (tuple, list, set)):
+            return exist_dask_object(*a)
     return False
 
 
@@ -99,6 +102,8 @@ def exist_dask_dataframe(*args):
     for a in args:
         if isinstance(a, dd.DataFrame):
             return True
+        if isinstance(a, (tuple, list, set)):
+            return exist_dask_dataframe(*a)
     return False
 
 
@@ -106,6 +111,8 @@ def exist_dask_array(*args):
     for a in args:
         if isinstance(a, da.Array):
             return True
+        if isinstance(a, (tuple, list, set)):
+            return exist_dask_array(*a)
     return False
 
 
@@ -219,7 +226,9 @@ def array_to_df(arrs, columns=None, meta=None):
         meta_df = meta
         if columns is None:
             columns = meta_df.columns
-        meta = dd.utils.make_meta(meta_df.dtypes.to_dict())
+        # meta = dd.utils.make_meta(meta_df.dtypes.to_dict())
+        if isinstance(meta, dd.DataFrame):
+            meta = meta.head(0)
     elif isinstance(meta, (dd.Series, pd.Series)):
         meta_df = meta
         if columns is None:
@@ -324,6 +333,9 @@ def compute_and_call(fn_call, *args, **kwargs):
         logger.debug(f'[compute_and_call] compute {len(args)} object')
 
     args = compute(*args, traverse=False)
+    for k, v in kwargs.items():
+        if exist_dask_object(v):
+            kwargs[k] = compute(v, traverse=True)[0]
 
     if logger.is_debug_enabled():
         logger.debug(f'[compute_and_call] call {fn_call.__name__}')

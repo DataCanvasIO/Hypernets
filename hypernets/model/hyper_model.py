@@ -2,7 +2,6 @@
 """
 
 """
-import hashlib
 import time
 import traceback
 from collections import UserDict
@@ -11,12 +10,12 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
-from ..utils import logging, infer_task_type as _infer_task_type
+from ..utils import logging, infer_task_type as _infer_task_type, hash_data, const
 
 logger = logging.get_logger(__name__)
 
 
-class HyperModel():
+class HyperModel:
     def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None, discriminator=None):
         """
 
@@ -26,13 +25,11 @@ class HyperModel():
         :param reward_metric:
         :param task:
         """
-        # self.searcher = self._build_searcher(searcher, space_fn)
         self.searcher = searcher
         self.dispatcher = dispatcher
         self.callbacks = callbacks if callbacks is not None else []
         self.reward_metric = reward_metric
         self.history = TrialHistory(searcher.optimize_direction)
-        self.start_search_time = None
         self.task = task
         self.discriminator = discriminator
         if self.discriminator:
@@ -54,7 +51,6 @@ class HyperModel():
 
         for callback in self.callbacks:
             callback.on_build_estimator(self, space_sample, estimator, trial_no)
-        #     callback.on_trial_begin(self, space_sample, trial_no)
         succeeded = False
         scores = None
         oof = None
@@ -97,13 +93,7 @@ class HyperModel():
             # improved = self.history.append(trial)
 
             self.searcher.update_result(space_sample, reward)
-
-            # for callback in self.callbacks:
-            #     callback.on_trial_end(self, space_sample, trial_no, reward, improved, elapsed)
         else:
-            # for callback in self.callbacks:
-            #     callback.on_trial_error(self, space_sample, trial_no)
-
             elapsed = time.time() - start_time
             trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
 
@@ -174,9 +164,10 @@ class HyperModel():
         :param fit_kwargs: Optional, dict, parameters for fit method of model
         :return:
         """
-        self.start_search_time = time.time()
-
-        self.task, _ = self.infer_task_type(y)
+        if self.task is None or self.task == const.TASK_AUTO:
+            self.task, _ = self.infer_task_type(y)
+        if self.task not in [const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION, const.TASK_MULTILABEL]:
+            logger.warning(f'Unexpected task "{self.task}"')
 
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
@@ -206,25 +197,7 @@ class HyperModel():
         self._after_search(trial_no)
 
     def generate_dataset_id(self, X, y):
-        repr = ''
-        if X is not None:
-            if isinstance(X, list):
-                repr += f'X len({len(X)})|'
-            if hasattr(X, 'shape'):
-                repr += f'X shape{X.shape}|'
-            if hasattr(X, 'dtypes'):
-                repr += f'x.dtypes({list(X.dtypes)})|'
-
-        if y is not None:
-            if isinstance(y, list):
-                repr += f'y len({len(y)})|'
-            if hasattr(y, 'shape'):
-                repr += f'y shape{y.shape}|'
-
-            if hasattr(y, 'dtype'):
-                repr += f'y.dtype({y.dtype})|'
-
-        sign = hashlib.md5(repr.encode('utf-8')).hexdigest()
+        sign = hash_data([X, y])
         return sign
 
     def final_train(self, space_sample, X, y, **kwargs):

@@ -1,11 +1,12 @@
 # -*- coding:utf-8 -*-
 __author__ = 'yangjian'
-
 """
 
 """
 import copy
 import inspect
+import math
+import time
 from collections import OrderedDict
 import json
 
@@ -68,6 +69,8 @@ class ExperimentStep(BaseEstimator):
         # fitted
         self.input_features_ = None
         self.status_ = None  # None(not fit) or True(fit succeed) or False(fit failed)
+        self.start_time = None
+        self.done_time = None
 
     def step_progress(self, *args, **kwargs):
         if self.experiment is not None:
@@ -76,6 +79,16 @@ class ExperimentStep(BaseEstimator):
     @property
     def task(self):
         return self.experiment.task if self.experiment is not None else None
+
+    @property
+    def elapsed_seconds(self):
+        if self.start_time is not None:
+            if self.done_time is not None:
+                return self.done_time - self.start_time
+            else:
+                return time.time() - self.start_time
+        else:
+            return None
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         self.input_features_ = X_train.columns.to_list()
@@ -185,7 +198,7 @@ class DataCleanStep(FeatureSelectStep):
         self.random_state = random_state
 
         # fitted
-        self.data_cleaner_ = None
+        self.data_cleaner_ = DataCleaner(**self.data_cleaner_args)
         self.detector_ = None
         self.data_shapes_ = None
 
@@ -202,9 +215,7 @@ class DataCleanStep(FeatureSelectStep):
             y_train = dex.concat_df([y_train, y_eval], axis=0)
             X_eval = None
             y_eval = None
-
-        data_cleaner = DataCleaner(**self.data_cleaner_args)
-
+        data_cleaner = self.data_cleaner_
         logger.info(f'{self.name} fit_transform with train data')
         X_train, y_train = data_cleaner.fit_transform(X_train, y_train)
         self.step_progress('fit_transform train set')
@@ -261,6 +272,11 @@ class DataCleanStep(FeatureSelectStep):
         self.data_shapes_ = data_shapes
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+
+    def get_params(self, deep=True):
+        params = super(DataCleanStep, self).get_params()
+        params['data_cleaner_args'] = self.data_cleaner_.get_params()
+        return params
 
     def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         # 1. Clean Data
@@ -348,7 +364,7 @@ class DataCleanStep(FeatureSelectStep):
         data_shapes = self.data_shapes_ if self.data_shapes_ is not None else {}
         unselected_features = params.get('unselected_features', [])
 
-        if dc is not None:
+        if dc is not None and unselected_features is not None:
             unselected_reason = {f: get_reason(f) for f in unselected_features}
         else:
             unselected_reason = None
@@ -373,7 +389,7 @@ class TransformerAdaptorStep(ExperimentStep):
 
     @cache(arg_keys='X_train, y_train, X_test, X_eval, y_eval',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='transformer_kwargs,transformer_')
+           attrs_to_restore='input_features_,transformer_kwargs,transformer_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
@@ -434,7 +450,6 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                  latlong_cols=None,
                  text_cols=None,
                  max_depth=1,
-                 fix_input=False,
                  feature_selection_args=None):
         from hypernets.tabular.feature_generators import FeatureGenerationTransformer
 
@@ -447,7 +462,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
         super(FeatureGenerationStep, self).__init__(experiment, name,
                                                     FeatureGenerationTransformer,
                                                     trans_primitives=trans_primitives,
-                                                    fix_input=fix_input,
+                                                    fix_input=False,
                                                     continuous_cols=continuous_cols,
                                                     datetime_cols=datetime_cols,
                                                     categories_cols=categories_cols,
@@ -459,6 +474,17 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                                                     task=None,  # fixed by super
                                                     )
 
+    def get_fitted_params(self):
+        t = self.transformer_
+        return {**super(FeatureGenerationStep, self).get_fitted_params(),
+                'trans_primitives': t.trans_primitives if t is not None else None,
+                'output_feature_names': t.transformed_feature_names_ if t is not None else None,
+                }
+
+    def is_transform_skipped(self):
+        t = self.transformer_
+        return t is None or t.transformed_feature_names_ == self.input_features_
+
 
 class MulticollinearityDetectStep(FeatureSelectStep):
 
@@ -466,15 +492,15 @@ class MulticollinearityDetectStep(FeatureSelectStep):
         super().__init__(experiment, name)
 
         # fitted
-        self.corr_linkage_ = None
+        self.feature_clusters_ = None
 
     @cache(arg_keys='X_train',
            strategy='transform', transformer='cache_transform',
-           attrs_to_restore='input_features_,selected_features_,corr_linkage_')
+           attrs_to_restore='input_features_,selected_features_,feature_clusters_')
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
-        corr_linkage, remained, dropped = select_by_multicollinearity(X_train)
+        feature_clusters_, remained, dropped = select_by_multicollinearity(X_train)
         self.step_progress('calc correlation')
 
         if dropped:
@@ -488,16 +514,14 @@ class MulticollinearityDetectStep(FeatureSelectStep):
             self.step_progress('drop features')
         else:
             self.selected_features_ = None
-        self.corr_linkage_ = corr_linkage
-
+        self.feature_clusters_ = feature_clusters_
         logger.info(f'{self.name} drop {len(dropped)} columns, {len(remained)} kept')
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def get_fitted_params(self):
         return {**super().get_fitted_params(),
-                'corr_linkage': self.corr_linkage_,
-                }
+                'feature_clusters': self.feature_clusters_}
 
 
 class DriftDetectStep(FeatureSelectStep):
@@ -698,12 +722,7 @@ class SpaceSearchStep(ExperimentStep):
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
-        if not dex.is_dask_object(X_eval):
-            kwargs['eval_set'] = (X_eval, y_eval)
-
-        model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
-        model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
-
+        model = self.search(X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval, **kwargs)
         if model.get_best_trial() is None or model.get_best_trial().reward == 0:
             raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
 
@@ -713,6 +732,65 @@ class SpaceSearchStep(ExperimentStep):
         self.best_reward_ = model.get_best_trial().reward
 
         return model, X_train, y_train, X_test, X_eval, y_eval
+
+    def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        if X_eval is not None:
+            kwargs['eval_set'] = (X_eval, y_eval)
+        model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
+        es = self.find_early_stopping_callback(model.callbacks)
+        if es is not None and es.time_limit is not None and es.time_limit > 0:
+            es.time_limit = self.estimate_time_limit(es.time_limit)
+        model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
+        return model
+
+    @staticmethod
+    def find_early_stopping_callback(cbs):
+        from hypernets.core.callbacks import EarlyStoppingCallback
+        assert isinstance(cbs, (tuple, list))
+
+        for cb in cbs:
+            if isinstance(cb, EarlyStoppingCallback):
+                return cb
+
+        return None
+
+    def estimate_time_limit(self, total_time_limit):
+        all_steps = self.experiment.steps
+
+        my_index = -1
+        search_total = 0
+        search_ran = 0
+        search_elapsed_seconds = 0
+        nosearch_total = 0
+        nosearch_ran = 0
+        nosearch_elapsed_seconds = 0
+        for step in all_steps:
+            if isinstance(step, SpaceSearchStep):
+                if step.name == self.name:
+                    my_index = search_total
+                search_total += 1
+                if my_index < 0:
+                    search_ran += 1
+                    search_elapsed_seconds += step.elapsed_seconds
+            else:
+                nosearch_total += 1
+                if my_index < 0:
+                    nosearch_ran += 1
+                    nosearch_elapsed_seconds += step.elapsed_seconds
+
+        if nosearch_ran < (nosearch_total - 1):
+            nosearch_total_seconds = (nosearch_ran + 1) / nosearch_total * nosearch_elapsed_seconds  # estimate
+        else:
+            nosearch_total_seconds = nosearch_elapsed_seconds
+        search_total_seconds = total_time_limit - nosearch_total_seconds
+
+        time_limit = search_total_seconds - search_elapsed_seconds
+        if my_index < (search_total - 1):
+            time_limit /= (search_total - my_index)
+        if time_limit < total_time_limit * 0.2:
+            time_limit = total_time_limit * 0.2
+
+        return time_limit
 
     def transform(self, X, y=None, **kwargs):
         return X
@@ -727,13 +805,89 @@ class SpaceSearchStep(ExperimentStep):
                 }
 
 
-class DaskSpaceSearchStep(SpaceSearchStep):
+class SpaceSearchWithDownSampleStep(SpaceSearchStep):
+    def __init__(self, experiment, name, cv=False, num_folds=3, size=None,
+                 max_trials=None, time_limit=None):
+        assert size is None or isinstance(size, (int, float))
+        assert time_limit is None or isinstance(time_limit, (int, float))
+        assert max_trials is None or isinstance(max_trials, int)
 
-    def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-        X_train, y_train, X_test, X_eval, y_eval = \
-            [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
+        super().__init__(experiment, name, cv=cv, num_folds=num_folds)
 
-        return super().fit_transform(hyper_model, X_train, y_train, X_test, X_eval, y_eval, **kwargs)
+        self.size = size
+        self.max_trials = max_trials
+        self.time_limit = time_limit
+
+    def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        # search with down sampled  data
+        X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled = \
+            self.down_sample(X_train, y_train, X_eval, y_eval)
+        if X_eval is not None:
+            kwargs['eval_set'] = (X_eval_sampled, y_eval_sampled)
+        model0 = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
+        es0 = self.find_early_stopping_callback(model0.callbacks)
+        if es0 is not None and es0.time_limit is not None and es0.time_limit > 0:
+            time_limit = self.estimate_time_limit(es0.time_limit)
+            if self.time_limit is not None:
+                es0.time_limit = min(self.time_limit, time_limit / 2)
+            else:
+                es0.time_limit = math.ceil(time_limit / 3)
+        else:
+            time_limit = 0
+        kwargs0 = kwargs.copy()
+        if self.max_trials is not None:
+            kwargs0['max_trials'] *= self.max_trials
+        elif 'max_trials' in kwargs.keys():
+            kwargs0['max_trials'] *= 3
+        if logger.is_info_enabled():
+            logger.info(f'search with down sampled data, max_trails={kwargs0.get("max_trials")}, {es0}')
+        model0.search(X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled,
+                      cv=self.cv, num_folds=self.num_folds, **kwargs0)
+
+        if model0.get_best_trial() is None or model0.get_best_trial().reward == 0:
+            raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
+
+        # playback trials with full data
+        playback = self.create_playback_searcher(model0.history)
+        if X_eval is not None:
+            kwargs['eval_set'] = (X_eval, y_eval)
+        model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
+        es = self.find_early_stopping_callback(model.callbacks)
+        if es is not None and es.time_limit is not None and es.time_limit > 0:
+            if time_limit - self.elapsed_seconds > 0:
+                es.time_limit = math.ceil(time_limit - self.elapsed_seconds)
+            else:
+                es.time_limit = math.ceil(time_limit * 0.3)
+        model.searcher = playback
+        if logger.is_info_enabled():
+            logger.info(f'playback with full data, max_trails={kwargs.get("max_trials")}, {es}')
+        model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
+        # if model.get_best_trial() is None or model.get_best_trial().reward == 0:
+        #     raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
+        #
+        # logger.info(f'{self.name} best_reward: {model.get_best_trial().reward}')
+
+        return model
+
+    def down_sample(self, X_train, y_train, X_eval, y_eval):
+        size = self.size if self.size else 0.1
+        random_state = self.experiment.random_state
+
+        X_train_sampled, _, y_train_sampled, _ = \
+            dex.train_test_split(X_train, y_train, train_size=size, random_state=random_state)
+        if X_eval is not None:
+            X_eval_sampled, _, y_eval_sampled, _ = \
+                dex.train_test_split(X_eval, y_eval, train_size=size, random_state=random_state)
+        else:
+            X_eval_sampled, y_eval_sampled = None, None
+
+        return X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled
+
+    @staticmethod
+    def create_playback_searcher(history):
+        from hypernets.searchers import PlaybackSearcher
+        playback = PlaybackSearcher(history, reverse=True)
+        return playback
 
 
 class EstimatorBuilderStep(ExperimentStep):
@@ -1025,6 +1179,7 @@ class SteppedExperiment(Experiment):
             logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
             self.step_start(step.name)
             try:
+                step.start_time = time.time()
                 hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
                     step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                                        **kwargs)
@@ -1036,6 +1191,8 @@ class SteppedExperiment(Experiment):
                 if step.status_ is None:
                     step.status_ = False
                 raise e
+            finally:
+                step.done_time = time.time()
 
         estimator = self.to_estimator(self.steps)
         self.hyper_model = hyper_model
@@ -1114,6 +1271,10 @@ class CompeteExperiment(SteppedExperiment):
                  feature_selection_threshold=None,
                  feature_selection_quantile=None,
                  feature_selection_number=None,
+                 down_sample_search=None,
+                 down_sample_search_size=None,
+                 down_sample_search_time_limit=None,
+                 down_sample_search_max_trials=None,
                  ensemble_size=20,
                  feature_reselection=False,
                  feature_reselection_estimator_size=10,
@@ -1221,6 +1382,14 @@ class CompeteExperiment(SteppedExperiment):
             Confidence quantile of feature_importance. Only valid when *feature_reselection_strategy* is 'quantile'.
         feature_reselection_number:
             Expected feature number to keep. Only valid when *feature_reselection_strategy* is 'number'.
+        down_sample_search : bool, (default None),
+            Whether to enable down sample search.
+        down_sample_search_size : float, (default 0.1)
+            The sample size to extract from train_data.
+        down_sample_search_time_limit : int, (default None)
+            The maximum seconds to run with down sampled data.
+        down_sample_search_max_trials : int, (default 3*experiment's *max_trials* argument)
+            The maximum trial number to run with down sampled data.
         ensemble_size : int, (default=20)
             The number of estimator to ensemble. During the AutoML process, a lot of models will be generated with different
             preprocessing pipelines, different models, and different hyperparameters. Usually selecting some of the models
@@ -1236,7 +1405,7 @@ class CompeteExperiment(SteppedExperiment):
         pseudo_labeling_proba_quantile:
             Confidence quantile of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'quantile'.
         pseudo_labeling_sample_number:
-            Excepted number to sample per class. Only valid when *pseudo_labeling_strategy* is 'number'.
+            Expected number to sample per class. Only valid when *pseudo_labeling_strategy* is 'number'.
         pseudo_labeling_resplit : bool, (default=False)
             Whether to re-split the training set and evaluation set after adding pseudo-labeled data. If False, the
             pseudo-labeled data is only appended to the training set. Only valid when *pseudo_labeling* is True.
@@ -1261,9 +1430,9 @@ class CompeteExperiment(SteppedExperiment):
         enable_dask = dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
 
         if enable_dask:
-            search_cls, ensemble_cls, pseudo_cls = SpaceSearchStep, DaskEnsembleStep, DaskPseudoLabelStep
+            ensemble_cls, pseudo_cls = DaskEnsembleStep, DaskPseudoLabelStep
         else:
-            search_cls, ensemble_cls, pseudo_cls = SpaceSearchStep, EnsembleStep, PseudoLabelStep
+            ensemble_cls, pseudo_cls = EnsembleStep, PseudoLabelStep
 
         # data clean
         steps.append(DataCleanStep(self, StepNames.DATA_CLEAN,
@@ -1288,7 +1457,7 @@ class CompeteExperiment(SteppedExperiment):
             steps.append(MulticollinearityDetectStep(self, StepNames.MULITICOLLINEARITY_DETECTION))
 
         # drift detection
-        if drift_detection:
+        if drift_detection and X_test is not None:
             steps.append(DriftDetectStep(self, StepNames.DRIFT_DETECTION,
                                          remove_shift_variable=drift_detection_remove_shift_variable,
                                          variable_shift_threshold=drift_detection_variable_shift_threshold,
@@ -1306,10 +1475,16 @@ class CompeteExperiment(SteppedExperiment):
                 number=feature_selection_number))
 
         # first-stage search
-        steps.append(search_cls(self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
+        if down_sample_search:
+            steps.append(SpaceSearchWithDownSampleStep(
+                self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds, size=down_sample_search_size,
+                max_trials=down_sample_search_max_trials, time_limit=down_sample_search_time_limit))
+        else:
+            steps.append(SpaceSearchStep(
+                self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
 
         # pseudo label
-        if pseudo_labeling and task != const.TASK_REGRESSION:
+        if pseudo_labeling and X_test is not None and task != const.TASK_REGRESSION:
             if ensemble_size is not None and ensemble_size > 1:
                 estimator_builder = ensemble_cls(self, StepNames.ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
             else:
@@ -1340,7 +1515,13 @@ class CompeteExperiment(SteppedExperiment):
 
         # two-stage search
         if two_stage:
-            steps.append(search_cls(self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds))
+            if down_sample_search:
+                steps.append(SpaceSearchWithDownSampleStep(
+                    self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds, size=down_sample_search_size,
+                    max_trials=down_sample_search_max_trials, time_limit=down_sample_search_time_limit))
+            else:
+                steps.append(SpaceSearchStep(
+                    self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds))
 
         # final train
         if ensemble_size is not None and ensemble_size > 1:
@@ -1373,6 +1554,14 @@ class CompeteExperiment(SteppedExperiment):
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
         return super().run(**run_kwargs)
+
+    def _repr_html_(self):
+        try:
+            from hn_widget.widget import ExperimentSummary
+            from IPython.display import display
+            display(ExperimentSummary(self))
+        except:
+            pass
 
 
 def evaluate_oofs(hyper_model, ensemble_estimator, y_train, metrics):

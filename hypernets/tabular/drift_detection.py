@@ -89,6 +89,9 @@ def feature_selection(X_train, X_test,
         elapsed = time.time() - start_time
         history.append({'auc': detector.auc_,
                         'n_features': len(detector.feature_names_),
+                        'removed_features': [],
+                        'feature_names': detector.feature_names_,
+                        'feature_importances': detector.feature_importances_,
                         'elapsed': elapsed
                         })
 
@@ -125,6 +128,8 @@ def feature_selection(X_train, X_test,
 
         remain_features = list(np.array(detector.feature_names_)[indices[:-removes]])
         remove_features = list(set(detector.feature_names_) - set(remain_features))
+        history[-1]['removed_features'] = remove_features
+
         logger.info(f'Removed features: {remove_features}')
         X_train = X_train[remain_features]
         X_test = X_test[remain_features]

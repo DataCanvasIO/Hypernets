@@ -11,9 +11,9 @@ import pandas as pd
 from sklearn.metrics import get_scorer
 from sklearn.metrics._scorer import _PredictScorer
 
-from .. import dask_ex as dex
 from hypernets.utils import logging
 from .base_ensemble import BaseEnsemble
+from .. import dask_ex as dex
 
 logger = logging.get_logger(__name__)
 
@@ -163,14 +163,18 @@ class DaskGreedyEnsemble(BaseEnsemble):
         if len(self.estimators) == 1:
             proba = self.estimators[0].predict_proba(X)
         else:
+            est_probas = [e.predict_proba(X) for e in self.estimators]
+            est_probas = dex.compute(*est_probas)
             proba = None
-            for estimator, weight in zip(self.estimators, self.weights_):
-                est_proba = estimator.predict_proba(X) * weight
+            for est_proba, weight in zip(est_probas, self.weights_):
+                est_proba = est_proba * weight
                 if proba is None:
                     proba = est_proba
                 else:
                     proba += est_proba
 
+            if dex.is_dask_object(X):
+                proba = dex.to_dask_type(proba)
         return proba
 
     def __repr__(self) -> str:
