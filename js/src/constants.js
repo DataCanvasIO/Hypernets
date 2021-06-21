@@ -3,6 +3,10 @@ export const StepsKey = {
         name: 'Data cleaning',
         type: 'DataCleanStep'
     },
+    FeatureGeneration: {
+        name: 'Feature generation',
+        type: 'FeatureGenerationStep'
+    },
     CollinearityDetection: {
         name: 'Collinearity detection',
         type: 'MulticollinearityDetectStep'
@@ -13,7 +17,8 @@ export const StepsKey = {
     },
     SpaceSearch: {
         name: 'Pipeline optimization',
-        type: 'SpaceSearchStep'
+        type: 'SpaceSearchStep',
+        key: 'space_searching'
     },
     FeatureSelection: {
         name: 'Feature selection',
@@ -24,9 +29,18 @@ export const StepsKey = {
         name: 'Psudo labeling',
         type: 'PseudoLabelStep'
     },
-    ReSpaceSearch: {
-        name: 'Pipeline re-optimization',
-        type: 'ReSpaceSearch'
+    PermutationImportanceSelection: {
+        name: 'Permutation importance selection',
+        type: 'PermutationImportanceSelectionStep'
+    },
+    TwoStageSpaceSearch: {
+        name: 'Two-stage pipeline optimization',
+        type: 'SpaceSearchStep',
+        key: 'two_stage_searching'
+    },
+    FinalTrain: {
+        name: 'Final train',
+        type: 'FinalTrainStep'
     },
     Ensemble: {
         name: 'Ensemble',
@@ -54,6 +68,17 @@ export const StepStatus = {
   Finish: 'finish',
   Error: 'error'
 };
+
+export const ActionType = {
+    EarlyStopped: 'earlyStopped',
+    StepFinished: 'stepFinished',
+    StepBegin: 'stepBegin',
+    StepError: 'stepError',
+    TrialFinished: 'trialFinished',
+    ProbaDensityLabelChange: 'probaDensityLabelChange',
+    ExperimentData: 'experimentData'
+};
+
 
 
 export const MAX_FEATURES_OF_IMPORTANCES = 10;

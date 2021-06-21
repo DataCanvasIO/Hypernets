@@ -7,31 +7,21 @@ import "antd/dist/antd.css";
 import { notification } from 'antd';
 import {connect, Provider} from "react-redux";
 
-import {CollinearityDetectionStep, DriftDetectionStep, EnsembleStep, FeatureSelectionStep, PseudoLabelStep, DataCleaningStep} from '../components/steps'
-import { StepsKey } from '../constants'
+import {
+    CollinearityDetectionStep,
+    DriftDetectionStep,
+    EnsembleStep,
+    PseudoLabelStep,
+    DataCleaningStep,
+    FinalTrainStep,
+    GeneralImportanceSelectionStep,
+    FeatureGenerationStep
+} from '../components/steps'
+import {StepsKey, StepStatus} from '../constants'
 import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
 import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
 const { Step } = Steps;
 
-export const showNotification = (message) => {
-    notification.error({
-        key: '123',
-        message: message,
-        duration: 10,
-    });
-};
-
-// step status: wait, process, finish, error
-
-
-
-
-const StepUIStatus = {
-    Wait : 'wait',
-    Process : 'process',
-    Finish : 'finish',
-    Fail : 'fail'
-};
 
 const ProgressBarStatus = {
     Success: 'success',
@@ -50,22 +40,13 @@ export function ExperimentUI ({experimentData, dispatch} ) {
     const stepContentComponents = [];
 
 
-    // if(newStepData !== null && newStepData !== undefined){
-    //     experimentData.steps[newStepData.index] = newStepData;
-    //     // update next step running status
-    //     if(newStepData.status === StepUIStatus.Finish){
-    //         if(newStepData.index < experimentData.steps.length - 1){  // Current update step is not the latest
-    //             experimentData.steps[newStepData.index+1].status = StepUIStatus.Process
-    //         }
-    //     }
-    // }
     const getProcessBarStatus  = () => {
         var processFinish = true;
         for (var step of experimentData.steps) {
-            if (step.status === StepUIStatus.Fail) {
+            if (step.status === StepStatus.Error) {
                 return ProgressBarStatus.Exception
             }
-            if(step.status !== StepUIStatus.Finish){  // all step is finish so the ProcessBar is succeed
+            if(step.status !== StepStatus.Finish){  // all step is finish so the ProcessBar is succeed
                 processFinish = false;
             }
         }
@@ -98,7 +79,14 @@ export function ExperimentUI ({experimentData, dispatch} ) {
             stepContentComponents.push(
                 <DataCleaningStep stepData={stepData}/>
             );
-        }else if(stepType  === StepsKey.CollinearityDetection.type){
+        }else if(stepType  === StepsKey.FeatureGeneration.type){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.FeatureGeneration.name} key={stepData.name} />
+            );
+            stepContentComponents.push(
+                <FeatureGenerationStep stepData={stepData}/>
+            );
+        } else if(stepType  === StepsKey.CollinearityDetection.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} key={stepData.name} />
             );
@@ -113,23 +101,34 @@ export function ExperimentUI ({experimentData, dispatch} ) {
                 <DriftDetectionStep stepData={stepData}/>
             );
         } else if(stepType  === StepsKey.SpaceSearch.type){
+            const stepName = stepData.configuration.name;
+            let title;
+            if (stepName === StepsKey.TwoStageSpaceSearch.key){
+                title = StepsKey.TwoStageSpaceSearch.name;
+            }else{
+                title = StepsKey.SpaceSearch.name;
+            }
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.SpaceSearch.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={title} key={`step_${stepName}`} />
             );
             stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} />
+                <PipelineOptimizationStep stepData={stepData} key={`step_ui_${stepName}`} />
             );
-
         } else if(stepType  === StepsKey.FeatureSelection.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.FeatureSelection.name} key={`step_${stepData.name}`} />
             );
             stepContentComponents.push(
-                <FeatureSelectionStep stepData={stepData} />
+                <GeneralImportanceSelectionStep stepData={stepData} key={'FeatureSelection'} />
             );
-
+        }  else if(stepType  === StepsKey.PermutationImportanceSelection.type){
+            stepTabComponents.push(
+                <Step status={stepData.status} title={StepsKey.PermutationImportanceSelection.name} key={`step_${stepData.name}`} />
+            );
+            stepContentComponents.push(
+                <GeneralImportanceSelectionStep stepData={stepData} key={'PermutationImportanceSelection'} />
+            );
         } else if(stepType  === StepsKey.PsudoLabeling.type){
-            // todo add psudo
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.PsudoLabeling.name} key={`step_${stepData.name}`} />
             );
@@ -137,15 +136,13 @@ export function ExperimentUI ({experimentData, dispatch} ) {
                 <PseudoLabelStep stepData={stepData} dispatch={dispatch}/>
             );
 
-        } else if(stepType  === StepsKey.ReSpaceSearch.type){
-            // todo add ReSpaceSearch
+        } else if(stepType  === StepsKey.FinalTrain.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.ReSpaceSearch.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={StepsKey.FinalTrain.name} key={stepData.name} />
             );
             stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} />
+                <FinalTrainStep stepData={stepData}/>
             );
-
         } else if(stepType  === StepsKey.Ensemble.type){
             stepTabComponents.push(
                 <Step status={stepData.status} title={StepsKey.Ensemble.name} key={stepData.name} />
@@ -159,21 +156,10 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         }
     });
 
-
-    // useEffect(() => {
-    //     if(cleanStepData !== null && cleanStepData !== undefined){
-    //         setCleanDataState(cleanStepData);
-    //     }
-    //     // Redux should check configData is the same as last
-    // }, [cleanStepData]);
-
     const onStepChange = (c) => {
         setCurrentStepIndex(c);
     };
 
-    // navigation, default
-    // const processPercentage = getProcessPercentage()
-    //                   fixme  current={currentStepIndex}
     return <Card title="Experiment progress" bordered={false} style={{ width: '100%' }}>
             <Progress percent={  getProcessPercentage() } status={ getProcessBarStatus ()} />
             <div style={ {width: '100%', overflow: 'auto', marginTop: 20} }>

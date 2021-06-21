@@ -3,7 +3,7 @@ import * as React from "react";
 import {ConfigurationCard} from "../components/steps";
 
 import {StepsKey, getStepName} from '../constants';
-import {showNotification} from "./experiment";
+import {showNotification} from "../util";
 
 export function ExperimentSummary ({experimentData, dispatch}) {
 
@@ -22,7 +22,7 @@ export function ExperimentSummary ({experimentData, dispatch}) {
         var c = {...steps[i].configuration};
         if(steps[i].type === StepsKey.DataCleaning.type){
             c = c.data_cleaner_params
-        } else if (steps[i].type === StepsKey.SpaceSearch.type || steps[i].type === StepsKey.ReSpaceSearch.type ){
+        } else if (steps[i].type === StepsKey.SpaceSearch.type ){
             c.earlyStopping = null
         }
         c.StepName = getStepName(steps[i].type);

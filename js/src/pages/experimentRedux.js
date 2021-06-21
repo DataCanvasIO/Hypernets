@@ -1,6 +1,9 @@
 import React from 'react';
-import {ExperimentUI} from "./experiment"
+import {showNotification} from "../util"
 import {connect, Provider} from "react-redux";
+import {ExperimentUI} from "./experiment"
+import {ActionType} from "../constants";
+
 
 const handleStepFinish = (state, action) => {
     const experimentConfig = state;
@@ -27,7 +30,7 @@ const handleStepFinish = (state, action) => {
 };
 
 const handleProbaDensityLabelChanged = (state, action) => {
-    const experimentConfig = state;
+    const experimentConfig = {...state};
     const stepPayload = action.payload;
     const stepIndex = action.payload.stepIndex;
     var found = false;
@@ -76,6 +79,59 @@ const handleTrailFinish = (state, action) => {
 
 };
 
+
+const handleStepBegin = (state, action) => {
+    const experimentConfig = state;
+    const stepPayload = action.payload;
+
+    var found = false;
+    experimentConfig.steps.forEach((step, i, array) => {
+        if (step.index === stepPayload.index) {
+            found = true;
+            step.status = stepPayload.status
+        }
+    });
+
+    if (!found) {
+        console.error("Step index = " + action.index + "not found for update step begin action/state is :");
+        console.error(action);
+        console.error(state);
+    }
+
+    return {...experimentConfig};
+
+};
+
+
+
+const handleStepError = (state, action) => {
+    const experimentConfig = state;
+    const stepPayload = action.payload;
+
+    var found = false;
+    experimentConfig.steps.forEach((step, i, array) => {
+        if (step.index === stepPayload.index) {
+            found = true;
+            step.status = stepPayload.status;
+            const reason = stepPayload.extension.reason;
+            if (reason !== null && reason !== undefined){
+                showNotification(<span>
+                    {reason.toString()}
+                </span>);
+            }
+        }
+    });
+
+    if (!found) {
+        console.error("Step index = " + action.index + "not found for update step error action/state is :");
+        console.error(action);
+        console.error(state);
+    }
+
+    return {...experimentConfig};
+
+};
+
 // Map Redux state to component props
 function mapStateToProps(state) {
     return {experimentData: state}
@@ -97,21 +153,25 @@ export function experimentReducer(state, action) {
     console.info("Rev action: " );
     console.info(action);
 
-    if (type === 'experimentData') {
+    let newState;
+    if (type === ActionType.ExperimentData) {
         return {experimentData: action}
-    } else if (type === 'stepFinished') {
-        const newState = handleStepFinish(state, action);
-        console.info("new state");
-        console.info(newState);
-        return newState;
-    } else if (type === 'probaDensityLabelChange') {
-        const newState = {...state};
-        return handleProbaDensityLabelChanged(newState, action)
-    } else if (type === 'trialFinished') {
-        return handleTrailFinish(state, action)
-    } else {
-        return state;
+    } else if (type === ActionType.StepFinished) {
+        newState = handleStepFinish(state, action);
+    } else if (type === ActionType.StepBegin) {
+        newState =  handleStepBegin(state, action)
+    } else if (type === ActionType.StepError) {
+        newState =  handleStepError(state, action)
+    } else if (type === ActionType.ProbaDensityLabelChange) {
+        newState =  handleProbaDensityLabelChanged(state, action)
+    } else if (type === ActionType.TrialFinished) {
+        newState =  handleTrailFinish(state, action)
+    }else {
+        newState =  state;
     }
+    console.info("Output new state :" );
+    console.info(newState);
+    return newState;
 }
 
 
