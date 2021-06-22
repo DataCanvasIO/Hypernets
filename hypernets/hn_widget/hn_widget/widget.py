@@ -4,7 +4,6 @@ from traitlets import Unicode, Dict
 # See js/lib/example.js for the frontend counterpart to this file.
 from ipywidgets import widget_serialization
 from hn_widget import experiment_util
-
 # See js/lib/example.js for the frontend counterpart to this file.
 
 VIEW_MODULE = "hn_widget"

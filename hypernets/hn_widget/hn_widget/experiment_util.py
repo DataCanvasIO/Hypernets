@@ -1,6 +1,19 @@
 import json, copy
 import numpy as np
 import copy
+import matplotlib
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import LabelEncoder
+from sklearn.neighbors import KernelDensity
+from sklearn.utils.fixes import parse_version
+
+from hypernets.experiment import CompeteExperiment
+from hypernets.tabular import dask_ex as dex
+from hypernets.tabular.datasets import dsutils
+from hypernets.tests.model.plain_model_test import create_plain_model
+from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 
 class StepType:
@@ -236,6 +249,57 @@ class extract_ensemble_step(Extractor):
             'weights': np.array(ensemble.weights_).tolist(),
             'scores': np.array(ensemble.scores_).tolist(),
         }
+
+class extract_proba_density(Extractor):
+
+    def get_proba_density_estimation(self, proba):
+        proba_pos = proba[:, 0]
+        proba_pos_2d = proba_pos[:, np.newaxis]
+        proba_neg = proba[:, 1]
+        proba_neg_2d = proba_neg[:, np.newaxis]
+
+        X_plot = np.linspace(0, 1, 1000)[:, np.newaxis]
+
+        kernels = ['gaussian', 'tophat', 'epanechnikov']
+        proba_pos_density = {}
+        proba_neg_density = {}
+        probability_density = {'yes':{}, 'no':{}}
+
+        X_plot_true_density = np.linspace(0, 1, 500)[:, np.newaxis]
+
+        true_density_pos = [0]*500
+        for proba in proba_pos:
+            true_density_pos[int(proba*500)] += 1
+
+        true_density_neg = [0]*500
+        for proba in proba_neg:
+            true_density_neg[int(proba*500)] += 1
+
+        for kernel in kernels:
+            kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_pos_2d)
+            log_dens = kde.score_samples(X_plot)
+            proba_pos_density[kernel] = {}
+            proba_pos_density[kernel]['probaDensity'] = list(np.exp(log_dens))
+            proba_pos_density[kernel]['X'] = X_plot
+
+            kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_neg_2d)
+            log_dens = kde.score_samples(X_plot)
+            proba_neg_density[kernel] = {}
+            proba_neg_density[kernel]['probaDensity'] = list(np.exp(log_dens))
+            proba_neg_density[kernel]['X'] = X_plot
+
+        probability_density['yes']['nSamples'] = len(proba_pos)
+        probability_density['no']['nSamples'] = len(proba_neg)
+        probability_density['yes'].update(proba_pos_density)
+        probability_density['no'].update(proba_pos_density)
+        probability_density['yes']['trueDensity'] = {}
+        probability_density['yes']['trueDensity']['X'] = X_plot_true_density
+        probability_density['yes']['trueDensity']['probaDensity'] = true_density_pos
+        probability_density['no']['trueDensity'] = {}
+        probability_density['no']['trueDensity']['X'] = X_plot_true_density
+        probability_density['no']['trueDensity']['probaDensity'] = true_density_neg
+
+        return probability_density
 
 def extract_step(index, step):
     stepType = step.__class__.__name__
