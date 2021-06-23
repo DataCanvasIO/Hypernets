@@ -252,52 +252,37 @@ class extract_ensemble_step(Extractor):
 
 class extract_proba_density(Extractor):
 
-    def get_proba_density_estimation(self, proba):
-        proba_pos = proba[:, 0]
-        proba_pos_2d = proba_pos[:, np.newaxis]
-        proba_neg = proba[:, 1]
-        proba_neg_2d = proba_neg[:, np.newaxis]
+    def get_proba_density_estimation(self, y_proba_on_test, classes):
+        total_class = len(classes)
+        total_proba = np.size(y_proba_on_test, 0)
 
+        true_density = [[0]*501 for _ in range(total_class)]
+        X_plot_true_density = np.linspace(0, 1, 501)[:, np.newaxis]
         X_plot = np.linspace(0, 1, 1000)[:, np.newaxis]
 
-        kernels = ['gaussian', 'tophat', 'epanechnikov']
-        proba_pos_density = {}
-        proba_neg_density = {}
-        probability_density = {'yes':{}, 'no':{}}
+        probability_density = {}
+        for i in range(total_class):
+            aclass = classes[i]
+            probability_density[str(aclass)] = {}
+        
+            # calculate the true density
+            proba_list = y_proba_on_test[:, i]
+            probability_density[str(aclass)]['nSamples'] = len(proba_list)
+            for proba in proba_list:
+                true_density[i][int(proba*500)] += 1
+            probability_density[str(aclass)]['trueDensity'] = {}
+            probability_density[str(aclass)]['trueDensity']['X'] = X_plot_true_density
+            probability_density[str(aclass)]['trueDensity']['probaDensity'] = list(map(lambda x: x / total_proba, true_density[i]))
 
-        X_plot_true_density = np.linspace(0, 1, 500)[:, np.newaxis]
-
-        true_density_pos = [0]*500
-        for proba in proba_pos:
-            true_density_pos[int(proba*500)] += 1
-
-        true_density_neg = [0]*500
-        for proba in proba_neg:
-            true_density_neg[int(proba*500)] += 1
-
-        for kernel in kernels:
-            kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_pos_2d)
-            log_dens = kde.score_samples(X_plot)
-            proba_pos_density[kernel] = {}
-            proba_pos_density[kernel]['probaDensity'] = list(np.exp(log_dens))
-            proba_pos_density[kernel]['X'] = X_plot
-
-            kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_neg_2d)
-            log_dens = kde.score_samples(X_plot)
-            proba_neg_density[kernel] = {}
-            proba_neg_density[kernel]['probaDensity'] = list(np.exp(log_dens))
-            proba_neg_density[kernel]['X'] = X_plot
-
-        probability_density['yes']['nSamples'] = len(proba_pos)
-        probability_density['no']['nSamples'] = len(proba_neg)
-        probability_density['yes'].update(proba_pos_density)
-        probability_density['no'].update(proba_pos_density)
-        probability_density['yes']['trueDensity'] = {}
-        probability_density['yes']['trueDensity']['X'] = X_plot_true_density
-        probability_density['yes']['trueDensity']['probaDensity'] = true_density_pos
-        probability_density['no']['trueDensity'] = {}
-        probability_density['no']['trueDensity']['X'] = X_plot_true_density
-        probability_density['no']['trueDensity']['probaDensity'] = true_density_neg
+            # calculate the gaussian/tophat/epanechnikov density estimation
+            proba_list_2d = y_proba_on_test[:, i][:, np.newaxis]
+            kernels = ['gaussian', 'tophat', 'epanechnikov']
+            for kernel in kernels:
+                kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_list_2d)
+                log_dens = kde.score_samples(X_plot)
+                probability_density[str(aclass)][str(kernel)] = {}
+                probability_density[str(aclass)][str(kernel)]['X'] = X_plot
+                probability_density[str(aclass)][str(kernel)]['probaDensity'] = np.exp(log_dens)
 
         return probability_density
 
