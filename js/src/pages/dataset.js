@@ -1,12 +1,8 @@
 import * as React from "react";
 import './exploreDataset.css';
-import {useEffect, useState} from "react";
-import {Card, Col, Form, Row, Switch, Table, Tabs, Radio, Tooltip} from "antd";
-import * as echarts from 'echarts';
-import { Empty } from 'antd';
 
-import {createStore} from "redux";
-import {ConfigurationCard} from "../components/steps";
+import {Card, Col,  Row, Table } from "antd";
+
 import EchartsCore from "../components/echartsCore";
 import Block from "react-blocks";
 import {isEmpty} from "../util";

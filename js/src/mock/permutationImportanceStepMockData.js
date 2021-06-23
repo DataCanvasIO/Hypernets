@@ -1,13 +1,13 @@
-import {StepsKey, StepStatus} from "../constants";
+import {Steps, StepStatus} from "../constants";
 
 export function getInitData() {
 
     return {
         steps: [
             {
-                "name": StepsKey.PermutationImportanceSelection.name,
+                "name": Steps.PermutationImportanceSelection.name,
                 "index": 0,
-                "type": StepsKey.PermutationImportanceSelection.type,
+                "type": Steps.PermutationImportanceSelection.type,
                 "status": "wait",
                 "configuration": {
                     "cv": 100,

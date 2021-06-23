@@ -1,13 +1,27 @@
-import {Card, Col, Form, Row, Switch, Table, Tabs, Tooltip, Select, Tag} from "antd";
+import {Card, Col, Form, Row, Switch, Table, Tabs, Tooltip, Select, Tag, Input} from "antd";
 import React, { PureComponent } from 'react';
 import { Empty } from 'antd';
 import EchartsCore from './echartsCore';
 import {showNotification} from "../util";
 import {formatFloat, isEmpty} from "../util";
-import {StepStatus} from "../constants";
+import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps} from "../constants";
 
 const { TabPane } = Tabs;
 const CONFIGURATION_CARD_TITLE = "Configuration";
+
+const COLUMN_ELLIPSIS = () => {
+    return {
+        ellipsis: {
+            showTitle: false,
+
+        },
+        render: function (text, record, index) {
+            return <Tooltip placement="topLeft" title={text}>
+                {text}
+            </Tooltip>
+        }
+}};
+
 
 export class Line extends PureComponent {
     getOption = (min, max) => {
@@ -66,25 +80,49 @@ export class Line extends PureComponent {
     }
 }
 
-export function ConfigurationCard({configurationData}) {
+export function ConfigurationCard({configurationData, configurationTip = {}}) {
+
+    const makeLabel = (label, maxLen=16) => {
+        let displayLabel;
+        if(label.length > maxLen){
+            displayLabel = `${label.substring(0, maxLen - 3)}...`;
+        }else{
+            displayLabel = label
+        }
+        const tip = configurationTip[label];
+        let tipContent;
+        if(tip !== null && tip !== undefined){
+            tipContent = `${label}\n${tip}`
+        }else{
+            tipContent = label
+        }
+        return <Tooltip title={tipContent}>
+            {displayLabel}
+        </Tooltip>
+    };
+
     return <Form
-        labelCol={{ span: 10 }}
-        wrapperCol={{ span: 3 }}
+        size={COMPONENT_SIZE}
+        labelAlign={'right'}
+        labelCol={{span: 8, offset: 0}}
+        style={{align: 'right'}}
         layout="horizontal">
         {
-            Object.keys(configurationData).map(key => {
+            Object.keys(configurationData).sort( function (a, b) {
+                return b.length - a.length
+            }).map(key => {
                 const v = configurationData[key];
                 let content;
                 if (v === undefined || v === null){
-                    content = <span>None</span>
+                    content = <Input value={"None"} disabled={true} />
                 } else if((typeof  v)  === "boolean"){
                     content =  <Switch checked />
                 } else  if(v instanceof Array){
-                    content =   <span>{ v.join(",") }</span>
+                    content =   <Input value={  v.join(",") } disabled={true} />
                 } else {
-                    content =  <span>{v}</span>
+                    content =  <Input value={v} disabled={true}/>
                 }
-                return <Form.Item label={key} key={key}>
+                return <Form.Item label={ makeLabel(key) } key={key}>
                     <span>{content}</span>
                 </Form.Item>
             })
@@ -121,18 +159,22 @@ export function DataCleaningStep({stepData}) {
         }
     ];
 
-    return <Row gutter={[4, 4]}>
+    return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration.data_cleaner_args}/>
+                    <ConfigurationCard configurationData={stepData.configuration.data_cleaner_args} configurationTip={{}}/>
                 }
             </Card>
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Removed features" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={removedFeaturesDataSource} columns={removedFeaturesColumns} />
+            <Card title="Removed features" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                <Table dataSource={removedFeaturesDataSource}
+                       columns={removedFeaturesColumns}
+                       size={COMPONENT_SIZE}
+                       pagination={ { pageSize:  TABLE_ITEM_SIZE }}
+                />
             </Card>
         </Col>
     </Row>
@@ -148,7 +190,7 @@ export function FeatureGenerationStep({stepData}){
             return {
                 key: index,
                 name: value.name,
-                parentFeatures: value.parentFeatures !== null ? value.parentFeatures.join(",") : "-",
+                parentFeatures: value.parentFeatures !== null && value.parentFeatures.length > 0 ? value.parentFeatures.join(",") : "-",
                 primitive: value.primitive
             }
         });
@@ -160,11 +202,13 @@ export function FeatureGenerationStep({stepData}){
         {
             title: 'Feature',
             dataIndex: 'name',
-            key: 'name'
+            key: 'name',
+            ...COLUMN_ELLIPSIS()
         }, {
-            title: 'Source features',
+            title: 'Sources',
             dataIndex: 'parentFeatures',
             key: 'parentFeatures',
+            ...COLUMN_ELLIPSIS()
         },{
             title: 'Primitive',
             dataIndex: 'primitive',
@@ -181,16 +225,19 @@ export function FeatureGenerationStep({stepData}){
 
     return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration}/>
+                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.FeatureGeneration.configTip}/>
                 }
             </Card>
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Importances" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={dataSource} columns={columns}  pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}} />
+            <Card title="Output features" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                <Table dataSource={dataSource}
+                       columns={columns}
+                       pagination={ {defaultPageSize: TABLE_ITEM_SIZE, disabled: false, pageSize:  TABLE_ITEM_SIZE}}
+                       size={COMPONENT_SIZE} />
             </Card>
         </Col>
     </Row>
@@ -224,18 +271,22 @@ export function CollinearityDetectionStep({stepData}){
         }
     ];
 
-    return <Row gutter={[4, 4]}>
+    return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration}/>
+                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.CollinearityDetection.configTip}/>
                 }
             </Card>
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Removed features" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={dataSource} columns={columns} />
+            <Card title="Removed features" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                <Table dataSource={dataSource}
+                       columns={columns}
+                       size={COMPONENT_SIZE}
+                       pagination={ { pageSize:  TABLE_ITEM_SIZE }}
+                />
             </Card>
         </Col>
     </Row>
@@ -261,6 +312,7 @@ export function DriftDetectionStep({stepData}){
             title: 'Feature',
             dataIndex: 'feature',
             key: 'feature',
+            ...COLUMN_ELLIPSIS()
         },
         {
             title: 'AUC',
@@ -276,6 +328,7 @@ export function DriftDetectionStep({stepData}){
             title: 'Feature',
             dataIndex: 'feature',
             key: 'feature',
+            ...COLUMN_ELLIPSIS()
         },
         {
             title: 'Importance',
@@ -284,47 +337,54 @@ export function DriftDetectionStep({stepData}){
         }
     ];
 
-    return <><Row gutter={[4, 4]}>
+    return <><Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration}/>
+                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.DriftDetection.configTip}/>
                 }
             </Card>
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Removed features in epochs" bordered={false} style={{ width: '100%' }}>
-                <Tabs defaultActiveKey="1" tabPosition={'top'} style={{ height: '100%', width: '100%'}}>
-                    {
-                        stepData.extension.removed_features_in_epochs?.map(epoch => {
-                            return <TabPane tab={`Epoch ${epoch.epoch}`} key={epoch.epoch}>
-                                <Table dataSource={epoch.removed_features?.map((value, index, arr) => {
-                                    return {
-                                        key: index,
-                                        feature: value.feature,
-                                        importance: formatFloat(value.importance),
-                                    }
-                                })} columns={removedFeaturesInEpochColumns} />
-                            </TabPane>
-                        })
-                    }
-                </Tabs>
+            <Card title="Drifted features AUC" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                <Table dataSource={driftFeatureAUCDataSource}
+                       columns={driftFeatureAUCColumns}
+                       size={COMPONENT_SIZE}
+                       pagination={ { pageSize:  7 }}
+                />
             </Card>
         </Col>
 
     </Row>
         <Row gutter={[4, 4]}>
             <Col span={10} offset={12} >
-                <Card title="Drifted features AUC" bordered={false} style={{ width: '100%' }}>
-                    <Table dataSource={driftFeatureAUCDataSource} columns={driftFeatureAUCColumns} />
+                <Card title="Removed features in epochs" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                    <Tabs defaultActiveKey="1" tabPosition={'top'} style={{ height: '100%', width: '100%'}}>
+                        {
+                            stepData.extension.removed_features_in_epochs?.map(epoch => {
+                                return <TabPane tab={`Epoch ${epoch.epoch}`} key={epoch.epoch}>
+                                    <Table dataSource={epoch.removed_features?.map((value, index, arr) => {
+                                        return {
+                                            key: index,
+                                            feature: value.feature,
+                                            importance: formatFloat(value.importance),
+                                        }
+                                    })} columns={removedFeaturesInEpochColumns}
+                                           size={COMPONENT_SIZE}
+                                           pagination={ { pageSize:  TABLE_ITEM_SIZE }}
+                                    />
+                                </TabPane>
+                            })
+                        }
+                    </Tabs>
                 </Card>
             </Col>
         </Row>
         </>
 }
 
-export function GeneralImportanceSelectionStep({stepData}){
+export function GeneralImportanceSelectionStep({stepData, configTip}){
 
     let dataSource;
     if(stepData.status === StepStatus.Finish){
@@ -375,16 +435,19 @@ export function GeneralImportanceSelectionStep({stepData}){
 
     return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration}/>
+                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={configTip}/>
                 }
             </Card>
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Importances" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={dataSource} columns={columns}  pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}} />
+            <Card title="Importances" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                <Table dataSource={dataSource}
+                       columns={columns}
+                       pagination={ {defaultPageSize: TABLE_ITEM_SIZE, disabled: false, pageSize:  TABLE_ITEM_SIZE}}
+                       size={COMPONENT_SIZE} />
             </Card>
         </Col>
     </Row>
@@ -497,17 +560,17 @@ export function PseudoLabelStep({stepData, dispatch}) {
     const { Option } = Select;
 
     return <>
-        <Row gutter={[4, 4]}>
+        <Row gutter={[2, 2]}>
             <Col span={10} >
-                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                     {
-                        <ConfigurationCard configurationData={stepData.configuration}/>
+                        <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.PsudoLabeling.configTip}/>
                     }
                 </Card>
             </Col>
 
             <Col span={10} offset={2} >
-                <Card title="Density Plot of Probability" bordered={false} style={{ width: '100%' }}>
+                <Card title="Density Plot of Probability" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                         <span>
                              <span style={{marginLeft: '20px'}}>Select label: </span>
                              <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: 280 }} onChange={onLabelChanged} disabled={ isEmpty(labels)} >
@@ -524,8 +587,11 @@ export function PseudoLabelStep({stepData, dispatch}) {
         </Row>
         <Row gutter={[4, 4]}>
             <Col span={10} offset={12} >
-                <Card title="Number of samples" bordered={false} style={{ width: '100%' }} >
-                    <Table dataSource={samplesDataSource} columns = {samplesColumns} pagination={false} />
+                <Card title="Number of samples" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE} >
+                    <Table dataSource={samplesDataSource}
+                        columns = {samplesColumns}
+                        pagination={false}
+                        size={COMPONENT_SIZE} />
                 </Card>
             </Col>
         </Row>
@@ -578,23 +644,25 @@ export function EnsembleStep({stepData}) {
                 },
                 grid: {
                     left: '3%',
-                        right: '4%',
-                        bottom: '3%',
-                        containLabel: true
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
                 },
                 xAxis: {
                     type: 'value',
-                        boundaryGap: [0, 0.01]
+                    boundaryGap: [0, 0.01]
                 },
                 yAxis: {
                     type: 'category',
-                        data: yLabels
+                    data: [...yLabels].reverse(),
+                    min: 0,
+                    max: 1
                 },
                 series: [
                     {
                         name: 'weight',
                         type: 'bar',
-                        data: weights
+                        data: [...weights].reverse()
                     }
                 ]
             }
@@ -602,26 +670,26 @@ export function EnsembleStep({stepData}) {
 
 
     return <>
-        <Row gutter={[4, 4]}>
+        <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 {
-                    <ConfigurationCard configurationData={stepData.configuration}/>
+                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.Ensemble.configTip}/>
                 }
             </Card>
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Weight" bordered={false} style={{ width: '100%' }}>
+            <Card title="Weight" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
 
                 <EchartsCore option={getWeightsEchartOpts()}/>
             </Card>
         </Col>
         </Row>
 
-        <Row gutter={[4, 4]}>
+        <Row gutter={[2, 2]}>
             <Col span={10} offset={12} >
-                <Card title="Lifting" bordered={false} style={{ width: '100%' }}>
+                <Card title="Lifting" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                     <EchartsCore option={getLiftEchartOpts()}/>
                 </Card>
             </Col>
@@ -631,19 +699,18 @@ export function EnsembleStep({stepData}) {
 
 export function FinalTrainStep({stepData}) {
 
-
     return <>
         <Row gutter={[4, 4]}>
             <Col span={10} >
-                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }}>
+                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                     {
-                        <ConfigurationCard configurationData={stepData.configuration}/>
+                        <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.FinalTrain.configTip}/>
                     }
                 </Card>
             </Col>
 
             <Col span={10} offset={2} >
-                <Card title="Estimator" bordered={false} style={{ width: '100%' }}>
+                <Card title="Estimator" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                     {
                         <ConfigurationCard configurationData={stepData.extension}/>
                     }

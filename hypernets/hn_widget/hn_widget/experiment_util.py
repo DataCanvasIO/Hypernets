@@ -90,7 +90,7 @@ class Extractor:
     def handle_extenion(self, extension):
         return extension
 
-class extract_feature_generation_step(Extractor):
+class   extract_feature_generation_step(Extractor):
 
     def handle_extenion(self, extension):
         def get_feature_detail(f):
@@ -108,6 +108,7 @@ class extract_feature_generation_step(Extractor):
 
 class extract_drift_step(Extractor):
     def handle_extenion(self, extension):
+        config = super(extract_drift_step, self).get_configuration()
         extension['drifted_features_auc'] = []
         if 'scores' in extension and extension['scores'] is not None:
             scores = extension['scores']
@@ -126,17 +127,17 @@ class extract_drift_step(Extractor):
             for i, c in enumerate(feature_names):
                 if c == col:
                     return feature_importances[i]
-            return None
+            return 0
         historys = extension['history']
         if historys is not None and len(historys) > 0:
             removed_features_in_epochs = []
             for i, history in enumerate(historys):
                 feature_names = history['feature_names']
-                feature_importances = history['feature_importances']
+                feature_importances = history['feature_importances'].tolist()
 
                 removed_features = [] if 'removed_features' not in history else history['removed_features']
-                removed_features_importances = [{'feature': f, 'importance': get_importance(f, feature_names, feature_importances) }  for f in feature_names]
-                removed_features_importances = sorted(removed_features_importances, key=lambda item: item['importance'])
+                removed_features_importances = [{'feature': f, 'importance': get_importance(f, feature_names, feature_importances)} for f in removed_features]
+                removed_features_importances = sorted(removed_features_importances, key=lambda item: item['importance'], reverse=True)
 
                 d = {
                     "epoch": i,

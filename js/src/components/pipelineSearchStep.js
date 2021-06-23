@@ -3,16 +3,11 @@ import {Card, Col, Row, Table} from "antd";
 import EchartsCore from "./echartsCore";
 import {ConfigurationCard} from "./steps";
 
-import ReactDOM from 'react-dom';
-import {createStore} from "redux";
-import {connect, Provider} from "react-redux";
 
 import * as echarts from "echarts/lib/echarts";
 import 'echarts/lib/chart/heatmap';
 import PropTypes from 'prop-types';
 import { clear } from 'echarts/lib/util/throttle';
-import { isEqual } from 'date-fns';
-import { bind } from 'zrender/lib/core/util';
 import { LineChart } from 'echarts/charts';
 import { GridComponent } from 'echarts/components';
 import { TooltipComponent, ToolboxComponent, LegendComponent } from 'echarts/components';
@@ -21,19 +16,11 @@ import { BarChart } from 'echarts/charts';
 import 'echarts/lib/component/legend';
 // 引入dataZoom
 import 'echarts/lib/component/dataZoom';
-import {showNotification} from "../util";
 import { Progress, Tooltip } from 'antd';
 import {formatFloat, formatHumanDate} from "../util";
-import {StepStatus} from "../constants";
+import {Steps, StepStatus} from "../constants";
 
 
-const pick = (obj, keys) => {
-    const t = {};
-    keys.forEach(key => {
-        t[key] = obj[key];
-    });
-    return t;
-};
 
 class TrialChart extends React.Component {
 
@@ -60,8 +47,6 @@ class TrialChart extends React.Component {
 
         const echartsObj = this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts);
         this.renderChart(echartsObj);
-        // const options = this.getChartOptions([], [], [], this.props.stepConfig.cv, this.props.stepConfig.num_folds);
-        // echartsObj.setOption(options, false, false);
         echartsObj.on('click', this.onChartClick.bind(this));
 
         window.addEventListener('resize', () => {
@@ -77,7 +62,20 @@ class TrialChart extends React.Component {
 
     componentDidUpdate(prevProps) {  // 第二次更新时候执行了这个方法
         const echartsObj = this.echartsLib.getInstanceByDom(this.echartsElement);
+
         this.renderChart(echartsObj);
+
+        // on resize
+        // if (this.echartsElement) {
+        //     bind(this.echartsElement, () => {
+        //         try {
+        //             echartsObj.resize()
+        //         } catch (e) {
+        //             console.warn(e)
+        //         }
+        //     })
+        // }
+
     }
 
     renderChart(echartsObj){  // 第二次更新时候执行了这个方法
@@ -89,10 +87,6 @@ class TrialChart extends React.Component {
             return `#${v.trialNo}`
         });
 
-        // 生成耗时的数据
-        const elapseSeriesData = trials.map(value => {
-            return (value.elapsed / 60).toFixed(0);
-        });
 
         // 生成模型的 reward 数据
         var nModles = 1;
@@ -105,7 +99,7 @@ class TrialChart extends React.Component {
             return trials.map(v => v.models[i].reward)
         });
 
-        const chartOptions = this.getChartOptions(xAxisData, elapseSeriesData, rewardSeriesData, trials, this.props.stepConfig.cv, this.props.stepConfig.num_folds);
+        const chartOptions = this.getChartOptions(xAxisData, rewardSeriesData, trials, this.props.stepConfig.cv, this.props.stepConfig.num_folds);
 
         // fixme check echartsElement is not empty
         // const echartsObj = this.echartsLib.getInstanceByDom(this.echartsElement);
@@ -146,7 +140,27 @@ class TrialChart extends React.Component {
 
 
 
-    getChartOptions(xAxisData, elapsedSeriesData, modelsScore, trials, cv, num_folds){
+    getChartOptions(xAxisData, modelsScore, trials, cv, num_folds){
+
+        const maxElapsed = Math.max(...trials.map(v => v.elapsed));
+
+        let timeMax ;
+        let timeUnit;
+        let elapsedSeriesData;
+        if(maxElapsed < 60){
+            timeMax = 60;
+            timeUnit = 's';
+            elapsedSeriesData = trials.map(v => v.elapsed);
+        } else if(maxElapsed >= 60 && maxElapsed < 3600 ){
+            timeMax = 60;
+            timeUnit = 'min';
+            elapsedSeriesData = trials.map(v => v.elapsed / 60);
+        } else {
+            timeUnit = 'hour';
+            timeMax = Math.floor(maxElapsed / 3600) + 1;
+            elapsedSeriesData = trials.map(v => v.elapsed / 3600 );
+        }
+
         // [ [0.5,0.5,0.9], [0.5,0.5,0.9] ]
         const limitStrLen = (str, len=12, fromBegin=true) => {
             if(str.length > len){
@@ -164,7 +178,7 @@ class TrialChart extends React.Component {
 
             const rows = Object.keys(paramsObj).map(key => {
                 return `<tr>
-                    <td>${limitStrLen(key, false)}: </td>
+                    <td>${limitStrLen(key, 12, false)}: </td>
                     <td>${limitStrLen(paramsObj[key])}</td>
                 </tr>`
             });
@@ -184,9 +198,9 @@ class TrialChart extends React.Component {
 
             const trialDetail = {
                 "Reward": trial.reward,
-                "Elapsed time": `${(trial.elapsed/60).toFixed(0)} min`,
+                "Elapsed time": formatHumanDate(trial.elapsed),
                 "Trial no": trial.trialNo,
-                "Status": 'finish'
+                // todo "Status": 'finish'
             };
 
            const trialSection = getSelection('Trial', trialDetail);
@@ -198,14 +212,7 @@ class TrialChart extends React.Component {
 
         const scoreSeries = [];
 
-        scoreSeries.push({
-            name: 'Reward',
-            type: 'line',
-            // color: '#f59311',
-            color: '#6ca30f',
-            yAxisIndex: 1,
-            data: trials.map(t => t.reward)
-        });
+        scoreSeries.push();
 
         const colors = ['#5470C6', '#91CC75', '#EE6666'];
 
@@ -237,7 +244,7 @@ class TrialChart extends React.Component {
 
             },
             legend: {
-                data: []
+                data: ['Reward', 'Elapsed']
             },
             xAxis: [
                 {
@@ -264,16 +271,14 @@ class TrialChart extends React.Component {
                     type: 'value',
                     name: 'Elapsed',
                     min: 0,
-                    max: 30,
+                    max: timeMax,
                     position: 'right',
                     axisLine: {
                         show: true,
-                        lineStyle: {
-
-                        }
+                        lineStyle: {}
                     },
                     axisLabel: {
-                        formatter: '{value} min'
+                        formatter: `{value} ${timeUnit}`
                     }
                 },
                 {
@@ -294,7 +299,14 @@ class TrialChart extends React.Component {
                 }
             ],
             series: [
-                ...scoreSeries,
+                {
+                    name: 'Reward',
+                    type: 'line',
+                    // color: '#f59311',
+                    color: '#6ca30f',
+                    yAxisIndex: 1,
+                    data: trials.map(t => t.reward)
+                },
                 {
                     name: 'Elapsed',
                     type: 'bar',
@@ -396,15 +408,15 @@ function CircleProgress({title, style, strokeColor, data}) {
     const {percent, value, tip} = data;
     return <Tooltip title={tip}>
         <Progress type="circle"
-                  width={80}
+                  width={70}
                   strokeColor={strokeColor}
                   percent={percent}
                   style={{...style}}
                   format={percent => {
-                      return <><div style={{fontSize: 12}}>
+                      return <><div style={{fontSize: 10}}>
                           {title}
                       </div >
-                          <div>{value}</div>
+                          <div style={{fontSize: 13}} >{value}</div>
                       </>
                   }} />
     </Tooltip>
@@ -417,7 +429,7 @@ export function PipelineOptimizationStep({stepData}){
     const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
     const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
 
-    const PROCESS_EMPTY_DATA = {percent: 0, value: '-', tip: 'Empty data'}
+    const PROCESS_EMPTY_DATA = {percent: 0, value: '-', tip: 'Empty data'};
 
     const trailsData = stepData.extension?.trials;
 
@@ -460,9 +472,9 @@ export function PipelineOptimizationStep({stepData}){
             return PROCESS_EMPTY_DATA
         }
 
-        const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
+        const {exceptedReward, direction} = earlyStoppingConfig;
 
-        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.status;
+        const {reward } = lastTrial.earlyStopping.status;
         let percent;
         let tip;
         let value;
@@ -496,9 +508,9 @@ export function PipelineOptimizationStep({stepData}){
             return PROCESS_EMPTY_DATA
         }
 
-        const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
+        const { maxNoImprovedTrials } = earlyStoppingConfig;
 
-        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.status;
+        const { noImprovedTrials } = lastTrial.earlyStopping.status;
         let percent;
         let tip;
         let value;
@@ -522,9 +534,9 @@ export function PipelineOptimizationStep({stepData}){
             return PROCESS_EMPTY_DATA
         }
 
-        const {exceptedReward, maxNoImprovedTrials, maxElapsedTime, direction} = earlyStoppingConfig;
+        const { maxElapsedTime } = earlyStoppingConfig;
 
-        const {reward, noImprovedTrials, elapsedTime} = lastTrial.earlyStopping.status;
+        const { elapsedTime } = lastTrial.earlyStopping.status;
         let percent;
         let tip;
         let value;
@@ -562,8 +574,8 @@ export function PipelineOptimizationStep({stepData}){
     ];
 
     return <><Row gutter={[2, 2]}>
-        <Col span={24} >
-            <Card title="Pipeline optimization" bordered={ false } style={{ width: '100%' }}>
+        <Col span={22} >
+            <Card title="Pipeline optimization" bordered={ false } style={{ width: '100%' }} size={'small'}>
                 <Row>
                     <Col span={10} >
                         <TrialChart
@@ -584,14 +596,14 @@ export function PipelineOptimizationStep({stepData}){
     </Row>
     <Row gutter={[2, 2]}>
         <Col span={10} offset={0} >
-            <Card title="Pipeline optimization configuration" bordered={false} style={{ width: '100%' }}>
+            <Card title={"Configuration"} bordered={false} style={{ width: '100%' }} size={'small'}>
                 {
-                    <ConfigurationCard configurationData={configurationForPanel}/>
+                    <ConfigurationCard configurationData={configurationForPanel} configurationTip={Steps.SpaceSearch.configTip}/>
                 }
             </Card>
         </Col>
         <Col span={10} offset={0} >
-            <Card title="Early stopping" bordered={false} style={{ width: '100%' }}>
+            <Card title="Early stopping" bordered={false} style={{ width: '100%' , marginRight: 0, paddingRight: 0}} size={'small'}>
                     <CircleProgress
                         title={'Reward'}
                         strokeColor ='#6ca30f'
@@ -600,20 +612,23 @@ export function PipelineOptimizationStep({stepData}){
                     <CircleProgress
                         title={'Trials'}
                         strokeColor ='#0e72cc'
-                        style={{marginLeft: 20}}
+                        style={{marginLeft: '5%'}}
                         data={earlyStoppingTrialsData}/>
                     <CircleProgress
                         title={'Time'}
                         strokeColor ='#fa4343'
-                        style={{marginLeft: 20}}
+                        style={{marginLeft: '5%'}}
                         data={earlyStoppingElapsedTimeData}/>
             </Card>
         </Col>
     </Row>
     <Row gutter={[2, 2]}>
         <Col span={10} offset={10} >
-            <Card title="Input features" bordered={false} style={{ width: '100%' }}>
-                <Table dataSource={featuresDataSource} columns={featuresColumns} pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}} showHeader={false} />
+            <Card title="Input features" bordered={false} style={{ width: '100%' }} size={'small'} >
+                <Table dataSource={featuresDataSource}
+                       columns={featuresColumns}
+                       pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}}
+                       showHeader={false} />
             </Card>
         </Col>
     </Row>

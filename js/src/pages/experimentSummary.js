@@ -1,8 +1,8 @@
-import {Row, Col, Divider, Card} from 'antd';
+import {Row, Col, Card} from 'antd';
 import * as React from "react";
 import {ConfigurationCard} from "../components/steps";
 
-import {StepsKey, getStepName} from '../constants';
+import {Steps, getStepName} from '../constants';
 import {showNotification} from "../util";
 
 export function ExperimentSummary ({experimentData, dispatch}) {
@@ -20,9 +20,9 @@ export function ExperimentSummary ({experimentData, dispatch}) {
     const groups = [];
     for (let i = 0; i < stepLen; i++) {
         var c = {...steps[i].configuration};
-        if(steps[i].type === StepsKey.DataCleaning.type){
+        if(steps[i].type === Steps.DataCleaning.type){
             c = c.data_cleaner_params
-        } else if (steps[i].type === StepsKey.SpaceSearch.type ){
+        } else if (steps[i].type === Steps.SpaceSearch.type ){
             c.earlyStopping = null
         }
         c.StepName = getStepName(steps[i].type);

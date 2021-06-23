@@ -1,11 +1,9 @@
 import React from 'react';
-import  { useState, useEffect } from  "react";
+import  { useState } from  "react";
 
 import "antd/dist/antd.css";
-import { Select, Button, Switch, Table, Steps, Progress, Card, Slider,  Form, Radio, Row, Col, Tooltip} from 'antd';
+import {  Steps as AntdSteps, Progress, Card} from 'antd';
 import "antd/dist/antd.css";
-import { notification } from 'antd';
-import {connect, Provider} from "react-redux";
 
 import {
     CollinearityDetectionStep,
@@ -17,10 +15,11 @@ import {
     GeneralImportanceSelectionStep,
     FeatureGenerationStep
 } from '../components/steps'
-import {StepsKey, StepStatus} from '../constants'
-import useBreakpoint from "antd/es/grid/hooks/useBreakpoint";
+
+import {Steps, StepStatus} from '../constants'
 import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
-const { Step } = Steps;
+
+const { Step } = AntdSteps;
 
 
 const ProgressBarStatus = {
@@ -33,9 +32,6 @@ const ProgressBarStatus = {
 export function ExperimentUI ({experimentData, dispatch} ) {
 
     const [currentStepIndex , setCurrentStepIndex] = useState(0);
-    const [stepTabs, setStepTabs] = useState([]);
-    const [stepContents, setStepContents] = useState([]);
-
     const stepTabComponents = [];
     const stepContentComponents = [];
 
@@ -69,83 +65,84 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         // 2. last finished step index / total step
         return (((lastFinishedStepIndex + 1) / experimentData.steps.length) * 100).toFixed(0);
     };
+    const stepStyle = {marginLeft: 20, marginRight: 20};
 
     experimentData.steps.forEach(stepData=> {
         const stepType = stepData.type;
-        if(stepType  === StepsKey.DataCleaning.type){
+        if(stepType  === Steps.DataCleaning.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.DataCleaning.name} key={stepData.name}/>
+                <Step status={stepData.status} title={Steps.DataCleaning.name} key={stepData.name} style={stepStyle} />
             );
             stepContentComponents.push(
                 <DataCleaningStep stepData={stepData}/>
             );
-        }else if(stepType  === StepsKey.FeatureGeneration.type){
+        }else if(stepType  === Steps.FeatureGeneration.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.FeatureGeneration.name} key={stepData.name} />
+                <Step status={stepData.status} title={Steps.FeatureGeneration.name} key={stepData.name} style={stepStyle} />
             );
             stepContentComponents.push(
                 <FeatureGenerationStep stepData={stepData}/>
             );
-        } else if(stepType  === StepsKey.CollinearityDetection.type){
+        } else if(stepType  === Steps.CollinearityDetection.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.CollinearityDetection.name} key={stepData.name} />
+                <Step status={stepData.status} title={Steps.CollinearityDetection.name} key={stepData.name} style={stepStyle} />
             );
             stepContentComponents.push(
                 <CollinearityDetectionStep stepData={stepData}/>
             );
-        } else if(stepType  === StepsKey.DriftDetection.type){
+        } else if(stepType  === Steps.DriftDetection.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.DriftDetection.name} key={stepData.name} />
+                <Step status={stepData.status} title={Steps.DriftDetection.name} key={stepData.name} style={stepStyle} />
             );
             stepContentComponents.push(
                 <DriftDetectionStep stepData={stepData}/>
             );
-        } else if(stepType  === StepsKey.SpaceSearch.type){
+        } else if(stepType  === Steps.SpaceSearch.type){
             const stepName = stepData.configuration.name;
             let title;
-            if (stepName === StepsKey.TwoStageSpaceSearch.key){
-                title = StepsKey.TwoStageSpaceSearch.name;
+            if (stepName === Steps.TwoStageSpaceSearch.key){
+                title = Steps.TwoStageSpaceSearch.name;
             }else{
-                title = StepsKey.SpaceSearch.name;
+                title = Steps.SpaceSearch.name;
             }
             stepTabComponents.push(
-                <Step status={stepData.status} title={title} key={`step_${stepName}`} />
+                <Step status={stepData.status} title={title} key={`step_${stepName}`} style={stepStyle} />
             );
             stepContentComponents.push(
                 <PipelineOptimizationStep stepData={stepData} key={`step_ui_${stepName}`} />
             );
-        } else if(stepType  === StepsKey.FeatureSelection.type){
+        } else if(stepType  === Steps.FeatureSelection.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.FeatureSelection.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={Steps.FeatureSelection.name} key={`step_${stepData.name}`} style={stepStyle} />
             );
             stepContentComponents.push(
-                <GeneralImportanceSelectionStep stepData={stepData} key={'FeatureSelection'} />
+                <GeneralImportanceSelectionStep stepData={stepData} configTip={Steps.FeatureSelection.configTip} key={'FeatureSelection'} />
             );
-        }  else if(stepType  === StepsKey.PermutationImportanceSelection.type){
+        }  else if(stepType  === Steps.PermutationImportanceSelection.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.PermutationImportanceSelection.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={Steps.PermutationImportanceSelection.name} key={`step_${stepData.name}`} style={stepStyle} />
             );
             stepContentComponents.push(
-                <GeneralImportanceSelectionStep stepData={stepData} key={'PermutationImportanceSelection'} />
+                <GeneralImportanceSelectionStep stepData={stepData} configTip={Steps.PermutationImportanceSelection.configTip} key={'PermutationImportanceSelection'} />
             );
-        } else if(stepType  === StepsKey.PsudoLabeling.type){
+        } else if(stepType  === Steps.PsudoLabeling.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.PsudoLabeling.name} key={`step_${stepData.name}`} />
+                <Step status={stepData.status} title={Steps.PsudoLabeling.name} key={`step_${stepData.name}`} style={stepStyle} />
             );
             stepContentComponents.push(
                 <PseudoLabelStep stepData={stepData} dispatch={dispatch}/>
             );
 
-        } else if(stepType  === StepsKey.FinalTrain.type){
+        } else if(stepType  === Steps.FinalTrain.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.FinalTrain.name} key={stepData.name} />
+                <Step status={stepData.status} title={Steps.FinalTrain.name} key={stepData.name} style={stepStyle} />
             );
             stepContentComponents.push(
                 <FinalTrainStep stepData={stepData}/>
             );
-        } else if(stepType  === StepsKey.Ensemble.type){
+        } else if(stepType  === Steps.Ensemble.type){
             stepTabComponents.push(
-                <Step status={stepData.status} title={StepsKey.Ensemble.name} key={stepData.name} />
+                <Step status={stepData.status} title={Steps.Ensemble.name} key={stepData.name} style={stepStyle} />
             );
             stepContentComponents.push(
                 <EnsembleStep stepData={stepData}/>
@@ -162,16 +159,16 @@ export function ExperimentUI ({experimentData, dispatch} ) {
 
     return <Card title="Experiment progress" bordered={false} style={{ width: '100%' }}>
             <Progress percent={  getProcessPercentage() } status={ getProcessBarStatus ()} />
-            <div style={ {width: '100%', overflow: 'auto', marginTop: 20} }>
-                <Steps
+            <div style={ {width: '100%', overflowX: 'auto', marginTop:10 }}>
+                <AntdSteps
                     type="navigation"
                     size="small"
                     current={currentStepIndex}
                     onChange={onStepChange}
-                    className="site-navigation-steps"
+                    style={{width: stepTabComponents.length * 250 }}
                 >
                     {stepTabComponents}
-                </Steps>
+                </AntdSteps>
             </div>
             {stepContentComponents[currentStepIndex]}
         </Card>
