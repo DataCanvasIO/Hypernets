@@ -4,11 +4,12 @@ __author__ = 'yangjian'
 
 """
 import time
+import json
 
 from IPython.display import display
 
 from hypernets.dispatchers.cfg import DispatchCfg
-from hypernets.utils import logging
+from hypernets.utils import logging, df_utils
 
 logger = logging.get_logger(__name__)
 
@@ -64,6 +65,11 @@ class Experiment(object):
 
         self.start_time = None
         self.end_time = None
+    
+    def get_data_character(self):
+        data_character = df_utils.get_data_character(self.hyper_model, self.X_train, self.y_train, self.X_eval,
+                                                     self.y_eval, self.X_test, self.task)
+        return data_character
 
     def run(self, **kwargs):
         self.start_time = time.time()

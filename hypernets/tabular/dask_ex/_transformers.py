@@ -219,6 +219,56 @@ class MaxAbsScaler(sk_pre.MaxAbsScaler):
         return X
 
 
+def _safe_ordinal_encoder(categories, dtype, pdf):
+    assert isinstance(pdf, pd.DataFrame)
+
+    def encode_column(x, c):
+        return c[x]
+
+    mappings = {}
+    for col, cat in categories.items():
+        unseen = len(cat)
+        m = defaultdict(dtype)
+        for k, v in zip(cat, range(unseen)):
+            m[k] = dtype(v + 1)
+        mappings[col] = m
+
+    pdf = pdf.copy()
+    vf = np.vectorize(encode_column, excluded='c', otypes=[dtype])
+    for col, m in mappings.items():
+        r = vf(pdf[col].values, m)
+        if r.dtype != dtype:
+            # print(r.dtype, 'astype', dtype)
+            r = r.astype(dtype)
+        pdf[col] = r
+    return pdf
+
+
+def _safe_ordinal_decoder(categories, dtypes, pdf):
+    assert isinstance(pdf, pd.DataFrame)
+
+    def decode_column(x, col):
+        cat = categories[col]
+        xi = int(x)
+        unseen = cat.shape[0]  # len(cat)
+        if unseen >= xi >= 1:
+            return cat[xi - 1]
+        else:
+            dtype = dtypes[col]
+            if dtype in (np.float32, np.float64, float):
+                return np.nan
+            elif dtype in (np.int32, np.int64, np.int, np.uint32, np.uint64, np.uint):
+                return -1
+            else:
+                return None
+
+    pdf = pdf.copy()
+    for col in categories.keys():
+        vf = np.vectorize(decode_column, excluded='col', otypes=[dtypes[col]])
+        pdf[col] = vf(pdf[col].values, col)
+    return pdf
+
+
 class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
     __doc__ = r'Adapted from dask_ml OrdinalEncoder\n' + dm_pre.OrdinalEncoder.__doc__
 
@@ -226,23 +276,19 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
         self.columns = columns
         self.dtype = dtype
 
+        # fitted
+        self.columns_ = None
+        self.dtypes_ = None
+        self.categorical_columns_ = None
+        self.non_categorical_columns_ = None
+        self.categories_ = None
+
     def fit(self, X, y=None):
-        """Determine the categorical columns to be encoded.
-
-        Parameters
-        ----------
-        X : pandas.DataFrame or dask.dataframe.DataFrame
-        y : ignored
-
-        Returns
-        -------
-        self
-        """
-        self.columns_ = X.columns
+        self.columns_ = X.columns.to_list()
         self.dtypes_ = {c: X[c].dtype for c in X.columns}
 
         if self.columns is None:
-            columns = X.select_dtypes(include=["category", 'object', 'bool']).columns
+            columns = X.select_dtypes(include=["category", 'object', 'bool']).columns.to_list()
         else:
             columns = self.columns
 
@@ -255,25 +301,13 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-        """Ordinal encode the categorical columns in X
-
-        Parameters
-        ----------
-        X : pd.DataFrame or dd.DataFrame
-        y : ignored
-
-        Returns
-        -------
-        transformed : pd.DataFrame or dd.DataFrame
-            Same type as the input
-        """
-        if not X.columns.equals(self.columns_):
+        if X.columns.to_list() != self.columns_:
             raise ValueError(
                 "Columns of 'X' do not match the training "
-                "columns. Got {!r}, expected {!r}".format(X.columns, self.columns)
+                "columns. Got {!r}, expected {!r}".format(X.columns.to_list(), self.columns)
             )
 
-        encoder = self.make_encoder(self.categorical_columns_, self.categories_, self.dtype)
+        encoder = self.make_encoder(self.categories_, self.dtype)
         if isinstance(X, pd.DataFrame):
             X = encoder(X)
         elif isinstance(X, dd.DataFrame):
@@ -284,21 +318,6 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
         return X
 
     def inverse_transform(self, X, missing_value=None):
-        """Inverse ordinal-encode the columns in `X`
-
-        Parameters
-        ----------
-        X : array or dataframe
-            Either the NumPy, dask, or pandas version
-
-        missing_value : skip doc
-
-        Returns
-        -------
-        data : DataFrame
-            Dask array or dataframe will return a Dask DataFrame.
-            Numpy array or pandas dataframe will return a pandas DataFrame
-        """
         if isinstance(X, np.ndarray):
             X = pd.DataFrame(X, columns=self.categorical_columns_)
         elif isinstance(X, da.Array):
@@ -312,7 +331,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
                 X._chunks = chunks
             X = dd.from_dask_array(X, columns=self.categorical_columns_)
 
-        decoder = self.make_decoder(self.categorical_columns_, self.categories_, self.dtypes_)
+        decoder = self.make_decoder(self.categories_, self.dtypes_)
 
         if isinstance(X, dd.DataFrame):
             X = X.map_partitions(decoder)
@@ -322,61 +341,12 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
         return X
 
     @staticmethod
-    def make_encoder(columns, categories, dtype):
-        mappings = {}
-        for col in columns:
-            cat = categories[col]
-            unseen = len(cat)
-            m = defaultdict(dtype)
-            for k, v in zip(cat, range(unseen)):
-                m[k] = dtype(v + 1)
-            mappings[col] = m
-
-        def encode_column(x, c):
-            return mappings[c][x]
-
-        def safe_ordinal_encoder(pdf):
-            assert isinstance(pdf, pd.DataFrame)
-
-            pdf = pdf.copy()
-            vf = np.vectorize(encode_column, excluded='c', otypes=[dtype])
-            for col in columns:
-                r = vf(pdf[col].values, col)
-                if r.dtype != dtype:
-                    # print(r.dtype, 'astype', dtype)
-                    r = r.astype(dtype)
-                pdf[col] = r
-            return pdf
-
-        return safe_ordinal_encoder
+    def make_encoder(categories, dtype):
+        return partial(_safe_ordinal_encoder, categories, dtype)
 
     @staticmethod
-    def make_decoder(columns, categories, dtypes):
-        def decode_column(x, col):
-            cat = categories[col]
-            xi = int(x)
-            unseen = cat.shape[0]  # len(cat)
-            if unseen >= xi >= 1:
-                return cat[xi - 1]
-            else:
-                dtype = dtypes[col]
-                if dtype in (np.float32, np.float64, float):
-                    return np.nan
-                elif dtype in (np.int32, np.int64, np.int, np.uint32, np.uint64, np.uint):
-                    return -1
-                else:
-                    return None
-
-        def safe_ordinal_decoder(pdf):
-            assert isinstance(pdf, pd.DataFrame)
-
-            pdf = pdf.copy()
-            for col in columns:
-                vf = np.vectorize(decode_column, excluded='col', otypes=[dtypes[col]])
-                pdf[col] = vf(pdf[col].values, col)
-            return pdf
-
-        return safe_ordinal_decoder
+    def make_decoder(categories, dtypes):
+        return partial(_safe_ordinal_decoder, categories, dtypes)
 
 
 # alias

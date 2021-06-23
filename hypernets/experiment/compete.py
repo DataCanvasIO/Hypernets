@@ -8,6 +8,7 @@ import inspect
 import math
 import time
 from collections import OrderedDict
+import json
 
 import numpy as np
 import pandas as pd
@@ -27,7 +28,7 @@ from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
-from hypernets.utils import logging, const
+from hypernets.utils import logging, const, df_utils
 
 logger = logging.get_logger(__name__)
 
@@ -733,7 +734,7 @@ class SpaceSearchStep(ExperimentStep):
         return model, X_train, y_train, X_test, X_eval, y_eval
 
     def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
-        if X_eval is not None and not dex.is_dask_object(X_eval):
+        if X_eval is not None:
             kwargs['eval_set'] = (X_eval, y_eval)
         model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         es = self.find_early_stopping_callback(model.callbacks)
@@ -805,26 +806,38 @@ class SpaceSearchStep(ExperimentStep):
 
 
 class SpaceSearchWithDownSampleStep(SpaceSearchStep):
-    def __init__(self, experiment, name, cv=False, num_folds=3, frac=None):
+    def __init__(self, experiment, name, cv=False, num_folds=3, size=None,
+                 max_trials=None, time_limit=None):
+        assert size is None or isinstance(size, (int, float))
+        assert time_limit is None or isinstance(time_limit, (int, float))
+        assert max_trials is None or isinstance(max_trials, int)
+
         super().__init__(experiment, name, cv=cv, num_folds=num_folds)
 
-        self.frac = frac
+        self.size = size
+        self.max_trials = max_trials
+        self.time_limit = time_limit
 
     def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         # search with down sampled  data
         X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled = \
             self.down_sample(X_train, y_train, X_eval, y_eval)
-        if X_eval is not None and not dex.is_dask_object(X_eval):
+        if X_eval is not None:
             kwargs['eval_set'] = (X_eval_sampled, y_eval_sampled)
         model0 = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         es0 = self.find_early_stopping_callback(model0.callbacks)
         if es0 is not None and es0.time_limit is not None and es0.time_limit > 0:
             time_limit = self.estimate_time_limit(es0.time_limit)
-            es0.time_limit = math.ceil(time_limit / 3)
+            if self.time_limit is not None:
+                es0.time_limit = min(self.time_limit, time_limit / 2)
+            else:
+                es0.time_limit = math.ceil(time_limit / 3)
         else:
             time_limit = 0
         kwargs0 = kwargs.copy()
-        if 'max_trials' in kwargs.keys():
+        if self.max_trials is not None:
+            kwargs0['max_trials'] *= self.max_trials
+        elif 'max_trials' in kwargs.keys():
             kwargs0['max_trials'] *= 3
         if logger.is_info_enabled():
             logger.info(f'search with down sampled data, max_trails={kwargs0.get("max_trials")}, {es0}')
@@ -836,7 +849,7 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
 
         # playback trials with full data
         playback = self.create_playback_searcher(model0.history)
-        if X_eval is not None and not dex.is_dask_object(X_eval):
+        if X_eval is not None:
             kwargs['eval_set'] = (X_eval, y_eval)
         model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         es = self.find_early_stopping_callback(model.callbacks)
@@ -857,14 +870,14 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
         return model
 
     def down_sample(self, X_train, y_train, X_eval, y_eval):
-        frac = self.frac if self.frac else 0.1
+        size = self.size if self.size else 0.1
         random_state = self.experiment.random_state
 
         X_train_sampled, _, y_train_sampled, _ = \
-            dex.train_test_split(X_train, y_train, train_size=frac, random_state=random_state)
+            dex.train_test_split(X_train, y_train, train_size=size, random_state=random_state)
         if X_eval is not None:
             X_eval_sampled, _, y_eval_sampled, _ = \
-                dex.train_test_split(X_eval, y_eval, train_size=frac, random_state=random_state)
+                dex.train_test_split(X_eval, y_eval, train_size=size, random_state=random_state)
         else:
             X_eval_sampled, y_eval_sampled = None, None
 
@@ -1259,7 +1272,9 @@ class CompeteExperiment(SteppedExperiment):
                  feature_selection_quantile=None,
                  feature_selection_number=None,
                  down_sample_search=None,
-                 down_sample_search_frac=None,
+                 down_sample_search_size=None,
+                 down_sample_search_time_limit=None,
+                 down_sample_search_max_trials=None,
                  ensemble_size=20,
                  feature_reselection=False,
                  feature_reselection_estimator_size=10,
@@ -1369,7 +1384,12 @@ class CompeteExperiment(SteppedExperiment):
             Expected feature number to keep. Only valid when *feature_reselection_strategy* is 'number'.
         down_sample_search : bool, (default None),
             Whether to enable down sample search.
-        down_sample_search_frac : float, (default 0.1)
+        down_sample_search_size : float, (default 0.1)
+            The sample size to extract from train_data.
+        down_sample_search_time_limit : int, (default None)
+            The maximum seconds to run with down sampled data.
+        down_sample_search_max_trials : int, (default 3*experiment's *max_trials* argument)
+            The maximum trial number to run with down sampled data.
         ensemble_size : int, (default=20)
             The number of estimator to ensemble. During the AutoML process, a lot of models will be generated with different
             preprocessing pipelines, different models, and different hyperparameters. Usually selecting some of the models
@@ -1404,6 +1424,7 @@ class CompeteExperiment(SteppedExperiment):
         kwargs :
 
         """
+
         steps = []
         two_stage = False
         enable_dask = dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
@@ -1456,7 +1477,8 @@ class CompeteExperiment(SteppedExperiment):
         # first-stage search
         if down_sample_search:
             steps.append(SpaceSearchWithDownSampleStep(
-                self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds, frac=down_sample_search_frac))
+                self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds, size=down_sample_search_size,
+                max_trials=down_sample_search_max_trials, time_limit=down_sample_search_time_limit))
         else:
             steps.append(SpaceSearchStep(
                 self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
@@ -1495,7 +1517,8 @@ class CompeteExperiment(SteppedExperiment):
         if two_stage:
             if down_sample_search:
                 steps.append(SpaceSearchWithDownSampleStep(
-                    self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds, frac=down_sample_search_frac))
+                    self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds, size=down_sample_search_size,
+                    max_trials=down_sample_search_max_trials, time_limit=down_sample_search_time_limit))
             else:
                 steps.append(SpaceSearchStep(
                     self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds))
@@ -1521,15 +1544,24 @@ class CompeteExperiment(SteppedExperiment):
                                                 id=id,
                                                 callbacks=callbacks,
                                                 random_state=random_state)
+    
+    def get_data_character(self):
+        data_character = super(CompeteExperiment, self).get_data_character()
+        x_types = df_utils.get_x_data_character(self.X_train, self.get_step)
+        data_character.update(x_types)
+        return data_character
 
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
         return super().run(**run_kwargs)
 
     def _repr_html_(self):
-        from hn_widget.widget import ExperimentSummary
-        from IPython.display import display
-        display(ExperimentSummary(self))
+        try:
+            from hn_widget.widget import ExperimentSummary
+            from IPython.display import display
+            display(ExperimentSummary(self))
+        except:
+            pass
 
 
 def evaluate_oofs(hyper_model, ensemble_estimator, y_train, metrics):

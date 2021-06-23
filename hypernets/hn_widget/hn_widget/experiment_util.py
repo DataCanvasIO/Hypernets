@@ -1,6 +1,19 @@
 import json, copy
 import numpy as np
 import copy
+import matplotlib
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import LabelEncoder
+from sklearn.neighbors import KernelDensity
+from sklearn.utils.fixes import parse_version
+
+from hypernets.experiment import CompeteExperiment
+from hypernets.tabular import dask_ex as dex
+from hypernets.tabular.datasets import dsutils
+from hypernets.tests.model.plain_model_test import create_plain_model
+from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 
 class StepType:
@@ -237,6 +250,42 @@ class extract_ensemble_step(Extractor):
             'weights': np.array(ensemble.weights_).tolist(),
             'scores': np.array(ensemble.scores_).tolist(),
         }
+
+class extract_proba_density(Extractor):
+
+    def get_proba_density_estimation(self, y_proba_on_test, classes):
+        total_class = len(classes)
+        total_proba = np.size(y_proba_on_test, 0)
+
+        true_density = [[0]*501 for _ in range(total_class)]
+        X_plot_true_density = np.linspace(0, 1, 501)[:, np.newaxis]
+        X_plot = np.linspace(0, 1, 1000)[:, np.newaxis]
+
+        probability_density = {}
+        for i in range(total_class):
+            aclass = classes[i]
+            probability_density[str(aclass)] = {}
+        
+            # calculate the true density
+            proba_list = y_proba_on_test[:, i]
+            probability_density[str(aclass)]['nSamples'] = len(proba_list)
+            for proba in proba_list:
+                true_density[i][int(proba*500)] += 1
+            probability_density[str(aclass)]['trueDensity'] = {}
+            probability_density[str(aclass)]['trueDensity']['X'] = X_plot_true_density
+            probability_density[str(aclass)]['trueDensity']['probaDensity'] = list(map(lambda x: x / total_proba, true_density[i]))
+
+            # calculate the gaussian/tophat/epanechnikov density estimation
+            proba_list_2d = y_proba_on_test[:, i][:, np.newaxis]
+            kernels = ['gaussian', 'tophat', 'epanechnikov']
+            for kernel in kernels:
+                kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_list_2d)
+                log_dens = kde.score_samples(X_plot)
+                probability_density[str(aclass)][str(kernel)] = {}
+                probability_density[str(aclass)][str(kernel)]['X'] = X_plot
+                probability_density[str(aclass)][str(kernel)]['probaDensity'] = np.exp(log_dens)
+
+        return probability_density
 
 def extract_step(index, step):
     stepType = step.__class__.__name__

@@ -7,10 +7,10 @@ import os
 import pickle
 import shutil
 
-from ..core.searcher import OptimizeDirection
-import math
 import pandas as pd
-from hypernets.utils.common import isnotebook
+
+from hypernets.utils.common import isnotebook, to_repr
+from ..core.searcher import OptimizeDirection
 
 
 class Trial():
@@ -24,6 +24,9 @@ class Trial():
 
         self.memo = {}
         self.iteration_scores = {}
+
+    def __repr__(self):
+        return to_repr(self)
 
     def _repr_html_(self):
         html = f'<div><h>Trial:</h>'
@@ -67,6 +70,15 @@ class Trial():
 </table>
 </div>'''
         return html
+
+    def __getstate__(self):
+        try:
+            state = super().__getstate__()
+        except AttributeError:
+            state = self.__dict__
+
+        state = {k: v for k, v in state.items() if k != 'memo'}
+        return state
 
 
 class TrialHistory():
