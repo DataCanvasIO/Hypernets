@@ -1,3 +1,5 @@
+from sklearn.model_selection import train_test_split
+
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment
 from hypernets.experiment.compete import StepNames
@@ -26,7 +28,12 @@ def test_experiment_with_blood_down_sample():
 
 def test_experiment_with_blood_full_features():
     df = dsutils.load_blood()
-    experiment = make_experiment(PlainModel, df, target='Class', search_space=PlainSearchSpace(),
+    target = 'Class'
+    df_train, df_test = train_test_split(df, train_size=0.8, random_state=335)
+    df_test.pop(target)
+
+    experiment = make_experiment(PlainModel, df, target=target, search_space=PlainSearchSpace(),
+                                 test_data=df_test,
                                  feature_generation=True,
                                  collinearity_detection=True,
                                  drift_detection=True,
