@@ -27,7 +27,7 @@ from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
-from hypernets.utils import logging, const, hash_data, df_utils
+from hypernets.utils import logging, const, hash_data, df_utils, infer_task_type
 
 logger = logging.get_logger(__name__)
 
@@ -1481,6 +1481,9 @@ class CompeteExperiment(SteppedExperiment):
         kwargs :
 
         """
+        if task is None:
+            task, _ = infer_task_type(y_train)
+
         steps = []
         two_stage = False
         enable_dask = dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
@@ -1540,7 +1543,7 @@ class CompeteExperiment(SteppedExperiment):
                 self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
 
         # pseudo label
-        if pseudo_labeling and X_test is not None and task != const.TASK_REGRESSION:
+        if pseudo_labeling and X_test is not None and task in [const.TASK_BINARY, const.TASK_MULTICLASS]:
             if ensemble_size is not None and ensemble_size > 1:
                 estimator_builder = ensemble_cls(self, StepNames.ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
             else:
