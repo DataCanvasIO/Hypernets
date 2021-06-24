@@ -8,7 +8,6 @@ import inspect
 import math
 import time
 from collections import OrderedDict
-import json
 
 import numpy as np
 import pandas as pd
@@ -28,7 +27,7 @@ from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
-from hypernets.utils import logging, const, hash_data, to_repr, df_utils
+from hypernets.utils import logging, const, hash_data, df_utils
 
 logger = logging.get_logger(__name__)
 
