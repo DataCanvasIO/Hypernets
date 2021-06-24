@@ -53,7 +53,6 @@ class InProcessDispatcher(Dispatcher):
                         continue
 
                 for callback in hyper_model.callbacks:
-                    # callback.on_build_estimator(hyper_model, space_sample, estimator, trial_no) #fixme
                     callback.on_trial_begin(hyper_model, space_sample, trial_no)
 
                 model_file = '%s/%05d_%s.pkl' % (self.models_dir, trial_no, space_sample.space_id)
@@ -79,7 +78,6 @@ class InProcessDispatcher(Dispatcher):
                     trial_store.put(dataset_id, trial)
             except EarlyStoppingError:
                 break
-                # TODO: early stopping
             except Exception as e:
                 import sys
                 import traceback
