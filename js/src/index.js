@@ -5,6 +5,7 @@ import { Steps } from "./constants";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
 import { getInitData, sendFinishData } from './mock/spaceSearchMockData'
+import { datasetMockData } from './mock/plotDatasetMockData'
 import { Provider } from "react-redux";
 import { createStore } from "redux";
 
@@ -193,12 +194,21 @@ export function renderExperimentProcess(experimentData, domElement) {
     return store
 }
 
+// ----------------------------Test Experiment UI----------------------------------------
 // renderDatasetSummary(experimentConfigData(v => v), document.getElementById('root'));
 // renderExperimentSummary({steps: d}, document.getElementById('root'));
+//
+// const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
+//
+// sendFinishData(store);
+// --------------------------------------------------------------------------------------
 
-const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
+// ----------------------------Test Dataset----------------------------------------
+// renderDatasetSummary(datasetMockData, document.getElementById('root'));
+// --------------------------------------------------------------------------------------
 
-sendFinishData(store);
+
+
 
 
 // setTimeout(function () {

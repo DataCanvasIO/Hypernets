@@ -157,7 +157,7 @@ class Experiment(object):
             return self.end_time - self.start_time
 
     def plot_dataset(self):
-        data = self.get_dataset_summary()
+        data = self.get_data_character()
         from hn_widget.widget import DatasetSummary
         widget = DatasetSummary(data)
         display(widget)

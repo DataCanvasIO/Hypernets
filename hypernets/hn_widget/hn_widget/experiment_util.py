@@ -1,19 +1,6 @@
 import json, copy
 import numpy as np
 import copy
-import matplotlib
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from sklearn.preprocessing import LabelEncoder
-from sklearn.neighbors import KernelDensity
-from sklearn.utils.fixes import parse_version
-
-from hypernets.experiment import CompeteExperiment
-from hypernets.tabular import dask_ex as dex
-from hypernets.tabular.datasets import dsutils
-from hypernets.tests.model.plain_model_test import create_plain_model
-from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 
 class StepType:
@@ -30,10 +17,10 @@ class StepType:
     FinalTrain = 'FinalTrainStep'
 
 class StepStatus:
-  Wait = 'wait'
-  Process = 'process'
-  Finish = 'finish'
-  Error = 'error'
+    Wait = 'wait'
+    Process = 'process'
+    Finish = 'finish'
+    Error = 'error'
 
 
 class StepData:
@@ -254,6 +241,7 @@ class extract_ensemble_step(Extractor):
 class extract_proba_density(Extractor):
 
     def get_proba_density_estimation(self, y_proba_on_test, classes):
+        from sklearn.neighbors import KernelDensity
         total_class = len(classes)
         total_proba = np.size(y_proba_on_test, 0)
 

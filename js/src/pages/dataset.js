@@ -1,11 +1,16 @@
 import * as React from "react";
 import './exploreDataset.css';
 
-import {Card, Col,  Row, Table } from "antd";
+import {Card, Col,  Row, Table, Tooltip} from "antd";
 
 import EchartsCore from "../components/echartsCore";
 import Block from "react-blocks";
 import {isEmpty} from "../util";
+import { TooltipComponent } from 'echarts/components';
+import { PieChart } from 'echarts/charts';
+import { LineChart } from 'echarts/charts';
+import { GridComponent } from 'echarts/components';
+import { BarChart } from 'echarts/charts';
 
 function FeatureBar({first, latest, color, typeName, nFeatures, percent}) {
 
@@ -30,10 +35,13 @@ function FeatureBar({first, latest, color, typeName, nFeatures, percent}) {
 }
 
 function FeatureLegend({typeName, nFeatures, percent, color}) {
+    const tipContent = `${nFeatures} columns，${percent}%`;
     return <div className={'legendItem'}>
         <span className={'legendPoint'} style={{backgroundColor: color}}/>
-        <span className={'symbol'}> {typeName} </span>
-        {<span className={'comment'}> {nFeatures} columns，{percent}% </span>}
+        <Tooltip title={tipContent}>
+            <span className={'symbol'}> {typeName} </span>
+        </Tooltip>
+        {/*{<span className={'comment'}> {nFeatures} columns，{percent}% </span>}*/}
     </div>
 }
 
@@ -102,6 +110,7 @@ export function FeatureDistributionBar({data}) {
             const percent =  ((value.nFeatures / total) * 100).toFixed(0);
             bars.push(
                 <FeatureBar
+                    key={value.typeName}
                     typeName={value.typeName}
                     first={index === firstNonEmpty}
                     latest={index === latestNonEmpty}
@@ -111,6 +120,7 @@ export function FeatureDistributionBar({data}) {
             />);
             legends.push(
                 <FeatureLegend
+                    key={value.typeName}
                     typeName={value.typeName}
                     nFeatures={value.nFeatures}
                     percent={percent}
@@ -137,9 +147,8 @@ export function FeatureDistributionBar({data}) {
 
 export function Dataset({data}){
 
-
     const targetData = data.target;
-
+    const taskType = data.target.taskType;
     const displayKeyMapping = {
         name: 'Name',
         taskType: 'Task type',
@@ -290,6 +299,21 @@ export function Dataset({data}){
     };
 
 
+    const getPrepareFunc = (taskType) => {
+        let prepare;
+        if (taskType === 'regression') {
+            prepare = (echarts) => {
+                echarts.use([BarChart, GridComponent, TooltipComponent]);  // this should be above of init echarts
+            }
+        }else{
+            prepare = (echarts) => {
+                echarts.use([PieChart, TooltipComponent]);
+            }
+        }
+        return prepare;
+    };
+
+
     const option = getTargetDistributionOption(data.targetDistribution, data.target.taskType);
 
 
@@ -312,7 +336,7 @@ export function Dataset({data}){
             <Block layout vertical flex>
                 <Block flex style={{ borderWidth: 5 , width: "90%"}} >
                     <Card title="Distribution of y" bordered={false}>
-                        <EchartsCore option={option}/>
+                        <EchartsCore option={option} prepare={ getPrepareFunc(taskType) }/>
                     </Card>
                 </Block>
                 <Block flex style={{borderWidth: 5 , width: "90%"}} >
