@@ -8,6 +8,7 @@ import inspect
 import math
 import time
 from collections import OrderedDict
+import json
 
 import numpy as np
 import pandas as pd
@@ -27,7 +28,7 @@ from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
-from hypernets.utils import logging, const, hash_data, to_repr
+from hypernets.utils import logging, const, hash_data, to_repr, df_utils
 
 logger = logging.get_logger(__name__)
 
@@ -1601,6 +1602,12 @@ class CompeteExperiment(SteppedExperiment):
                                                 id=id,
                                                 callbacks=callbacks,
                                                 random_state=random_state)
+
+    def get_data_character(self):
+        data_character = super(CompeteExperiment, self).get_data_character()
+        x_types = df_utils.get_x_data_character(self.X_train, self.get_step)
+        data_character.update(x_types)
+        return data_character
 
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
