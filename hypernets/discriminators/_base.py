@@ -70,8 +70,8 @@ class BaseDiscriminator(object):
 
 def get_percentile_score(history, n_step, group_id, percentile, sign=1):
     trial_scores = get_previous_trials_scores(history, n_step, n_step, group_id)
-    percentile_score = np.percentile(trial_scores * (sign * -1), percentile)
-    return percentile_score * (sign * -1)
+    percentile_score = np.percentile(trial_scores * sign, percentile) * sign
+    return percentile_score
 
 
 def get_previous_trials_scores(history, from_step, to_step, group_id):
