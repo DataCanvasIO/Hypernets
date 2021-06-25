@@ -69,8 +69,25 @@ class PassThroughEstimator(BaseEstimator):
     def transform(self, X):
         return X
 
-    def fit_transform(self, X):
+    def fit_transform(self, X, y=None):
         return X
+
+
+class AsTypeTransformer(BaseEstimator):
+    def __init__(self, *, dtype):
+        assert dtype is not None
+        self.dtype = dtype
+
+        super(AsTypeTransformer, self).__init__()
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X.astype(self.dtype)
+
+    def fit_transform(self, X, y=None):
+        return self.transform(X)
 
 
 # class SafeLabelEncoder(LabelEncoder):
