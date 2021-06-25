@@ -16,6 +16,7 @@ from sklearn.metrics import get_scorer
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
+from hypernets.core import set_random_state, get_random_state
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
@@ -1302,7 +1303,7 @@ class CompeteExperiment(SteppedExperiment):
                  task=None,
                  id=None,
                  callbacks=None,
-                 random_state=9527,
+                 random_state=None,
                  scorer=None,
                  data_cleaner_args=None,
                  feature_generation=False,
@@ -1481,6 +1482,10 @@ class CompeteExperiment(SteppedExperiment):
         kwargs :
 
         """
+        if random_state is None:
+            random_state = np.random.randint(0, 65535)
+        set_random_state(random_state)
+
         if task is None:
             task, _ = infer_task_type(y_train)
 
@@ -1497,7 +1502,7 @@ class CompeteExperiment(SteppedExperiment):
         steps.append(DataCleanStep(self, StepNames.DATA_CLEAN,
                                    data_cleaner_args=data_cleaner_args, cv=cv,
                                    train_test_split_strategy=train_test_split_strategy,
-                                   random_state=random_state))
+                                   random_state=get_random_state()))
         # feature generation
         if feature_generation:
             steps.append(FeatureGenerationStep(
@@ -1555,7 +1560,7 @@ class CompeteExperiment(SteppedExperiment):
                               proba_quantile=pseudo_labeling_proba_quantile,
                               sample_number=pseudo_labeling_sample_number,
                               resplit=pseudo_labeling_resplit,
-                              random_state=random_state)
+                              random_state=get_random_state())
             steps.append(estimator_builder)
             steps.append(step)
             two_stage = True
