@@ -66,9 +66,9 @@ class EchartsCore extends Component {
   getEchartsInstance = () => this.echartsLib.getInstanceByDom(this.echartsElement) || this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts)
 
   renderEchartDom = () => {
-
+    const  now = new Date().getSeconds();
     this.prepare(echarts);
-
+    console.info(" Prepare took: " + (new Date().getSeconds() - now));
     const echartsObj = this.getEchartsInstance();
 
     // echarts.use([LineChart]);

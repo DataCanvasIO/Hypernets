@@ -4,8 +4,9 @@ import { ExperimentSummary } from './pages/experimentSummary'
 import { Steps } from "./constants";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
-import { getInitData, sendFinishData } from './mock/spaceSearchMockData'
+import { getInitData, sendFinishData } from './mock/ensembleStepMockData'
 import { datasetMockData } from './mock/plotDatasetMockData'
+import { experimentConfigMockData } from './mock/experimentConfigMockData'
 import { Provider } from "react-redux";
 import { createStore } from "redux";
 
@@ -147,21 +148,8 @@ const experimentConfigData = (handler) => {
                 },
                 "start_datetime": "2020-11-11 22:22:22",
                 "end_datetime": "2020-11-11 22:22:22"
-            },
-            {
-                "name": Steps.Ensemble.type,
-                "index": 10,
-                "type": "EnsembleStep",
-                "status": "wait",
-                "configuration": {
-                    "ensemble_size": 20,
-                    "name": "final_ensemble",
-                    "scorer": null
-                },
-                "extension": null,
-                "start_datetime": "2020-11-11 22:22:22",
-                "end_datetime": "2020-11-11 22:22:22"
             }
+
         ]
     };
 
@@ -195,11 +183,7 @@ export function renderExperimentProcess(experimentData, domElement) {
 }
 
 // ----------------------------Test Experiment UI----------------------------------------
-// renderDatasetSummary(experimentConfigData(v => v), document.getElementById('root'));
-// renderExperimentSummary({steps: d}, document.getElementById('root'));
-//
 // const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
-//
 // sendFinishData(store);
 // --------------------------------------------------------------------------------------
 
@@ -207,7 +191,9 @@ export function renderExperimentProcess(experimentData, domElement) {
 // renderDatasetSummary(datasetMockData, document.getElementById('root'));
 // --------------------------------------------------------------------------------------
 
-
+// ----------------------------Test Experiment Summary----------------------------------------
+// renderExperimentSummary(experimentConfigMockData, document.getElementById('root'));
+// --------------------------------------------------------------------------------------
 
 
 
@@ -361,24 +347,5 @@ export function renderExperimentProcess(experimentData, domElement) {
 //             }
 //         })
 // }, 5000);
-
-
-// setTimeout(function () {
-//     store.dispatch(
-//         {
-//             type: 'stepFinished',
-//             payload: {
-//                 index: 7,
-//                 type: 'EnsembleStep',
-//                 extension: {
-//                     "weights": [0.1, 0.6, 0.3],
-//                     "scores": [0.1, 0.2, 0.3]
-//                 },
-//                 status: StepStatus.Finish,
-//                 datetime: ''
-//             }
-//         })
-// }, 6000);
-//
 
 

@@ -326,20 +326,20 @@ export function Dataset({data}){
         </Col>
         </Row>
         <Block layout flex>
-            <Block layout vertical style={{width: "50%", height: "800px"}} el="header">
-                <Block flex>
+            <Block layout={"true"} vertical={"true"} style={{width: "50%", height: "800px"}} el="header">
+                <Block flex={"true"}>
                     <Card title="Target" bordered={false} style={{ width: '100%' }}>
                     <Table dataSource={dataSource} columns={columns} pagination={false} showHeader={false}/>
                 </Card>
                 </Block>
             </Block>
-            <Block layout vertical flex>
-                <Block flex style={{ borderWidth: 5 , width: "90%"}} >
+            <Block layout={"true"} vertical={"true"} flex={"true"}>
+                <Block flex style={{ width: "90%"}} >
                     <Card title="Distribution of y" bordered={false}>
-                        <EchartsCore option={option} prepare={ getPrepareFunc(taskType) }/>
+                        <EchartsCore option={option} prepare={getPrepareFunc(taskType)}/>
                     </Card>
                 </Block>
-                <Block flex style={{borderWidth: 5 , width: "90%"}} >
+                <Block flex style={{width: "90%"}} >
                     <Card title="Dataset shape" bordered={false} style={{ width: '100%' }}>
                         <Table dataSource={dataShapeDataSource} columns={columns} pagination={false} showHeader={false}/>
                     </Card>

@@ -12,7 +12,7 @@ export function ExperimentSummary ({experimentData, dispatch}) {
         showNotification('Step is empty');
         return ;
     }
-    // steps length should > 1
+    // steps length should > 0
     const groupSize = 2;
     const stepLen = steps.length;
 
@@ -21,12 +21,15 @@ export function ExperimentSummary ({experimentData, dispatch}) {
     for (let i = 0; i < stepLen; i++) {
         var c = {...steps[i].configuration};
         if(steps[i].type === Steps.DataCleaning.type){
-            c = c.data_cleaner_params
+            c = c['data_cleaner_args']
         } else if (steps[i].type === Steps.SpaceSearch.type ){
             c.earlyStopping = null
         }
-        c.StepName = getStepName(steps[i].type);
-        buffer.push(c);
+        const configCardData = {
+            'stepName': getStepName(steps[i].type),
+            'config': {...c}
+        };
+        buffer.push(configCardData);
         if(buffer.length === groupSize){
             groups.push([...buffer]);
             buffer = [];
@@ -44,11 +47,11 @@ export function ExperimentSummary ({experimentData, dispatch}) {
                     return <Row gutter={[4, 4]} key={index}>
                         {
                             configs.map((valueC, indexC, arrayC) => {
-                                const stepName = valueC['StepName'];
-                                delete valueC['StepName'];
+                                const stepName = valueC.stepName;
+
                                 return <Col span={10} key={indexC} >
                                     <Card title={stepName} bordered={false} style={{ width: '100%' }}>
-                                        <ConfigurationCard configurationData={valueC}/>
+                                        <ConfigurationCard configurationData={valueC.config}/>
                                     </Card>
                                 </Col>
                             })

@@ -2,6 +2,8 @@ import json, copy
 import numpy as np
 import copy
 
+import pandas as pd
+
 
 class StepType:
     DataCleaning = 'DataCleanStep'
@@ -186,19 +188,19 @@ class extract_multi_linearity_step(Extractor):
         output_extension = {'unselected_features': unselected_features}
         return output_extension
 
-class extract_psedudo_step(Extractor):
-    def get_configuration(self):
-        configuration = super(extract_psedudo_step, self).get_configuration()
-        del configuration['estimator_builder']
-        del configuration['estimator_builder__scorer']
-        del configuration['name']
-        return configuration
-
-    def handle_extenion(self, extension):
-        # step.estimator_builder.estimator_.classes_
-        # step.test_proba_
-        # step.pseudo_label_stat_
-        return configuration, extension
+# class extract_psedudo_step(Extractor):
+#     def get_configuration(self):
+#         configuration = super(extract_psedudo_step, self).get_configuration()
+#         del configuration['estimator_builder']
+#         del configuration['estimator_builder__scorer']
+#         del configuration['name']
+#         return configuration
+#
+#     def handle_extenion(self, extension):
+#         # step.estimator_builder.estimator_.classes_
+#         # step.test_proba_
+#         # step.pseudo_label_stat_
+#         return extension
 
 class extract_permutation_importance_step(abs_feature_selection_step):
     def get_configuration(self):
@@ -238,42 +240,110 @@ class extract_ensemble_step(Extractor):
             'scores': np.array(ensemble.scores_).tolist(),
         }
 
-class extract_proba_density(Extractor):
+class extract_psedudo_step(Extractor):
+    def get_configuration(self):
+        configuration = super(extract_psedudo_step, self).get_configuration()
+        del configuration['estimator_builder']
+        del configuration['estimator_builder__scorer']
+        del configuration['name']
+        return configuration
 
-    def get_proba_density_estimation(self, y_proba_on_test, classes):
-        from sklearn.neighbors import KernelDensity
-        total_class = len(classes)
-        total_proba = np.size(y_proba_on_test, 0)
+    def handle_extenion(self, extension):
+        classes_ = self.step.estimator_builder.estimator_.classes_
+        classes_ = classes_.tolist() if classes_ is not None else None
 
-        true_density = [[0]*501 for _ in range(total_class)]
-        X_plot_true_density = np.linspace(0, 1, 501)[:, np.newaxis]
-        X_plot = np.linspace(0, 1, 1000)[:, np.newaxis]
+        scores = self.step.test_proba_
+        pseudo_label_stat = self.step.pseudo_label_stat_
+        if pseudo_label_stat is not None:
+            for k, v in  pseudo_label_stat.items():
+                if hasattr(v, 'tolist'):
+                    pseudo_label_stat[k] = v.tolist()
+            pseudo_label_stat = dict(pseudo_label_stat)
+        else:
+            pseudo_label_stat = {}
 
+        if scores is not None and np.shape(scores)[0] > 0 and classes_ is not None and np.shape(classes_)[0] > 0:
+            probability_density = self.get_proba_density_estimation(scores, classes_)
+        else:
+            probability_density = {}
+
+        result_extension = \
+            {
+                "probabilityDensity": probability_density,
+                "samples": pseudo_label_stat,
+                "selectedLabel": classes_[0]
+            }
+        return result_extension
+
+    #@staticmethod
+    # def get_proba_density_estimation(y_proba_on_test, classes):
+    #     from sklearn.neighbors import KernelDensity
+    #     total_class = len(classes)
+    #     total_proba = np.size(y_proba_on_test, 0)
+    #
+    #     true_density = [[0] * 501 for _ in range(total_class)]
+    #     X_plot_true_density = np.linspace(0, 1, 501)[:, np.newaxis]
+    #     X_plot = np.linspace(0, 1, 1000)[:, np.newaxis]
+    #
+    #     probability_density = {}
+    #     for i in range(total_class):
+    #         aclass = classes[i]
+    #         probability_density[str(aclass)] = {}
+    #
+    #         # calculate the true density
+    #         proba_list = y_proba_on_test[:, i]
+    #         probability_density[str(aclass)]['nSamples'] = len(proba_list)
+    #         for proba in proba_list:
+    #             true_density[i][int(proba * 500)] += 1
+    #         probability_density[str(aclass)]['trueDensity'] = {}
+    #         probability_density[str(aclass)]['trueDensity']['X'] = X_plot_true_density
+    #         probability_density[str(aclass)]['trueDensity']['probaDensity'] = list(
+    #             map(lambda x: x / total_proba, true_density[i]))
+    #
+    #         # calculate the gaussian/tophat/epanechnikov density estimation
+    #         proba_list_2d = y_proba_on_test[:, i][:, np.newaxis]
+    #         kernels = ['gaussian', 'tophat', 'epanechnikov']
+    #         for kernel in kernels:
+    #             kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_list_2d)
+    #             log_dens = kde.score_samples(X_plot)
+    #             probability_density[str(aclass)][str(kernel)] = {}
+    #             probability_density[str(aclass)][str(kernel)]['X'] = X_plot
+    #             probability_density[str(aclass)][str(kernel)]['probaDensity'] = np.exp(log_dens)
+    #     return probability_density
+
+
+    @staticmethod
+    def get_proba_density_estimation(scores, classes, n_partitions=1000):
+        # from sklearn.neighbors import KernelDensity
         probability_density = {}
-        for i in range(total_class):
-            aclass = classes[i]
-            probability_density[str(aclass)] = {}
-        
-            # calculate the true density
-            proba_list = y_proba_on_test[:, i]
-            probability_density[str(aclass)]['nSamples'] = len(proba_list)
-            for proba in proba_list:
-                true_density[i][int(proba*500)] += 1
-            probability_density[str(aclass)]['trueDensity'] = {}
-            probability_density[str(aclass)]['trueDensity']['X'] = X_plot_true_density
-            probability_density[str(aclass)]['trueDensity']['probaDensity'] = list(map(lambda x: x / total_proba, true_density[i]))
-
-            # calculate the gaussian/tophat/epanechnikov density estimation
-            proba_list_2d = y_proba_on_test[:, i][:, np.newaxis]
-            kernels = ['gaussian', 'tophat', 'epanechnikov']
-            for kernel in kernels:
-                kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_list_2d)
-                log_dens = kde.score_samples(X_plot)
-                probability_density[str(aclass)][str(kernel)] = {}
-                probability_density[str(aclass)][str(kernel)]['X'] = X_plot
-                probability_density[str(aclass)][str(kernel)]['probaDensity'] = np.exp(log_dens)
-
+        from seaborn._statistics import KDE
+        for i, class_ in enumerate(classes):
+            selected_proba = np.array(scores[:, i])
+            selected_proba_series = pd.Series(selected_proba).dropna()
+            # selected_proba = selected_proba.reshape((selected_proba.shape[0], 1))
+            estimator = KDE(bw_method='scott', bw_adjust=0.01, gridsize=200, cut=3, clip=None, cumulative=False)
+            density, support = estimator(selected_proba_series, weights=None)
+            probability_density[class_] = {
+                'gaussian': {
+                    "X": support.tolist(),
+                    "probaDensity": density.tolist()
+                }
+            }
+            # X_plot = np.linspace(0, 1, n_partitions)[:, np.newaxis]
+            # # calculate the gaussian/tophat/epanechnikov density estimation
+            # kernels = ['gaussian']
+            # # kernels = ['gaussian', 'tophat', 'epanechnikov']
+            # for kernel in kernels:
+            #     kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(selected_proba)
+            #     log_dens = kde.score_samples(X_plot)
+            #     probability_density[class_] = {
+            #         kernel: {
+            #             "X": np.copy(X_plot).flatten().tolist(),
+            #             "probaDensity": np.exp(log_dens).tolist()
+            #         }
+            #     }
         return probability_density
+
 
 def extract_step(index, step):
     stepType = step.__class__.__name__

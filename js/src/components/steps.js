@@ -5,6 +5,10 @@ import EchartsCore from './echartsCore';
 import {showNotification} from "../util";
 import {formatFloat, isEmpty} from "../util";
 import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps} from "../constants";
+import { TooltipComponent } from 'echarts/components';
+import { GridComponent } from 'echarts/components';
+import { BarChart, LineChart } from 'echarts/charts';
+
 
 const { TabPane } = Tabs;
 const CONFIGURATION_CARD_TITLE = "Configuration";
@@ -455,59 +459,57 @@ export function GeneralImportanceSelectionStep({stepData, configTip}){
 
 export function PseudoLabelStep({stepData, dispatch}) {
 
-    const getProbaDensityEchartOpts = (labelName) => {
-        const seriesData = [];
+    let selectedLabel;
+    let samplesObj;
+    let labels ;
+    if(stepData.status === StepStatus.Finish){
+        selectedLabel = stepData.extension.selectedLabel;
+        samplesObj = stepData.extension.samples;
+        labels = Object.keys(stepData.extension.samples);
+    }else{
+        selectedLabel = null;
+        samplesObj = null;
+        labels = [];
+    }
 
-        if(!isEmpty(labelName)){
-            const probabilityDensityLabelData = probabilityDensity[labelName];
-            const gaussianData = probabilityDensityLabelData['gaussian'];
-            for(var i = 0 ;i < gaussianData['X'].length; i++){
-                seriesData.push([gaussianData['X'][i], gaussianData['probaDensity'][i]])
+    const getProbaDensityEchartOpts = (labelName) => {
+        var X_data = [];
+        var y_data = [];
+        if(stepData.status === StepStatus.Finish){
+            const probabilityDensity = stepData.extension.probabilityDensity;
+            if(!isEmpty(labelName)){
+                const probabilityDensityLabelData = probabilityDensity[labelName];
+                const gaussianData = probabilityDensityLabelData['gaussian'];
+                X_data = gaussianData['X'];
+                y_data = gaussianData['probaDensity'];
+            }else{
+                showNotification('labelName is null');
             }
         }
-        return {
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'shadow'
-                }
-            },
+
+        return  {
             xAxis: {
                 type: 'category',
-                boundaryGap: false
+                boundaryGap: true,
+                data: X_data,
+                axisLabel: {
+                    interval: X_data.length / 10,  // show only 10 labels
+                    formatter: function(value, index){
+                        return (index / X_data.length).toFixed(2);  // scale x axis to [0, 1]
+                    }
+                }
             },
             yAxis: {
-                type: 'value',
-                boundaryGap: [0, '30%']
+                type: 'value'
             },
-            series: [
-                {
-                    type: 'line',
-                    smooth: 0.6,
-                    symbol: 'none',
-                    lineStyle: {
-                        color: '#5470C6',
-                        width: 3
-                    },
-                    areaStyle: {},
-                    data: seriesData
-                }
-            ]
+            series: [{
+                data: y_data,
+                type: 'line',
+                areaStyle: {}
+            }]
         };
     };
 
-    const probabilityDensity = stepData.extension.probabilityDensity;
-    const labels =  isEmpty(probabilityDensity) ? null : Object.keys(probabilityDensity);
-    let selectedLabel;
-    if(stepData.status === StepStatus.Finish){
-        if(labels === null || labels.length < 2){
-            showNotification("Pseudo step is success but labels is empty");
-            return ;
-        }
-        selectedLabel = stepData.extension.selectedLabel;
-    }else{
-        selectedLabel = null;
-    }
 
     const probaDensityChartOption = getProbaDensityEchartOpts(selectedLabel);
 
@@ -522,16 +524,6 @@ export function PseudoLabelStep({stepData, dispatch}) {
             }
         )
     };
-
-    if (!isEmpty(labels)){
-        if(labels.length < 2){
-            console.error("labels should not < 2");
-        }
-    }
-
-    const defaultLabel = isEmpty(labels) ? "None" : labels[0];
-
-    const samplesObj = stepData.extension.samples;
 
     const samplesDataSource = isEmpty(samplesObj) ? null : Object.keys(samplesObj).map((value,index, array) => {
         return {
@@ -572,8 +564,8 @@ export function PseudoLabelStep({stepData, dispatch}) {
             <Col span={10} offset={2} >
                 <Card title="Density Plot of Probability" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                         <span>
-                             <span style={{marginLeft: '20px'}}>Select label: </span>
-                             <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: 280 }} onChange={onLabelChanged} disabled={ isEmpty(labels)} >
+                             <span style={{marginLeft: '10px', marginRight: '10px'}}>Select label:</span>
+                             <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: '50%' }} onChange={onLabelChanged} disabled={ isEmpty(selectedLabel)} >
                                 {
                                     isEmpty(labels) ? null: labels.map( v => {
                                         return <Option value={v}>{v}</Option>
@@ -581,11 +573,13 @@ export function PseudoLabelStep({stepData, dispatch}) {
                                 }
                             </Select>
                         </span>
-                    <EchartsCore option={probaDensityChartOption}/>
+                    <EchartsCore option={probaDensityChartOption} prepare={ echarts => {
+                        echarts.use([LineChart, GridComponent, TooltipComponent]);
+                    }}/>
                 </Card>
             </Col>
         </Row>
-        <Row gutter={[4, 4]}>
+        <Row gutter={[2, 2]}>
             <Col span={10} offset={12} >
                 <Card title="Number of samples" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE} >
                     <Table dataSource={samplesDataSource}
@@ -599,21 +593,17 @@ export function PseudoLabelStep({stepData, dispatch}) {
 }
 
 export function EnsembleStep({stepData}) {
-    let scores;
-    let weights;
-    if(stepData.status === StepStatus.Finish){
-        scores = stepData.extension.scores;
-        scores = scores === null ? [] : scores;
-
-        weights = stepData.extension.weights;
-        weights = weights === null ? [] : weights;
-    }else{
-        scores =  null;
-        weights = null;
-    }
 
     const getLiftEchartOpts = () => {
-        const yLabels = scores !== null && scores !== undefined ?  Array.from({length:scores.length}, (v,k) => k) : [];
+        var scores = [];
+        var yLabels = [];
+        if(stepData.status === StepStatus.Finish){
+            const scores_ = stepData.extension.scores;
+            if(scores_ !== undefined && scores_ !== null && scores_.length > 0){
+                yLabels = Array.from({length: scores_.length}, (v,k) => k);
+                scores = [...scores_]
+            }
+        }
         return  {
             xAxis: {
                 type: 'category',
@@ -631,7 +621,18 @@ export function EnsembleStep({stepData}) {
     };
 
     const getWeightsEchartOpts = () => {
-        const yLabels = weights !== null && weights !== undefined ?  Array.from({length:weights.length}, (v,k) => k) : [];
+
+        var weights = [];
+        var yLabels = [];
+        if(stepData.status === StepStatus.Finish){
+            const weights_ = stepData.extension.weights;
+            if(weights_ !== undefined && weights_ !== null && weights_.length > 0){
+                yLabels = Array.from({length: weights_.length}, (v,k) => k);
+                weights = [...weights_]
+            }
+        }
+
+        // const yLabels = weights !== null && weights !== undefined ?  Array.from({length:weights.length}, (v,k) => k) : [];
         return {
                 tooltip: {
                     trigger: 'axis',
@@ -655,8 +656,6 @@ export function EnsembleStep({stepData}) {
                 yAxis: {
                     type: 'category',
                     data: [...yLabels].reverse(),
-                    min: 0,
-                    max: 1
                 },
                 series: [
                     {
@@ -682,7 +681,9 @@ export function EnsembleStep({stepData}) {
         <Col span={10} offset={2} >
             <Card title="Weight" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
 
-                <EchartsCore option={getWeightsEchartOpts()}/>
+                <EchartsCore option={getWeightsEchartOpts()} prepare={ echarts => {
+                    echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
+                }}/>
             </Card>
         </Col>
         </Row>
@@ -690,7 +691,9 @@ export function EnsembleStep({stepData}) {
         <Row gutter={[2, 2]}>
             <Col span={10} offset={12} >
                 <Card title="Lifting" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                    <EchartsCore option={getLiftEchartOpts()}/>
+                    <EchartsCore option={getLiftEchartOpts()} prepare={ echarts => {
+                        echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
+                    }}/>
                 </Card>
             </Col>
         </Row>
