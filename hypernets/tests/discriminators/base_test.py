@@ -26,13 +26,13 @@ def test_base():
     assert p1 == (0.9, 0.9, 0.9)
 
     p2 = get_0_100_50_percentile_score(1)
-    assert p2 == (0.8, 0.85, 0.85)
+    assert p2 == (0.85, 0.8, 0.85)
 
     p3 = get_0_100_50_percentile_score(5)
-    assert p3 == (0.4, 0.45, 0.425)
+    assert p3 == (0.45, 0.4, 0.425)
 
     p4 = get_0_100_50_percentile_score(9)
-    assert p4 == (0.21, 0.25, 0.23)
+    assert p4 == (0.25, 0.21, 0.23)
 
     p5 = get_0_100_50_percentile_score(9, 1)
-    assert p5 == (0.25, 0.21, 0.23)
+    assert p5 == (0.21, 0.25, 0.23)

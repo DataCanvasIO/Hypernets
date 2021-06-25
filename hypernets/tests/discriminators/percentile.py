@@ -26,14 +26,14 @@ class Test_PercentileDiscriminator():
 
         d = PercentileDiscriminator(0, min_trials=5, min_steps=5, stride=1, history=history, optimize_direction='min')
         p1 = d.is_promising([0.9, 0.9, 0.9, 0.9, 0.50], group_id)
-        assert p1 == False
-        p1 = d.is_promising([0.9, 0.9, 0.9, 0.9, 0.49], group_id)
         assert p1 == True
+        p1 = d.is_promising([0.9, 0.9, 0.9, 0.9, 0.56], group_id)
+        assert p1 == False
 
         d = PercentileDiscriminator(100, min_trials=5, min_steps=5, stride=1, history=history, optimize_direction='min')
         p1 = d.is_promising([0.9, 0.9, 0.9, 0.9, 0.55], group_id)
         assert p1 == False
-        p1 = d.is_promising([0.9, 0.9, 0.9, 0.9, 0.54], group_id)
+        p1 = d.is_promising([0.9, 0.9, 0.9, 0.9, 0.49], group_id)
         assert p1 == True
 
     def test_progressive_percentile(self):
@@ -43,7 +43,7 @@ class Test_PercentileDiscriminator():
         p1 = d.is_promising([0.1, 0.1, 0.1, 0.1, 0.1], group_id)
         assert p1 == True
 
-        p1 = d.is_promising([0.1, 0.1, 0.1, 0.1, 0.5], group_id)
+        p1 = d.is_promising([0.1, 0.1, 0.1, 0.1, 0.56], group_id)
         assert p1 == False
 
         p1 = d.is_promising([0.1, 0.1, 0.1, 0.1, 0.1, 0.1], group_id)
