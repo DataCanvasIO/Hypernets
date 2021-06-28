@@ -22,3 +22,7 @@ def get_random_state():
         return np.random.RandomState()
     else:
         return _hypernets_random_state
+
+
+def randint():
+    return get_random_state().randint(0, 65535)
