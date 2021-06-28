@@ -21,6 +21,21 @@ _DEFAULT_PRIMITIVES_TEXT = [TfidfPrimitive.name]
 
 _named_primitives = {p.name: p for p in _named_primitives}
 
+# _fix_feature_name
+_pattern_to_sub = re.compile(r'[=()\[\], ]')
+_chars_to_replace = {'+': 'A',
+                     '-': 'S',
+                     '*': 'X',
+                     '/': 'D',
+                     '%': 'M'}
+
+
+def _fix_feature_name(s):
+    s = _pattern_to_sub.sub('__', s)
+    for k, v in _chars_to_replace.items():
+        s = s.replace(k, v)
+    return s
+
 
 class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
     ft_index = 'e_hypernets_ft_index'
@@ -211,15 +226,13 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
     def _get_transformed_feature_names(self, feature_defs):
         names = [n for f in feature_defs for n in f.get_feature_names()]
         if self.fix_feature_names:
-            p = re.compile(r'[=()\[\], ]')
-            names = [p.sub('__', n) for n in names]
+            names = [_fix_feature_name(n) for n in names]
+
         return names
 
     def _fix_transformed_feature_names(self, df):
         if self.fix_feature_names and hasattr(df, 'columns'):
-            columns = df.columns.to_list()
-            p = re.compile(r'[=()\[\], ]')
-            columns = [p.sub('__', n) for n in columns]
+            columns = [_fix_feature_name(n) for n in df.columns.to_list()]
             df.columns = columns
 
         return df
