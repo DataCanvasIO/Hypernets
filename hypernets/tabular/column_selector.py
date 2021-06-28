@@ -69,17 +69,22 @@ class AutoCategoryColumnSelector(ColumnSelector):
         self.cat_exponent = cat_exponent
 
     def __call__(self, df, *args, **kwargs):
-        selected = super().__call__(df)
+        if self.pattern is not None or self.dtype_include is not None:
+            selected = super().__call__(df)
+        else:
+            selected = []
 
-        others = [c for c in df.columns.to_list() if c not in selected]
+        dtype_exclude = self.dtype_exclude if self.dtype_exclude is not None else []
+        others = [c for c in df.columns.to_list() if c not in selected and str(df.dtypes[c]) not in dtype_exclude]
         if len(others) > 0:
-            nuniques = df[others].nunique(axis=0)
             if isinstance(df, dd.DataFrame):
-                nuniques = nuniques.compute()
-                nunique_limit = dd.compute(df.shape[0])[0] ** self.cat_exponent
+                nuniques = [df[c].nunique() for c in others]
+                nuniques = {k: v for k, v in zip(others, dask.compute(*nuniques))}
+                nunique_limit = dask.compute(df.shape[0])[0] ** self.cat_exponent
             else:
+                nuniques = df[others].nunique(axis=0).to_dict()
                 nunique_limit = df.shape[0] ** self.cat_exponent
-            selected += [c for c, n in nuniques.to_dict().items() if n <= nunique_limit]
+            selected += [c for c, n in nuniques.items() if n <= nunique_limit]
 
         return selected
 

@@ -1,4 +1,4 @@
-from hypernets.conf import configure, Configurable, Int, String, Enum
+from hypernets.conf import configure, Configurable, Int, String, Bool, Float, Enum
 
 
 @configure()
@@ -31,6 +31,18 @@ class TabularCfg(Configurable):
             config=True,
             help=''
             )
+
+    auto_categorize = \
+        Bool(True,
+             config=True,
+             help=''
+             )
+
+    auto_categorize_shape_exponent = \
+        Float(0.5,
+              config=True,
+              help=''
+              )
 
     tfidf_max_feature_count = \
         Int(100, min=2,

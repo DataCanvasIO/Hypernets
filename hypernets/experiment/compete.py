@@ -1381,7 +1381,7 @@ class CompeteExperiment(SteppedExperiment):
         callbacks : list of callback functions or None, (default=None)
             List of callback functions that are applied at each experiment step. See `hypernets.experiment.ExperimentCallback`
             for more information.
-        random_state : int or RandomState instance, (default=9527)
+        random_state : int or RandomState instance, (default=None)
             Controls the shuffling applied to the data before applying the split
         scorer : str, callable or None, (default=None)
             Scorer to used for feature importance evaluation and ensemble. It can be a single string

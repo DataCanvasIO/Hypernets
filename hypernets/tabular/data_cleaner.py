@@ -3,14 +3,17 @@
 
 """
 import copy
+from functools import partial
 
 import dask
 import numpy as np
 import pandas as pd
 from dask import dataframe as dd
 
+from hypernets.tabular.cfg import TabularCfg as cfg
+from hypernets.tabular.column_selector import column_object, column_int, column_object_category_bool_int, \
+    AutoCategoryColumnSelector
 from hypernets.utils import logging
-from .column_selector import column_object, column_int, column_object_category_bool_int
 
 logger = logging.get_logger(__name__)
 
@@ -63,33 +66,57 @@ def _drop_duplicated_columns(X):
     return X, dup_cols
 
 
-def _correct_object_dtype(X):
-    object_columns = column_object(X)
+def _detect_dtype(dtype, df):
+    result = {}
+    df = df.copy()
+    for col in df.columns.to_list():
+        try:
+            df[col] = df[col].astype(dtype)
+            result[col] = [True]  # as-able
+        except:
+            result[col] = [False]
+    return pd.DataFrame(result)
 
-    if isinstance(X, dd.DataFrame):
-        def detect_dtype(df):
-            result = {}
-            df = df.copy()
-            for col in object_columns:
+
+def _correct_object_dtype_as(X, df_meta):
+    for dtype, columns in df_meta.items():
+        columns = [c for c in columns if str(X[c].dtype) != dtype]
+        if len(columns) == 0:
+            continue
+
+        if isinstance(X, dd.DataFrame):
+            correctable = X[columns].reduction(chunk=partial(_detect_dtype, dtype),
+                                               aggregate=lambda a: np.all(a, axis=0),
+                                               meta={c: 'bool' for c in columns}).compute()
+            correctable = [i for i, v in correctable.items() if v]
+            # for col in correctable:
+            #     X[col] = X[col].astype(dtype)
+            if correctable:
+                X[correctable] = X[correctable].astype(dtype)
+            logger.info(f'Correct columns [{",".join(correctable)}] to {dtype}.')
+        else:
+            for col in columns:
                 try:
-                    df[col] = df[col].astype('float')
-                    result[col] = [True]  # float-able
-                except:
-                    result[col] = [False]
-            return pd.DataFrame(result)
+                    X[col] = X[col].astype(dtype)
+                except Exception as e:
+                    if logger.is_debug_enabled():
+                        logger.debug(f'Correct object column [{col}] as {dtype} failed. {e}')
 
-        floatable = X.reduction(chunk=detect_dtype,
-                                aggregate=lambda a: np.all(a, axis=0)).compute()
-        float_columns = [i for i, v in floatable.items() if v]
-        for col in float_columns:
-            X[col] = X[col].astype('float')
-        logger.debug(f'Correct columns [{",".join(float_columns)}] to float.')
-    else:
-        for col in object_columns:
-            try:
-                X[col] = X[col].astype('float')
-            except Exception as e:
-                logger.debug(f'Correct object column [{col}] failed. {e}')
+    return X
+
+
+def _correct_object_dtype(X, df_meta=None):
+    if df_meta is None:
+        cats = AutoCategoryColumnSelector(cat_exponent=cfg.auto_categorize_shape_exponent)(X) \
+            if cfg.auto_categorize else []
+        if logger.is_info_enabled() and len(cats) > 0:
+            auto_cats = list(filter(lambda _: str(X[_].dtype) != 'object', cats))
+            if auto_cats:
+                logger.info(f'auto categorize columns: {auto_cats}')
+
+        cons = [c for c in column_object(X) if c not in cats]
+        df_meta = {'object': cats, 'float': cons}
+    X = _correct_object_dtype_as(X, df_meta)
 
     return X
 
@@ -168,7 +195,7 @@ class DataCleaner:
         X = X[[c for c in X.columns.to_list() if c not in cols]]
         return X
 
-    def clean_data(self, X, y):
+    def clean_data(self, X, y, df_meta=None):
         assert isinstance(X, (pd.DataFrame, dd.DataFrame))
         y_name = '__tabular-toolbox__Y__'
 
@@ -192,7 +219,7 @@ class DataCleaner:
             #         X[col] = X[col].astype('float')
             #     except Exception as e:
             #         logger.error(f'Correct object column [{col}] failed. {e}')
-            X = _correct_object_dtype(X)
+            X = _correct_object_dtype(X, df_meta)
 
         if self.drop_duplicated_columns:
             logger.debug('drop duplicated columns')
@@ -262,22 +289,28 @@ class DataCleaner:
             X = copy.deepcopy(X)
             if y is not None:
                 y = copy.deepcopy(y)
-        X, y = self.clean_data(X, y)
-        if self.df_meta_ is not None:
-            logger.debug('processing with meta info')
-            all_cols = []
-            for dtype, cols in self.df_meta_.items():
-                all_cols += cols
-                X[cols] = X[cols].astype(dtype)
-            drop_cols = set(X.columns.to_list()) - set(all_cols)
-            X = X[all_cols]
-            logger.debug(f'droped columns:{drop_cols}')
+        orig_columns = X.columns.to_list()
+        X, y = self.clean_data(X, y, df_meta=self.df_meta_)
+        # if self.df_meta_ is not None:
+        #     logger.debug('processing with meta info')
+        #     all_cols = []
+        #     for dtype, cols in self.df_meta_.items():
+        #         all_cols += cols
+        #         X[cols] = X[cols].astype(dtype)
+        #     drop_cols = set(X.columns.to_list()) - set(all_cols)
+        #     X = X[all_cols]
+        #     logger.debug(f'droped columns:{drop_cols}')
 
         if self.replace_inf_values is not None:
             logger.debug(f'replace [inf,-inf] to {self.replace_inf_values}')
             X = X.replace([np.inf, -np.inf], self.replace_inf_values)
 
         X = X[self.columns_]
+
+        if logger.is_info_enabled():
+            dropped = [c for c in orig_columns if c not in self.columns_]
+            logger.info(f'drop columns: {dropped}')
+
         if y is None:
             return X
         else:
