@@ -56,8 +56,8 @@ class Experiment(object):
         self.y_eval = y_eval
         self.X_test = X_test
 
-        if X_eval is not None and X_test is None:
-            self.X_test = X_eval
+        # if X_eval is not None and X_test is None:
+        #     self.X_test = X_eval
 
         self.eval_size = eval_size
         self.callbacks = callbacks if callbacks is not None else []
