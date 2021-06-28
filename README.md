@@ -34,6 +34,9 @@ pip install hypernets
 ```shell script
 python -c "from examples import smoke_testing;"
 ```
+## Related Links
+
+* [A Brief Tutorial for Developing AutoML Tools with Hypernets](https://github.com/BochenLv/knn_toy_model/blob/main/hypertoy/intro.md)
 
 ## Hypernets related projects
 
