@@ -66,11 +66,15 @@ class NotebookStepCallback(StepCallback):
             display(data, display_id=f'input_{step}')
 
     def step_end(self, exp, step, output, elapsed):
-        fitted_params = exp.get_step(step).get_fitted_params()
+        step_obj = exp.get_step(step)
+        fitted_params = step_obj.get_fitted_params()
         data = self.fitted_params_to_display(fitted_params)
         if data is not None:
             display_markdown('### Fitted parameters', raw=True)
             display(data, display_id=f'output_{step}')
+
+        display_markdown('### Elapsed', raw=True)
+        display_markdown(f'* {step_obj.elapsed_seconds:.3f} seconds', raw=True)
 
     @staticmethod
     def params_to_display(params):

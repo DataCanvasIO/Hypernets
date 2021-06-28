@@ -748,6 +748,7 @@ class SpaceSearchStep(ExperimentStep):
             self.history_ = model.history
             self.best_reward_ = model.get_best_trial().reward
         else:
+            logger.info(f'reuse fitted step: {fitted_step.name}')
             self.from_fitted_step(fitted_step)
 
         logger.info(f'{self.name} best_reward: {self.best_reward_}')
@@ -945,8 +946,8 @@ class EstimatorBuilderStep(ExperimentStep):
                                              **kwargs)
             logger.info(f'built estimator: {estimator}')
         else:
+            logger.info(f'reuse fitted step: {fitted_step.name}')
             estimator = fitted_step.estimator_
-            logger.info(f'found built estimator: {estimator}')
 
         self.dataset_id = dataset_id
         self.estimator_ = estimator
