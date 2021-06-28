@@ -162,17 +162,17 @@ class Test_FeatureGeneratorWithDask:
         ftt.fit(df)
         x_t = ftt.transform(df)
         x_t = x_t.compute()
-        assert "x1__+__x2" in x_t
-        assert "x1__/__x2" in x_t
+        assert "x1__A__x2" in x_t
+        assert "x1__D__x2" in x_t
 
         if fix_input is True:
             # should no NaN value not only input nor output
             assert not math.isnan(x_t["x1"][0])
-            assert not math.isnan(x_t["x1__/__x2"][0])
+            assert not math.isnan(x_t["x1__D__x2"][0])
         else:
             # x1 is NaN, it's children is NaN too.
             assert math.isnan(x_t["x1"][0])
-            assert math.isnan(x_t["x1__/__x2"][0])
+            assert math.isnan(x_t["x1__D__x2"][0])
 
     def test_datetime_derivation(self):
 
