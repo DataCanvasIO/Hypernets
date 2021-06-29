@@ -95,12 +95,16 @@ def _correct_object_dtype_as(X, df_meta):
                 X[correctable] = X[correctable].astype(dtype)
             logger.info(f'Correct columns [{",".join(correctable)}] to {dtype}.')
         else:
-            for col in columns:
-                try:
-                    X[col] = X[col].astype(dtype)
-                except Exception as e:
-                    if logger.is_debug_enabled():
-                        logger.debug(f'Correct object column [{col}] as {dtype} failed. {e}')
+            if dtype in ['object', 'str']:
+                X[columns] = X[columns].astype(dtype)
+            else:
+                for col in columns:
+                    try:
+                        if str(X[col].dtype) != str(dtype):
+                            X[col] = X[col].astype(dtype)
+                    except Exception as e:
+                        if logger.is_debug_enabled():
+                            logger.debug(f'Correct object column [{col}] as {dtype} failed. {e}')
 
     return X
 
