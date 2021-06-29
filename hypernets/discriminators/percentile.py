@@ -50,6 +50,8 @@ class ProgressivePercentileDiscriminator(BaseDiscriminator):
         percentile_score = get_percentile_score(self.history, n_step, group_id, percentile, self._sign)
         current_trial_score = iteration_trajectory[-1]
         result = current_trial_score * self._sign > percentile_score * self._sign
-        logger.info(
-            f'progress:{progress}, percentile:{percentile}, is promising:{result}, percentile_score:{percentile_score}, current_trial_score:{current_trial_score}')
+        if not result and logger.is_info_enabled():
+            logger.info(f'progress:{progress}, percentile:{percentile}, is promising:{result}, '
+                        f'percentile_score:{percentile_score}, current_trial_score:{current_trial_score}, '
+                        f'trajectory size:{n_step + 1}')
         return result
