@@ -890,6 +890,7 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
                 es.time_limit = math.ceil(time_limit - self.elapsed_seconds)
             else:
                 es.time_limit = math.ceil(time_limit * 0.3)
+            es.max_no_improvement_trials = 0
         model.searcher = playback
         if logger.is_info_enabled():
             logger.info(f'playback with full data, max_trails={kwargs.get("max_trials")}, {es}')

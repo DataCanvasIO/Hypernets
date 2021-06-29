@@ -35,7 +35,7 @@ class ExperimentCfg(Configurable):
                help='experiment id',
                )
     experiment_discriminator_options = \
-        Dict(default_value={'percentile': 50, 'min_trials': 10, 'min_steps': 5, 'stride': 1},
+        Dict(default_value={'percentile': 50, 'min_trials': 5, 'min_steps': 5, 'stride': 1},
              key_trait=String,
              allow_none=True, config=True,
              help='experiment id',
