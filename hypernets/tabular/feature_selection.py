@@ -13,7 +13,7 @@ from scipy.stats import spearmanr
 from sklearn.impute import SimpleImputer
 
 from hypernets.core import randint
-from hypernets.tabular import sklearn_ex as skex, dask_ex as dex
+from hypernets.tabular import sklearn_ex as skex, dask_ex as dex, column_selector as cs
 from hypernets.tabular.cfg import TabularCfg as cfg
 from hypernets.utils import logging
 
@@ -40,7 +40,10 @@ def select_by_multicollinearity(X, method=None):
         Xt = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit_transform(X)
         corr = spearmanr(Xt).correlation
     elif isinstance(X, pd.DataFrame):
-        Xt = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit_transform(X)
+        Xt = X.copy()
+        cols = cs.column_number_exclude_timedelta(X)
+        if cols:
+            Xt[cols] = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit_transform(Xt[cols])
         Xt = skex.SafeOrdinalEncoder().fit_transform(Xt)
         corr = Xt.corr(method=method).values
     else:  # dask
