@@ -47,7 +47,8 @@ class ExperimentCfg(Configurable):
              help='Callback instance or name list.'
              )
     hyper_model_callbacks_notebook = \
-        List(default_value=['hypernets.core.callbacks.NotebookCallback', ],
+        List(default_value=['hypernets.core.callbacks.NotebookCallback',
+                            'hypernets.core.callbacks.ProgressiveCallback'],
              allow_none=True, config=True,
              help='Callback instance or name list.'
              )
