@@ -1,6 +1,6 @@
 import React from 'react';
 import {showNotification} from "../util"
-import {connect, Provider} from "react-redux";
+import {connect } from "react-redux";
 import {ExperimentUI} from "./experiment"
 import {ActionType} from "../constants";
 

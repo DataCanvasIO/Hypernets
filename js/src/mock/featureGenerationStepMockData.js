@@ -1,16 +1,17 @@
-import {StepsKey, StepStatus} from "../constants";
+import {Steps, StepStatus} from "../constants";
 
 export function getInitData() {
 
     return {
         steps: [
             {
-                "name": StepsKey.FeatureGeneration.name,
+                "name": Steps.FeatureGeneration.name,
                 "index": 0,
-                "type": StepsKey.FeatureGeneration.type,
+                "type": Steps.FeatureGeneration.type,
                 "status": "wait",
                 "configuration": {
-                    collinearity_detection: true
+                    collinearity_detection: true,
+                    collinearity_aaaa_bbbbbb_ccc: "collinearity_aaaa_bbbbbb_ccccollinearity_aaaa_bbbbbb_ccc"
                 },
                 "extension": {},
                 "start_datetime": "2020-11-11 22:22:22",

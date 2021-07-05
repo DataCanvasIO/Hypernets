@@ -138,7 +138,7 @@ class JupyterHyperModelCallback(Callback):
     @staticmethod
     def get_space_params(space):
         params_dict = {}
-        for hyper_param in space.get_all_params():
+        for hyper_param in space.get_assigned_params():
             # param_name = hyper_param.alias[len(list(hyper_param.references)[0].name) + 1:]
             param_name = hyper_param.alias
             param_value = hyper_param.value
@@ -147,7 +147,7 @@ class JupyterHyperModelCallback(Callback):
             #     if not isinstance(param_value, bool):
             #         params_dict[param_name] = param_value
             if param_name is not None and param_value is not None:
-                params_dict[param_name] = str(param_value)
+                params_dict[param_name.split('.')[-1]] = str(param_value)
         return params_dict
 
     def ensure_number(self, value, var_name):

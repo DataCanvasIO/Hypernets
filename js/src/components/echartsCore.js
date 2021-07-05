@@ -24,7 +24,7 @@ class EchartsCore extends Component {
     super(props);
     this.echartsLib = echarts;
     this.echartsElement = null;
-
+    this.prepare = props.prepare;
   }
 
   componentDidMount() {
@@ -66,8 +66,9 @@ class EchartsCore extends Component {
   getEchartsInstance = () => this.echartsLib.getInstanceByDom(this.echartsElement) || this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts)
 
   renderEchartDom = () => {
-    echarts.use([LineChart, GridComponent]);  // this should be above of init echarts
-
+    const  now = new Date().getSeconds();
+    this.prepare(echarts);
+    console.info(" Prepare took: " + (new Date().getSeconds() - now));
     const echartsObj = this.getEchartsInstance();
 
     // echarts.use([LineChart]);
@@ -151,6 +152,7 @@ class EchartsCore extends Component {
 
 EchartsCore.propTypes = {
   option: PropTypes.object.isRequired,
+  prepare: PropTypes.func,
   style: PropTypes.object,
   className: PropTypes.string,
   notMerge: PropTypes.bool,
@@ -181,6 +183,9 @@ EchartsCore.propTypes = {
 EchartsCore.defaultProps = {
   style: {},
   className: '',
+  prepare: (echarts) => {
+    echarts.use([LineChart, GridComponent]);  // this should be above of init echarts
+  },
   notMerge: false,
   lazyUpdate: false,
   showLoading: false,

@@ -5,13 +5,18 @@ export function getInitData() {
     return {
         steps: [
             {
-                "name": Steps.PermutationImportanceSelection.name,
+                "name": Steps.Ensemble.name,
                 "index": 0,
-                "type": Steps.PermutationImportanceSelection.type,
+                "type":  Steps.Ensemble.type,
                 "status": "wait",
                 "configuration": {
-                    "cv": 100,
-                }
+                    "ensemble_size": 20,
+                    "name": "final_ensemble",
+                    "scorer": null
+                },
+                "extension": null,
+                "start_datetime": "2020-11-11 22:22:22",
+                "end_datetime": "2020-11-11 22:22:22"
             }
         ]
     }
@@ -20,21 +25,22 @@ export function getInitData() {
 export function sendFinishData(store, delay = 1000) {
 
     setTimeout(function () {
-        store.dispatch({
+        store.dispatch(
+            {
                 type: 'stepFinished',
                 payload: {
                     index: 0,
+                    type: 'EnsembleStep',
                     extension: {
-                        importances: [
-                            {name: 'id', importance: 0.1, dropped: true},
-                            {name: 'id1', importance: 0.1, dropped: true},
-                            {name: 'id2', importance: 0.8, dropped: false}
-                        ]
+                        "weights": [0.1, 0.6, 0.3],
+                        "scores": [0.1, 0.2, 0.3]
                     },
                     status: StepStatus.Finish,
                     datetime: ''
                 }
             })
     }, delay);
+
+
 
 }

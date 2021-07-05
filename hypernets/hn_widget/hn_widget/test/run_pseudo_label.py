@@ -40,8 +40,9 @@ ce = CompeteExperiment(hk, X_train, y_train,
                        callbacks=[JupyterWidgetExperimentCallback()])
 
 from hn_widget import experiment_util
-s = ce.run(max_trials=2)
-print(s)
+pipeline = ce.run(max_trials=2)
 steps_dict = experiment_util.extract_experiment(ce)
-print(steps_dict)
-print(steps_dict)
+import json
+print(json.dumps(steps_dict))
+
+
