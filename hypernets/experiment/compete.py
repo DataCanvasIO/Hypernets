@@ -16,7 +16,7 @@ from sklearn.metrics import get_scorer
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
-from hypernets.core import set_random_state, get_random_state
+from hypernets.core import set_random_state, randint
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
@@ -1512,7 +1512,7 @@ class CompeteExperiment(SteppedExperiment):
         steps.append(DataCleanStep(self, StepNames.DATA_CLEAN,
                                    data_cleaner_args=data_cleaner_args, cv=cv,
                                    train_test_split_strategy=train_test_split_strategy,
-                                   random_state=get_random_state()))
+                                   random_state=randint()))
         # feature generation
         if feature_generation:
             steps.append(FeatureGenerationStep(
@@ -1570,7 +1570,7 @@ class CompeteExperiment(SteppedExperiment):
                               proba_quantile=pseudo_labeling_proba_quantile,
                               sample_number=pseudo_labeling_sample_number,
                               resplit=pseudo_labeling_resplit,
-                              random_state=get_random_state())
+                              random_state=randint())
             steps.append(estimator_builder)
             steps.append(step)
             two_stage = True
