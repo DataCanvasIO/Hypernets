@@ -855,23 +855,29 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
             self.down_sample(X_train, y_train, X_eval, y_eval)
         if X_eval is not None:
             kwargs['eval_set'] = (X_eval_sampled, y_eval_sampled)
+        key_max_trials = 'max_trials'
+
         model0 = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
-        es0 = self.find_early_stopping_callback(model0.callbacks)
-        if es0 is not None and es0.time_limit is not None and es0.time_limit > 0:
-            time_limit = self.estimate_time_limit(es0.time_limit)
-            if self.time_limit is not None:
-                es0.time_limit = min(self.time_limit, time_limit / 2)
-            else:
-                es0.time_limit = math.ceil(time_limit / 3)
-        else:
-            time_limit = 0
         kwargs0 = kwargs.copy()
         if self.max_trials is not None:
-            kwargs0['max_trials'] *= self.max_trials
-        elif 'max_trials' in kwargs.keys():
-            kwargs0['max_trials'] *= 3
+            kwargs0[key_max_trials] *= self.max_trials
+        elif key_max_trials in kwargs.keys():
+            kwargs0[key_max_trials] *= 3
+        es0 = self.find_early_stopping_callback(model0.callbacks)
+        time_limit = 0
+        if es0 is not None:
+            if es0.time_limit is not None and es0.time_limit > 0:
+                time_limit = self.estimate_time_limit(es0.time_limit)
+                if self.time_limit is not None:
+                    es0.time_limit = min(self.time_limit, time_limit / 2)
+                else:
+                    es0.time_limit = math.ceil(time_limit / 3)
+            if isinstance(es0.max_no_improvement_trials, int) \
+                    and isinstance(kwargs.get(key_max_trials), int) and kwargs[key_max_trials] > 0:
+                es0.max_no_improvement_trials *= kwargs0[key_max_trials] / kwargs[key_max_trials]
+                es0.max_no_improvement_trials = math.ceil(es0.max_no_improvement_trials)
         if logger.is_info_enabled():
-            logger.info(f'search with down sampled data, max_trails={kwargs0.get("max_trials")}, {es0}')
+            logger.info(f'search with down sampled data, max_trails={kwargs0.get(key_max_trials)}, {es0}')
         model0.search(X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled,
                       cv=self.cv, num_folds=self.num_folds, **kwargs0)
 
@@ -886,14 +892,16 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
         model = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         es = self.find_early_stopping_callback(model.callbacks)
         if es is not None and es.time_limit is not None and es.time_limit > 0:
-            if time_limit - self.elapsed_seconds > 0:
-                es.time_limit = math.ceil(time_limit - self.elapsed_seconds)
+            elapsed = self.elapsed_seconds
+            if time_limit - elapsed > 0:
+                es.time_limit = math.ceil(time_limit - elapsed)
             else:
                 es.time_limit = math.ceil(time_limit * 0.3)
             es.max_no_improvement_trials = 0
         model.searcher = playback
+        kwargs[key_max_trials] = len(playback.samples)
         if logger.is_info_enabled():
-            logger.info(f'playback with full data, max_trails={kwargs.get("max_trials")}, {es}')
+            logger.info(f'playback with full data, max_trails={kwargs.get(key_max_trials)}, {es}')
         model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
         # if model.get_best_trial() is None or model.get_best_trial().reward == 0:
         #     raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
