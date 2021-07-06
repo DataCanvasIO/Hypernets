@@ -50,13 +50,13 @@ class TabularCfg(Configurable):
               )
 
     tfidf_max_feature_count = \
-        Int(100, min=2,
+        Int(1000, min=2,
             config=True,
             help=''
             )
 
     tfidf_primitive_output_feature_count = \
-        Int(3, min=2,
+        Int(30, min=2,
             config=True,
             help=''
             )
