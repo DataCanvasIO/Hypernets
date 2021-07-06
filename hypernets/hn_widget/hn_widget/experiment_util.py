@@ -243,17 +243,17 @@ class extract_ensemble_step(Extractor):
 class extract_psedudo_step(Extractor):
     def get_configuration(self):
         configuration = super(extract_psedudo_step, self).get_configuration()
-        del configuration['estimator_builder']
-        del configuration['estimator_builder__scorer']
-        del configuration['name']
+        # del configuration['estimator_builder']
+        # del configuration['estimator_builder__scorer']
+        # del configuration['name']
         return configuration
 
     def handle_extenion(self, extension):
-        classes_ = self.step.estimator_builder.estimator_.classes_
-        classes_ = classes_.tolist() if classes_ is not None else None
+        pseudo_label_stat = self.step.pseudo_label_stat_
+        classes_ = list(pseudo_label_stat.keys()) if pseudo_label_stat is not None else None
 
         scores = self.step.test_proba_
-        pseudo_label_stat = self.step.pseudo_label_stat_
+
         if pseudo_label_stat is not None:
             for k, v in  pseudo_label_stat.items():
                 if hasattr(v, 'tolist'):
