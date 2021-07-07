@@ -105,7 +105,7 @@ def feature_selection(X_train, X_test,
 
         indices = np.argsort(detector.feature_importances_)
         if indices.shape[0] <= min_features:
-            logger.warn(f'The number of remaining features is insufficient to continue remove features. '
+            logger.info(f'The number of remaining features is insufficient to continue remove features. '
                         f'AUC:{detector.auc_} '
                         f'Remaining features:{detector.feature_names_}')
             if callbacks is not None:
@@ -115,7 +115,7 @@ def feature_selection(X_train, X_test,
 
         removes = int(indices.shape[0] * remove_size)
         if removes <= 0:
-            logger.warn(f'The number of remaining features is insufficient to continue remove features. '
+            logger.info(f'The number of remaining features is insufficient to continue remove features. '
                         f'AUC:{detector.auc_} '
                         f'Remaining features:({len(detector.feature_names_)}) / {detector.feature_names_}')
             if callbacks is not None:
