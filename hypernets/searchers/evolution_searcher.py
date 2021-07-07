@@ -2,10 +2,9 @@
 """
 
 """
-import numpy as np
 
-from ..core.searcher import Searcher, OptimizeDirection
 from ..core import get_random_state
+from ..core.searcher import Searcher, OptimizeDirection
 from ..utils import logging
 
 logger = logging.get_logger(__name__)
@@ -96,6 +95,7 @@ class EvolutionSearcher(Searcher):
     ----------
         Real, Esteban, et al. "Regularized evolution for image classifier architecture search." Proceedings of the aaai conference on artificial intelligence. Vol. 33. 2019.
     """
+
     def __init__(self, space_fn, population_size, sample_size, regularized=False,
                  candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
                  space_sample_validation_fn=None, random_state=None):
@@ -123,10 +123,15 @@ class EvolutionSearcher(Searcher):
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
                           use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
         self.random_state = random_state if random_state is not None else get_random_state()
-        self.population = Population(size=population_size, optimize_direction=optimize_direction, random_state=self.random_state)
+        self.population = Population(size=population_size, optimize_direction=optimize_direction,
+                                     random_state=self.random_state)
         self.sample_size = sample_size
         self.regularized = regularized
-        self.candidate_size = candidates_size
+        self.candidates_size = candidates_size
+
+    @property
+    def population_size(self):
+        return self.population.size
 
     @property
     def parallelizable(self):
@@ -151,7 +156,7 @@ class EvolutionSearcher(Searcher):
             candidates = []
             scores = []
             no = 0
-            for i in range(self.candidate_size):
+            for i in range(self.candidates_size):
                 new_space = self.space_fn()
                 try:
                     candidate = self._sample_and_check(lambda: self.population.mutate(space_sample, new_space))

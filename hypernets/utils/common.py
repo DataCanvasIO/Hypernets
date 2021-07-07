@@ -9,6 +9,7 @@ import inspect
 import math
 import pickle
 import uuid
+from collections import OrderedDict
 from functools import partial
 from io import BytesIO
 
@@ -27,9 +28,9 @@ def generate_id():
     return str(uuid.uuid1())
 
 
-def to_repr(obj):
+def get_params(obj, include_default=False):
     def _get_init_params(cls):
-        init = cls.__init__  # getattr(cls.__init__, 'deprecated_original', cls.__init__)
+        init = cls.__init__
         if init is object.__init__:
             return []
 
@@ -38,15 +39,22 @@ def to_repr(obj):
                       if p.name != 'self' and p.kind != p.VAR_KEYWORD]
         return parameters
 
-    out = []
-    cls_ = type(obj)
-    for p in _get_init_params(cls_):
+    out = OrderedDict()
+    for p in _get_init_params(type(obj)):
         name = p.name
         value = getattr(obj, name, None)
-        if value is not p.default:
-            out.append('%s=%r' % (name, value))
+        if include_default or value is not p.default:
+            out[name] = value
+
+    return out
+
+
+def to_repr(obj, excludes=None):
+    if excludes is None:
+        excludes = []
+    out = ['%s=%r' % (k, v) for k, v in get_params(obj).items() if k not in excludes]
     repr_ = ', '.join(out)
-    return f'{cls_.__name__}({repr_})'
+    return f'{type(obj).__name__}({repr_})'
 
 
 def combinations(n, m_max, m_min=1):

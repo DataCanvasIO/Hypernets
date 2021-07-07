@@ -10,7 +10,7 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
-from ..utils import logging, infer_task_type as _infer_task_type, hash_data, const
+from ..utils import logging, infer_task_type as _infer_task_type, hash_data, const, to_repr
 
 logger = logging.get_logger(__name__)
 
@@ -96,6 +96,11 @@ class HyperModel:
         else:
             elapsed = time.time() - start_time
             trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
+
+            if self.history is not None:
+                t = self.history.get_worst()
+                if t is not None:
+                    self.searcher.update_result(space_sample, t.reward)
 
         return trial
 
@@ -220,3 +225,6 @@ class HyperModel:
 
     def plot_hyperparams(self, destination='notebook', output='hyperparams.html'):
         return self.history.plot_hyperparams(destination, output)
+
+    def __repr__(self):
+        return to_repr(self)
