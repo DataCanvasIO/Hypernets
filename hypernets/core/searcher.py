@@ -2,8 +2,10 @@
 """
 
 """
-from .stateful import Stateful
 import enum
+
+from hypernets.utils import to_repr
+from .stateful import Stateful
 
 
 class OptimizeDirection(enum.Enum):
@@ -63,3 +65,6 @@ class Searcher(Stateful):
 
     def export(self):
         raise NotImplementedError
+
+    def __repr__(self):
+        return to_repr(self)

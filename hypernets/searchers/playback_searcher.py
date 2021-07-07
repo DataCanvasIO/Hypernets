@@ -8,13 +8,13 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class PlaybackSearcher(Searcher):
-    def __init__(self, trail_history: TrialHistory, top_n=None, reverse=False,
+    def __init__(self, history: TrialHistory, top_n=None, reverse=False,
                  optimize_direction=OptimizeDirection.Minimize):
-        assert trail_history is not None
-        assert len(trail_history.trials) > 0
+        assert history is not None
+        assert len(history.trials) > 0
 
-        self.history = trail_history
-        self.top_n = top_n if top_n is not None else len(trail_history.trials)
+        self.history = history
+        self.top_n = top_n if top_n is not None else len(history.trials)
         self.samples = [t.space_sample for t in self.history.get_top(self.top_n)]
         self.index = 0
         self.reverse = reverse

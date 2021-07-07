@@ -35,6 +35,13 @@ def select_by_multicollinearity(X, method=None):
         frac = sample_limit / X_shape[0]
         X, _, = dex.train_test_split(X, train_size=frac, random_state=randint())
 
+    n_values = [X[c].value_counts() for c in X.columns]
+    if dex.is_dask_dataframe(X):
+        n_values = dex.compute(*n_values)
+    one_values = [n.name for n in n_values if len(n) <= 1]
+    if len(one_values) > 0:
+        X = X[[c for c in X.columns if c not in one_values]]
+
     logger.info('computing correlation')
     if (method is None or method == 'spearman') and isinstance(X, pd.DataFrame):
         Xt = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit_transform(X)
@@ -57,6 +64,6 @@ def select_by_multicollinearity(X, method=None):
     for idx, cluster_id in enumerate(cluster_ids):
         cluster_id_to_feature_ids[cluster_id].append(idx)
     selected = [X.columns[v[0]] for v in cluster_id_to_feature_ids.values()]
-    unselected = list(set(X.columns.to_list()) - set(selected))
+    unselected = list(set(X.columns.to_list()) - set(selected)) + one_values
     feature_clusters = [[X.columns[i] for i in v] for v in cluster_id_to_feature_ids.values()]
     return feature_clusters, selected, unselected

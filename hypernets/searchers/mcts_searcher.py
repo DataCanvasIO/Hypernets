@@ -39,7 +39,11 @@ class MCTSSearcher(Searcher):
         Searcher.__init__(self, space_fn, optimize_direction, use_meta_learner=use_meta_learner,
                           space_sample_validation_fn=space_sample_validation_fn)
         self.nodes_map = {}
-        self.candidate_size = candidates_size
+        self.candidates_size = candidates_size
+
+    @property
+    def max_node_space(self):
+        return self.tree.max_node_space
 
     def parallelizable(self):
         return self.use_meta_learner and self.meta_learner is not None
@@ -71,7 +75,7 @@ class MCTSSearcher(Searcher):
     def _select_best_candidate(self, node):
         candidates = []
         scores = []
-        for i in range(self.candidate_size):
+        for i in range(self.candidates_size):
             candidate = self._roll_out(node)
             candidates.append(candidate)
             scores.append(self.meta_learner.predict(candidate, 0.5))

@@ -266,11 +266,32 @@ class NotebookCallback(Callback):
         self.max_trials = max_trials
 
         df_holder = pd.DataFrame()
+        settings = {'X': X.shape,
+                    'y': y.shape,
+                    'X_eval': X_eval.shape if X_eval is not None else None,
+                    'y_eval': y_eval.shape if y_eval is not None else None,
+                    'cv': cv,
+                    'num_folds': num_folds,
+                    'max_trials': max_trials,
+                    # 'dataset_id': dataset_id,
+                    'trail_store': trial_store,
+                    'fit_kwargs': fit_kwargs
+                    }
+        df_settings = pd.DataFrame({k: [v] for k, v in settings.items()})
+
+        display_markdown('#### Experiment Settings:', raw=True)
+        display(hyper_model, display_id=False)
+        display(df_settings, display_id=False)
 
         display_markdown('#### Trials Summary:', raw=True)
         handle = display(df_holder, display_id=True)
         if handle is not None:
             self.search_summary_display_id = handle.display_id
+
+        display_markdown('#### Best Trial:', raw=True)
+        handle = display(df_holder, display_id=True)
+        if handle is not None:
+            self.best_trial_display_id = handle.display_id
 
         handle = display({'text/markdown': '#### Current Trial:'}, raw=True, include=['text/markdown'],
                          display_id=True)
@@ -280,11 +301,6 @@ class NotebookCallback(Callback):
         handle = display(df_holder, display_id=True)
         if handle is not None:
             self.current_trial_display_id = handle.display_id
-
-        display_markdown('#### Best Trial:', raw=True)
-        handle = display(df_holder, display_id=True)
-        if handle is not None:
-            self.best_trial_display_id = handle.display_id
 
     def on_trial_begin(self, hyper_model, space, trial_no):
         df_summary = pd.DataFrame([(trial_no, self.last_reward, hyper_model.best_trial_no,

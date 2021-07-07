@@ -16,7 +16,7 @@ from sklearn.metrics import get_scorer
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
-from hypernets.core import set_random_state, randint
+from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular import drift_detection as dd
@@ -199,13 +199,12 @@ class FeatureSelectStep(ExperimentStep):
 
 class DataCleanStep(FeatureSelectStep):
     def __init__(self, experiment, name, data_cleaner_args=None,
-                 cv=False, train_test_split_strategy=None, random_state=None):
+                 cv=False, train_test_split_strategy=None):
         super().__init__(experiment, name)
 
         self.data_cleaner_args = data_cleaner_args if data_cleaner_args is not None else {}
         self.cv = cv
         self.train_test_split_strategy = train_test_split_strategy
-        self.random_state = random_state
 
         # fitted
         self.data_cleaner_ = DataCleaner(**self.data_cleaner_args)
@@ -249,11 +248,11 @@ class DataCleanStep(FeatureSelectStep):
                     if self.task == const.TASK_REGRESSION or dex.is_dask_object(X_train):
                         X_train, X_eval, y_train, y_eval = \
                             dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.random_state)
+                                                 random_state=self.experiment.random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
                             dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.random_state, stratify=y_train)
+                                                 random_state=self.experiment.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
                     y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
@@ -320,11 +319,11 @@ class DataCleanStep(FeatureSelectStep):
                     if self.task == const.TASK_REGRESSION or dex.is_dask_object(X_train):
                         X_train, X_eval, y_train, y_eval = \
                             dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.random_state)
+                                                 random_state=self.experiment.random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
                             dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.random_state, stratify=y_train)
+                                                 random_state=self.experiment.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
                     y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
@@ -834,8 +833,8 @@ class SpaceSearchStep(ExperimentStep):
 
 
 class SpaceSearchWithDownSampleStep(SpaceSearchStep):
-    def __init__(self, experiment, name, cv=False, num_folds=3, size=None,
-                 max_trials=None, time_limit=None):
+    def __init__(self, experiment, name, cv=False, num_folds=3,
+                 size=None, max_trials=None, time_limit=None):
         assert size is None or isinstance(size, (int, float))
         assert time_limit is None or isinstance(time_limit, (int, float))
         assert max_trials is None or isinstance(max_trials, int)
@@ -912,8 +911,8 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
 
     def down_sample(self, X_train, y_train, X_eval, y_eval):
         size = self.size if self.size else 0.1
-        random_state = self.experiment.random_state
 
+        random_state = self.experiment.random_state
         X_train_sampled, _, y_train_sampled, _ = \
             dex.train_test_split(X_train, y_train, train_size=size, random_state=random_state)
         if X_eval is not None:
@@ -1065,7 +1064,7 @@ class FinalTrainStep(EstimatorBuilderStep):
 class PseudoLabelStep(ExperimentStep):
     def __init__(self, experiment, name, estimator_builder_name,
                  strategy=None, proba_threshold=None, proba_quantile=None, sample_number=None,
-                 resplit=False, random_state=None):
+                 resplit=False):
         super().__init__(experiment, name)
 
         self.estimator_builder_name = estimator_builder_name
@@ -1074,7 +1073,6 @@ class PseudoLabelStep(ExperimentStep):
         self.proba_quantile = proba_quantile
         self.sample_number = sample_number
         self.resplit = resplit
-        self.random_state = random_state
         self.plot_sample_size = 3000
 
         # fitted
@@ -1116,7 +1114,7 @@ class PseudoLabelStep(ExperimentStep):
         if test_proba.shape[0] > self.plot_sample_size:
             test_proba, _ = dex.train_test_split(test_proba,
                                                  train_size=self.plot_sample_size,
-                                                 random_state=self.random_state)
+                                                 random_state=self.experiment.random_state)
 
         if X_pseudo is not None:
             X_train, y_train, X_eval, y_eval = \
@@ -1162,7 +1160,7 @@ class PseudoLabelStep(ExperimentStep):
             eval_size = self.experiment.eval_size
             X_train, X_eval, y_train, y_eval = \
                 train_test_split(X_mix, y_mix, test_size=eval_size,
-                                 random_state=self.random_state, stratify=stratify)
+                                 random_state=self.experiment.random_state, stratify=stratify)
         else:
             X_train = pd.concat([X_train, X_pseudo], axis=0)
             y_train = pd.concat([y_train, pd.Series(y_pseudo)], axis=0)
@@ -1199,7 +1197,7 @@ class DaskPseudoLabelStep(PseudoLabelStep):
 
             eval_size = self.experiment.eval_size
             X_train, X_eval, y_train, y_eval = \
-                dex.train_test_split(X_mix, y_mix, test_size=eval_size, random_state=self.random_state)
+                dex.train_test_split(X_mix, y_mix, test_size=eval_size, random_state=self.experiment.random_state)
         else:
             X_train = dex.concat_df([X_train, X_pseudo], axis=0)
             y_train = dex.concat_df([y_train, y_pseudo], axis=0)
@@ -1511,8 +1509,8 @@ class CompeteExperiment(SteppedExperiment):
         # data clean
         steps.append(DataCleanStep(self, StepNames.DATA_CLEAN,
                                    data_cleaner_args=data_cleaner_args, cv=cv,
-                                   train_test_split_strategy=train_test_split_strategy,
-                                   random_state=randint()))
+                                   train_test_split_strategy=train_test_split_strategy))
+
         # feature generation
         if feature_generation:
             steps.append(FeatureGenerationStep(
@@ -1569,8 +1567,7 @@ class CompeteExperiment(SteppedExperiment):
                               proba_threshold=pseudo_labeling_proba_threshold,
                               proba_quantile=pseudo_labeling_proba_quantile,
                               sample_number=pseudo_labeling_sample_number,
-                              resplit=pseudo_labeling_resplit,
-                              random_state=randint())
+                              resplit=pseudo_labeling_resplit)
             steps.append(estimator_builder)
             steps.append(step)
             two_stage = True

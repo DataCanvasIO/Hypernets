@@ -15,12 +15,12 @@ class ExperimentCfg(Configurable):
              )
 
     experiment_default_target_set = \
-        List(default_value=['y', 'target'],
+        List(default_value=['y', 'target', 'class'],
              allow_none=True, config=True,
-             help='Default target name list.'
+             help='Default target names.'
              )
     experiment_auto_down_sample_enabled = \
-        Bool(True,
+        Bool(False,
              allow_none=True, config=True,
              help=''
              )
@@ -32,13 +32,13 @@ class ExperimentCfg(Configurable):
     experiment_discriminator = \
         String('percentile',
                allow_none=True, config=True,
-               help='experiment id',
+               help='discriminator identity, "percentile" or "progressive"',
                )
     experiment_discriminator_options = \
         Dict(default_value={'percentile': 50, 'min_trials': 5, 'min_steps': 5, 'stride': 1},
              key_trait=String,
              allow_none=True, config=True,
-             help='experiment id',
+             help='discriminator settings',
              )
 
     hyper_model_callbacks_console = \

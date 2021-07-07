@@ -6,6 +6,7 @@ import datetime
 import os
 import pickle
 import shutil
+from collections import OrderedDict
 
 import pandas as pd
 
@@ -80,6 +81,13 @@ class Trial():
         state = {k: v for k, v in state.items() if k != 'memo'}
         return state
 
+    def to_df(self, include_params=False):
+        out = OrderedDict(trial_no=self.trial_no, succeeded=self.succeeded, reward=self.reward, elapsed=self.elapsed)
+        if include_params:
+            for p in self.space_sample.get_assigned_params():
+                out[p.alias] = p.value
+        return pd.DataFrame({k: [v] for k, v in out.items()})
+
 
 class TrialHistory():
     def __init__(self, optimize_direction):
@@ -111,15 +119,23 @@ class TrialHistory():
         else:
             return top1[0]
 
-    def get_top(self, n=10):
+    def get_worst(self):
+        topn = self.get_top()
+        return topn[-1] if len(topn) > 0 else None
+
+    def get_top(self, n=None):
+        assert n is None or isinstance(n, int)
+
         valid_trials = [t for t in self.trials if t.succeeded]
         if len(valid_trials) <= 0:
             return []
         sorted_trials = sorted(valid_trials, key=lambda t: t.reward,
                                reverse=self.optimize_direction in ['max', OptimizeDirection.Maximize])
-        if n > len(sorted_trials):
-            n = len(sorted_trials)
-        return sorted_trials[:n]
+
+        if isinstance(n, int) and n < len(sorted_trials):
+            sorted_trials = sorted_trials[:n]
+
+        return sorted_trials
 
     def get_space_signatures(self):
         signatures = set()
@@ -199,6 +215,24 @@ class TrialHistory():
                               elapsed=float(fields[3]), model_file=model_file)
                 history.append(trial)
             return history
+
+    def __repr__(self):
+        out = OrderedDict(direction=self.optimize_direction)
+        if len(self.trials) > 0:
+            tops = self.get_top()
+            out['size'] = len(self.trials)
+            out['succeeded'] = len(tops)
+            if len(tops) > 0:
+                out['best_reward'] = tops[0].reward
+                out['worst_reward'] = tops[-1].reward
+
+        repr_ = ', '.join('%s=%r' % (k, v) for k, v in out.items())
+        return f'{type(self).__name__}({repr_})'
+
+    def to_df(self, include_params=False):
+        df = pd.concat([t.to_df(include_params) for t in self.trials], axis=0)
+        df.reset_index(drop=True, inplace=True)
+        return df
 
     def plot_hyperparams(self, destination='notebook', output='hyperparams.html'):
         """Plot hyperparams in a parallel line chart
