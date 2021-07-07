@@ -833,8 +833,8 @@ class SpaceSearchStep(ExperimentStep):
 
 
 class SpaceSearchWithDownSampleStep(SpaceSearchStep):
-    def __init__(self, experiment, name, cv=False, num_folds=3, size=None,
-                 max_trials=None, time_limit=None):
+    def __init__(self, experiment, name, cv=False, num_folds=3,
+                 size=None, max_trials=None, time_limit=None):
         assert size is None or isinstance(size, (int, float))
         assert time_limit is None or isinstance(time_limit, (int, float))
         assert max_trials is None or isinstance(max_trials, int)
