@@ -19,11 +19,13 @@ log.set_verbosity(log.DEBUG)
 log.info('setup.py entered')
 log.info('$PATH=%s' % os.environ['PATH'])
 
-name = 'hn_widget'
+name = 'hypernets-jupyter-widget'
+pkg_name = 'hn_widget'
+
 LONG_DESCRIPTION = 'Jupyter widgets for hyperntes'
 
 # Get hn_widget version
-version = get_version(pjoin(name, '_version.py'))
+version = get_version(pjoin(pkg_name, '_version.py'))
 
 js_dir = pjoin(here, 'js')
 

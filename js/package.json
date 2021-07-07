@@ -1,7 +1,12 @@
 {
-  "name": "js",
-  "version": "0.1.0",
-  "private": true,
+  "name": "hypernets-experiment",
+  "version": "0.1.1",
+  "private": false,
+  "main": "build/index.js",
+  "files": [
+    "build",
+    "!~"
+  ],
   "devDependencies": {
     "babel-loader": "^8.2.2"
   },

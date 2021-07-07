@@ -2,9 +2,9 @@ const config = {
     entry: ['./src/index.js'],
     output: {
         path: __dirname + '/build',
-        filename: 'pipelineVis.js',
+        filename: 'index.js',
         libraryTarget: "commonjs", // commonjs, var
-        library: 'pipelineVis'
+        library: 'hypernetsExperiment'
     },
     module: {
         rules: [

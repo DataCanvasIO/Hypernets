@@ -1,7 +1,8 @@
 var widgets = require('@jupyter-widgets/base');
 var _ = require('lodash');
 
-var pipelineVis = require('./pipelineVis.js');
+// var pipelineVis = require('./pipelineVis.js');
+var hypernetsExperiment = require('hypernets-experiment').hypernetsExperiment;
 
 var ExperimentSummaryModel = widgets.DOMWidgetModel.extend({
     defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
@@ -21,10 +22,10 @@ var ExperimentSummaryView = widgets.DOMWidgetView.extend({
     // Defines how the widget gets rendered into the DOM
     render: function() {
         // this.value_changed();
-        console.log('pipelineVis lib in renderExperimentSummary: ');
-        console.log(pipelineVis);
+        console.log('hypernetsExperiment lib in renderExperimentSummary: ');
+        console.log(hypernetsExperiment);
         const value = this.model.get('value');
-        pipelineVis.pipelineVis.renderExperimentSummary(value, this.el);
+        hypernetsExperiment.renderExperimentSummary(value, this.el);
     }
 });
 
@@ -46,10 +47,10 @@ var DatasetSummaryView = widgets.DOMWidgetView.extend({
     // Defines how the widget gets rendered into the DOM
     render: function() {
         // this.value_changed();
-        console.log('pipelineVis lib in renderDatasetSummary: ');
-        console.log(pipelineVis);
+        console.log('hypernetsExperiment lib in renderDatasetSummary: ');
+        console.log(hypernetsExperiment);
         const value = this.model.get('value');
-        pipelineVis.pipelineVis.renderDatasetSummary(value, this.el);
+        hypernetsExperiment.renderDatasetSummary(value, this.el);
     }
 });
 
@@ -73,9 +74,8 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
     // Defines how the widget gets rendered into the DOM
     render: function() {
         // this.value_changed();
-        console.log('pipelineVis lib: ');
-        console.log(pipelineVis);
-        console.log(pipelineVis.pipelineVis);
+        console.log('hypernetsExperiment lib: ');
+        console.log(hypernetsExperiment);
 
         // Observe changes in the value traitlet in Python, and define
         // a custom callback.
@@ -87,7 +87,7 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
         const initData = JSON.parse(this.model.get('initData'));
         console.log("Received init_data_changed from backend");
         console.info(JSON.stringify(initData));
-        this.reactStore = pipelineVis.pipelineVis.renderExperimentProcess(initData, this.el);
+        this.reactStore = hypernetsExperiment.renderExperimentProcess(initData, this.el);
         console.info("store: ");
         console.info(this.reactStore);
     },
