@@ -173,7 +173,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         make_index = self.ft_index not in X.columns.to_list()
         es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
                                  make_index=make_index, index=self.ft_index)
-        Xt = ft.calculate_feature_matrix(self.feature_defs_, entityset=es, n_jobs=1, verbose=10)
+        Xt = ft.calculate_feature_matrix(self.feature_defs_, entityset=es, n_jobs=1, verbose=False)
         if make_index:
             X.pop(self.ft_index)
             if self.ft_index in Xt.columns.to_list():

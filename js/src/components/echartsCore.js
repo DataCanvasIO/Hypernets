@@ -76,6 +76,14 @@ class EchartsCore extends Component {
 
     console.info("option: ");
     console.info(this.props.option);
+    console.info("echarts element: ");
+    console.info(this.echartsElement);
+    console.info("echarts element style: ");
+    console.info(this.echartsElement.style);
+    console.info(this.echartsElement.style.height);
+    console.info(this.echartsElement.style.width);
+    console.info(this.echartsElement.offsetHeight);
+    console.info(this.echartsElement.offsetWidth);
 
     echartsObj.setOption(this.props.option, this.props.notMerge || false, this.props.lazyUpdate || false);
 
@@ -107,6 +115,7 @@ class EchartsCore extends Component {
     const { onEvents, onChartReady } = this.props;
     const echartsObj = this.renderEchartDom();
     this.bindEvents(echartsObj, onEvents || {});
+
     if (typeof onChartReady === 'function') this.props.onChartReady(echartsObj);
     // if (this.echartsElement) {
     //   bind( () => {
@@ -135,18 +144,18 @@ class EchartsCore extends Component {
   };
 
   render() {
+    console.info("echarts render: ");
     const { style, className } = this.props;
     const styleConfig = {
       height: 300,
       ...style,
     };
-    return (
-      <div
+    const d = <div
         ref={(e) => { this.echartsElement = e; }}
         style={styleConfig}
         className={className}
-      />
-    );
+      />;
+    return (d)
   }
 }
 

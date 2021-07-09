@@ -1,4 +1,4 @@
-export const datasetMockData_1 = {
+export const datasetMockDataClassification = {
     "experimentType": "compete",
     "target": {
         "name": "y",

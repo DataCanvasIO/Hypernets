@@ -92,7 +92,7 @@ class Extractor:
     def handle_extenion(self, extension):
         return extension
 
-class   extract_feature_generation_step(Extractor):
+class  extract_feature_generation_step(Extractor):
 
     def handle_extenion(self, extension):
         def get_feature_detail(f):
@@ -222,9 +222,13 @@ class extract_space_search_step(Extractor):
         return extension
 
 class extract_final_train_step(Extractor):
-    def handle_extenion(self, extension):
-        extension = {"estimator": self.step.estimator_.gbm_model.__class__.__name__}
-        return extension
+
+    def get_extension(self):
+        if get_step_status(self.step) != StepStatus.Finish:
+            return {}
+        else:
+            extension = {"estimator": self.step.estimator_.gbm_model.__class__.__name__}
+            return extension
 
 class extract_ensemble_step(Extractor):
 
@@ -233,12 +237,16 @@ class extract_ensemble_step(Extractor):
         configuration['scorer'] = None
         return configuration
 
-    def handle_extenion(self, extension):
-        ensemble = extension['estimator']
-        return {
-            'weights': np.array(ensemble.weights_).tolist(),
-            'scores': np.array(ensemble.scores_).tolist(),
-        }
+    def get_extension(self):
+        if get_step_status(self.step) != StepStatus.Finish:
+            return {}
+        else:
+            extension = self.step.get_fitted_params()
+            ensemble = extension['estimator']
+            return {
+                'weights': np.array(ensemble.weights_).tolist(),
+                'scores': np.array(ensemble.scores_).tolist()
+            }
 
 class extract_psedudo_step(Extractor):
     def get_configuration(self):
@@ -345,21 +353,21 @@ class extract_psedudo_step(Extractor):
         return probability_density
 
 
+extractors = {
+    # StepType.DataCleaning: None,
+    StepType.FeatureGeneration: extract_feature_generation_step,
+    StepType.DriftDetection: extract_drift_step,
+    StepType.FeatureSelection: extract_feature_selection_step,
+    StepType.CollinearityDetection: extract_multi_linearity_step,
+    StepType.PsudoLabeling: extract_psedudo_step,
+    StepType.PermutationImportanceSelection: extract_permutation_importance_step,
+    StepType.SpaceSearch: extract_space_search_step,
+    StepType.FinalTrain: extract_final_train_step,
+    StepType.Ensemble: extract_ensemble_step
+}
+
 def extract_step(index, step):
     stepType = step.__class__.__name__
-    extractors = {
-        # StepType.DataCleaning: None,
-        StepType.FeatureGeneration: extract_feature_generation_step,
-        StepType.DriftDetection: extract_drift_step,
-        StepType.FeatureSelection: extract_feature_selection_step,
-        StepType.CollinearityDetection: extract_multi_linearity_step,
-        StepType.PsudoLabeling: extract_psedudo_step,
-        StepType.PermutationImportanceSelection: extract_permutation_importance_step,
-        StepType.SpaceSearch: extract_space_search_step,
-        StepType.FinalTrain: extract_final_train_step,
-        StepType.Ensemble: extract_ensemble_step
-    }
-
     extractor = extractors.get(stepType,  Extractor)(step)
     configuration = extractor.get_configuration()
     extension = extractor.get_extension()

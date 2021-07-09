@@ -86,7 +86,7 @@ export class Line extends PureComponent {
 
 export function ConfigurationCard({configurationData, configurationTip = {}}) {
 
-    const makeLabel = (label, maxLen=16) => {
+    const makeLabel = (label, maxLen=30) => {
         let displayLabel;
         if(label.length > maxLen){
             displayLabel = `${label.substring(0, maxLen - 3)}...`;
@@ -108,7 +108,7 @@ export function ConfigurationCard({configurationData, configurationTip = {}}) {
     return <Form
         size={COMPONENT_SIZE}
         labelAlign={'right'}
-        labelCol={{span: 8, offset: 0}}
+        labelCol={{span: 12, offset: 0}}
         style={{align: 'right'}}
         layout="horizontal">
         {
@@ -120,7 +120,7 @@ export function ConfigurationCard({configurationData, configurationTip = {}}) {
                 if (v === undefined || v === null){
                     content = <Input value={"None"} disabled={true} />
                 } else if((typeof  v)  === "boolean"){
-                    content =  <Switch checked />
+                    content =  <Switch checked disabled />
                 } else  if(v instanceof Array){
                     content =   <Input value={  v.join(",") } disabled={true} />
                 } else {
@@ -605,6 +605,18 @@ export function EnsembleStep({stepData}) {
             }
         }
         return  {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                }
+            },
+            legend: {
+                data: []
+            },
+            grid: {
+                containLabel: true
+            },
             xAxis: {
                 type: 'category',
                 data: yLabels

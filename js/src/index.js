@@ -5,7 +5,7 @@ import { Steps } from "./constants";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
 import { getInitData, sendFinishData } from './mock/ensembleStepMockData'
-import { datasetMockData } from './mock/plotDatasetMockData'
+import { datasetMockData, datasetMockDataClassification } from './mock/plotDatasetMockData'
 import { experimentConfigMockData } from './mock/experimentConfigMockData'
 import { Provider } from "react-redux";
 import { createStore } from "redux";
@@ -19,32 +19,6 @@ const experimentConfigData = (handler) => {
     const pd = {
         steps: [
             {
-                "name": Steps.DataCleaning.name,
-                "index": 0,
-                "type": Steps.DataCleaning.type,
-                "status": "process",
-                "configuration": {
-                    "cv": CV,
-                    "name": "data_clean",
-                    "random_state": 9527,
-                    "train_test_split_strategy": null,
-                    "data_cleaner_args": {
-                        "nan_chars": null,
-                        "correct_object_dtype": true,
-                        "drop_constant_columns": true,
-                        "drop_label_nan_rows": true,
-                        "drop_idness_columns": true,
-                        "replace_inf_values": null,
-                        "drop_columns": null,
-                        "drop_duplicated_columns": false,
-                        "reduce_mem_usage": false,
-                        "int_convert_to": "float"
-                    }
-                },
-                "extension": null,
-                "start_datetime": "2020-11-11 22:22:22",
-                "end_datetime": "2020-11-11 22:22:22"
-            }, {
                 "name": Steps.CollinearityDetection.name,
                 "index": 2,
                 "type": Steps.CollinearityDetection.type,
@@ -188,30 +162,13 @@ export function renderExperimentProcess(experimentData, domElement) {
 // --------------------------------------------------------------------------------------
 
 // ----------------------------Test Dataset----------------------------------------
-// renderDatasetSummary(datasetMockData, document.getElementById('root'));
+// renderDatasetSummary(datasetMockDataClassification, document.getElementById('root'));
 // --------------------------------------------------------------------------------------
 
 // ----------------------------Test Experiment Summary----------------------------------------
 // renderExperimentSummary(experimentConfigMockData, document.getElementById('root'));
 // --------------------------------------------------------------------------------------
 
-
-
-// setTimeout(function () {
-//     store.dispatch(
-//         {
-//             type: 'stepFinished',
-//             payload: {
-//                 index: 0,
-//                 type: 'DataCleanStep',
-//                 extension: {unselected_reason: {"id": 'unknown'}},
-//                 status: StepStatus.Finish,
-//                 datetime: ''
-//             }
-//         }
-//     )
-// }, 500);
-//
 //
 // setTimeout(function () {
 //     store.dispatch(
@@ -227,7 +184,6 @@ export function renderExperimentProcess(experimentData, domElement) {
 //         }
 //     )
 // }, 100);
-//
 //
 // setTimeout(function () {
 //     store.dispatch(

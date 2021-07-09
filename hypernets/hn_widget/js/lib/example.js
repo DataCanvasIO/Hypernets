@@ -1,7 +1,7 @@
 var widgets = require('@jupyter-widgets/base');
 var _ = require('lodash');
 
-// var pipelineVis = require('./pipelineVis.js');
+// var hypernetsExperiment = require('./hypernetsExperiment.js');
 var hypernetsExperiment = require('hypernets-experiment').hypernetsExperiment;
 
 var ExperimentSummaryModel = widgets.DOMWidgetModel.extend({
@@ -47,8 +47,9 @@ var DatasetSummaryView = widgets.DOMWidgetView.extend({
     // Defines how the widget gets rendered into the DOM
     render: function() {
         // this.value_changed();
-        console.log('hypernetsExperiment lib in renderDatasetSummary: ');
+        console.log('hypernetsExperiment lib in renderDatasetSummary updated2: ');
         console.log(hypernetsExperiment);
+        console.log(this.el);
         const value = this.model.get('value');
         hypernetsExperiment.renderDatasetSummary(value, this.el);
     }

@@ -4,13 +4,13 @@ import './exploreDataset.css';
 import {Card, Col,  Row, Table, Tooltip} from "antd";
 
 import EchartsCore from "../components/echartsCore";
-import Block from "react-blocks";
 import {isEmpty} from "../util";
 import { TooltipComponent } from 'echarts/components';
 import { PieChart } from 'echarts/charts';
-import { LineChart } from 'echarts/charts';
 import { GridComponent } from 'echarts/components';
 import { BarChart } from 'echarts/charts';
+
+
 
 function FeatureBar({first, latest, color, typeName, nFeatures, percent}) {
 
@@ -214,7 +214,6 @@ export function Dataset({data}){
             value: displayValue
         }
     });
-
     /***
      *
      * @param targetDistribution
@@ -251,9 +250,8 @@ export function Dataset({data}){
                 legend: {
                     type: 'scroll',
                     orient: 'vertical',
-                    right: 10,
-                    top: 250,
-                    bottom: 20,
+                    right: 50,
+                    top: 100,
                     data: legendData
                 },
                 series: [
@@ -261,7 +259,7 @@ export function Dataset({data}){
                         name: 'Label',
                         type: 'pie',
                         radius: '55%',
-                        center: ['40%', '50%'],
+                        // center: ['40%', '50%'],
                         data: seriesData,
                         emphasis: {
                             itemStyle: {
@@ -298,6 +296,7 @@ export function Dataset({data}){
         return option;
     };
 
+    const option = getTargetDistributionOption(data.targetDistribution, data.target.taskType);
 
     const getPrepareFunc = (taskType) => {
         let prepare;
@@ -314,37 +313,41 @@ export function Dataset({data}){
     };
 
 
-    const option = getTargetDistributionOption(data.targetDistribution, data.target.taskType);
 
 
     return <>
-       <Row gutter={[4, 4]}>
+       <Row gutter={[4, 4]} align={'bottom'}>
         <Col span={24} >
             <Card title="Feature types distribution" bordered={false} style={{ width: '100%' }}>
                 <FeatureDistributionBar data={data.featureDistribution}/>
             </Card>
         </Col>
         </Row>
-        <Block layout flex>
-            <Block layout={"true"} vertical={"true"} style={{width: "50%", height: "800px"}} el="header">
-                <Block flex={"true"}>
-                    <Card title="Target" bordered={false} style={{ width: '100%' }}>
+
+        <Row>
+            <Col span={12} >
+                <Card title="Target" bordered={false} style={{ width: '100%' }}>
                     <Table dataSource={dataSource} columns={columns} pagination={false} showHeader={false}/>
                 </Card>
-                </Block>
-            </Block>
-            <Block layout={"true"} vertical={"true"} flex={"true"}>
-                <Block flex style={{ width: "90%"}} >
-                    <Card title="Distribution of y" bordered={false}>
-                        <EchartsCore option={option} prepare={getPrepareFunc(taskType)}/>
-                    </Card>
-                </Block>
-                <Block flex style={{width: "90%"}} >
-                    <Card title="Dataset shape" bordered={false} style={{ width: '100%' }}>
-                        <Table dataSource={dataShapeDataSource} columns={columns} pagination={false} showHeader={false}/>
-                    </Card>
-                </Block>
-            </Block>
-        </Block>
+            </Col>
+            <Col span={12} >
+                <Row>
+                    <Col span={24} >
+                        <Card title="Distribution of y" bordered={false} style={{ alignContent: 'center',
+                            width: '100%',
+                            height: '100%'}}>
+                            <EchartsCore option={option}
+                                         prepare={getPrepareFunc(taskType)}
+                                         style={ {width: 450, height: 300}  }/>
+                        </Card>
+                    </Col>
+                    <Col span={24} offset={0} >
+                        <Card title="Dataset shape" bordered={false} style={{ width: '100%' }}>
+                            <Table dataSource={dataShapeDataSource} columns={columns} pagination={false} showHeader={false}/>
+                        </Card>
+                    </Col>
+                </Row>
+            </Col>
+        </Row>
     </>
 }
