@@ -70,6 +70,11 @@ class StepNames:
 
 
 class ExperimentStep(BaseEstimator):
+    STATUE_NONE = -1
+    STATUE_SUCCESS = 0
+    STATUE_FAILED = 1
+    STATUE_SKIPPED = 2
+
     def __init__(self, experiment, name):
         super(ExperimentStep, self).__init__()
 
@@ -78,7 +83,7 @@ class ExperimentStep(BaseEstimator):
 
         # fitted
         self.input_features_ = None
-        self.status_ = None  # None(not fit) or True(fit succeed) or False(fit failed)
+        self.status_ = self.STATUE_NONE
         self.start_time = None
         self.done_time = None
 
@@ -102,7 +107,7 @@ class ExperimentStep(BaseEstimator):
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         self.input_features_ = X_train.columns.to_list()
-        # self.status_ = True
+        # self.status_ = self.STATUE_SUCCESS
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
@@ -749,6 +754,7 @@ class SpaceSearchStep(ExperimentStep):
             self.best_reward_ = model.get_best_trial().reward
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
+            self.status_ = self.STATUE_SKIPPED
             self.from_fitted_step(fitted_step)
 
         logger.info(f'{self.name} best_reward: {self.best_reward_}')
@@ -956,6 +962,7 @@ class EstimatorBuilderStep(ExperimentStep):
             logger.info(f'built estimator: {estimator}')
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
+            self.status_ = self.STATUE_SKIPPED
             estimator = fitted_step.estimator_
 
         self.dataset_id = dataset_id
@@ -1244,7 +1251,7 @@ class SteppedExperiment(Experiment):
             X_train, y_train, X_test, X_eval, y_eval = \
                 [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
-            if i >= from_step or step.status_ is None:
+            if i >= from_step or step.status_ == ExperimentStep.STATUE_NONE:
                 logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
                 self.step_start(step.name)
                 try:
@@ -1253,12 +1260,12 @@ class SteppedExperiment(Experiment):
                         step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                                            **kwargs)
                     self.step_end(output=step.get_fitted_params())
-                    if step.status_ is None:
-                        step.status_ = True
+                    if step.status_ == ExperimentStep.STATUE_NONE:
+                        step.status_ = ExperimentStep.STATUE_SUCCESS
                 except Exception as e:
                     self.step_break(error=e)
-                    if step.status_ is None:
-                        step.status_ = False
+                    if step.status_ == ExperimentStep.STATUE_NONE:
+                        step.status_ = ExperimentStep.STATUE_FAILED
                     raise e
                 finally:
                     step.done_time = time.time()
