@@ -107,6 +107,7 @@ export const StepStatus = {
   Wait: 'wait',
   Process: 'process',
   Finish: 'finish',
+  Skip: 'skip',
   Error: 'error'
 };
 

@@ -34,15 +34,27 @@ export function ExperimentUI ({experimentData, dispatch} ) {
     const [currentStepIndex , setCurrentStepIndex] = useState(0);
     const stepTabComponents = [];
     const stepContentComponents = [];
+    const steps = experimentData.steps;
 
 
-    const getProcessBarStatus  = () => {
+    const getStepUIStatus = (stepStatus)=> {
+        if(stepStatus === StepStatus.Skip){
+            return StepStatus.Finish
+        } else {
+            return stepStatus;
+        }
+    };
+
+
+    const getProcessBarStatus  = (steps) => {
         var processFinish = true;
-        for (var step of experimentData.steps) {
-            if (step.status === StepStatus.Error) {
+        for (var step of steps) {
+            const stepUIStatus = getStepUIStatus(step.status);
+
+            if (stepUIStatus === StepStatus.Error) {
                 return ProgressBarStatus.Exception
             }
-            if(step.status !== StepStatus.Finish){  // all step is finish so the ProcessBar is succeed
+            if(stepUIStatus !== StepStatus.Finish){  // all step is finish so the ProcessBar is succeed
                 processFinish = false;
             }
         }
@@ -53,104 +65,106 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         }
     };
 
-    const getProcessPercentage = () => {
+    const getProcessPercentage = (steps) => {
         // 1. find last finished step index
         var lastFinishedStepIndex = -1;
         for(var i = experimentData.steps.length - 1; i >= 0 ; i--){
-            if(experimentData.steps[i].status === 'finish'){
+            if( getStepUIStatus(steps[i].status) === StepStatus.Finish){
                 lastFinishedStepIndex = i;
                 break;
             }
         }
         // 2. last finished step index / total step
-        return (((lastFinishedStepIndex + 1) / experimentData.steps.length) * 100).toFixed(0);
+        return (((lastFinishedStepIndex + 1) / steps.length) * 100).toFixed(0);
     };
-    const stepStyle = {marginLeft: 20, marginRight: 20};
+
+    const add = (counter, key) => {
+        const v = counter[key];
+        if(v === undefined || v === null){
+            counter[key] = 1
+        }else{
+            counter[key] = v + 1;
+        }
+    };
+
 
     experimentData.steps.forEach(stepData=> {
         const stepType = stepData.type;
-        if(stepType  === Steps.DataCleaning.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.DataCleaning.name} key={stepData.name} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <DataCleaningStep stepData={stepData}/>
-            );
-        }else if(stepType  === Steps.FeatureGeneration.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.FeatureGeneration.name} key={stepData.name} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <FeatureGenerationStep stepData={stepData}/>
-            );
-        } else if(stepType  === Steps.CollinearityDetection.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.CollinearityDetection.name} key={stepData.name} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <CollinearityDetectionStep stepData={stepData}/>
-            );
-        } else if(stepType  === Steps.DriftDetection.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.DriftDetection.name} key={stepData.name} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <DriftDetectionStep stepData={stepData}/>
-            );
-        } else if(stepType  === Steps.SpaceSearch.type){
-            const stepName = stepData.configuration.name;
-            let title;
-            if (stepName === Steps.TwoStageSpaceSearch.key){
-                title = Steps.TwoStageSpaceSearch.name;
-            }else{
-                title = Steps.SpaceSearch.name;
-            }
-            stepTabComponents.push(
-                <Step status={stepData.status} title={title} key={`step_${stepName}`} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <PipelineOptimizationStep stepData={stepData} key={`step_ui_${stepName}`} />
-            );
-        } else if(stepType  === Steps.FeatureSelection.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.FeatureSelection.name} key={`step_${stepData.name}`} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <GeneralImportanceSelectionStep stepData={stepData} configTip={Steps.FeatureSelection.configTip} key={'FeatureSelection'} />
-            );
-        }  else if(stepType  === Steps.PermutationImportanceSelection.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.PermutationImportanceSelection.name} key={`step_${stepData.name}`} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <GeneralImportanceSelectionStep stepData={stepData} configTip={Steps.PermutationImportanceSelection.configTip} key={'PermutationImportanceSelection'} />
-            );
-        } else if(stepType  === Steps.PsudoLabeling.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.PsudoLabeling.name} key={`step_${stepData.name}`} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <PseudoLabelStep stepData={stepData} dispatch={dispatch}/>
-            );
 
-        } else if(stepType  === Steps.FinalTrain.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.FinalTrain.name} key={stepData.name} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <FinalTrainStep stepData={stepData}/>
-            );
-        } else if(stepType  === Steps.Ensemble.type){
-            stepTabComponents.push(
-                <Step status={stepData.status} title={Steps.Ensemble.name} key={stepData.name} style={stepStyle} />
-            );
-            stepContentComponents.push(
-                <EnsembleStep stepData={stepData}/>
-            );
+        // check type
+        var found = false;
+        var stepMetaData = null;
+        Object.keys(Steps).forEach(k => {
+            if(Steps[k].type === stepType){
+                found = true;
+                stepMetaData = Steps[k];
+            }
+        });
+
+        if(found === false){
+            console.error("Unseen step type: " + stepType);
+            return ;
         }
-        else {
-            // showNotification("Unknown step type");
+
+        // step type count
+        const stepsCounter = {};
+        add(stepsCounter, stepType);
+        const stepCount = stepsCounter[stepType];
+
+        // set step ui title
+        const stepName = stepMetaData.name;
+        let stepTitle ;
+        if (stepCount > 1){
+            stepTitle = stepName + "(Two-stage)"
+        }else {
+            stepTitle = stepName;
         }
+
+        // set step status
+        const stepUIStatus = getStepUIStatus(stepData.status);
+
+        const getComponent = (stepType) => {
+            if(stepType  === Steps.DataCleaning.type){
+                return DataCleaningStep ;
+            }else if(stepType  === Steps.FeatureGeneration.type){
+                return FeatureGenerationStep ;
+            } else if(stepType  === Steps.CollinearityDetection.type){
+                return CollinearityDetectionStep;
+            } else if(stepType  === Steps.DriftDetection.type){
+                return DriftDetectionStep ;
+            } else if(stepType  === Steps.SpaceSearch.type){
+                return PipelineOptimizationStep;
+            } else if(stepType  === Steps.FeatureSelection.type){
+                return GeneralImportanceSelectionStep;
+            }  else if(stepType  === Steps.PermutationImportanceSelection.type){
+                return GeneralImportanceSelectionStep;
+            } else if(stepType  === Steps.PsudoLabeling.type){
+                return PseudoLabelStep
+            } else if(stepType  === Steps.FinalTrain.type){
+                return FinalTrainStep ;
+            } else if(stepType  === Steps.Ensemble.type){
+                return EnsembleStep ;
+            } else {
+                console.error("Internal error, unhandled step type: " + stepType);
+                return ;
+            }
+        };
+
+        const StepComp = getComponent(stepType);
+        if(StepComp === null || StepComp === undefined){
+             // showNotification("Unknown step type");
+             console.error("Internal error, unhandled step type: " + stepType);
+             return ;
+        }
+
+        const stepStyle = {marginLeft: 20, marginRight: 20};
+        stepTabComponents.push(
+            <Step status={stepUIStatus} title={stepTitle} key={`step_${stepTitle}`} style={stepStyle} />
+        );
+
+        stepContentComponents.push(
+            <StepComp stepData={stepData} dispatch={dispatch} key={`step_comp_${stepTitle}`} configTip={stepMetaData.configTip} />
+        );
     });
 
     const onStepChange = (c) => {
@@ -158,7 +172,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
     };
 
     return <Card title="Experiment progress" bordered={false} style={{ width: '100%' }}>
-            <Progress percent={  getProcessPercentage() } status={ getProcessBarStatus ()} />
+            <Progress percent={  getProcessPercentage(steps) } status={ getProcessBarStatus (steps)} />
             <div style={ {width: '100%', overflowX: 'auto', marginTop:10 }}>
                 <AntdSteps
                     type="navigation"

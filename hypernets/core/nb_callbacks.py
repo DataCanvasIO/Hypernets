@@ -30,7 +30,7 @@ def extract_importances(gbm_model):
         try:
             return gbm_model.feature_importances_
         except Exception as e:
-            print(e)
+            # print(e)
             return [0 for i in range(n_features)]
 
     if isinstance(gbm_model, XGBModel):
@@ -72,7 +72,7 @@ def sort_imp(imp_dict, sort_imp_dict):
     return imps
 
 
-def send_action(widget_id, data, action_type):
+def send_action(widget_id, action_type,  data):
     dom_widget = DOM_WIDGETS.get(widget_id)
     if dom_widget is None:
         raise Exception(f"widget_id: {widget_id} not exists ")
@@ -124,7 +124,7 @@ class JupyterHyperModelCallback(Callback):
                         'condition': c.triggered_reason,
                         'value': value
                     }
-                    send_action(self.widget_id, stop_reason, ActionType.EarlyStopped)
+                    send_action(self.widget_id, ActionType.EarlyStopped, stop_reason )
 
     def on_search_error(self, hyper_model):
         pass
@@ -233,7 +233,7 @@ class JupyterHyperModelCallback(Callback):
                 }
             }
         }
-        send_action(self.widget_id, data, ActionType.TrialFinished)
+        send_action(self.widget_id, ActionType.TrialFinished, data)
 
     def on_trial_error(self, hyper_model, space, trial_no):
         pass
@@ -293,11 +293,11 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         from hn_widget.experiment_util import StepStatus
         step_name = step
         step = exp.get_step(step_name)
-        setattr(step, 'status', StepStatus.Finish)
+        # setattr(step, 'status', StepStatus.Finish)
         # todo set time setattr(step, 'status', StepStatus.Finish)
 
         step_index = experiment_util.get_step_index(exp, step_name)
-        send_action(self.widget_id, experiment_util.extract_step(step_index, step), ActionType.StepFinished)
+        send_action(self.widget_id, ActionType.StepFinished, experiment_util.extract_step(step_index, step))
 
     def step_break(self, exp, step, error):
         from hn_widget.experiment_util import get_step_index

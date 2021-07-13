@@ -1,4 +1,4 @@
-import {Card, Col, Form, Row, Switch, Table, Tabs, Tooltip, Select, Tag, Input} from "antd";
+import {Card, Col, Form, Row, Switch, Table, Tabs, Tooltip, Select, Tag, Input, Result} from "antd";
 import React, { PureComponent } from 'react';
 import { Empty } from 'antd';
 import EchartsCore from './echartsCore';
@@ -8,7 +8,6 @@ import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps} from "../constants";
 import { TooltipComponent } from 'echarts/components';
 import { GridComponent } from 'echarts/components';
 import { BarChart, LineChart } from 'echarts/charts';
-
 
 const { TabPane } = Tabs;
 const CONFIGURATION_CARD_TITLE = "Configuration";
@@ -132,6 +131,17 @@ export function ConfigurationCard({configurationData, configurationTip = {}}) {
             })
         }
     </Form>
+}
+
+
+export function SkippedStepContent({style = {marginTop: 20, marginLeft: 20}}) {
+    const subTitle = `Step "${Steps.PsudoLabeling.name}" and step "${Steps.PermutationImportanceSelection.name}" have no impact on the dataset.`
+    return <Result
+        style={{...style}}
+        status="info"
+        title="This step was  skipped."
+        subTitle={subTitle}
+        />
 }
 
 export function DataCleaningStep({stepData}) {
@@ -679,37 +689,42 @@ export function EnsembleStep({stepData}) {
             }
         };
 
+    if(stepData.status === StepStatus.Skip) {
+        return <SkippedStepContent />
+    }else {
+        return <>
+            <Row gutter={[2, 2]}>
+                <Col span={10}>
+                    <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{width: '100%'}}
+                          size={COMPONENT_SIZE}>
+                        {
+                            <ConfigurationCard configurationData={stepData.configuration}
+                                               configurationTip={Steps.Ensemble.configTip}/>
+                        }
+                    </Card>
+                </Col>
 
-    return <>
-        <Row gutter={[2, 2]}>
-        <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.Ensemble.configTip}/>
-                }
-            </Card>
-        </Col>
+                <Col span={10} offset={2}>
+                    <Card title="Weight" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
+                        <EchartsCore option={getWeightsEchartOpts()} prepare={echarts => {
+                            echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
+                        }}/>
+                    </Card>
+                </Col>
+            </Row>
 
-        <Col span={10} offset={2} >
-            <Card title="Weight" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-
-                <EchartsCore option={getWeightsEchartOpts()} prepare={ echarts => {
-                    echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
-                }}/>
-            </Card>
-        </Col>
-        </Row>
-
-        <Row gutter={[2, 2]}>
-            <Col span={10} offset={12} >
-                <Card title="Lifting" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                    <EchartsCore option={getLiftEchartOpts()} prepare={ echarts => {
-                        echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
-                    }}/>
-                </Card>
-            </Col>
-        </Row>
-    </>
+            <Row gutter={[2, 2]}>
+                <Col span={10} offset={12}>
+                    <Card title="Lifting" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
+                        <EchartsCore option={getLiftEchartOpts()} prepare={
+                            echarts => {
+                                echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
+                        }}/>
+                    </Card>
+                </Col>
+            </Row>
+        </>
+    }
 }
 
 export function FinalTrainStep({stepData}) {

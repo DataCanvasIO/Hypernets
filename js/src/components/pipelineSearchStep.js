@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {Card, Col, Row, Table} from "antd";
 import EchartsCore from "./echartsCore";
-import {ConfigurationCard} from "./steps";
+import { ConfigurationCard, SkippedStepContent } from "./steps";
 
 
 import * as echarts from "echarts/lib/echarts";
@@ -19,8 +19,6 @@ import 'echarts/lib/component/dataZoom';
 import { Progress, Tooltip } from 'antd';
 import {formatFloat, formatHumanDate} from "../util";
 import {Steps, StepStatus} from "../constants";
-
-
 
 class TrialChart extends React.Component {
 
@@ -573,65 +571,71 @@ export function PipelineOptimizationStep({stepData}){
         }
     ];
 
-    return <><Row gutter={[2, 2]}>
-        <Col span={22} >
-            <Card title="Pipeline optimization" bordered={ false } style={{ width: '100%' }} size={'small'}>
-                <Row>
-                    <Col span={10} >
-                        <TrialChart
-                            trials={trailsData}
-                            stepConfig={stepData.configuration}
-                            onTrialClick={onTrialClick}
-                        />
-                    </Col>
-                    <Col span={10} offset={0}>
-                        <ImportanceBarChart
-                            importances={importanceData}
-                        />
-                    </Col>
-                </Row>
-            </Card>
-        </Col>
+    if(stepData.status === StepStatus.Skip) {
+        return <SkippedStepContent />
+    }else {
+        return <><Row gutter={[2, 2]}>
+            <Col span={22}>
+                <Card title="Pipeline optimization" bordered={false} style={{width: '100%'}} size={'small'}>
+                    <Row>
+                        <Col span={10}>
+                            <TrialChart
+                                trials={trailsData}
+                                stepConfig={stepData.configuration}
+                                onTrialClick={onTrialClick}
+                            />
+                        </Col>
+                        <Col span={10} offset={0}>
+                            <ImportanceBarChart
+                                importances={importanceData}
+                            />
+                        </Col>
+                    </Row>
+                </Card>
+            </Col>
 
-    </Row>
-    <Row gutter={[2, 2]}>
-        <Col span={10} offset={0} >
-            <Card title={"Configuration"} bordered={false} style={{ width: '100%' }} size={'small'}>
-                {
-                    <ConfigurationCard configurationData={configurationForPanel} configurationTip={Steps.SpaceSearch.configTip}/>
-                }
-            </Card>
-        </Col>
-        <Col span={10} offset={0} >
-            <Card title="Early stopping" bordered={false} style={{ width: '100%' , marginRight: 0, paddingRight: 0}} size={'small'}>
-                    <CircleProgress
-                        title={'Reward'}
-                        strokeColor ='#6ca30f'
-                        data={earlyStoppingRewardData}
+        </Row>
+            <Row gutter={[2, 2]}>
+                <Col span={10} offset={0}>
+                    <Card title={"Configuration"} bordered={false} style={{width: '100%'}} size={'small'}>
+                        {
+                            <ConfigurationCard configurationData={configurationForPanel}
+                                               configurationTip={Steps.SpaceSearch.configTip}/>
+                        }
+                    </Card>
+                </Col>
+                <Col span={10} offset={0}>
+                    <Card title="Early stopping" bordered={false}
+                          style={{width: '100%', marginRight: 0, paddingRight: 0}} size={'small'}>
+                        <CircleProgress
+                            title={'Reward'}
+                            strokeColor='#6ca30f'
+                            data={earlyStoppingRewardData}
                         />
-                    <CircleProgress
-                        title={'Trials'}
-                        strokeColor ='#0e72cc'
-                        style={{marginLeft: '5%'}}
-                        data={earlyStoppingTrialsData}/>
-                    <CircleProgress
-                        title={'Time'}
-                        strokeColor ='#fa4343'
-                        style={{marginLeft: '5%'}}
-                        data={earlyStoppingElapsedTimeData}/>
-            </Card>
-        </Col>
-    </Row>
-    <Row gutter={[2, 2]}>
-        <Col span={10} offset={10} >
-            <Card title="Input features" bordered={false} style={{ width: '100%' }} size={'small'} >
-                <Table dataSource={featuresDataSource}
-                       columns={featuresColumns}
-                       pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}}
-                       showHeader={false} />
-            </Card>
-        </Col>
-    </Row>
-    </>
+                        <CircleProgress
+                            title={'Trials'}
+                            strokeColor='#0e72cc'
+                            style={{marginLeft: '5%'}}
+                            data={earlyStoppingTrialsData}/>
+                        <CircleProgress
+                            title={'Time'}
+                            strokeColor='#fa4343'
+                            style={{marginLeft: '5%'}}
+                            data={earlyStoppingElapsedTimeData}/>
+                    </Card>
+                </Col>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <Col span={10} offset={10}>
+                    <Card title="Input features" bordered={false} style={{width: '100%'}} size={'small'}>
+                        <Table dataSource={featuresDataSource}
+                               columns={featuresColumns}
+                               pagination={{defaultPageSize: 5, disabled: false, pageSize: 5}}
+                               showHeader={false}/>
+                    </Card>
+                </Col>
+            </Row>
+        </>
+    }
 }
 

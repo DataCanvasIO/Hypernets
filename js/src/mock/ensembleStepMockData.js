@@ -1,4 +1,4 @@
-import {Steps, StepStatus} from "../constants";
+import {ActionType, Steps, StepStatus} from "../constants";
 
 export function getInitData() {
 
@@ -8,7 +8,7 @@ export function getInitData() {
                 "name": Steps.Ensemble.name,
                 "index": 0,
                 "type":  Steps.Ensemble.type,
-                "status": "wait",
+                "status": StepStatus.Wait,
                 "configuration": {
                     "ensemble_size": 20,
                     "name": "final_ensemble",
@@ -22,25 +22,30 @@ export function getInitData() {
     }
 }
 
-export function sendFinishData(store, delay = 1000) {
+export function sendFinishData(store, delay = 2000) {
 
     setTimeout(function () {
-        store.dispatch(
-            {
-                type: 'stepFinished',
+        store.dispatch({
+                type: ActionType.StepBegin,
                 payload: {
                     index: 0,
-                    type: 'EnsembleStep',
-                    extension: {
-                        "weights": [0.1, 0.6, 0.3],
-                        "scores": [0.1, 0.2, 0.3]
-                    },
-                    status: StepStatus.Finish,
-                    datetime: ''
+                    status: StepStatus.Process
                 }
             })
     }, delay);
 
-
+    setTimeout(function () {
+        store.dispatch({
+            type: 'stepFinished',
+            payload: {
+                index: 0,
+                type: 'EnsembleStep',
+                extension: {
+                },
+                status: StepStatus.Skip,
+                datetime: ''
+            }
+        })
+    }, delay * 2);
 
 }

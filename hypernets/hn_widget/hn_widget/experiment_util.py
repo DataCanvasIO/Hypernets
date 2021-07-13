@@ -22,7 +22,9 @@ class StepStatus:
     Wait = 'wait'
     Process = 'process'
     Finish = 'finish'
+    Skip = 'skip'
     Error = 'error'
+
 
 
 class StepData:
@@ -60,7 +62,17 @@ def get_extra_attr(obj, name, default=None):
         return None
 
 def get_step_status(step):
-    return get_extra_attr(step, 'status', default=StepStatus.Wait)
+    status_mapping = {
+        -1: StepStatus.Wait,
+        0: StepStatus.Finish,
+        1:  StepStatus.Error,
+        2:  StepStatus.Process,
+        3:  StepStatus.Skip,
+    }
+    s = step.status_
+    if s not in status_mapping:
+        raise Exception("Unseen status: " + s);
+    return status_mapping[s]
 
 def get_step_index(experiment, step_name):
     for i, step in enumerate(experiment.steps):

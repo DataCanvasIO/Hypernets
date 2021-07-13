@@ -5,29 +5,6 @@ import {ExperimentUI} from "./experiment"
 import {ActionType} from "../constants";
 
 
-const handleStepFinish = (state, action) => {
-    const experimentConfig = state;
-    const stepPayload = action.payload;
-    var found = false;
-    experimentConfig.steps.forEach((step, i, array) => {
-        if (step.index === stepPayload.index) {
-            if (step.type !== 'SpaceSearchStep') {
-                experimentConfig.steps[i].extension = stepPayload.extension;
-            } else {
-                experimentConfig.steps[i].extension.input_features = stepPayload.extension.input_features;
-            }
-            // experimentConfig.steps[i].extension = stepPayload.extension;
-            experimentConfig.steps[i].status = stepPayload.status;
-            found = true;
-        }
-    });
-    if (!found) {
-        console.error("Step index = " + action.index + "not found for update step action/state is :");
-        console.error(action);
-        console.error(state);
-    }
-    return {...experimentConfig};
-};
 
 const handleProbaDensityLabelChanged = (state, action) => {
     const experimentConfig = {...state};
@@ -79,6 +56,29 @@ const handleTrailFinish = (state, action) => {
 
 };
 
+const handleStepFinish = (state, action) => {
+    const experimentConfig = state;
+    const stepPayload = action.payload;
+    var found = false;
+    experimentConfig.steps.forEach((step, i, array) => {
+        if (step.index === stepPayload.index) {
+            if (step.type !== 'SpaceSearchStep') {
+                experimentConfig.steps[i].extension = stepPayload.extension;
+            } else {
+                experimentConfig.steps[i].extension.input_features = stepPayload.extension.input_features;
+            }
+            // experimentConfig.steps[i].extension = stepPayload.extension;
+            experimentConfig.steps[i].status = stepPayload.status;
+            found = true;
+        }
+    });
+    if (!found) {
+        console.error("Step index = " + action.index + "not found for update step action/state is :");
+        console.error(action);
+        console.error(state);
+    }
+    return {...experimentConfig};
+};
 
 const handleStepBegin = (state, action) => {
     const experimentConfig = state;
@@ -101,7 +101,6 @@ const handleStepBegin = (state, action) => {
     return {...experimentConfig};
 
 };
-
 
 
 const handleStepError = (state, action) => {

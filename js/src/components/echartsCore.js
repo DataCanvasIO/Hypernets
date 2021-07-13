@@ -76,14 +76,14 @@ class EchartsCore extends Component {
 
     console.info("option: ");
     console.info(this.props.option);
-    console.info("echarts element: ");
-    console.info(this.echartsElement);
-    console.info("echarts element style: ");
-    console.info(this.echartsElement.style);
-    console.info(this.echartsElement.style.height);
-    console.info(this.echartsElement.style.width);
-    console.info(this.echartsElement.offsetHeight);
-    console.info(this.echartsElement.offsetWidth);
+    // console.info("echarts element: ");
+    // console.info(this.echartsElement);
+    // console.info("echarts element style: ");
+    // console.info(this.echartsElement.style);
+    // console.info(this.echartsElement.style.height);
+    // console.info(this.echartsElement.style.width);
+    // console.info(this.echartsElement.offsetHeight);
+    // console.info(this.echartsElement.offsetWidth);
 
     echartsObj.setOption(this.props.option, this.props.notMerge || false, this.props.lazyUpdate || false);
 
