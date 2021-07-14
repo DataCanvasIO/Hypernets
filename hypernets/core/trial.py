@@ -230,8 +230,12 @@ class TrialHistory():
         return f'{type(self).__name__}({repr_})'
 
     def to_df(self, include_params=False):
-        df = pd.concat([t.to_df(include_params) for t in self.trials], axis=0)
-        df.reset_index(drop=True, inplace=True)
+        if len(self.trials) > 0:
+            df = pd.concat([t.to_df(include_params) for t in self.trials], axis=0)
+            df.reset_index(drop=True, inplace=True)
+        else:
+            df = pd.DataFrame()
+
         return df
 
     def plot_hyperparams(self, destination='notebook', output='hyperparams.html'):

@@ -27,6 +27,7 @@ def make_experiment(hyper_model_cls,
                     id=None,
                     callbacks=None,
                     searcher=None,
+                    searcher_options=None,
                     search_space=None,
                     search_callbacks=None,
                     early_stopping_rounds=10,
@@ -71,6 +72,8 @@ def make_experiment(hyper_model_cls,
         For str, should be one of 'evolution', 'mcts', 'random'.
         For class, should be one of EvolutionSearcher, MCTSSearcher, RandomSearcher, or subclass of hypernets Searcher.
         For other, should be instance of hypernets Searcher.
+    searcher_options: dict, optional, default is None
+        The options to create searcher, is used if searcher is str.
     search_space : callable, optional
         Used to initialize searcher instance (if searcher is None, str or class).
     search_callbacks
@@ -150,10 +153,13 @@ def make_experiment(hyper_model_cls,
         raise ValueError(f'Not found one of {cfg.experiment_default_target_set} from your data,'
                          f' implicit target must be specified.')
 
-    def default_searcher(cls):
+    def default_searcher(cls, options):
         assert search_space is not None, '"search_space" should be specified when "searcher" is None or str.'
         assert optimize_direction in {'max', 'min'}
-        s = make_searcher(cls, search_space, optimize_direction=optimize_direction)
+        if options is None:
+            options = {}
+        options['optimize_direction'] = optimize_direction
+        s = make_searcher(cls, search_space, **options)
 
         return s
 
@@ -162,9 +168,9 @@ def make_experiment(hyper_model_cls,
         from hypernets.searchers import EvolutionSearcher
 
         if sch is None:
-            sch = default_searcher(EvolutionSearcher)
+            sch = default_searcher(EvolutionSearcher, searcher_options)
         elif isinstance(sch, (type, str)):
-            sch = default_searcher(sch)
+            sch = default_searcher(sch, searcher_options)
         elif not isinstance(sch, SearcherSpec):
             logger.warning(f'Unrecognized searcher "{sch}".')
 

@@ -93,6 +93,9 @@ class BaseEnsemble():
         for n, estimator in enumerate(self.estimators):
             if estimator is not None:
                 pred = self.__predict(estimator, X)
+                if self.task == 'regression' and len(pred.shape) > 1:
+                    assert pred.shape[1] == 1
+                    pred = pred.reshape(pred.shape[0])
                 est_predictions[:, n] = pred
         return est_predictions
 

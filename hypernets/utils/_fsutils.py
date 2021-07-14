@@ -297,7 +297,7 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     if type(fs).__name__.lower().find('local') >= 0:
         if fs_root is None or fs_root == '':
             fs_root = os.path.join(tempfile.gettempdir(), 'workdir')
-            logger.info(f'use {fs_root} as working directory.')
+            # logger.info(f'use {fs_root} as working directory.')
 
         remote_root = os.path.abspath(os.path.expanduser(fs_root))
         try:

@@ -70,6 +70,11 @@ class StepNames:
 
 
 class ExperimentStep(BaseEstimator):
+    STATUE_NONE = -1
+    STATUE_SUCCESS = 0
+    STATUE_FAILED = 1
+    STATUE_SKIPPED = 2
+
     def __init__(self, experiment, name):
         super(ExperimentStep, self).__init__()
 
@@ -78,7 +83,7 @@ class ExperimentStep(BaseEstimator):
 
         # fitted
         self.input_features_ = None
-        self.status_ = None  # None(not fit) or True(fit succeed) or False(fit failed)
+        self.status_ = self.STATUE_NONE
         self.start_time = None
         self.done_time = None
 
@@ -102,7 +107,7 @@ class ExperimentStep(BaseEstimator):
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         self.input_features_ = X_train.columns.to_list()
-        # self.status_ = True
+        # self.status_ = self.STATUE_SUCCESS
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
@@ -351,7 +356,8 @@ class DataCleanStep(FeatureSelectStep):
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
     def transform(self, X, y=None, **kwargs):
-        return self.data_cleaner_.transform(X, y, **kwargs)
+        # return self.data_cleaner_.transform(X, y, **kwargs)
+        return self.data_cleaner_.transform(X, None, **kwargs)
 
     def get_fitted_params(self):
         dc = self.data_cleaner_
@@ -748,6 +754,7 @@ class SpaceSearchStep(ExperimentStep):
             self.best_reward_ = model.get_best_trial().reward
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
+            self.status_ = self.STATUE_SKIPPED
             self.from_fitted_step(fitted_step)
 
         logger.info(f'{self.name} best_reward: {self.best_reward_}')
@@ -955,6 +962,7 @@ class EstimatorBuilderStep(ExperimentStep):
             logger.info(f'built estimator: {estimator}')
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
+            self.status_ = self.STATUE_SKIPPED
             estimator = fitted_step.estimator_
 
         self.dataset_id = dataset_id
@@ -1219,8 +1227,18 @@ class SteppedExperiment(Experiment):
             logger.info(f'create experiment with {names}')
         self.steps = steps
 
+        # fitted
+        self.hyper_model_ = None
+
     def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, **kwargs):
-        for step in self.steps:
+        from_step = self.get_step_index(kwargs.pop('from_step', None), 0)
+        to_step = self.get_step_index(kwargs.pop('to_step', None), len(self.steps) - 1)
+        assert from_step <= to_step
+
+        for i, step in enumerate(self.steps):
+            if i > to_step:
+                break
+
             if X_test is not None and X_train.columns.to_list() != X_test.columns.to_list():
                 logger.warning(f'X_train{X_train.columns.to_list()} and X_test{X_test.columns.to_list()}'
                                f' have different columns before {step.name}, try fix it.')
@@ -1233,26 +1251,34 @@ class SteppedExperiment(Experiment):
             X_train, y_train, X_test, X_eval, y_eval = \
                 [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
-            logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
-            self.step_start(step.name)
-            try:
-                step.start_time = time.time()
-                hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
-                    step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
-                                       **kwargs)
-                self.step_end(output=step.get_fitted_params())
-                if step.status_ is None:
-                    step.status_ = True
-            except Exception as e:
-                self.step_break(error=e)
-                if step.status_ is None:
-                    step.status_ = False
-                raise e
-            finally:
-                step.done_time = time.time()
+            if i >= from_step or step.status_ == ExperimentStep.STATUE_NONE:
+                logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
+                self.step_start(step.name)
+                try:
+                    step.start_time = time.time()
+                    hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
+                        step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
+                                           **kwargs)
+                    self.step_end(output=step.get_fitted_params())
+                    if step.status_ == ExperimentStep.STATUE_NONE:
+                        step.status_ = ExperimentStep.STATUE_SUCCESS
+                except Exception as e:
+                    self.step_break(error=e)
+                    if step.status_ == ExperimentStep.STATUE_NONE:
+                        step.status_ = ExperimentStep.STATUE_FAILED
+                    raise e
+                finally:
+                    step.done_time = time.time()
+            elif not step.is_transform_skipped():
+                logger.info(f'transform {step.name} with columns: {X_train.columns.to_list()}')
+                X_train = step.transform(X_train, y_train)
+                if X_test is not None:
+                    X_test = step.transform(X_test)
+                if X_eval is not None:
+                    X_eval = step.transform(X_eval, y_eval)
 
-        estimator = self.to_estimator(self.steps)
-        self.hyper_model = hyper_model
+        estimator = self.to_estimator(self.steps) if to_step == len(self.steps) - 1 else None
+        self.hyper_model_ = hyper_model
 
         return estimator
 
@@ -1263,14 +1289,27 @@ class SteppedExperiment(Experiment):
 
         raise ValueError(f'Not found step "{name}"')
 
-    def find_step(self, fn, until_step_name=None):
-        for step in self.steps:
+    def find_step(self, fn, until_step_name=None, index=False):
+        for i, step in enumerate(self.steps):
             if step.name == until_step_name:
                 break
             if fn(step):
-                return step
+                return i if index else step
 
         return None
+
+    def get_step_index(self, name_or_index, default):
+        assert name_or_index is None or isinstance(name_or_index, (int, str))
+
+        if isinstance(name_or_index, str):
+            step_names = [s.name for s in self.steps]
+            assert name_or_index in step_names
+            return step_names.index(name_or_index)
+        elif isinstance(name_or_index, int):
+            assert 0 <= name_or_index < len(self.steps)
+            return name_or_index
+        else:
+            return default
 
     @staticmethod
     def to_estimator(steps):
