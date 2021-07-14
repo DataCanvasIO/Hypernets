@@ -19,15 +19,13 @@ from sklearn.pipeline import Pipeline
 from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
 from hypernets.tabular import dask_ex as dex
-from hypernets.tabular import drift_detection as dd
+from hypernets.tabular import drift_detection as dd, feature_importance as fi, pseudo_labeling as pl
 from hypernets.tabular.cache import cache
 from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
-from hypernets.tabular.feature_importance import permutation_importance_batch, select_by_feature_importance
 from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
-from hypernets.tabular.pseudo_labeling import sample_by_pseudo_labeling
 from hypernets.utils import logging, const, hash_data, df_utils, infer_task_type
 
 logger = logging.get_logger(__name__)
@@ -600,6 +598,9 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
     def __init__(self, experiment, name, strategy, threshold, quantile, number):
         super(FeatureImportanceSelectionStep, self).__init__(experiment, name)
 
+        strategy, threshold, quantile, number = \
+            fi.detect_strategy(strategy, threshold=threshold, quantile=quantile, number=number)
+
         self.strategy = strategy
         self.threshold = threshold
         self.quantile = quantile
@@ -621,10 +622,10 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
         self.step_progress('training general estimator')
 
         selected, unselected = \
-            select_by_feature_importance(importances, self.strategy,
-                                         threshold=self.threshold,
-                                         quantile=self.quantile,
-                                         number=self.number)
+            fi.select_by_feature_importance(importances, self.strategy,
+                                            threshold=self.threshold,
+                                            quantile=self.quantile,
+                                            number=self.number)
 
         features = X_train.columns.to_list()
         selected_features = [features[i] for i in selected]
@@ -660,6 +661,8 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
 
         super().__init__(experiment, name)
 
+        strategy, threshold, quantile, number = fi.detect_strategy(strategy, threshold, quantile, number)
+
         self.scorer = scorer
         self.estimator_size = estimator_size
         self.strategy = strategy
@@ -678,18 +681,18 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
         self.step_progress('load estimators')
 
         if X_eval is None or y_eval is None:
-            importances = permutation_importance_batch(estimators, X_train, y_train, self.scorer, n_repeats=5)
+            importances = fi.permutation_importance_batch(estimators, X_train, y_train, self.scorer, n_repeats=5)
         else:
-            importances = permutation_importance_batch(estimators, X_eval, y_eval, self.scorer, n_repeats=5)
+            importances = fi.permutation_importance_batch(estimators, X_eval, y_eval, self.scorer, n_repeats=5)
 
         # feature_index = np.argwhere(importances.importances_mean < self.threshold)
         # selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
         # unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
-        selected, unselected = select_by_feature_importance(importances.importances_mean,
-                                                            self.strategy,
-                                                            threshold=self.threshold,
-                                                            quantile=self.quantile,
-                                                            number=self.number)
+        selected, unselected = fi.select_by_feature_importance(importances.importances_mean,
+                                                               self.strategy,
+                                                               threshold=self.threshold,
+                                                               quantile=self.quantile,
+                                                               number=self.number)
 
         if len(selected) > 0:
             selected_features = [importances.columns[i] for i in selected]
@@ -1076,6 +1079,9 @@ class PseudoLabelStep(ExperimentStep):
                  resplit=False):
         super().__init__(experiment, name)
 
+        strategy, proba_threshold, proba_quantile, sample_number = \
+            pl.detect_strategy(strategy, threshold=proba_threshold, quantile=proba_quantile, number=sample_number)
+
         self.estimator_builder_name = estimator_builder_name
         self.strategy = strategy
         self.proba_threshold = proba_threshold
@@ -1111,12 +1117,12 @@ class PseudoLabelStep(ExperimentStep):
         # start here
         proba = estimator.predict_proba(X_test)
         classes = estimator.classes_
-        X_pseudo, y_pseudo = sample_by_pseudo_labeling(X_test, classes, proba,
-                                                       strategy=self.strategy,
-                                                       threshold=self.proba_threshold,
-                                                       quantile=self.proba_quantile,
-                                                       number=self.sample_number,
-                                                       )
+        X_pseudo, y_pseudo = pl.sample_by_pseudo_labeling(X_test, classes, proba,
+                                                          strategy=self.strategy,
+                                                          threshold=self.proba_threshold,
+                                                          quantile=self.proba_quantile,
+                                                          number=self.sample_number,
+                                                          )
 
         pseudo_label_stat = self.stat_pseudo_label(y_pseudo, classes)
         test_proba = dex.compute(proba)[0] if dex.is_dask_object(proba) else proba
