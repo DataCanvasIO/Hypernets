@@ -70,10 +70,11 @@ class StepNames:
 
 
 class ExperimentStep(BaseEstimator):
-    STATUE_NONE = -1
-    STATUE_SUCCESS = 0
-    STATUE_FAILED = 1
-    STATUE_SKIPPED = 2
+    STATUS_NONE = -1
+    STATUS_SUCCESS = 0
+    STATUS_FAILED = 1
+    STATUS_SKIPPED = 2
+    STATUS_RUNNING = 10
 
     def __init__(self, experiment, name):
         super(ExperimentStep, self).__init__()
@@ -83,7 +84,7 @@ class ExperimentStep(BaseEstimator):
 
         # fitted
         self.input_features_ = None
-        self.status_ = self.STATUE_NONE
+        self.status_ = self.STATUS_NONE
         self.start_time = None
         self.done_time = None
 
@@ -107,7 +108,7 @@ class ExperimentStep(BaseEstimator):
 
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         self.input_features_ = X_train.columns.to_list()
-        # self.status_ = self.STATUE_SUCCESS
+        # self.status_ = self.STATUS_SUCCESS
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
@@ -754,7 +755,7 @@ class SpaceSearchStep(ExperimentStep):
             self.best_reward_ = model.get_best_trial().reward
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
-            self.status_ = self.STATUE_SKIPPED
+            self.status_ = self.STATUS_SKIPPED
             self.from_fitted_step(fitted_step)
 
         logger.info(f'{self.name} best_reward: {self.best_reward_}')
@@ -962,7 +963,7 @@ class EstimatorBuilderStep(ExperimentStep):
             logger.info(f'built estimator: {estimator}')
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
-            self.status_ = self.STATUE_SKIPPED
+            self.status_ = self.STATUS_SKIPPED
             estimator = fitted_step.estimator_
 
         self.dataset_id = dataset_id
@@ -1238,6 +1239,7 @@ class SteppedExperiment(Experiment):
         for i, step in enumerate(self.steps):
             if i > to_step:
                 break
+            assert step.status_ != ExperimentStep.STATUS_RUNNING
 
             if X_test is not None and X_train.columns.to_list() != X_test.columns.to_list():
                 logger.warning(f'X_train{X_train.columns.to_list()} and X_test{X_test.columns.to_list()}'
@@ -1251,21 +1253,22 @@ class SteppedExperiment(Experiment):
             X_train, y_train, X_test, X_eval, y_eval = \
                 [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
-            if i >= from_step or step.status_ == ExperimentStep.STATUE_NONE:
+            if i >= from_step or step.status_ == ExperimentStep.STATUS_NONE:
                 logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
                 self.step_start(step.name)
+                step.status_ = ExperimentStep.STATUS_RUNNING
                 try:
                     step.start_time = time.time()
                     hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
                         step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                                            **kwargs)
                     self.step_end(output=step.get_fitted_params())
-                    if step.status_ == ExperimentStep.STATUE_NONE:
-                        step.status_ = ExperimentStep.STATUE_SUCCESS
+                    if step.status_ == ExperimentStep.STATUS_RUNNING:
+                        step.status_ = ExperimentStep.STATUS_SUCCESS
                 except Exception as e:
                     self.step_break(error=e)
-                    if step.status_ == ExperimentStep.STATUE_NONE:
-                        step.status_ = ExperimentStep.STATUE_FAILED
+                    if step.status_ == ExperimentStep.STATUS_RUNNING:
+                        step.status_ = ExperimentStep.STATUS_FAILED
                     raise e
                 finally:
                     step.done_time = time.time()
