@@ -72,3 +72,7 @@ class ExperimentProcessWidget(widgets.DOMWidget):
     value = Dict({}).tag(sync=True, **widget_serialization)
 
     initData = Unicode().tag(sync=True, **widget_serialization)
+
+    def __init__(self, compete_experiment, **kwargs):
+        super(ExperimentProcessWidget, self).__init__(**kwargs)
+        self.initData = experiment_util.extract_experiment(compete_experiment)

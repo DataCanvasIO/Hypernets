@@ -123,7 +123,6 @@ const experimentConfigData = (handler) => {
                 "start_datetime": "2020-11-11 22:22:22",
                 "end_datetime": "2020-11-11 22:22:22"
             }
-
         ]
     };
 

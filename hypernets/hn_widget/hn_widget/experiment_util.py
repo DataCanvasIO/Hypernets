@@ -11,7 +11,7 @@ class StepType:
     DriftDetection =  'DriftDetectStep'
     SpaceSearch = 'SpaceSearchStep'
     FeatureSelection = 'FeatureImportanceSelectionStep'
-    PsudoLabeling  = 'PseudoLabelStep'
+    PseudoLabeling  = 'PseudoLabelStep'
     FeatureGeneration  = 'FeatureGenerationStep'
     PermutationImportanceSelection  = 'PermutationImportanceSelectionStep'
     ReSpaceSearch = 'ReSpaceSearch'
@@ -71,7 +71,7 @@ def get_step_status(step):
     }
     s = step.status_
     if s not in status_mapping:
-        raise Exception("Unseen status: " + s);
+        raise Exception("Unseen status: " + str(s));
     return status_mapping[s]
 
 def get_step_index(experiment, step_name):
@@ -371,7 +371,7 @@ extractors = {
     StepType.DriftDetection: extract_drift_step,
     StepType.FeatureSelection: extract_feature_selection_step,
     StepType.CollinearityDetection: extract_multi_linearity_step,
-    StepType.PsudoLabeling: extract_psedudo_step,
+    StepType.PseudoLabeling: extract_psedudo_step,
     StepType.PermutationImportanceSelection: extract_permutation_importance_step,
     StepType.SpaceSearch: extract_space_search_step,
     StepType.FinalTrain: extract_final_train_step,

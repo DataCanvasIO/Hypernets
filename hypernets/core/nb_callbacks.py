@@ -87,7 +87,8 @@ class ActionType:
     StepFinished = 'stepFinished'
     StepBegin = 'stepBegin'
     StepError = 'stepError'
-    TrialFinished = 'trialFinished'
+    ExperimentFinish = 'experimentFinish'
+    ExperimentBreak = 'experimentBreak'
 
 
 class JupyterHyperModelCallback(Callback):
@@ -249,7 +250,6 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
 
     def __init__(self):
         self.widget_id = id(self)
-        DOM_WIDGETS[self.widget_id] = ExperimentProcessWidget()
 
     @staticmethod
     def set_up_hyper_model_callback(exp, handler):
@@ -261,17 +261,16 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
     def experiment_start(self, exp):
         self.set_up_hyper_model_callback(exp, lambda c: c.set_widget_id(self.widget_id))
         # c.set_step_index(i)
-        dom_widget = DOM_WIDGETS[self.widget_id]
+        dom_widget = ExperimentProcessWidget(exp)
+        DOM_WIDGETS[self.widget_id] = dom_widget
         display(dom_widget)
-        from hn_widget.experiment_util import extract_experiment
-        d = extract_experiment(exp)
-        dom_widget.initData = json.dumps(d)
+        dom_widget.initData = None  # remove init data, if refresh the page will show nothing on the browser
 
     def experiment_end(self, exp, elapsed):
-        pass
+        send_action(self.widget_id, ActionType.ExperimentFinish, {})
 
     def experiment_break(self, exp, error):
-        pass
+        send_action(self.widget_id, ActionType.ExperimentBreak, {})
 
     def step_start(self, exp, step):
         from hn_widget.experiment_util import get_step_index

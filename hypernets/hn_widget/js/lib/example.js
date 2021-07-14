@@ -78,19 +78,19 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
         console.log('hypernetsExperiment lib: ');
         console.log(hypernetsExperiment);
 
-        // Observe changes in the value traitlet in Python, and define
-        // a custom callback.
-        this.model.on('change:value', this.value_changed, this);
-        this.model.on('change:initData', this.init_data_changed, this);
-    },
-
-    init_data_changed: function(){
-        const initData = JSON.parse(this.model.get('initData'));
-        console.log("Received init_data_changed from backend");
-        console.info(JSON.stringify(initData));
-        this.reactStore = hypernetsExperiment.renderExperimentProcess(initData, this.el);
-        console.info("store: ");
-        console.info(this.reactStore);
+        const originInitData = this.model.get('initData');
+        if(originInitData !== null && originInitData !== undefined){
+            const initData = JSON.parse(originInitData);
+            console.log("Received init_data_changed from backend");
+            console.info(initData);
+            this.reactStore = hypernetsExperiment.renderExperimentProcess(initData, this.el);
+            console.info("store: ");
+            console.info(this.reactStore);
+            this.model.on('change:value', this.value_changed, this);
+            // this.model.on('change:initData', this.init_data_changed, this);
+        }else{
+            console.warn("Received init_data_changed is null");
+        }
     },
 
     value_changed: function() {
@@ -99,6 +99,13 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
         console.log("Received value_changed from backend: ");
         console.log(JSON.stringify(value));
         this.reactStore.dispatch(value);
+
+        // if is experiment end or experiment break, sync the state data to backend
+        const actionType = value.type;
+        if(actionType === 'experimentFinish' || actionType === 'experimentBreak' ){
+            this.model.set('initData', this.reactStore.getState());
+            this.model.save_changes();
+        }
     }
 });
 

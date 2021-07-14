@@ -135,6 +135,7 @@ export function ConfigurationCard({configurationData, configurationTip = {}}) {
 
 
 export function SkippedStepContent({style = {marginTop: 20, marginLeft: 20}}) {
+
     const subTitle = `Step "${Steps.PsudoLabeling.name}" and step "${Steps.PermutationImportanceSelection.name}" have no impact on the dataset.`
     return <Result
         style={{...style}}
