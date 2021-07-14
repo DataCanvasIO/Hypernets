@@ -18,7 +18,7 @@ def test_experiment_with_blood_down_sample():
     df = dsutils.load_blood()
     experiment = make_experiment(PlainModel, df, target='Class', search_space=PlainSearchSpace(),
                                  down_sample_search=True, down_sample_search_size=0.1,
-                                 down_sample_search_time_limit=300, down_sample_search_max_trials=100,
+                                 down_sample_search_time_limit=300, down_sample_search_max_trials=10,
                                  # log_level='info',
                                  )
     estimator = experiment.run(max_trials=3)
