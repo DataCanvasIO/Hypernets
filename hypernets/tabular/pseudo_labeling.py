@@ -21,10 +21,7 @@ _DEFAULT_QUANTILE = 0.8
 _DEFAULT_TOP_PERCENT = 0.2
 
 
-def sample_by_pseudo_labeling(X_test, classes, proba, strategy,
-                              threshold=None, quantile=None, number=None):
-    assert len(classes) == proba.shape[-1] > 1
-
+def detect_strategy(strategy, threshold=None, quantile=None, number=None):
     if strategy is None:
         if threshold is not None:
             strategy = _STRATEGY_THRESHOLD
@@ -41,17 +38,28 @@ def sample_by_pseudo_labeling(X_test, classes, proba, strategy,
         assert 0 < threshold < 1.0
     elif strategy == _STRATEGY_NUMBER:
         if number is None:
-            proba_shape = dex.compute(proba.shape)[0] if dex.is_dask_object(proba) else proba.shape
-            number = int(proba_shape[0] / proba_shape[1] * _DEFAULT_TOP_PERCENT)
-            if number < 10:
-                number = 10
-        assert number > 0
+            number = _DEFAULT_TOP_PERCENT
     elif strategy == _STRATEGY_QUANTILE:
         if quantile is None:
             quantile = _DEFAULT_QUANTILE
         assert 0 < quantile < 1.0
     else:
         raise ValueError(f'Unsupported strategy: {strategy}')
+
+    return strategy, threshold, quantile, number
+
+
+def sample_by_pseudo_labeling(X_test, classes, proba, strategy,
+                              threshold=None, quantile=None, number=None):
+    assert len(classes) == proba.shape[-1] > 1
+
+    strategy, threshold, quantile, number = \
+        detect_strategy(strategy, threshold=threshold, quantile=quantile, number=number)
+    if strategy == _STRATEGY_NUMBER and isinstance(number, float) and 0 < number < 1:
+        proba_shape = dex.compute(proba.shape)[0] if dex.is_dask_object(proba) else proba.shape
+        number = int(proba_shape[0] / proba_shape[1] * _DEFAULT_TOP_PERCENT)
+        if number < 10:
+            number = 10
 
     if dex.is_dask_dataframe(X_test):
         fn = _sample_by_dask
