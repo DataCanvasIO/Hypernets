@@ -67,8 +67,7 @@ class HyperModel:
         except UnPromisingTrial as e:
             logger.info(f'{e}')
         except Exception as e:
-            logger.error('Estimator fit failed!')
-            logger.error(e)
+            logger.error(f'run_trail failed! trail_no={trial_no}')
             track = traceback.format_exc()
             logger.error(track)
 
