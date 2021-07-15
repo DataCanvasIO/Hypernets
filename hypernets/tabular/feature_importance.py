@@ -23,10 +23,7 @@ _DEFAULT_QUANTILE = 0.2
 _DEFAULT_TOP_PERCENT = 0.8
 
 
-def select_by_feature_importance(feature_importance, strategy=None,
-                                 threshold=None, quantile=None, number=None):
-    assert isinstance(feature_importance, (list, tuple, np.ndarray)) and len(feature_importance) > 0
-
+def detect_strategy(strategy=None, threshold=None, quantile=None, number=None):
     if strategy is None:
         if threshold is not None:
             strategy = _STRATEGY_THRESHOLD
@@ -43,14 +40,24 @@ def select_by_feature_importance(feature_importance, strategy=None,
         assert 0 < threshold < 1.0
     elif strategy == _STRATEGY_NUMBER:
         if number is None:
-            number = len(feature_importance) * _DEFAULT_TOP_PERCENT
-        assert 0 < number < len(feature_importance)
+            number = _DEFAULT_TOP_PERCENT
     elif strategy == _STRATEGY_QUANTILE:
         if quantile is None:
             quantile = _DEFAULT_QUANTILE
         assert 0 < quantile < 1.0
     else:
         raise ValueError(f'Unsupported strategy: {strategy}')
+
+    return strategy, threshold, quantile, number
+
+
+def select_by_feature_importance(feature_importance, strategy=None,
+                                 threshold=None, quantile=None, number=None):
+    assert isinstance(feature_importance, (list, tuple, np.ndarray)) and len(feature_importance) > 0
+
+    strategy, threshold, quantile, number = detect_strategy(strategy, threshold, quantile, number)
+    if strategy == _STRATEGY_NUMBER and isinstance(number, float) and 0 < number < 1.0:
+        number = len(feature_importance) * _DEFAULT_TOP_PERCENT
 
     feature_importance = np.array(feature_importance)
     idx = np.arange(len(feature_importance))
