@@ -35,6 +35,7 @@ def make_experiment(hyper_model_cls,
                     early_stopping_reward=None,
                     reward_metric=None,
                     optimize_direction=None,
+                    hyper_model_options=None,
                     clear_cache=None,
                     discriminator=None,
                     log_level=None,
@@ -106,6 +107,8 @@ def make_experiment(hyper_model_cls,
         Hypernets search reward metric direction, default is detected from reward_metric.
     discriminator : instance of hypernets.discriminator.BaseDiscriminator, optional
         Discriminator is used to determine whether to continue training
+    hyper_model_options: dict, optional
+        Options to initlize HyperModel except *reward_metric*, *task*, *callbacks*, *discriminator*.
     clear_cache: bool, optional, (default False)
     log_level : int, str, or None, (default=None),
         Level of logging, possible values:
@@ -220,7 +223,10 @@ def make_experiment(hyper_model_cls,
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
         logger.info(f'no reward metric specified, use "{reward_metric}" for {task} task by default.')
 
-    scorer = metric_to_scoring(reward_metric) if kwargs.get('scorer') is None else kwargs.pop('scorer')
+    if kwargs.get('scorer') is None:
+        scorer = metric_to_scoring(reward_metric, task=task, pos_label=kwargs.get('pos_label'))
+    else:
+        scorer = kwargs.pop('scorer')
 
     if isinstance(scorer, str):
         scorer = get_scorer(scorer)
@@ -253,8 +259,10 @@ def make_experiment(hyper_model_cls,
                             eval_size=kwargs.get('eval_size'), target=target, task=task))
         id = f'{hyper_model_cls.__name__}_{id}'
 
+    if hyper_model_options is None:
+        hyper_model_options = {}
     hm = hyper_model_cls(searcher, reward_metric=reward_metric, task=task, callbacks=search_callbacks,
-                         discriminator=discriminator)
+                         discriminator=discriminator, **hyper_model_options)
 
     experiment = CompeteExperiment(hm, X_train, y_train, X_eval=X_eval, y_eval=y_eval, X_test=X_test,
                                    task=task, id=id, callbacks=callbacks, scorer=scorer, **kwargs)
