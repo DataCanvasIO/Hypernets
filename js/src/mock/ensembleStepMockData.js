@@ -15,8 +15,8 @@ export function getInitData() {
                     "scorer": null
                 },
                 "extension": null,
-                "start_datetime": "2020-11-11 22:22:22",
-                "end_datetime": "2020-11-11 22:22:22"
+                "start_datetime": 1626419128000,
+                "end_datetime": null
             }
         ]
     }
@@ -43,7 +43,7 @@ export function sendFinishData(store, delay = 2000) {
                 extension: {
                 },
                 status: StepStatus.Skip,
-                datetime: ''
+                end_datetime: 1626419128
             }
         })
     }, delay * 2);

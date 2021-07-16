@@ -1,3 +1,5 @@
+import json
+
 import ipywidgets as widgets
 from traitlets import Unicode
 from traitlets import Unicode, Dict
@@ -71,8 +73,9 @@ class ExperimentProcessWidget(widgets.DOMWidget):
 
     value = Dict({}).tag(sync=True, **widget_serialization)
 
-    initData = Unicode().tag(sync=True, **widget_serialization)
+    initData = Unicode().tag(sync=True, **widget_serialization)  # use dict will cause  Error setting state: Unexpected token o in JSON at position 1
 
     def __init__(self, compete_experiment, **kwargs):
         super(ExperimentProcessWidget, self).__init__(**kwargs)
-        self.initData = experiment_util.extract_experiment(compete_experiment)
+        d = json.dumps(experiment_util.extract_experiment(compete_experiment))
+        self.initData = d

@@ -16,7 +16,7 @@ import {
     FeatureGenerationStep
 } from '../components/steps'
 
-import {Steps, StepStatus} from '../constants'
+import { Steps, StepStatus, TWO_STAGE_SUFFIX } from '../constants'
 import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
 
 const { Step } = AntdSteps;
@@ -87,6 +87,8 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         }
     };
 
+    // step type count
+    const stepsCounter = {};
 
     experimentData.steps.forEach(stepData=> {
         const stepType = stepData.type;
@@ -105,9 +107,6 @@ export function ExperimentUI ({experimentData, dispatch} ) {
             console.error("Unseen step type: " + stepType);
             return ;
         }
-
-        // step type count
-        const stepsCounter = {};
         add(stepsCounter, stepType);
         const stepCount = stepsCounter[stepType];
 
@@ -115,7 +114,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         const stepName = stepMetaData.name;
         let stepTitle ;
         if (stepCount > 1){
-            stepTitle = stepName + "(Two-stage)"
+            stepTitle = stepName + TWO_STAGE_SUFFIX
         }else {
             stepTitle = stepName;
         }

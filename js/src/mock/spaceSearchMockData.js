@@ -11,7 +11,7 @@ export function getInitData() {
                 "name": Steps.SpaceSearch.name,
                 "index": 0,
                 "type": Steps.SpaceSearch.type,
-                "status": "wait",
+                "status": StepStatus.Wait,
                 "configuration": {
                     "cv": false,
                     "name": "space_search",
@@ -20,8 +20,8 @@ export function getInitData() {
                 "extension": {
                     trials: []
                 },
-                "start_datetime": "2020-11-11 22:22:22",
-                "end_datetime": "2020-11-11 22:22:22"
+                "start_datetime": 1626419128000,
+                "end_datetime": null
             }
         ]
     }
@@ -51,13 +51,14 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
             stepIndex: 0,
             trialData: {
                 trialNo: trialNoIndex,
+                maxTrails: 6,
                 hyperParams: {
                     max_depth: 10,
                     n_estimator: 100
                 },
                 models: models,
-                reward: 0.7,
-                elapsed: 100,
+                reward: Math.random(),
+                elapsed: Math.random() * 100,
                 metricName: 'auc',
                 earlyStopping: {
                     status: {
@@ -93,7 +94,10 @@ setTimeout(function () {
         } else {
             clearInterval(trialInterval);
         }
+    }, 1000);
+}, 500);
 
+    setTimeout(function () {
         store.dispatch(
             {
                 type: 'stepFinished',
@@ -104,14 +108,11 @@ setTimeout(function () {
                         input_features: [{"name": "age"}, {"name": "data"}],
                     },
                     status: StepStatus.Finish,
-                    datetime: ''
+                    end_datetime: 1626519128000
                 }
             }
         )
-
-    }, 1000);
-}, 500);
-
+    }, 10000)
 }
 
 

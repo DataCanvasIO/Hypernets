@@ -1261,20 +1261,20 @@ class SteppedExperiment(Experiment):
 
             if i >= from_step or step.status_ == ExperimentStep.STATUS_NONE:
                 logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
-                self.step_start(step.name)
                 step.status_ = ExperimentStep.STATUS_RUNNING
+                self.step_start(step.name)
                 try:
                     step.start_time = time.time()
                     hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
                         step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                                            **kwargs)
-                    self.step_end(output=step.get_fitted_params())
                     if step.status_ == ExperimentStep.STATUS_RUNNING:
                         step.status_ = ExperimentStep.STATUS_SUCCESS
+                    self.step_end(output=step.get_fitted_params())
                 except Exception as e:
-                    self.step_break(error=e)
                     if step.status_ == ExperimentStep.STATUS_RUNNING:
                         step.status_ = ExperimentStep.STATUS_FAILED
+                    self.step_break(error=e)
                     raise e
                 finally:
                     step.done_time = time.time()

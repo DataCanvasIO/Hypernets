@@ -87,6 +87,7 @@ class ActionType:
     StepFinished = 'stepFinished'
     StepBegin = 'stepBegin'
     StepError = 'stepError'
+    TrialFinished = 'trialFinished'
     ExperimentFinish = 'experimentFinish'
     ExperimentBreak = 'experimentBreak'
 
@@ -97,6 +98,7 @@ class JupyterHyperModelCallback(Callback):
         super(JupyterHyperModelCallback, self).__init__()
         self.widget_id = None
         self.step_index = None
+        self.max_trials = None
 
     def set_widget_id(self, widget_id):
         self.widget_id = widget_id
@@ -106,7 +108,7 @@ class JupyterHyperModelCallback(Callback):
 
     def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
                         **fit_kwargs):
-        pass
+        self.max_trials = max_trials
 
     def on_search_end(self, hyper_model):
         for c in hyper_model.callbacks:
@@ -125,7 +127,7 @@ class JupyterHyperModelCallback(Callback):
                         'condition': c.triggered_reason,
                         'value': value
                     }
-                    send_action(self.widget_id, ActionType.EarlyStopped, stop_reason )
+                    send_action(self.widget_id, ActionType.EarlyStopped, stop_reason)
 
     def on_search_error(self, hyper_model):
         pass
@@ -148,7 +150,8 @@ class JupyterHyperModelCallback(Callback):
             #     if not isinstance(param_value, bool):
             #         params_dict[param_name] = param_value
             if param_name is not None and param_value is not None:
-                params_dict[param_name.split('.')[-1]] = str(param_value)
+                # params_dict[param_name.split('.')[-1]] = str(param_value)
+                params_dict[param_name] = str(param_value)
         return params_dict
 
     def ensure_number(self, value, var_name):
@@ -222,6 +225,7 @@ class JupyterHyperModelCallback(Callback):
             'stepIndex': self.step_index,
             'trialData': {
                 "trialNo": trial_no,
+                "maxTrials": self.max_trials,
                 "hyperParams": self.get_space_params(space),
                 "models": models_json,
                 "reward": reward,
@@ -264,7 +268,7 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         dom_widget = ExperimentProcessWidget(exp)
         DOM_WIDGETS[self.widget_id] = dom_widget
         display(dom_widget)
-        dom_widget.initData = None  # remove init data, if refresh the page will show nothing on the browser
+        dom_widget.initData = ''  # remove init data, if refresh the page will show nothing on the browser
 
     def experiment_end(self, exp, elapsed):
         send_action(self.widget_id, ActionType.ExperimentFinish, {})
@@ -294,9 +298,9 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         step = exp.get_step(step_name)
         # setattr(step, 'status', StepStatus.Finish)
         # todo set time setattr(step, 'status', StepStatus.Finish)
-
         step_index = experiment_util.get_step_index(exp, step_name)
-        send_action(self.widget_id, ActionType.StepFinished, experiment_util.extract_step(step_index, step))
+        d = experiment_util.extract_step(step_index, step)
+        send_action(self.widget_id, ActionType.StepFinished, d)
 
     def step_break(self, exp, step, error):
         from hn_widget.experiment_util import get_step_index

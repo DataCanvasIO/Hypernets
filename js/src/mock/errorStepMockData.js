@@ -11,7 +11,9 @@ export function getInitData() {
                 "status": "wait",
                 "configuration": {
                     "cv": 100,
-                }
+                },
+                "start_datetime": 1626419128000,
+                "end_datetime": null
             }
         ]
     }
@@ -25,7 +27,7 @@ export function sendFinishData(store, delay = 1000) {
                 payload: {
                     index: 0,
                     status: StepStatus.Process,
-                    datetime: ''
+                    end_datetime: 1626419128
                 }
             })
     }, delay);
@@ -39,7 +41,7 @@ export function sendFinishData(store, delay = 1000) {
                     reason: 'OutOfMemory'
                 },
                 status: StepStatus.Error,
-                datetime: ''
+                end_datetime: 1626419128
             }
         })
     }, delay * 2);

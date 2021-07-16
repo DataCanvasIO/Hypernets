@@ -1,11 +1,11 @@
 import {Card, Col, Form, Row, Switch, Table, Tabs, Tooltip, Select, Tag, Input, Result} from "antd";
-import React, { PureComponent } from 'react';
+import React, {PureComponent, useState} from 'react';
 import { Empty } from 'antd';
 import EchartsCore from './echartsCore';
-import {showNotification} from "../util";
+import {formatHumanDate, showNotification} from "../util";
 import {formatFloat, isEmpty} from "../util";
 import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps} from "../constants";
-import { TooltipComponent } from 'echarts/components';
+import {MarkPointComponent, TooltipComponent} from 'echarts/components';
 import { GridComponent } from 'echarts/components';
 import { BarChart, LineChart } from 'echarts/charts';
 
@@ -83,16 +83,136 @@ export class Line extends PureComponent {
     }
 }
 
-export function ConfigurationCard({configurationData, configurationTip = {}}) {
 
-    const makeLabel = (label, maxLen=30) => {
+export function getConfigData(configs, tips){
+    return Object.keys(configs).map(key => {
+        const v = configs[key];
+        const tip = tips[key];
+        return {
+            name: key,
+            value: v,
+            tip: tip
+        }
+    });
+}
+
+
+export function StepStatusCard({stepData}) {
+    const status = stepData.status;
+    const start_datetime = stepData.start_datetime;
+    const end_datetime = stepData.end_datetime;
+
+    const fillZero = (num) => {
+        if(num < 10){
+            return `0${num}`
+        }else{
+            return `${num}`
+        }
+    };
+
+    const formatTimestamp = (timestamp) => {
+        if(timestamp !== undefined && timestamp !== null){
+            const d = new Date(timestamp * 1000);
+            return `${d.getFullYear()}-${fillZero(d.getMonth() + 1)}-${fillZero(d.getDate())} ${fillZero(d.getHours())}:${fillZero(d.getMinutes())}:${fillZero(d.getSeconds())}`
+        }else{
+            return '-'
+        }
+    };
+    var elapsed = '-';
+    if(status === StepStatus.Finish){  // calc elapsed time
+        if(start_datetime !== undefined && start_datetime !== null ){
+            if(end_datetime !== undefined && end_datetime !== null){
+                elapsed = formatHumanDate((end_datetime - start_datetime) / 1000 );
+            }else{
+                console.error(`status is ${status} but end_datetime is null `);
+            }
+        }else {
+            console.error(`status is ${status} but start_datetime is null `);
+        }
+    }
+
+    const basicRender = (v) => {
+        return <span>
+            {v}
+        </span>
+    };
+
+    const configDict = [
+        {
+            name: "Start datetime",
+            tip: null,
+            value: formatTimestamp(start_datetime),
+            render: basicRender
+        },
+        {
+            name: "End datetime",
+            tip: null,
+            value: formatTimestamp(end_datetime),
+            render: basicRender
+        },
+        {
+            name: "Elapsed",
+            tip: null,
+            value: elapsed,
+            render: basicRender
+        },
+        {
+            name: "Status",
+            tip: null,
+            value: stepData.status,
+            render: function (v) {
+                let color;
+                if(v === StepStatus.Wait){
+                    color = 'gray'
+                }else if(v === StepStatus.Process){
+                    color = '#2db7f5'
+                }else if(v === StepStatus.Finish){
+                    color = '#87d068'
+                }else if(v === StepStatus.Skip){
+                    color = 'orange'
+                }else if(v === StepStatus.Error){
+                    color = '#f50'
+                }else{
+                    color = 'black'
+                }
+                return <Tag style={{color: color}}>
+                    {v}
+                </Tag>
+            }
+        }
+    ];
+
+    return <Card title="Status" bordered={false} style={{width: '100%'}} size={'small'}>
+        <ConfigurationForm
+            configurationData={configDict}
+            sort={false}
+        />
+    </Card>
+}
+
+/***
+ *  {
+        name: "",
+        tip: "",
+        value: "",
+        render: function (v) {
+
+        }
+    }
+ * @param configurationData
+ * @param sort
+ * @returns {*}
+ * @constructor
+ */
+export function ConfigurationForm({configurationData, sort=true}) {
+
+    const makeLabel = (label, tip,  maxLen=30) => {
         let displayLabel;
         if(label.length > maxLen){
             displayLabel = `${label.substring(0, maxLen - 3)}...`;
         }else{
             displayLabel = label
         }
-        const tip = configurationTip[label];
         let tipContent;
         if(tip !== null && tip !== undefined){
             tipContent = `${label}\n${tip}`
@@ -104,6 +224,34 @@ export function ConfigurationCard({configurationData, configurationTip = {}}) {
         </Tooltip>
     };
 
+    if(sort){
+        configurationData = configurationData.sort( function (a, b) {
+            return b.name.length - a.name.length
+        })
+    }
+
+    const defaultRender = (v) => {
+        if (v === undefined || v === null){
+            return <Input value={"None"} disabled={true} />
+        } else if((typeof  v)  === "boolean"){
+            return  <Switch checked disabled />
+        } else  if(v instanceof Array){
+            return  <Input value={  v.join(",") } disabled={true} />
+        } else {
+            return  <Input value={v} disabled={true}/>
+        }
+    };
+
+    const renderItem = (config) => {
+        const configRender = config.render;
+        const v = config.value;
+        if(config.render !== undefined && configRender !== null){
+            return configRender(v);
+        }else{
+            return defaultRender(v)
+        }
+    };
+
     return <Form
         size={COMPONENT_SIZE}
         labelAlign={'right'}
@@ -111,28 +259,24 @@ export function ConfigurationCard({configurationData, configurationTip = {}}) {
         style={{align: 'right'}}
         layout="horizontal">
         {
-            Object.keys(configurationData).sort( function (a, b) {
-                return b.length - a.length
-            }).map(key => {
-                const v = configurationData[key];
-                let content;
-                if (v === undefined || v === null){
-                    content = <Input value={"None"} disabled={true} />
-                } else if((typeof  v)  === "boolean"){
-                    content =  <Switch checked disabled />
-                } else  if(v instanceof Array){
-                    content =   <Input value={  v.join(",") } disabled={true} />
-                } else {
-                    content =  <Input value={v} disabled={true}/>
-                }
-                return <Form.Item label={ makeLabel(key) } key={key}>
-                    <span>{content}</span>
+            configurationData.map(config => {
+                return <Form.Item label={ makeLabel(config.name) } key={config.name}>
+                    {
+                        renderItem(config)
+                    }
                 </Form.Item>
             })
         }
     </Form>
 }
 
+export function ConfigurationCard({configurationData, sort=true}) {
+    return <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+        {
+            <ConfigurationForm configurationData={configurationData} sort={sort}/>
+        }
+    </Card>
+}
 
 export function SkippedStepContent({style = {marginTop: 20, marginLeft: 20}}) {
 
@@ -175,12 +319,14 @@ export function DataCleaningStep({stepData}) {
     ];
 
     return <Row gutter={[2, 2]}>
+
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration.data_cleaner_args} configurationTip={{}}/>
-                }
-            </Card>
+            <Row gutter={[2, 2]}>
+                <ConfigurationCard configurationData={getConfigData(stepData.configuration.data_cleaner_args, {})}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <StepStatusCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
@@ -240,11 +386,12 @@ export function FeatureGenerationStep({stepData}){
 
     return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.FeatureGeneration.configTip}/>
-                }
-            </Card>
+            <Row gutter={[2, 2]}>
+                <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.FeatureGeneration.configTip)}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <StepStatusCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
@@ -287,12 +434,14 @@ export function CollinearityDetectionStep({stepData}){
     ];
 
     return <Row gutter={[2, 2]}>
+
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.CollinearityDetection.configTip}/>
-                }
-            </Card>
+            <Row gutter={[2, 2]}>
+                <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.CollinearityDetection.configTip)}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <StepStatusCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
@@ -352,13 +501,15 @@ export function DriftDetectionStep({stepData}){
         }
     ];
 
-    return <><Row gutter={[2, 2]}>
+    return <>
+        <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.DriftDetection.configTip}/>
-                }
-            </Card>
+            <Row gutter={[2, 2]}>
+                <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.DriftDetection.configTip)}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <StepStatusCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
@@ -401,13 +552,15 @@ export function DriftDetectionStep({stepData}){
 
 export function GeneralImportanceSelectionStep({stepData, configTip}){
 
+    const [featurePageSize, setFeaturePageSize] = useState(TABLE_ITEM_SIZE * 2);
+
     let dataSource;
     if(stepData.status === StepStatus.Finish){
         dataSource = stepData.extension.importances?.map((value, index, arr) => {
             return {
                 key: index,
                 featureName: value.name,
-                importance: formatFloat(value.importance),
+                importance: value.importance,
                 dropped: value.dropped
             }
         });
@@ -433,6 +586,11 @@ export function GeneralImportanceSelectionStep({stepData, configTip}){
             title: 'Importance',
             dataIndex: 'importance',
             key: 'importance',
+            render: function(text, record, index) {
+                return formatFloat(record.importance)
+            },
+            defaultSortOrder: 'descend',
+            sorter: (a, b) => a.importance - b.importance,
 
         },{
             title: 'Status',
@@ -440,9 +598,9 @@ export function GeneralImportanceSelectionStep({stepData, configTip}){
             key: 'dropped',
             render: function(text, record, index) {
                 if(record.dropped){
-                    return <Tag color="red">Unselected</Tag>
+                    return <Tag color="red">Removed</Tag>
                 }else{
-                    return <Tag color="green">Selected</Tag>
+                    return <Tag color="green">Reserved</Tag>
                 }
             }
         }
@@ -450,18 +608,28 @@ export function GeneralImportanceSelectionStep({stepData, configTip}){
 
     return <Row gutter={[2, 2]}>
         <Col span={10} >
-            <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                {
-                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={configTip}/>
-                }
-            </Card>
+            <Row gutter={[2, 2]}>
+                <ConfigurationCard configurationData={getConfigData(stepData.configuration, configTip)}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <StepStatusCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
             <Card title="Importances" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 <Table dataSource={dataSource}
                        columns={columns}
-                       pagination={ {defaultPageSize: TABLE_ITEM_SIZE, disabled: false, pageSize:  TABLE_ITEM_SIZE}}
+                       pagination={ { total: dataSource!==undefined && dataSource !== null ? dataSource.length : 0,
+                           showQuickJumper: true,
+                           showSizeChanger: true,
+                           disabled: false,
+                           pageSize: featurePageSize,
+                           hideOnSinglePage: true,
+                           onShowSizeChange: (current, pageSize) => {
+                                setFeaturePageSize(pageSize);
+                           }
+                       }}
                        size={COMPONENT_SIZE} />
             </Card>
         </Col>
@@ -567,7 +735,7 @@ export function PseudoLabelStep({stepData, dispatch}) {
             <Col span={10} >
                 <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                     {
-                        <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.PsudoLabeling.configTip}/>
+                        <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.PsudoLabeling.configTip)}/>
                     }
                 </Card>
             </Col>
@@ -608,11 +776,16 @@ export function EnsembleStep({stepData}) {
     const getLiftEchartOpts = () => {
         var scores = [];
         var yLabels = [];
+        const marks =  [ {type: 'max', name: 'Max score'}, {type: 'min', name: 'Minimum score'}];
         if(stepData.status === StepStatus.Finish){
             const scores_ = stepData.extension.scores;
             if(scores_ !== undefined && scores_ !== null && scores_.length > 0){
                 yLabels = Array.from({length: scores_.length}, (v,k) => k);
-                scores = [...scores_]
+                scores = [...scores_];
+                marks.push({
+                    name: 'Final score',
+                    coord: [yLabels[yLabels.length-1], scores[scores.length-1]]
+                })
             }
         }
         return  {
@@ -638,6 +811,16 @@ export function EnsembleStep({stepData}) {
             series: [{
                 data: scores,
                 type: 'line',
+                markPoint: {
+                    symbol: 'pin',
+                    data: marks,
+                    label:{
+                        color: 'white',
+                        formatter: function (v) {
+                            return formatFloat(v.value, 2)
+                        }
+                    }
+                },
                 smooth: true
             }]
         };
@@ -695,16 +878,14 @@ export function EnsembleStep({stepData}) {
     }else {
         return <>
             <Row gutter={[2, 2]}>
-                <Col span={10}>
-                    <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{width: '100%'}}
-                          size={COMPONENT_SIZE}>
-                        {
-                            <ConfigurationCard configurationData={stepData.configuration}
-                                               configurationTip={Steps.Ensemble.configTip}/>
-                        }
-                    </Card>
+                <Col span={10} >
+                    <Row gutter={[2, 2]}>
+                        <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.Ensemble.configTip)}/>
+                    </Row>
+                    <Row gutter={[2, 2]}>
+                        <StepStatusCard stepData={stepData}/>
+                    </Row>
                 </Col>
-
                 <Col span={10} offset={2}>
                     <Card title="Weight" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                         <EchartsCore option={getWeightsEchartOpts()} prepare={echarts => {
@@ -719,7 +900,7 @@ export function EnsembleStep({stepData}) {
                     <Card title="Lifting" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                         <EchartsCore option={getLiftEchartOpts()} prepare={
                             echarts => {
-                                echarts.use([BarChart, GridComponent, TooltipComponent, LineChart]);
+                                echarts.use([BarChart, GridComponent, TooltipComponent, LineChart, MarkPointComponent]);
                         }}/>
                     </Card>
                 </Col>
@@ -733,13 +914,13 @@ export function FinalTrainStep({stepData}) {
     return <>
         <Row gutter={[4, 4]}>
             <Col span={10} >
-                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                    {
-                        <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.FinalTrain.configTip}/>
-                    }
-                </Card>
+                <Row gutter={[2, 2]}>
+                    <ConfigurationCard configurationData={stepData.configuration} configurationTip={Steps.FinalTrain.configTip}/>
+                </Row>
+                <Row gutter={[2, 2]}>
+                    <StepStatusCard stepData={stepData}/>
+                </Row>
             </Col>
-
             <Col span={10} offset={2} >
                 <Card title="Estimator" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                     {

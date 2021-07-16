@@ -62,12 +62,18 @@ def get_extra_attr(obj, name, default=None):
         return None
 
 def get_step_status(step):
+    # STATUS_NONE = -1
+    # STATUS_SUCCESS = 0
+    # STATUS_FAILED = 1
+    # STATUS_SKIPPED = 2
+    # STATUS_RUNNING = 10
+
     status_mapping = {
         -1: StepStatus.Wait,
         0: StepStatus.Finish,
         1:  StepStatus.Error,
-        2:  StepStatus.Process,
-        3:  StepStatus.Skip,
+        2:  StepStatus.Skip,
+        10:  StepStatus.Skip,
     }
     s = step.status_
     if s not in status_mapping:

@@ -69,6 +69,7 @@ const handleStepFinish = (state, action) => {
             }
             // experimentConfig.steps[i].extension = stepPayload.extension;
             experimentConfig.steps[i].status = stepPayload.status;
+            experimentConfig.steps[i].end_datetime = stepPayload.end_datetime;
             found = true;
         }
     });
@@ -148,9 +149,6 @@ export function experimentReducer(state, action) {
     const {type} = action;
     console.info("Rev state: ");
     console.info(state);
-
-    console.info("Rev action: " );
-    console.info(action);
 
     let newState;
     if (type === ActionType.ExperimentData) {

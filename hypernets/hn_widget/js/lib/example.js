@@ -64,32 +64,38 @@ var ExperimentProcessWidgetModel = widgets.DOMWidgetModel.extend({
         _view_module : 'hn_widget',
         _model_module_version : '0.1.0',
         _view_module_version : '0.1.0',
-        value : 'Hello World!'
+        value : {},
+        initData : '',
     })
 });
 
-
-// Custom View. Renders the widget model.
 var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
     reactStore: null,
     // Defines how the widget gets rendered into the DOM
     render: function() {
-        // this.value_changed();
-        console.log('hypernetsExperiment lib: ');
+        console.log('hypernetsExperiment lib 1 : ');
         console.log(hypernetsExperiment);
 
+        console.info("Received origin init data from backend1111: ");
         const originInitData = this.model.get('initData');
-        if(originInitData !== null && originInitData !== undefined){
+        console.info("Received origin init data from backend: ");
+        console.info(originInitData);
+
+        if(originInitData !== null && originInitData !== undefined  && originInitData.length > 0){
             const initData = JSON.parse(originInitData);
-            console.log("Received init_data_changed from backend");
-            console.info(initData);
-            this.reactStore = hypernetsExperiment.renderExperimentProcess(initData, this.el);
-            console.info("store: ");
-            console.info(this.reactStore);
-            this.model.on('change:value', this.value_changed, this);
-            // this.model.on('change:initData', this.init_data_changed, this);
+            const steps = initData['steps'];
+            if (steps !== null && steps !== undefined && steps.length > 0){
+                this.reactStore = hypernetsExperiment.renderExperimentProcess(initData, this.el);
+                console.info("created store: ");
+                console.info(this.reactStore);
+                this.model.on('change:value', this.value_changed, this);
+                // this.model.on('change:initData', this.init_data_changed, this);
+            }else{
+                console.warn("Received steps in init_data is empty ");
+            }
         }else{
-            console.warn("Received init_data_changed is null");
+            hypernetsExperiment.renderLossState(this.el);
+            console.error("Received init_data is null ");
         }
     },
 
@@ -97,14 +103,18 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
         // this.el.textContent = this.model.get('value');
         const value = this.model.get('value');
         console.log("Received value_changed from backend: ");
-        console.log(JSON.stringify(value));
-        this.reactStore.dispatch(value);
-
-        // if is experiment end or experiment break, sync the state data to backend
-        const actionType = value.type;
-        if(actionType === 'experimentFinish' || actionType === 'experimentBreak' ){
-            this.model.set('initData', this.reactStore.getState());
-            this.model.save_changes();
+        console.log(value);
+        if (this.reactStore !== null && this.reactStore !== undefined){
+            this.reactStore.dispatch(value);
+            // if is experiment end or experiment break, sync the state data to backend
+            const actionType = value.type;
+            if(actionType === 'experimentFinish' || actionType === 'experimentBreak' ){
+                console.log("Sync the state data to backend ");
+                this.model.set('initData', JSON.stringify(this.reactStore.getState()));
+                this.model.save_changes();
+            }
+        }else{
+            console.warn("state store is null, please check is the widget initialize succeed");
         }
     }
 });

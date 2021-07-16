@@ -28,8 +28,8 @@ export function getInitData(CV=false) {
                     }
                 },
                 "extension": null,
-                "start_datetime": "2020-11-11 22:22:22",
-                "end_datetime": "2020-11-11 22:22:22"
+                "start_datetime": 1626419128,
+                "end_datetime": null
             }
         ]
     }
@@ -46,7 +46,7 @@ export function sendFinishData(store, delay = 1000) {
                     type: 'DataCleanStep',
                     extension: {unselected_reason: {"id": 'unknown'}},
                     status: StepStatus.Finish,
-                    datetime: ''
+                    end_datetime: 1626419128
                 }
             })
     }, delay);
