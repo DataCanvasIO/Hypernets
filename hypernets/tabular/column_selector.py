@@ -9,6 +9,8 @@ from dask import dataframe as dd
 from scipy.stats import skew, kurtosis
 from sklearn.compose import make_column_selector
 
+from .cfg import TabularCfg as cfg
+
 try:
     import jieba
 
@@ -90,7 +92,8 @@ class AutoCategoryColumnSelector(ColumnSelector):
 
 
 class TextColumnSelector(ColumnSelector):
-    def __init__(self, pattern=None, *, dtype_include=None, dtype_exclude=None, word_count_threshold=3):
+    def __init__(self, pattern=None, *, dtype_include=None, dtype_exclude=None,
+                 word_count_threshold=cfg.column_selector_text_word_count_threshold):
         assert isinstance(word_count_threshold, int) and word_count_threshold >= 1
 
         if dtype_include is None:
@@ -133,6 +136,39 @@ class TextColumnSelector(ColumnSelector):
             word_count = len(s.split())
 
         return word_count
+
+
+class LatLongColumnSelector:
+    def __call__(self, df):
+        cols = column_object(df)
+        if cols is None or len(cols) < 1:
+            return cols
+
+        if isinstance(df, dd.DataFrame):
+            row = df.reduction(LatLongColumnSelector._reduce_is_latlong,
+                               aggregate=np.all, aggregate_kwargs=dict(axis=0),
+                               meta={c: 'bool' for c in cols}
+                               ).compute()
+        elif isinstance(df, pd.DataFrame):
+            row = LatLongColumnSelector._reduce_is_latlong(df)
+        else:
+            raise ValueError(f'Unsupported dataframe type "{type(df)}"')
+
+        r = [k for k, v in row.to_dict().items() if v]
+        return r
+
+    @staticmethod
+    def _is_latlong(v):
+        try:
+            return v is None or \
+                   (isinstance(v, tuple) and len(v) == 2 and -90.0 <= v[0] <= 90.0 and -180.0 <= v[1] <= 180.0)
+        except:
+            return False
+
+    @staticmethod
+    def _reduce_is_latlong(df):
+        fn = np.vectorize(LatLongColumnSelector._is_latlong, otypes=[np.bool], signature='()->()')
+        return df.apply(fn).all(axis=0)
 
 
 class MinMaxColumnSelector(object):
@@ -201,7 +237,9 @@ column_all = ColumnSelector()
 column_object_category_bool = ColumnSelector(dtype_include=['object', 'category', 'bool'])
 column_object_category_bool_with_auto = AutoCategoryColumnSelector(dtype_include=['object', 'category', 'bool'],
                                                                    cat_exponent=0.5)
-column_text = TextColumnSelector(dtype_include=['object'], word_count_threshold=3)
+column_text = TextColumnSelector(dtype_include=['object'])
+column_latlong = LatLongColumnSelector()
+
 column_object = ColumnSelector(dtype_include=['object'])
 column_category = ColumnSelector(dtype_include=['category'])
 column_bool = ColumnSelector(dtype_include=['bool'])
