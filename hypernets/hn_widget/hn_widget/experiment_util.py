@@ -194,16 +194,15 @@ class extract_drift_step(Extractor):
                 feature_importances = history['feature_importances'].tolist()
 
                 removed_features = [] if 'removed_features' not in history else history['removed_features']
-                removed_features_importances = [{'feature': f, 'importance': get_importance(f, feature_names, feature_importances)} for f in removed_features]
-                removed_features_importances = sorted(removed_features_importances, key=lambda item: item['importance'], reverse=True)
-
-                d = {
-                    "epoch": i,
-                    "elapsed": history['elapsed'],
-                    "removed_features": removed_features_importances
-                }
-
-                removed_features_in_epochs.append(d)
+                if removed_features is not None and len(removed_features) > 0:  # ignore empty epoch
+                    removed_features_importances = [{'feature': f, 'importance': get_importance(f, feature_names, feature_importances)} for f in removed_features]
+                    removed_features_importances = sorted(removed_features_importances, key=lambda item: item['importance'], reverse=True)
+                    d = {
+                        "epoch": i,
+                        "elapsed": history['elapsed'],
+                        "removed_features": removed_features_importances
+                    }
+                    removed_features_in_epochs.append(d)
             extension['removed_features_in_epochs'] = removed_features_in_epochs
         del extension['scores']
         del extension['history']
