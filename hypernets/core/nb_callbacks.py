@@ -73,11 +73,11 @@ def sort_imp(imp_dict, sort_imp_dict):
     return imps
 
 
-def send_action(widget_id, action_type, step_index,  data):
+def send_action(widget_id, action_type, data):
     dom_widget = DOM_WIDGETS.get(widget_id)
     if dom_widget is None:
         raise Exception(f"widget_id: {widget_id} not exists ")
-    action = {'type': action_type, 'stepIndex': step_index, 'payload': data}
+    action = {'type': action_type, 'payload': data}
     # print("----action-----")
     # print(action)
     dom_widget.value = action
@@ -128,7 +128,11 @@ class JupyterHyperModelCallback(Callback):
                     else:
                         elapsed_time = None
                     ess = EarlyStoppingStatus(c.best_reward, c.best_trial_no, c.counter_no_improvement_trials, c.triggered, c.triggered_reason, elapsed_time)
-                    send_action(self.widget_id, ActionType.EarlyStopped, self.step_index, ess.to_dict())
+                    payload = {
+                        'stepIndex': self.step_index,
+                        'data': ess.to_dict()
+                    }
+                    send_action(self.widget_id, ActionType.EarlyStopped, payload)
 
     def on_search_error(self, hyper_model):
         pass
@@ -214,7 +218,7 @@ class JupyterHyperModelCallback(Callback):
                 break
         data = {
             'stepIndex': self.step_index,
-            'trialData': {
+            'data': {
                 "trialNo": trial_no,
                 "maxTrials": self.max_trials,
                 "hyperParams": self.get_space_params(space),
@@ -226,7 +230,7 @@ class JupyterHyperModelCallback(Callback):
                 "earlyStopping": early_stopping_status.to_dict()
             }
         }
-        send_action(self.widget_id, ActionType.TrialFinished, self.step_index, data)
+        send_action(self.widget_id, ActionType.TrialFinished, data)
 
     def on_trial_error(self, hyper_model, space, trial_no):
         pass
@@ -259,7 +263,7 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         dom_widget.initData = ''  # remove init data, if refresh the page will show nothing on the browser
 
     def experiment_end(self, exp, elapsed):
-        send_action(self.widget_id, ActionType.ExperimentFinish, None, {})
+        send_action(self.widget_id, ActionType.ExperimentFinish, {})
 
     def experiment_break(self, exp, error):
         send_action(self.widget_id, ActionType.ExperimentBreak, {})

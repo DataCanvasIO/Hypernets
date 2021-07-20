@@ -66,7 +66,7 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
             stepIndex: 0,
             data: {
                 trialNo: trialNoIndex,
-                maxTrails: 6,
+                maxTrials: 6,
                 hyperParams: {
                     max_depth: 10,
                     n_estimator: 100
@@ -131,15 +131,12 @@ export function sendFinishData(store, delay = 1000) {
             {
                 type: 'stepFinished',
                 payload: {
-                    stepIndex: 0,
-                    data:{
-                        type: 'SearchSpaceStep',
-                        extension: {
-                            input_features: [{"name": "age"}, {"name": "data"}],
-                        },
-                        status: StepStatus.Finish,
-                        end_datetime: 1626519128
-                    }
+                    index: 0,
+                    extension: {
+                        input_features: [{"name": "age"}, {"name": "data"}],
+                    },
+                    status: StepStatus.Finish,
+                    end_datetime: 1626519128
                 }
             }
         )

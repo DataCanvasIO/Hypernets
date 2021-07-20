@@ -26,6 +26,8 @@ export function sendFinishData(store, delay = 1000) {
                 type: 'stepFinished',
                 payload: {
                     index: 0,
+                    status: StepStatus.Finish,
+                    end_datetime: 1626419128,
                     extension: {
                         importances: [
                             {name: 'id', importance: 0.1, dropped: true},
@@ -45,9 +47,7 @@ export function sendFinishData(store, delay = 1000) {
                             {name: 'id14', importance: 0.3, dropped: false},
                             {name: 'id15', importance: 0.3, dropped: false},
                         ]
-                    },
-                    status: StepStatus.Finish,
-                    end_datetime: 1626419128
+                    }
                 }
             })
     }, delay);

@@ -37,11 +37,11 @@ export function sendFinishData(store, delay = 1000) {
             type: ActionType.StepError,
             payload: {
                 index: 0,
+                status: StepStatus.Error,
+                end_datetime: 1626419128,
                 extension: {
                     reason: 'OutOfMemory'
-                },
-                status: StepStatus.Error,
-                end_datetime: 1626419128
+                }
             }
         })
     }, delay * 2);

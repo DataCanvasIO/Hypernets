@@ -432,12 +432,12 @@ function CircleProgress({title, style, strokeColor, data}) {
 export function PipelineOptimizationStep({stepData}){
 
     const [importanceData, setImportanceData] = useState([[]]);
-    const [trialsProcessData, setTrialsProcessData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    // const [trialsProcessData, setTrialsProcessData] = useState({percent: 0, value: '-', tip: 'Waiting'});
     // const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
     // const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
     // const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
 
-    const PROCESS_EMPTY_DATA = {percent: 0, value: '-', tip: 'Empty data'};
+    const ES_EMPTY = {percent: 0, value: '-', tip: 'Empty data'};
     const ES_DISABLED = {percent: 0, value: '-', tip: 'EarlyStopping is disabled '};
 
     const earlyStoppingConfig = stepData.configuration.earlyStopping;
@@ -462,20 +462,25 @@ export function PipelineOptimizationStep({stepData}){
     useEffect(() => {
         if(lastTrial !== null){
             setImportanceData(lastTrial.models.map(m => m.importances));
-            setTrialsProcessData(getTrialsProcessData(lastTrial));
-
         }
     }, [lastTrial]);
 
-    const getEarlyStoppingTrialsData = (earlyStoppingConfig, earlyStoppingStatus) => {
-
+    const getESData = (func, earlyStoppingConfig, earlyStoppingStatus) => {
+        // check enabled es
         const {enable} = earlyStoppingConfig;
         if(enable !== true){
             return ES_DISABLED;
         }
+        if(earlyStoppingStatus !== undefined && earlyStoppingStatus !== null){
+            return func(earlyStoppingConfig, earlyStoppingStatus)
+        }else{
+            // es data may be null
+            return ES_EMPTY
+        }
+    };
 
+    const getEarlyStoppingTrialsData = (earlyStoppingConfig, earlyStoppingStatus) => {
         const { maxNoImprovedTrials } = earlyStoppingConfig;
-
         const { counterNoImprovementTrials } = earlyStoppingStatus;
         let percent;
         let tip;
@@ -493,12 +498,7 @@ export function PipelineOptimizationStep({stepData}){
         return {percent, value, tip}
     };
     const getEarlyStoppingRewardData = (earlyStoppingConfig, earlyStoppingStatus) => {
-        const {enable} = earlyStoppingConfig;
-        if(enable !== true){
-            return ES_DISABLED;
-        }
         const {exceptedReward, mode} = earlyStoppingConfig;
-
         const {bestReward } = earlyStoppingStatus;
         let percent;
         let tip;
@@ -527,12 +527,6 @@ export function PipelineOptimizationStep({stepData}){
         return {percent, value, tip}
     };
     const getEarlyStoppingElapsedTimeData = (earlyStoppingConfig, earlyStoppingStatus) => {
-
-        const {enable} = earlyStoppingConfig;
-        if(enable !== true){
-            return ES_DISABLED;
-        }
-
         const { timeLimit } = earlyStoppingConfig;
         const { elapsedTime } = earlyStoppingStatus;
         let percent;
@@ -551,10 +545,27 @@ export function PipelineOptimizationStep({stepData}){
         return {percent, value, tip}
     };
 
-    const earlyStoppingTrialsData = getEarlyStoppingTrialsData(earlyStoppingConfig, earlyStoppingStatus);
-    const earlyStoppingRewardData = getEarlyStoppingRewardData(earlyStoppingConfig, earlyStoppingStatus);
-    const earlyStoppingElapsedTimeData = getEarlyStoppingElapsedTimeData(earlyStoppingConfig, earlyStoppingStatus);
+    const getTrialsProcessData = (maxTrials, lastTrial) => {
+        // const finishedTrials = lastTrial.trialNo ;
+        // const maxTrials = stepData.extension.maxTrials
 
+        if(maxTrials !== undefined && maxTrials !== null ){
+            if(lastTrial !== undefined && lastTrial !== null){
+                const finishedTrials = lastTrial.trialNo;
+                const tip = `Max trials is ${maxTrials}, we've searched ${finishedTrials} time(s)`;
+                return {percent: (finishedTrials / maxTrials)*100 , value: finishedTrials, tip: tip}
+            }else{
+                return {percent: 0 , value: 0, tip: `Max trials is ${maxTrials}, but no finished trials yet`}
+            }
+        }else {
+            return {percent: 0 , value: 0, tip: "maxTrials is null"}
+        }
+    };
+
+    const earlyStoppingTrialsData = getESData(getEarlyStoppingTrialsData, earlyStoppingConfig, earlyStoppingStatus);
+    const earlyStoppingRewardData = getESData(getEarlyStoppingRewardData, earlyStoppingConfig, earlyStoppingStatus);
+    const earlyStoppingElapsedTimeData = getESData(getEarlyStoppingElapsedTimeData, earlyStoppingConfig, earlyStoppingStatus);
+    const trialsProcessData = getTrialsProcessData(stepData.extension.maxTrials, lastTrial);
 
     const onTrialClick = (trialNo, modelIndex) => {
         const trials = stepData.extension.trials;
@@ -565,18 +576,7 @@ export function PipelineOptimizationStep({stepData}){
         });
     };
 
-    const getTrialsProcessData = (lastTrial) => {
-        // const getEarlyStoppingRewardData = (lastTrial) => {
-        // maxTrails
-        const finishedTrials = lastTrial.trialNo ;
-        const maxTrials = lastTrial.maxTrails;
-        if(maxTrials !== undefined && maxTrials !== null ){
-            const tip = `Max trials is ${maxTrials}, we've searched ${finishedTrials} time(s)`;
-            return {percent: (finishedTrials / maxTrials)*100 , value: finishedTrials, tip: tip}
-        }else {
-            return {percent: 0 , value: 0, tip: "maxTrials is null"}
-        }
-    };
+
 
 
 

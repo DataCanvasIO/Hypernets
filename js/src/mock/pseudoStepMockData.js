@@ -28,31 +28,31 @@ export function sendFinishData(store, delay = 1000) {
         store.dispatch(
             { type: 'stepFinished',
             payload: {
-                index: 0,
-                type: Steps.PsudoLabeling.name,
-                extension: {
-                    probabilityDensity: {
-                        yes: {
-                            gaussian: {
-                                X: [-1,0,1],
-                                probaDensity: [0.1, 0.2]
-                            }
+                    index: 0,
+                    status: StepStatus.Finish,
+                    end_datetime: 1626419728000,
+                    extension: {
+                        probabilityDensity: {
+                            yes: {
+                                gaussian: {
+                                    X: [-1,0,1],
+                                    probaDensity: [0.1, 0.2]
+                                }
+                            },
+                            no: {
+                                gaussian: {
+                                    X: [-1,0,1],
+                                    probaDensity: [0.9, 0.8]
+                                }
+                            },
                         },
-                        no: {
-                            gaussian: {
-                                X: [-1,0,1],
-                                probaDensity: [0.9, 0.8]
-                            }
+                        samples: {
+                            'yes': 1000,
+                            'no': 2000
                         },
-                    },
-                    samples: {
-                        1: 1000,
-                        2: 2000
-                    },
-                    selectedLabel: "yes"
-                },
-                status: StepStatus.Finish,
-                end_datetime: 1626419728000
+                        selectedLabel: "yes"
+                    }
+
             }
         })
     }, delay);

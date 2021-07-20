@@ -3,7 +3,6 @@ import {showNotification} from "../util"
 import {connect } from "react-redux";
 import {ExperimentUI} from "./experiment"
 import {ActionType} from "../constants";
-import {act} from "@testing-library/react";
 
 const handleAction = (state, action, stepIndex, handler, actionType) => {
     const experimentConfig = state;
@@ -22,14 +21,14 @@ const handleAction = (state, action, stepIndex, handler, actionType) => {
         console.error(action);
         console.error(state);
     }
-    return {...experimentConfig};
+    return experimentConfig;
 
 };
 
 const handleProbaDensityLabelChanged = (experimentConfig, action, stepIndexInArray) => {
-    const {data: stepPayload} = action.payload;
+    const  stepPayload = action.payload;
     experimentConfig.steps[stepIndexInArray].extension.selectedLabel = stepPayload.selectedLabel;
-    return {...experimentConfig};
+    return experimentConfig;
 };
 
 const handleTrailFinish = (experimentConfig, action, stepIndexInArray) => {
@@ -48,11 +47,14 @@ const handleTrailFinish = (experimentConfig, action, stepIndexInArray) => {
     const trialData = {...stepPayload};
 
     experimentConfig.steps[stepIndexInArray].extension.earlyStopping = trialData.earlyStopping;
+    experimentConfig.steps[stepIndexInArray].extension.maxTrials = trialData.maxTrials;  // persist maxTrials (does not use a special action)
+
+
     delete trialData.earlyStopping;
 
     experimentConfig.steps[stepIndexInArray].extension.trials.push(trialData);
 
-    return {...experimentConfig};
+    return experimentConfig;
 
 };
 
@@ -64,7 +66,7 @@ const handleEarlyStopped = (experimentConfig, action, stepIndexInArray) => {
 
 const handleStepFinish = (experimentConfig, action, stepIndexInArray) => {
 
-    const {data: stepPayload} = action.payload;
+    const stepPayload = action.payload;
     const step = experimentConfig.steps[stepIndexInArray];
     if (step.type !== 'SpaceSearchStep') {
         experimentConfig.steps[stepIndexInArray].extension = stepPayload.extension;
@@ -75,12 +77,11 @@ const handleStepFinish = (experimentConfig, action, stepIndexInArray) => {
     experimentConfig.steps[stepIndexInArray].status = stepPayload.status;
     experimentConfig.steps[stepIndexInArray].end_datetime = stepPayload.end_datetime;
 
-    return {...experimentConfig};
+    return experimentConfig;
 };
 
 const handleStepBegin = (experimentConfig, action, stepIndexInArray) => {
-
-    const {data: stepPayload} = action.payload;
+    const stepPayload = action.payload;
     const step = experimentConfig.steps[stepIndexInArray];
     step.status = stepPayload.status;
     const start_datetime = stepPayload.start_datetime;
@@ -89,12 +90,11 @@ const handleStepBegin = (experimentConfig, action, stepIndexInArray) => {
     }else {
         console.error("in step begin event but start_datetime is null ");
     }
-    return {...experimentConfig};
-
+    return experimentConfig;
 };
 
 const handleStepError = (experimentConfig, action, stepIndexInArray) => {
-    const {data: stepPayload} = action.payload;
+    const stepPayload = action.payload;
 
     const step = experimentConfig.steps[stepIndexInArray];
 
@@ -105,7 +105,7 @@ const handleStepError = (experimentConfig, action, stepIndexInArray) => {
             {reason.toString()}
         </span>);
     }
-    return {...experimentConfig};
+    return experimentConfig;
 
 };
 
@@ -134,14 +134,14 @@ export function experimentReducer(state, action) {
     if (type === ActionType.ExperimentData) {
         newState = {experimentData: action}  // init data
     } else if (type === ActionType.StepFinished) {
-        const { stepIndex } = payload;
-        newState  = handleAction(state, action, stepIndex, handleStepFinish, type);
+        const { index } = payload;
+        newState  = handleAction(state, action, index, handleStepFinish, type);
     } else if (type === ActionType.StepBegin) {
-        const { stepIndex } = payload;
-        newState  = handleAction(state, action, stepIndex, handleStepBegin, type);
+        const { index } = payload;
+        newState  = handleAction(state, action, index, handleStepBegin, type);
     } else if (type === ActionType.StepError) {
-        const { stepIndex } = payload;
-        newState  = handleAction(state, action, stepIndex, handleStepError, type);
+        const { index } = payload;
+        newState  = handleAction(state, action, index, handleStepError, type);
     } else if (type === ActionType.ProbaDensityLabelChange) {
         const { stepIndex } = payload;
         newState  = handleAction(state, action, stepIndex, handleProbaDensityLabelChanged, type);
@@ -160,7 +160,7 @@ export function experimentReducer(state, action) {
 
     console.info(`Output new state(${requestId}): `);
     console.info(newState);
-    return newState;
+    return {...newState};
 }
 
 

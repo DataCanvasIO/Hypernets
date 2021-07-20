@@ -28,7 +28,7 @@ export function sendFinishData(store, delay = 1000) {
                     index: 0,
                     extension: {unselected_features: [{"removed": "age", "reserved": "data"}]} ,
                     status: StepStatus.Finish,
-                    datetime: 1626519128
+                    end_datetime: 1626519128
                 }
             }
         )

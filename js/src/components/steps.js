@@ -755,7 +755,7 @@ export function PseudoLabelStep({stepData, dispatch}) {
             </Col>
 
             <Col span={10} offset={2} >
-                <Card title="Density Plot of Probability" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                <Card title="Density plot of probability" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                         <span>
                              <span style={{marginLeft: '10px', marginRight: '10px'}}>Select label:</span>
                              <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: '50%' }} onChange={onLabelChanged} disabled={ isEmpty(selectedLabel)} >

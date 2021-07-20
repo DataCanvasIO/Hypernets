@@ -27,7 +27,8 @@ class StepStatus:
 
 class EarlyStoppingConfig(object):
 
-    def __init__(self, excepted_reward, max_no_improved_trials, time_limit, mode):
+    def __init__(self, enable, excepted_reward, max_no_improved_trials, time_limit, mode):
+        self.enable = enable
         self.excepted_reward = excepted_reward
         self.max_no_improved_trials = max_no_improved_trials
         self.time_limit = time_limit
@@ -36,6 +37,7 @@ class EarlyStoppingConfig(object):
 
     def to_dict(self):
         return {
+            "enable": self.enable,
             "exceptedReward": self.excepted_reward,
             "maxNoImprovedTrials": self.max_no_improved_trials,
             "timeLimit": self.time_limit,
@@ -278,20 +280,14 @@ class extract_space_search_step(Extractor):
     def get_configuration(self):
         configs = super(extract_space_search_step, self).get_configuration()
         callbacks = self.step.experiment.hyper_model.callbacks
-        earlyStoppingStatus = EarlyStoppingStatus(None, None, None, None, None, None)  # No ealystopping data while init
         earlyStoppingConfig = None
-        earlyStoppingSwitch = False
         if callbacks is not None and len(callbacks) > 0:
             for c in callbacks:
                 if c.__class__.__name__ == 'EarlyStoppingCallback':
-                    earlyStoppingSwitch = True  # enable earystopping
-                    earlyStoppingConfig = EarlyStoppingConfig(c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode)
+                    earlyStoppingConfig = EarlyStoppingConfig(True, c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode).to_dict()
                     break
-        configs['earlyStopping'] = { 'enable': earlyStoppingSwitch,
-                                     'config': earlyStoppingConfig.to_dict(),
-                                     'status': earlyStoppingStatus.to_dict() }
+        configs['earlyStopping'] = earlyStoppingConfig
         return configs
-
 
 
 class extract_final_train_step(Extractor):

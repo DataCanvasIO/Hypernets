@@ -15,7 +15,7 @@ export function getInitData() {
                     "scorer": null
                 },
                 "extension": null,
-                "start_datetime": 1626419128000,
+                "start_datetime": 1626419128,
                 "end_datetime": null
             }
         ]
@@ -29,6 +29,7 @@ export function sendFinishData(store, delay = 2000) {
                 type: ActionType.StepBegin,
                 payload: {
                     index: 0,
+                    start_datetime: 1626419128,
                     status: StepStatus.Process
                 }
             })
@@ -39,11 +40,9 @@ export function sendFinishData(store, delay = 2000) {
             type: 'stepFinished',
             payload: {
                 index: 0,
-                type: 'EnsembleStep',
-                extension: {
-                },
                 status: StepStatus.Skip,
-                end_datetime: 1626419128
+                end_datetime: 1626419128,
+                extension: {}
             }
         })
     }, delay * 2);

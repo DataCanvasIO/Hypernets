@@ -33,6 +33,8 @@ export function sendFinishData(store, delay = 1000) {
                 type: 'stepFinished',
                 payload: {
                     index: 0,
+                    status: StepStatus.Finish,
+                    end_datetime: 1626449128,
                     extension:  {
                         drifted_features_auc: [
                             {
@@ -66,10 +68,9 @@ export function sendFinishData(store, delay = 1000) {
                                 ]
                             }
                         ]
-                    },
-                    status: StepStatus.Finish,
-                    end_datetime: 1626449128
+                    }
                 }
+
             }
         )
     }, delay);

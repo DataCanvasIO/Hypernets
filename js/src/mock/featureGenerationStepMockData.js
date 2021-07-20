@@ -28,6 +28,8 @@ export function sendFinishData(store, delay = 1000) {
                 type: 'stepFinished',
                 payload: {
                     index: 0,
+                    status: StepStatus.Finish,
+                    end_datetime: 1626419128,
                     extension: {
                         outputFeatures: [
                             {
@@ -41,9 +43,7 @@ export function sendFinishData(store, delay = 1000) {
                                 primitive: 'add'
                             }
                         ]
-                    },
-                    status: StepStatus.Finish,
-                    end_datetime: 1626419128
+                    }
                 }
             })
     }, delay);

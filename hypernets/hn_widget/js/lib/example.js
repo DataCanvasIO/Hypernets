@@ -105,13 +105,15 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
         console.log("Received value_changed from backend: ");
         console.log(value);
         if (this.reactStore !== null && this.reactStore !== undefined){
-            this.reactStore.dispatch(value);
             // if is experiment end or experiment break, sync the state data to backend
             const actionType = value.type;
             if(actionType === 'experimentFinish' || actionType === 'experimentBreak' ){
                 console.log("Sync the state data to backend ");
                 this.model.set('initData', JSON.stringify(this.reactStore.getState()));
                 this.model.save_changes();
+            }else{
+                // do not handle experimentFinish,experimentBreak action type in react project
+                this.reactStore.dispatch(value);
             }
         }else{
             console.warn("state store is null, please check is the widget initialize succeed");
