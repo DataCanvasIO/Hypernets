@@ -49,6 +49,12 @@ class TabularCfg(Configurable):
               help=''
               )
 
+    column_selector_text_word_count_threshold = \
+        Int(10, min=1,
+            config=True,
+            help=''
+            )
+
     tfidf_max_feature_count = \
         Int(1000, min=2,
             config=True,

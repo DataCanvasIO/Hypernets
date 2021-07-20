@@ -18,7 +18,7 @@ from sklearn.pipeline import Pipeline
 
 from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
-from hypernets.tabular import dask_ex as dex
+from hypernets.tabular import dask_ex as dex, column_selector as cs
 from hypernets.tabular import drift_detection as dd, feature_importance as fi, pseudo_labeling as pl
 from hypernets.tabular.cache import cache
 from hypernets.tabular.data_cleaner import DataCleaner
@@ -1553,6 +1553,29 @@ class CompeteExperiment(SteppedExperiment):
             ensemble_cls, pseudo_cls = DaskEnsembleStep, DaskPseudoLabelStep
         else:
             ensemble_cls, pseudo_cls = EnsembleStep, PseudoLabelStep
+
+        if feature_generation:
+            if data_cleaner_args is None:
+                data_cleaner_args = {}
+            reserve_columns = data_cleaner_args.get('reserve_columns')
+            reserve_columns = list(reserve_columns) if reserve_columns is not None else []
+            if feature_generation_datetime_cols is None:
+                feature_generation_datetime_cols = cs.column_all_datetime(X_train)
+                logger.info(f'detected datetime columns: {feature_generation_datetime_cols}')
+            if feature_generation_latlong_cols is None:
+                feature_generation_latlong_cols = cs.column_latlong(X_train)
+                logger.info(f'detected latlong columns: {feature_generation_latlong_cols}')
+            if feature_generation_text_cols is None:
+                feature_generation_text_cols = cs.column_text(X_train)
+                logger.info(f'detected text columns: {feature_generation_text_cols}')
+            for cols in (feature_generation_categories_cols,
+                         feature_generation_continuous_cols,
+                         feature_generation_datetime_cols,
+                         feature_generation_latlong_cols,
+                         feature_generation_text_cols):
+                if cols is not None and len(cols) > 0:
+                    reserve_columns += list(cols)
+            data_cleaner_args['reserve_columns'] = reserve_columns
 
         # data clean
         steps.append(DataCleanStep(self, StepNames.DATA_CLEAN,

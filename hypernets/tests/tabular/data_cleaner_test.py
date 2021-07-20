@@ -136,3 +136,19 @@ class Test_DataCleaner():
                 x_t, y_t = x_t.compute(), y_t.compute()
             assert x_t.shape == (6, 10)
             assert y_t.shape == (6,)
+
+            # not drop
+            cleaner = DataCleaner(nan_chars='\\N',
+                                  correct_object_dtype=False,
+                                  drop_constant_columns=True,
+                                  drop_label_nan_rows=True,
+                                  drop_duplicated_columns=True,
+                                  drop_idness_columns=True,
+                                  replace_inf_values=np.nan,
+                                  reserve_columns=['x4_const_int']
+                                  )
+
+            x_t, y_t = cleaner.fit_transform(df, y)
+            if isinstance(df, dd.DataFrame):
+                x_t, y_t = x_t.compute(), y_t.compute()
+            assert 'x4_const_int' in x_t.columns.to_list()

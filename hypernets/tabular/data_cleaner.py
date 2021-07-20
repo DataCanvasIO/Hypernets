@@ -18,7 +18,7 @@ from hypernets.utils import logging
 logger = logging.get_logger(__name__)
 
 
-def _reduce_mem_usage(df, verbose=True):
+def _reduce_mem_usage(df, excludes=None):
     """
     Adaption from :https://blog.csdn.net/xckkcxxck/article/details/88170281
     :param verbose:
@@ -30,6 +30,8 @@ def _reduce_mem_usage(df, verbose=True):
     numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
     start_mem = df.memory_usage().sum() / 1024 ** 2
     for col in df.columns:
+        if excludes is not None and col in excludes:
+            continue
         col_type = df[col].dtypes
         if col_type in numerics:
             c_min = df[col].min()
@@ -49,18 +51,19 @@ def _reduce_mem_usage(df, verbose=True):
                 else:
                     df[col] = df[col].astype(np.float64)
     end_mem = df.memory_usage().sum() / 1024 ** 2
-    if verbose: print('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'.format(end_mem, 100 * (
-            start_mem - end_mem) / start_mem))
+    if logger.is_info_enabled():
+        logger.info('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'
+                    .format(end_mem, 100 * (start_mem - end_mem) / start_mem))
 
 
-def _drop_duplicated_columns(X):
+def _drop_duplicated_columns(X, excludes=None):
     if isinstance(X, dd.DataFrame):
         duplicates = X.reduction(chunk=lambda c: pd.DataFrame(c.T.duplicated()).T,
                                  aggregate=lambda a: np.all(a, axis=0)).compute()
     else:
         duplicates = X.T.duplicated()
 
-    dup_cols = [i for i, v in duplicates.items() if v]
+    dup_cols = [i for i, v in duplicates.items() if v and (excludes is None or i not in excludes)]
     columns = [c for c in X.columns.to_list() if c not in dup_cols]
     X = X[columns]
     return X, dup_cols
@@ -109,36 +112,37 @@ def _correct_object_dtype_as(X, df_meta):
     return X
 
 
-def _correct_object_dtype(X, df_meta=None):
+def _correct_object_dtype(X, df_meta=None, excludes=None):
     if df_meta is None:
-        cats = AutoCategoryColumnSelector(cat_exponent=cfg.auto_categorize_shape_exponent)(X) \
-            if cfg.auto_categorize else []
+        Xt = X[[c for c in X.columns.to_list() if c not in excludes]] if excludes else X
+        cat_exponent = cfg.auto_categorize_shape_exponent
+        cats = AutoCategoryColumnSelector(cat_exponent=cat_exponent)(Xt) if cfg.auto_categorize else []
         if logger.is_info_enabled() and len(cats) > 0:
             auto_cats = list(filter(lambda _: str(X[_].dtype) != 'object', cats))
             if auto_cats:
                 logger.info(f'auto categorize columns: {auto_cats}')
 
-        cons = [c for c in column_object(X) if c not in cats]
+        cons = [c for c in column_object(Xt) if c not in cats]
         df_meta = {'object': cats, 'float': cons}
     X = _correct_object_dtype_as(X, df_meta)
 
     return X
 
 
-def _drop_constant_columns(X):
+def _drop_constant_columns(X, excludes=None):
     if isinstance(X, dd.DataFrame):
         nunique = X.reduction(chunk=lambda c: pd.DataFrame(c.nunique(dropna=True)).T,
                               aggregate=np.max).compute()
     else:
         nunique = X.nunique(dropna=True)
 
-    const_cols = [i for i, v in nunique.items() if v <= 1]
+    const_cols = [i for i, v in nunique.items() if v <= 1 and (excludes is None or i not in excludes)]
     columns = [c for c in X.columns.to_list() if c not in const_cols]
     X = X[columns]
     return X, const_cols
 
 
-def _drop_idness_columns(X):
+def _drop_idness_columns(X, excludes=None):
     cols = column_object_category_bool_int(X)
     if len(cols) <= 0:
         return X, []
@@ -152,16 +156,17 @@ def _drop_idness_columns(X):
         nunique = X_.nunique(dropna=True)
         rows = X_.shape[0]
 
-    droped = [i for i, v in nunique.items() if v / rows > 0.99]
-    columns = [c for c in X.columns.to_list() if c not in droped]
+    dropped = [i for i, v in nunique.items() if v / rows > 0.99 and (excludes is None or i not in excludes)]
+    columns = [c for c in X.columns.to_list() if c not in dropped]
     X = X[columns]
-    return X, droped
+    return X, dropped
 
 
 class DataCleaner:
     def __init__(self, nan_chars=None, correct_object_dtype=True, drop_constant_columns=True,
                  drop_duplicated_columns=False, drop_label_nan_rows=True, drop_idness_columns=True,
-                 replace_inf_values=np.nan, drop_columns=None, reduce_mem_usage=False, int_convert_to='float'):
+                 replace_inf_values=np.nan, drop_columns=None, reserve_columns=None,
+                 reduce_mem_usage=False, int_convert_to='float'):
         self.nan_chars = nan_chars
         self.correct_object_dtype = correct_object_dtype
         self.drop_constant_columns = drop_constant_columns
@@ -169,12 +174,14 @@ class DataCleaner:
         self.drop_idness_columns = drop_idness_columns
         self.replace_inf_values = replace_inf_values
         self.drop_columns = drop_columns
+        self.reserve_columns = reserve_columns
         self.drop_duplicated_columns = drop_duplicated_columns
         self.reduce_mem_usage = reduce_mem_usage
         self.int_convert_to = int_convert_to
+
+        # fitted
         self.df_meta_ = None
         self.columns_ = None
-
         self.dropped_constant_columns_ = None
         self.dropped_idness_columns_ = None
         self.dropped_duplicated_columns_ = None
@@ -188,12 +195,14 @@ class DataCleaner:
             'drop_idness_columns': self.drop_idness_columns,
             # 'replace_inf_values': self.replace_inf_values,
             'drop_columns': self.drop_columns,
+            'reserve_columns': self.reserve_columns,
             'drop_duplicated_columns': self.drop_duplicated_columns,
             'reduce_mem_usage': self.reduce_mem_usage,
             'int_convert_to': self.int_convert_to
         }
 
-    def _drop_columns(self, X, cols):
+    @staticmethod
+    def _drop_columns(X, cols):
         if cols is None or len(cols) <= 0:
             return X
         X = X[[c for c in X.columns.to_list() if c not in cols]]
@@ -216,6 +225,31 @@ class DataCleaner:
                 X = X.dropna(subset=[y_name])
             y = X.pop(y_name)
 
+        if self.drop_columns is not None:
+            logger.debug(f'drop columns:{self.drop_columns}')
+            X = self._drop_columns(X, self.drop_columns)
+
+        if self.drop_duplicated_columns:
+            logger.debug('drop duplicated columns')
+            if self.dropped_duplicated_columns_ is not None:
+                X = self._drop_columns(X, self.dropped_duplicated_columns_)
+            else:
+                X, self.dropped_duplicated_columns_ = _drop_duplicated_columns(X, self.reserve_columns)
+
+        if self.drop_idness_columns:
+            logger.debug('drop idness columns')
+            if self.dropped_idness_columns_ is not None:
+                X = self._drop_columns(X, self.dropped_idness_columns_)
+            else:
+                X, self.dropped_idness_columns_ = _drop_idness_columns(X, self.reserve_columns)
+
+        if self.drop_constant_columns:
+            logger.debug('drop constant columns')
+            if self.dropped_constant_columns_ is not None:
+                X = self._drop_columns(X, self.dropped_constant_columns_)
+            else:
+                X, self.dropped_constant_columns_ = _drop_constant_columns(X, self.reserve_columns)
+
         if self.correct_object_dtype:
             logger.debug('correct data type for object columns.')
             # for col in column_object(X):
@@ -223,41 +257,24 @@ class DataCleaner:
             #         X[col] = X[col].astype('float')
             #     except Exception as e:
             #         logger.error(f'Correct object column [{col}] failed. {e}')
-            X = _correct_object_dtype(X, df_meta)
-
-        if self.drop_duplicated_columns:
-            logger.debug('drop duplicated columns')
-            if self.dropped_duplicated_columns_ is not None:
-                X = self._drop_columns(X, self.dropped_duplicated_columns_)
-            else:
-                X, self.dropped_duplicated_columns_ = _drop_duplicated_columns(X)
-
-        if self.drop_idness_columns:
-            logger.debug('drop idness columns')
-            if self.dropped_idness_columns_ is not None:
-                X = self._drop_columns(X, self.dropped_idness_columns_)
-            else:
-                X, self.dropped_idness_columns_ = _drop_idness_columns(X)
+            X = _correct_object_dtype(X, df_meta, excludes=self.reserve_columns)
 
         if self.int_convert_to is not None:
             logger.debug(f'convert int type to {self.int_convert_to}')
             int_cols = column_int(X)
+            if self.reserve_columns:
+                int_cols = list(filter(lambda _: _ not in self.reserve_columns, int_cols))
             X[int_cols] = X[int_cols].astype(self.int_convert_to)
 
-        if self.drop_columns is not None:
-            logger.debug(f'drop columns:{self.drop_columns}')
-            for col in self.drop_columns:
-                X.pop(col)
-
-        if self.drop_constant_columns:
-            logger.debug('drop invalidate columns')
-            if self.dropped_constant_columns_ is not None:
-                X = self._drop_columns(X, self.dropped_constant_columns_)
-            else:
-                X, self.dropped_constant_columns_ = _drop_constant_columns(X)
+        if self.replace_inf_values is not None:
+            logger.debug(f'replace [inf,-inf] to {self.replace_inf_values}')
+            X = X.replace([np.inf, -np.inf], self.replace_inf_values)
 
         o_cols = column_object(X)
-        X[o_cols] = X[o_cols].astype('str')
+        if self.reserve_columns:
+            o_cols = list(filter(lambda _: _ not in self.reserve_columns, o_cols))
+        if o_cols:
+            X[o_cols] = X[o_cols].astype('str')
 
         return X, y
 
@@ -270,11 +287,7 @@ class DataCleaner:
         X, y = self.clean_data(X, y)
         if self.reduce_mem_usage:
             logger.debug('reduce memory usage')
-            _reduce_mem_usage(X)
-
-        if self.replace_inf_values is not None:
-            logger.debug(f'replace [inf,-inf] to {self.replace_inf_values}')
-            X = X.replace([np.inf, -np.inf], self.replace_inf_values)
+            _reduce_mem_usage(X, excludes=self.reserve_columns)
 
         logger.debug('collect meta info from data')
         df_meta = {}
@@ -283,9 +296,11 @@ class DataCleaner:
             if df_meta.get(dtype) is None:
                 df_meta[dtype] = []
             df_meta[dtype].append(col_info[0])
+
+        logger.info(f'dataframe meta:{df_meta}')
         self.df_meta_ = df_meta
-        logger.info(f'dataframe meta:{self.df_meta_}')
         self.columns_ = X.columns.to_list()
+
         return X, y
 
     def transform(self, X, y=None, copy_data=True):
@@ -305,12 +320,7 @@ class DataCleaner:
         #     X = X[all_cols]
         #     logger.debug(f'droped columns:{drop_cols}')
 
-        if self.replace_inf_values is not None:
-            logger.debug(f'replace [inf,-inf] to {self.replace_inf_values}')
-            X = X.replace([np.inf, -np.inf], self.replace_inf_values)
-
         X = X[self.columns_]
-
         if logger.is_info_enabled():
             dropped = [c for c in orig_columns if c not in self.columns_]
             logger.info(f'drop columns: {dropped}')
@@ -347,6 +357,7 @@ class DataCleaner:
         cleaner_info.append(('drop_idness_columns', self.drop_idness_columns))
         cleaner_info.append(('replace_inf_values', self.replace_inf_values))
         cleaner_info.append(('drop_columns', self.drop_columns))
+        cleaner_info.append(('reserve_columns', self.reserve_columns))
         cleaner_info.append(('drop_duplicated_columns', self.drop_duplicated_columns))
         cleaner_info.append(('reduce_mem_usage', self.reduce_mem_usage))
         cleaner_info.append(('int_convert_to', self.int_convert_to))
