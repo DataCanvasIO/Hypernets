@@ -334,7 +334,7 @@ export function DataCleaningStep({stepData}) {
                 <Table dataSource={removedFeaturesDataSource}
                        columns={removedFeaturesColumns}
                        size={COMPONENT_SIZE}
-                       pagination={ { pageSize:  TABLE_ITEM_SIZE }}
+                       pagination={ { pageSize:  TABLE_ITEM_SIZE, hideOnSinglePage: true }}
                 />
             </Card>
         </Col>
@@ -398,7 +398,7 @@ export function FeatureGenerationStep({stepData}){
             <Card title="Output features" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
                 <Table dataSource={dataSource}
                        columns={columns}
-                       pagination={ {defaultPageSize: TABLE_ITEM_SIZE, disabled: false, pageSize:  TABLE_ITEM_SIZE}}
+                       pagination={ {defaultPageSize: TABLE_ITEM_SIZE, disabled: false, pageSize:  TABLE_ITEM_SIZE, hideOnSinglePage: true}}
                        size={COMPONENT_SIZE} />
             </Card>
         </Col>
@@ -449,7 +449,7 @@ export function CollinearityDetectionStep({stepData}){
                 <Table dataSource={dataSource}
                        columns={columns}
                        size={COMPONENT_SIZE}
-                       pagination={ { pageSize:  TABLE_ITEM_SIZE }}
+                       pagination={ { pageSize:  TABLE_ITEM_SIZE , hideOnSinglePage: true}}
                 />
             </Card>
         </Col>
@@ -501,6 +501,16 @@ export function DriftDetectionStep({stepData}){
         }
     ];
 
+
+    const removeByEvaluateResultTitle = <Tooltip title={"Labeling the training set and the test set with different labels respectively as traget, and use only one feature to train a model step by step, if the evaluation score of the model exceed the set threshold, indicate that the feature drifts"}>
+        Remove by evaluate result
+    </Tooltip>;
+
+    const removeByFeatureImportance = <Tooltip title={"Labeling the training set and the test set with different labels respectively as target column, and use all features to train a model,  if evaluation score of the model exceed the set threshold, indicate that the features drifts. According to the feature importance to remove some top features and use the remaining features to train again until the final model evaluation score no longer exceed the threshold or reach the minimum number of features."}>
+        Remove by feature importance
+    </Tooltip>;
+
+
     return <>
         <Row gutter={[2, 2]}>
         <Col span={10} >
@@ -513,40 +523,44 @@ export function DriftDetectionStep({stepData}){
         </Col>
 
         <Col span={10} offset={2} >
-            <Card title="Drifted features AUC" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                <Table dataSource={driftFeatureAUCDataSource}
-                       columns={driftFeatureAUCColumns}
-                       size={COMPONENT_SIZE}
-                       pagination={ { pageSize:  7 }}
-                />
-            </Card>
+            <Row gutter={[2, 2]}>
+                <Col span={24} >
+                    <Card title={removeByEvaluateResultTitle} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                        <Table dataSource={driftFeatureAUCDataSource}
+                               columns={driftFeatureAUCColumns}
+                               size={COMPONENT_SIZE}
+                               pagination={ { pageSize:  7 , hideOnSinglePage: true}}
+                        />
+                    </Card>
+                </Col>
+                <Col span={24} >
+                    <Card title={removeByFeatureImportance} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                        <Tabs defaultActiveKey="1" tabPosition={'top'} style={{ height: '100%', width: '100%'}}>
+                            {
+                                stepData.extension.removed_features_in_epochs?.map(epoch => {
+                                    return <TabPane tab={`Epoch ${epoch.epoch}`} key={epoch.epoch}>
+                                        <Table dataSource={epoch.removed_features?.map((value, index, arr) => {
+                                            return {
+                                                key: index,
+                                                feature: value.feature,
+                                                importance: formatFloat(value.importance),
+                                            }
+                                        })} columns={removedFeaturesInEpochColumns}
+                                               size={COMPONENT_SIZE}
+                                               pagination={ { pageSize:  TABLE_ITEM_SIZE , hideOnSinglePage: true}}
+                                        />
+                                    </TabPane>
+                                })
+                            }
+                        </Tabs>
+                    </Card>
+                </Col>
+            </Row>
+
         </Col>
 
     </Row>
-        <Row gutter={[4, 4]}>
-            <Col span={10} offset={12} >
-                <Card title="Removed features in epochs" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                    <Tabs defaultActiveKey="1" tabPosition={'top'} style={{ height: '100%', width: '100%'}}>
-                        {
-                            stepData.extension.removed_features_in_epochs?.map(epoch => {
-                                return <TabPane tab={`Epoch ${epoch.epoch}`} key={epoch.epoch}>
-                                    <Table dataSource={epoch.removed_features?.map((value, index, arr) => {
-                                        return {
-                                            key: index,
-                                            feature: value.feature,
-                                            importance: formatFloat(value.importance),
-                                        }
-                                    })} columns={removedFeaturesInEpochColumns}
-                                           size={COMPONENT_SIZE}
-                                           pagination={ { pageSize:  TABLE_ITEM_SIZE }}
-                                    />
-                                </TabPane>
-                            })
-                        }
-                    </Tabs>
-                </Card>
-            </Col>
-        </Row>
+
         </>
 }
 
@@ -747,7 +761,7 @@ export function PseudoLabelStep({stepData, dispatch}) {
                              <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: '50%' }} onChange={onLabelChanged} disabled={ isEmpty(selectedLabel)} >
                                 {
                                     isEmpty(labels) ? null: labels.map( v => {
-                                        return <Option value={v}>{v}</Option>
+                                        return <Option key={`opt_${v}`} value={v}>{v}</Option>
                                     })
                                 }
                             </Select>
@@ -760,7 +774,7 @@ export function PseudoLabelStep({stepData, dispatch}) {
         </Row>
         <Row gutter={[2, 2]}>
             <Col span={10} offset={12} >
-                <Card title="Number of samples" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE} >
+                <Card title="Number of pseudo labeled samples " bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE} >
                     <Table dataSource={samplesDataSource}
                         columns = {samplesColumns}
                         pagination={false}

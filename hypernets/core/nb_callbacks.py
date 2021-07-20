@@ -20,6 +20,7 @@ from lightgbm.sklearn import LGBMModel
 from catboost.core import CatBoost
 
 from hn_widget.widget import ExperimentProcessWidget
+from hn_widget.experiment_util import EarlyStoppingStatus, EarlyStoppingConfig
 
 MAX_IMPORTANCE_NUM = 10
 
@@ -72,11 +73,11 @@ def sort_imp(imp_dict, sort_imp_dict):
     return imps
 
 
-def send_action(widget_id, action_type,  data):
+def send_action(widget_id, action_type, step_index,  data):
     dom_widget = DOM_WIDGETS.get(widget_id)
     if dom_widget is None:
         raise Exception(f"widget_id: {widget_id} not exists ")
-    action = {'type': action_type, 'payload': data}
+    action = {'type': action_type, 'stepIndex': step_index, 'payload': data}
     # print("----action-----")
     # print(action)
     dom_widget.value = action
@@ -114,20 +115,20 @@ class JupyterHyperModelCallback(Callback):
         for c in hyper_model.callbacks:
             if isinstance(c, EarlyStoppingCallback):
                 if c.triggered:
-                    if c.triggered_reason == EarlyStoppingCallback.REASON_TIME_LIMIT:
-                        value = c.time_limit
-                    elif c.triggered_reason == EarlyStoppingCallback.REASON_TRIAL_LIMIT:
-                        value = c.counter_no_improvement_trials
-                    elif c.triggered_reason == EarlyStoppingCallback.REASON_EXPECTED_REWARD:
-                        value = c.best_reward
+                    # if c.triggered_reason == EarlyStoppingCallback.REASON_TIME_LIMIT:
+                    #     value = c.time_limit
+                    # elif c.triggered_reason == EarlyStoppingCallback.REASON_TRIAL_LIMIT:
+                    #     value = c.counter_no_improvement_trials
+                    # elif c.triggered_reason == EarlyStoppingCallback.REASON_EXPECTED_REWARD:
+                    #     value = c.best_reward
+                    # else:
+                    #     raise Exception("Unseen reason " + c.triggered_reason)
+                    if c.start_time is not None:
+                        elapsed_time = time.time() - c.start_time
                     else:
-                        raise Exception("Unseen reason " + c.triggered_reason)
-
-                    stop_reason = {
-                        'condition': c.triggered_reason,
-                        'value': value
-                    }
-                    send_action(self.widget_id, ActionType.EarlyStopped, stop_reason)
+                        elapsed_time = None
+                    ess = EarlyStoppingStatus(c.best_reward, c.best_trial_no, c.counter_no_improvement_trials, c.triggered, c.triggered_reason, elapsed_time)
+                    send_action(self.widget_id, ActionType.EarlyStopped, self.step_index, ess.to_dict())
 
     def on_search_error(self, hyper_model):
         pass
@@ -209,17 +210,7 @@ class JupyterHyperModelCallback(Callback):
         early_stopping_config = None
         for c in hyper_model.callbacks:
             if isinstance(c, EarlyStoppingCallback):
-                early_stopping_status = {
-                    'reward': hyper_model.best_reward,
-                    'noImprovedTrials': c.counter_no_improvement_trials,
-                    'elapsedTime': time.time() - c.start_time
-                }
-                early_stopping_config = {
-                    "exceptedReward": c.expected_reward,
-                    "maxNoImprovedTrials": c.max_no_improvement_trials,
-                    "maxElapsedTime": c.time_limit,
-                    "direction": str(c.mode)
-                }
+                early_stopping_status = EarlyStoppingStatus(c.best_reward, c.best_trial_no, c.counter_no_improvement_trials, c.triggered, c.triggered_reason, time.time() - c.start_time)
                 break
         data = {
             'stepIndex': self.step_index,
@@ -232,13 +223,10 @@ class JupyterHyperModelCallback(Callback):
                 "elapsed": elapsed,
                 "is_cv": is_cv,
                 "metricName": hyper_model.reward_metric,
-                "earlyStopping": {
-                    "status": early_stopping_status,
-                    "config": early_stopping_config
-                }
+                "earlyStopping": early_stopping_status.to_dict()
             }
         }
-        send_action(self.widget_id, ActionType.TrialFinished, data)
+        send_action(self.widget_id, ActionType.TrialFinished, self.step_index, data)
 
     def on_trial_error(self, hyper_model, space, trial_no):
         pass
@@ -271,7 +259,7 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         dom_widget.initData = ''  # remove init data, if refresh the page will show nothing on the browser
 
     def experiment_end(self, exp, elapsed):
-        send_action(self.widget_id, ActionType.ExperimentFinish, {})
+        send_action(self.widget_id, ActionType.ExperimentFinish, None, {})
 
     def experiment_break(self, exp, error):
         send_action(self.widget_id, ActionType.ExperimentBreak, {})
@@ -284,7 +272,8 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         self.set_up_hyper_model_callback(exp, lambda c: c.set_step_index(step_index))
         payload = {
             'index': step_index,
-            'status': StepStatus.Process
+            'status': StepStatus.Process,
+            'start_datetime': time.time()
         }
         send_action(self.widget_id, ActionType.StepBegin, payload)
 
@@ -298,6 +287,7 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         step = exp.get_step(step_name)
         # setattr(step, 'status', StepStatus.Finish)
         # todo set time setattr(step, 'status', StepStatus.Finish)
+        step.done_time = time.time()  # fix done_time is none
         step_index = experiment_util.get_step_index(exp, step_name)
         d = experiment_util.extract_step(step_index, step)
         send_action(self.widget_id, ActionType.StepFinished, d)

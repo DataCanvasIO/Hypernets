@@ -68,7 +68,7 @@ class EchartsCore extends Component {
   renderEchartDom = () => {
     const  now = new Date().getSeconds();
     this.prepare(echarts);
-    console.info(" Prepare took: " + (new Date().getSeconds() - now));
+    // console.info(" Prepare took: " + (new Date().getSeconds() - now));  // prepare does not take a long time usually
     const echartsObj = this.getEchartsInstance();
 
     // echarts.use([LineChart]);

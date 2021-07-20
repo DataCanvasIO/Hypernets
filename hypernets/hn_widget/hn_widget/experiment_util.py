@@ -25,6 +25,42 @@ class StepStatus:
     Skip = 'skip'
     Error = 'error'
 
+class EarlyStoppingConfig(object):
+
+    def __init__(self, excepted_reward, max_no_improved_trials, time_limit, mode):
+        self.excepted_reward = excepted_reward
+        self.max_no_improved_trials = max_no_improved_trials
+        self.time_limit = time_limit
+        self.mode = mode
+
+
+    def to_dict(self):
+        return {
+            "exceptedReward": self.excepted_reward,
+            "maxNoImprovedTrials": self.max_no_improved_trials,
+            "timeLimit": self.time_limit,
+            "mode": self.mode,
+        }
+
+class EarlyStoppingStatus(object):
+
+    def __init__(self, best_reward, best_trial_no, counter_no_improvement_trials, triggered, triggered_reason, elapsed_time):
+        self.best_reward = best_reward
+        self.best_trial_no = best_trial_no
+        self.counter_no_improvement_trials = counter_no_improvement_trials
+        self.triggered = triggered
+        self.triggered_reason = triggered_reason
+        self.elapsed_time = elapsed_time
+
+    def to_dict(self):
+        return {
+             "bestReward": self.best_reward,
+             "bestTrialNo": self.best_trial_no,
+             "counterNoImprovementTrials": self.counter_no_improvement_trials,
+             "triggered": self.triggered,
+             "triggeredReason": self.triggered_reason,
+             "elapsedTime": self.elapsed_time
+        }
 
 
 class StepData:
@@ -239,6 +275,25 @@ class extract_space_search_step(Extractor):
         extension['history'] = None
         return extension
 
+    def get_configuration(self):
+        configs = super(extract_space_search_step, self).get_configuration()
+        callbacks = self.step.experiment.hyper_model.callbacks
+        earlyStoppingStatus = EarlyStoppingStatus(None, None, None, None, None, None)  # No ealystopping data while init
+        earlyStoppingConfig = None
+        earlyStoppingSwitch = False
+        if callbacks is not None and len(callbacks) > 0:
+            for c in callbacks:
+                if c.__class__.__name__ == 'EarlyStoppingCallback':
+                    earlyStoppingSwitch = True  # enable earystopping
+                    earlyStoppingConfig = EarlyStoppingConfig(c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode)
+                    break
+        configs['earlyStopping'] = { 'enable': earlyStoppingSwitch,
+                                     'config': earlyStoppingConfig.to_dict(),
+                                     'status': earlyStoppingStatus.to_dict() }
+        return configs
+
+
+
 class extract_final_train_step(Extractor):
 
     def get_extension(self):
@@ -397,8 +452,8 @@ def extract_step(index, step):
                  status=get_step_status(step),
                  configuration=configuration,
                  extension=extension,
-                 start_datetime=get_extra_attr(step, 'start_datetime'),
-                 end_datetime=get_extra_attr(step, 'end_datetime'))
+                 start_datetime=step.start_time,
+                 end_datetime=step.done_time)
     return d.to_dict()
 
 

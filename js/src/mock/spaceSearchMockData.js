@@ -1,4 +1,4 @@
-import { Steps, StepStatus} from "../constants";
+import {ActionType, Steps, StepStatus} from "../constants";
 
 const CV = false;  // 控制模拟数据是否开启cv
 const N_FOLDS = 3;
@@ -13,14 +13,29 @@ export function getInitData() {
                 "type": Steps.SpaceSearch.type,
                 "status": StepStatus.Wait,
                 "configuration": {
-                    "cv": false,
-                    "name": "space_search",
-                    "num_folds": null
+                    "cv": true,
+                    "name": "space_searching",
+                    "num_folds": 3,
+                    "earlyStopping": {
+                        "enable": true,
+                        "exceptedReward": 1,
+                        "maxNoImprovedTrials": 10,
+                        "timeLimit": 60000,
+                        "mode": "max"
+                    }
                 },
                 "extension": {
-                    trials: []
+                    trials: [],
+                    "earlyStopping": {
+                        "bestReward": null,
+                        "bestTrialNo": null,
+                        "counterNoImprovementTrials": null,
+                        "triggered": null,
+                        "triggeredReason": null,
+                        "elapsedTime": null
+                    }
                 },
-                "start_datetime": 1626419128000,
+                "start_datetime": 1626419128,
                 "end_datetime": null
             }
         ]
@@ -49,7 +64,7 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
         type: 'trialFinished',
         payload: {
             stepIndex: 0,
-            trialData: {
+            data: {
                 trialNo: trialNoIndex,
                 maxTrails: 6,
                 hyperParams: {
@@ -61,17 +76,12 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
                 elapsed: Math.random() * 100,
                 metricName: 'auc',
                 earlyStopping: {
-                    status: {
-                        reward: trialNoIndex/10,
-                        noImprovedTrials: trialNoIndex + 2,
-                        elapsedTime: 10000 + trialNoIndex * 5000
-                    },
-                    config: {
-                        exceptedReward: 0.9,
-                        maxNoImprovedTrials: 8,
-                        maxElapsedTime: 100000,
-                        direction: 'max'
-                    }
+                    bestReward: Math.random(),
+                    bestTrialNo: 1,
+                    counterNoImprovementTrials: trialNoIndex + 2,
+                    triggered: false,
+                    triggeredReason: null,
+                    elapsedTime: 10000 + trialNoIndex * 5000
                 }
             }
         }
@@ -81,38 +91,60 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
 
 export function sendFinishData(store, delay = 1000) {
 
-var fakeTrialNo = 0;
-let trialInterval;
-setTimeout(function () {
-    trialInterval = setInterval(function () {
-        fakeTrialNo = fakeTrialNo + 1;
-        if (fakeTrialNo <= 5) {
-            const d = getNewTrialData(fakeTrialNo, fakeTrialNo === 5);
-            store.dispatch(
-                d
-            )
-        } else {
-            clearInterval(trialInterval);
-        }
-    }, 1000);
-}, 500);
+    var fakeTrialNo = 0;
+    let trialInterval;
+    setTimeout(function () {
+        trialInterval = setInterval(function () {
+            fakeTrialNo = fakeTrialNo + 1;
+            if (fakeTrialNo <= 5) {
+                const d = getNewTrialData(fakeTrialNo, fakeTrialNo === 5);
+                store.dispatch(
+                    d
+                )
+            } else {
+                clearInterval(trialInterval);
+            }
+        }, 1000);
+    }, 500);
+
+    setTimeout(function () {
+        store.dispatch(
+            {
+                type: ActionType.EarlyStopped,
+                payload: {
+                    stepIndex: 0,
+                    data:{
+                        bestReward: 0.9,
+                        bestTrialNo: 1,
+                        counterNoImprovementTrials: 10,
+                        triggered: true,
+                        triggeredReason: null,
+                        elapsedTime: 10000
+                    }
+                }
+            }
+        )
+    }, 10000);
 
     setTimeout(function () {
         store.dispatch(
             {
                 type: 'stepFinished',
                 payload: {
-                    index: 0,
-                    type: 'SearchSpaceStep',
-                    extension: {
-                        input_features: [{"name": "age"}, {"name": "data"}],
-                    },
-                    status: StepStatus.Finish,
-                    end_datetime: 1626519128000
+                    stepIndex: 0,
+                    data:{
+                        type: 'SearchSpaceStep',
+                        extension: {
+                            input_features: [{"name": "age"}, {"name": "data"}],
+                        },
+                        status: StepStatus.Finish,
+                        end_datetime: 1626519128
+                    }
                 }
             }
         )
-    }, 10000)
+    }, 11000);
+
 }
 
 
