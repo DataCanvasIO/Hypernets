@@ -739,50 +739,42 @@ export function PseudoLabelStep({stepData, dispatch}) {
             key: 'Count',
         }
     ];
-
-
-
     const { Option } = Select;
-
-    return <>
-        <Row gutter={[2, 2]}>
+    return <Row gutter={[2, 2]}>
             <Col span={10} >
-                <Card title={CONFIGURATION_CARD_TITLE} bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                    {
-                        <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.PsudoLabeling.configTip)}/>
-                    }
-                </Card>
+                <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.PsudoLabeling.configTip)}/>
             </Col>
 
             <Col span={10} offset={2} >
-                <Card title="Density plot of probability" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                        <span>
-                             <span style={{marginLeft: '10px', marginRight: '10px'}}>Select label:</span>
-                             <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: '50%' }} onChange={onLabelChanged} disabled={ isEmpty(selectedLabel)} >
-                                {
-                                    isEmpty(labels) ? null: labels.map( v => {
-                                        return <Option key={`opt_${v}`} value={v}>{v}</Option>
-                                    })
-                                }
-                            </Select>
-                        </span>
-                    <EchartsCore option={probaDensityChartOption} prepare={ echarts => {
-                        echarts.use([LineChart, GridComponent, TooltipComponent]);
-                    }}/>
-                </Card>
+                <Row gutter={[2, 2]}>
+                    <Col span={24} offset={0} >
+                        <Card title="Density plot of probability" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
+                                <span>
+                                     <span style={{marginLeft: '10px', marginRight: '10px'}}>Select label:</span>
+                                     <Select defaultValue={ selectedLabel } value={selectedLabel} style={{ width: '50%' }} onChange={onLabelChanged} disabled={ isEmpty(selectedLabel)} >
+                                        {
+                                            isEmpty(labels) ? null: labels.map( v => {
+                                                return <Option key={`opt_${v}`} value={v}>{v}</Option>
+                                            })
+                                        }
+                                    </Select>
+                                </span>
+                            <EchartsCore option={probaDensityChartOption} prepare={ echarts => {
+                                echarts.use([LineChart, GridComponent, TooltipComponent]);
+                            }}/>
+                        </Card>
+                    </Col>
+                    <Col span={24} offset={0} >
+                        <Card title="Number of pseudo labeled samples " bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE} >
+                            <Table dataSource={samplesDataSource}
+                                   columns = {samplesColumns}
+                                   pagination={false}
+                                   size={COMPONENT_SIZE} />
+                        </Card>
+                    </Col>
+                </Row>
             </Col>
         </Row>
-        <Row gutter={[2, 2]}>
-            <Col span={10} offset={12} >
-                <Card title="Number of pseudo labeled samples " bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE} >
-                    <Table dataSource={samplesDataSource}
-                        columns = {samplesColumns}
-                        pagination={false}
-                        size={COMPONENT_SIZE} />
-                </Card>
-            </Col>
-        </Row>
-    </>
 }
 
 export function EnsembleStep({stepData}) {
@@ -936,11 +928,7 @@ export function FinalTrainStep({stepData}) {
                 </Row>
             </Col>
             <Col span={10} offset={2} >
-                <Card title="Estimator" bordered={false} style={{ width: '100%' }} size={COMPONENT_SIZE}>
-                    {
-                        <ConfigurationCard configurationData={stepData.extension}/>
-                    }
-                </Card>
+                <ConfigurationCard configurationData={stepData.extension}/>
             </Col>
         </Row>
     </>

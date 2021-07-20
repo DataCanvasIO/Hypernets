@@ -88,6 +88,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         self.selection_transformer = None
         self.feature_defs_ = None
         self.transformed_feature_names_ = None
+        self.feature_defs_names_ = None
 
     def fit(self, X, y=None, **kwargs):
         original_cols = X.columns.to_list()
@@ -147,7 +148,9 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
 
         self.feature_defs_ = feature_defs
         self.original_cols = original_cols
-        self.transformed_feature_names_ = self._get_transformed_feature_names(feature_defs)
+        feature_defs_names, replaced_feature_defs_names, = self._get_transformed_feature_names(feature_defs)
+        self.transformed_feature_names_ = replaced_feature_defs_names
+        self.feature_defs_names_ = feature_defs_names
 
         if self.selection_transformer is not None:
             self.selection_transformer.fit(feature_matrix, y)
@@ -226,9 +229,11 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
     def _get_transformed_feature_names(self, feature_defs):
         names = [n for f in feature_defs for n in f.get_feature_names()]
         if self.fix_feature_names:
-            names = [_fix_feature_name(n) for n in names]
+            replaced_names = [_fix_feature_name(n) for n in names]
+        else:
+            replaced_names = names
 
-        return names
+        return names, replaced_names
 
     def _fix_transformed_feature_names(self, df):
         if self.fix_feature_names and hasattr(df, 'columns'):

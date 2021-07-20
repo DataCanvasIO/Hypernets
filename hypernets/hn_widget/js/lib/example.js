@@ -102,8 +102,8 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
     value_changed: function() {
         // this.el.textContent = this.model.get('value');
         const value = this.model.get('value');
-        console.log("Received value_changed from backend: ");
-        console.log(value);
+        //        console.log("Received value_changed from backend: ");  // print this value already in react project
+        //        console.log(value);
         if (this.reactStore !== null && this.reactStore !== undefined){
             // if is experiment end or experiment break, sync the state data to backend
             const actionType = value.type;

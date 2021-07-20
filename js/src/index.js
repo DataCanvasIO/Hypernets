@@ -4,7 +4,7 @@ import { ExperimentSummary } from './pages/experimentSummary'
 import { Steps } from "./constants";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
-import { getInitData, sendFinishData } from './mock/spaceSearchMockData.js'
+import { getInitData, sendFinishData } from './mock/pseudoStepMockData.js'
 import { datasetMockData, datasetMockDataClassification } from './mock/plotDatasetMockData.js'
 import { experimentConfigMockData } from './mock/experimentConfigMockData'
 import { Provider } from "react-redux"

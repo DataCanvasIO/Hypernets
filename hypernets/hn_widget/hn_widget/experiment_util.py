@@ -148,12 +148,30 @@ class Extractor:
     def handle_extenion(self, extension):
         return extension
 
-class  extract_feature_generation_step(Extractor):
+class extract_feature_generation_step(Extractor):
 
     def handle_extenion(self, extension):
+        transformer = self.step.transformer_
+        replaced_feature_defs_names = transformer.transformed_feature_names_
+        feature_defs_names = transformer.feature_defs_names_
+
+        mapping = None
+        if replaced_feature_defs_names is not None and len(replaced_feature_defs_names) > 0 and feature_defs_names is not None and len(feature_defs_names) > 0:
+            if len(replaced_feature_defs_names) == len(feature_defs_names):
+                mapping = {}
+                for (k, v) in zip(feature_defs_names, replaced_feature_defs_names):
+                    mapping[k] = v
+            else:
+                pass  # replaced_feature_defs_names or feature_defs_names missing match
+        else:
+            pass  # replaced_feature_defs_names or feature_defs_names is empty
+
         def get_feature_detail(f):
+            f_name = f.get_name()
+            if mapping is not None:
+                f_name = mapping.get(f_name)
             return {
-                'name': f.get_name(),
+                'name': f_name,
                 'primitive': type(f.primitive).__name__,
                 'parentFeatures': list(map(lambda x: x.get_name(), f.base_features)),
                 'variableType': f.variable_type.type_string,
@@ -279,13 +297,13 @@ class extract_space_search_step(Extractor):
     def get_configuration(self):
         configs = super(extract_space_search_step, self).get_configuration()
         callbacks = self.step.experiment.hyper_model.callbacks
-        earlyStoppingConfig = None
+        earlyStoppingConfig = EarlyStoppingConfig(False, None, None, None, None)
         if callbacks is not None and len(callbacks) > 0:
             for c in callbacks:
                 if c.__class__.__name__ == 'EarlyStoppingCallback':
-                    earlyStoppingConfig = EarlyStoppingConfig(True, c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode).to_dict()
+                    earlyStoppingConfig = EarlyStoppingConfig(True, c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode)
                     break
-        configs['earlyStopping'] = earlyStoppingConfig
+        configs['earlyStopping'] = earlyStoppingConfig.to_dict()
         return configs
 
 

@@ -214,7 +214,7 @@ class JupyterHyperModelCallback(Callback):
         early_stopping_config = None
         for c in hyper_model.callbacks:
             if isinstance(c, EarlyStoppingCallback):
-                early_stopping_status = EarlyStoppingStatus(c.best_reward, c.best_trial_no, c.counter_no_improvement_trials, c.triggered, c.triggered_reason, time.time() - c.start_time)
+                early_stopping_status = EarlyStoppingStatus(c.best_reward, c.best_trial_no, c.counter_no_improvement_trials, c.triggered, c.triggered_reason, time.time() - c.start_time).to_dict()
                 break
         data = {
             'stepIndex': self.step_index,
@@ -227,7 +227,7 @@ class JupyterHyperModelCallback(Callback):
                 "elapsed": elapsed,
                 "is_cv": is_cv,
                 "metricName": hyper_model.reward_metric,
-                "earlyStopping": early_stopping_status.to_dict()
+                "earlyStopping": early_stopping_status
             }
         }
         send_action(self.widget_id, ActionType.TrialFinished, data)

@@ -15,7 +15,6 @@
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
     "antd": "^4.15.3",
-    "bizcharts": "3.5.8",
     "echarts": "^5.1.1",
     "react": "^17.0.2",
     "react-custom-scrollbars": "^4.2.1",
