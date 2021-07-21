@@ -27,7 +27,14 @@ export function getInitData(CV=false) {
                         "int_convert_to": "float"
                     }
                 },
-                "extension": null,
+                "extension": {
+                    features: {
+                        inputs: [],
+                        outputs: [],
+                        increased: [],
+                        reduced: []
+                    }
+                },
                 "start_datetime": 1626419128,
                 "end_datetime": null
             }
@@ -44,7 +51,15 @@ export function sendFinishData(store, delay = 1000) {
                 payload: {
                     index: 0,
                     type: 'DataCleanStep',
-                    extension: {unselected_reason: {"id": 'unknown'}},
+                    extension: {
+                        unselected_reason: {"id": 'unknown'},
+                        features: {
+                            inputs: ['name', 'age'],
+                            outputs: ['name_1', 'name'],
+                            increased: ['name_1'],
+                            reduced: ['age']
+                        }
+                    },
                     status: StepStatus.Finish,
                     end_datetime: 1626419128
                 }

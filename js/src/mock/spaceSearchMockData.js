@@ -33,7 +33,13 @@ export function getInitData() {
                         "triggered": null,
                         "triggeredReason": null,
                         "elapsedTime": null
-                    }
+                    },
+                    features: {
+                        inputs: ['name', 'age'],
+                        outputs: ['name', 'age'],
+                        increased: [],
+                        reduced: []
+                    },
                 },
                 "start_datetime": 1626419128,
                 "end_datetime": null
@@ -136,6 +142,12 @@ export function sendFinishData(store, delay = 1000) {
                         input_features: [{"name": "age"}, {"name": "data"}],
                     },
                     status: StepStatus.Finish,
+                    features: {
+                        inputs: ['name', 'age'],
+                        outputs: ['name_1', 'name'],
+                        increased: ['name_1'],
+                        reduced: ['age']
+                    },
                     end_datetime: 1626519128
                 }
             }

@@ -26,64 +26,6 @@ const COLUMN_ELLIPSIS = () => {
 }};
 
 
-export class Line extends PureComponent {
-    getOption = (min, max) => {
-        return {
-            parallelAxis: [],
-            series: [{
-                type: 'parallel',
-                lineStyle: {
-                    width: 2
-                },
-                data: [],
-            }],
-            visualMap: {
-                min: min,
-                max: max,
-                left: 0,
-                precision: 4,
-                calculable: true,
-                orient: 'vertical',
-                bottom: '15%',
-                hoverLink:true,
-            },
-        };
-    };
-
-    render() {
-        const { style, className, data, xAxisProp, seriesData, loading, ...restProp } = this.props;
-        if (!data || !data.hasOwnProperty('data')) {
-            return (<Empty />);
-        }
-        const  rewards = [];
-        for (var item of data.data){
-            rewards.push(item.reward);
-        }
-        const options = this.getOption(Math.min(...rewards), Math.max(...rewards));
-        data.param_names.forEach((name, index) => {
-            options.parallelAxis.push({
-                dim: index,
-                name
-            });
-        });
-        data.data.forEach((item, index) => {
-            options['series']['data'] = new Array(data.param_names.length);
-            options['series'][0]['data'][index] = item.params;
-        });
-
-        return (
-            <EchartsCore
-                // loadingOption={{ color: '#1976d2' }}
-                option={ {...options} }
-                // showLoading={loading}
-                // style={style}
-                // className={className}
-            />
-        );
-    }
-}
-
-
 export function getConfigData(configs, tips){
     return Object.keys(configs).map(key => {
         const v = configs[key];
@@ -96,6 +38,66 @@ export function getConfigData(configs, tips){
     });
 }
 
+
+
+export function FeatureNumCard({stepData, hasOutput=true}) {  // why not use `Collapse` ? it has different style with `Card`
+
+    let featuresData;
+    if (stepData.status === StepStatus.Finish){
+        featuresData = stepData.extension.features
+    }else{
+        featuresData = {
+            inputs: [],
+            outputs: [],
+            increased: [],
+            reduced: []
+        }
+    }
+
+    const _render = (features) => {
+        return <Tooltip title={features.join(',')} >
+            {features.length}
+        </Tooltip>
+    };
+
+    const formData =  [
+        {
+            name: "Input features number",
+            tip: null,
+            value: featuresData.inputs,
+            render: _render
+        }
+    ];
+    if(hasOutput){
+        const items = [
+            {
+                name: "Output features number",
+                    tip: null,
+                    value: featuresData.outputs,
+                    render: _render
+            }, {
+                name: "Increased features number",
+                    tip: null,
+                    value: featuresData.increased,
+                    render: _render
+            }, {
+                name: "Reduced features number",
+                    tip: null,
+                    value: featuresData.reduced,
+                    render: _render
+            }
+        ];
+        for(var item of items){
+            formData.push(item)
+        }
+    }
+    return <Card title="Features" bordered={false} style={{width: '100%'}} size={'small'}>
+        <ConfigurationForm
+            configurationData={formData}
+            sort={false}
+        />
+    </Card>
+}
 
 export function StepStatusCard({stepData}) {
     const status = stepData.status;
@@ -327,6 +329,9 @@ export function DataCleaningStep({stepData}) {
             <Row gutter={[2, 2]}>
                 <StepStatusCard stepData={stepData}/>
             </Row>
+            <Row gutter={[2, 2]}>
+                <FeatureNumCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
@@ -392,6 +397,9 @@ export function FeatureGenerationStep({stepData}){
             <Row gutter={[2, 2]}>
                 <StepStatusCard stepData={stepData}/>
             </Row>
+            <Row gutter={[2, 2]}>
+                <FeatureNumCard stepData={stepData}/>
+            </Row>
         </Col>
 
         <Col span={10} offset={2} >
@@ -441,6 +449,9 @@ export function CollinearityDetectionStep({stepData}){
             </Row>
             <Row gutter={[2, 2]}>
                 <StepStatusCard stepData={stepData}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <FeatureNumCard stepData={stepData}/>
             </Row>
         </Col>
 
@@ -519,6 +530,9 @@ export function DriftDetectionStep({stepData}){
             </Row>
             <Row gutter={[2, 2]}>
                 <StepStatusCard stepData={stepData}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <FeatureNumCard stepData={stepData}/>
             </Row>
         </Col>
 
@@ -627,6 +641,9 @@ export function GeneralImportanceSelectionStep({stepData, configTip}){
             </Row>
             <Row gutter={[2, 2]}>
                 <StepStatusCard stepData={stepData}/>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <FeatureNumCard stepData={stepData}/>
             </Row>
         </Col>
 
@@ -742,7 +759,15 @@ export function PseudoLabelStep({stepData, dispatch}) {
     const { Option } = Select;
     return <Row gutter={[2, 2]}>
             <Col span={10} >
-                <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.PsudoLabeling.configTip)}/>
+                <Row gutter={[2, 2]}>
+                    <ConfigurationCard configurationData={getConfigData(stepData.configuration, Steps.PsudoLabeling.configTip)}/>
+                </Row>
+                <Row gutter={[2, 2]}>
+                    <StepStatusCard stepData={stepData}/>
+                </Row>
+                <Row gutter={[2, 2]}>
+                    <FeatureNumCard stepData={stepData}/>
+                </Row>
             </Col>
 
             <Col span={10} offset={2} >
@@ -891,6 +916,9 @@ export function EnsembleStep({stepData}) {
                     <Row gutter={[2, 2]}>
                         <StepStatusCard stepData={stepData}/>
                     </Row>
+                    <Row gutter={[2, 2]}>
+                        <FeatureNumCard stepData={stepData} hasOutput={false}/>
+                    </Row>
                 </Col>
                 <Col span={10} offset={2}>
                     <Card title="Weight" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
@@ -925,6 +953,9 @@ export function FinalTrainStep({stepData}) {
                 </Row>
                 <Row gutter={[2, 2]}>
                     <StepStatusCard stepData={stepData}/>
+                </Row>
+                <Row gutter={[2, 2]}>
+                    <FeatureNumCard stepData={stepData}/>
                 </Row>
             </Col>
             <Col span={10} offset={2} >

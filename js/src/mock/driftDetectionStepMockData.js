@@ -36,6 +36,12 @@ export function sendFinishData(store, delay = 1000) {
                     status: StepStatus.Finish,
                     end_datetime: 1626449128,
                     extension:  {
+                        features: {
+                            inputs: ['name', 'age'],
+                            outputs: ['name_1', 'name'],
+                            increased: ['name_1'],
+                            reduced: ['age']
+                        },
                         drifted_features_auc: [
                             {
                                 feature: "id",

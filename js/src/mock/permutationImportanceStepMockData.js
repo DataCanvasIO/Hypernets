@@ -46,7 +46,13 @@ export function sendFinishData(store, delay = 1000) {
                             {name: 'id13', importance: 0.8, dropped: false},
                             {name: 'id14', importance: 0.3, dropped: false},
                             {name: 'id15', importance: 0.3, dropped: false},
-                        ]
+                        ],
+                        features: {
+                            inputs: ['name', 'age'],
+                            outputs: ['name_1', 'name'],
+                            increased: ['name_1'],
+                            reduced: ['age']
+                        }
                     }
                 }
             })

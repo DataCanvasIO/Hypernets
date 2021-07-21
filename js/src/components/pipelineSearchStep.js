@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {Card, Col, Row, Table} from "antd";
 import EchartsCore from "./echartsCore";
-import {ConfigurationCard, getConfigData, SkippedStepContent, StepStatusCard} from "./steps";
+import {ConfigurationCard, FeatureNumCard, getConfigData, SkippedStepContent, StepStatusCard} from "./steps";
 
 import * as echarts from "echarts/lib/echarts";
 import 'echarts/lib/chart/heatmap';
@@ -576,13 +576,6 @@ export function PipelineOptimizationStep({stepData}){
         });
     };
 
-
-
-
-
-
-
-
     let featuresDataSource;
     if(stepData.status === StepStatus.Finish){
         featuresDataSource = stepData.extension.input_features.map((value, index, arr) => {
@@ -684,6 +677,9 @@ export function PipelineOptimizationStep({stepData}){
                     <StepStatusCard
                         stepData={stepData}
                     />
+                </Col>
+                <Col span={10} offset={2}>
+                    <FeatureNumCard stepData={stepData} hasOutput={false}/>
                 </Col>
             </Row>
         </>

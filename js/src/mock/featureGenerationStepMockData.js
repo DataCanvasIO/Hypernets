@@ -31,6 +31,12 @@ export function sendFinishData(store, delay = 1000) {
                     status: StepStatus.Finish,
                     end_datetime: 1626419128,
                     extension: {
+                        features: {
+                            inputs: ['name', 'age'],
+                            outputs: ['name', 'age'],
+                            increased: [],
+                            reduced: []
+                        },
                         outputFeatures: [
                             {
                                 name: 'id_name',

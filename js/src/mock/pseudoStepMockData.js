@@ -15,7 +15,7 @@ export function getInitData(CV=false) {
                     "strategy": "s1"
                 },
                 "extension": {},
-                "start_datetime": 1626419128000,
+                "start_datetime": 1626419128,
                 "end_datetime": null
             }
         ]
@@ -30,7 +30,7 @@ export function sendFinishData(store, delay = 1000) {
             payload: {
                     index: 0,
                     status: StepStatus.Finish,
-                    end_datetime: 1626419728000,
+                    end_datetime: 1626419728,
                     extension: {
                         probabilityDensity: {
                             yes: {
@@ -50,7 +50,13 @@ export function sendFinishData(store, delay = 1000) {
                             'yes': 1000,
                             'no': 2000
                         },
-                        selectedLabel: "yes"
+                        selectedLabel: "yes",
+                        features: {
+                            inputs: ['name', 'age'],
+                            outputs: ['name_1', 'name'],
+                            increased: ['name_1'],
+                            reduced: ['age']
+                        }
                     }
 
             }

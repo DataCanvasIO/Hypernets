@@ -42,7 +42,14 @@ export function sendFinishData(store, delay = 2000) {
                 index: 0,
                 status: StepStatus.Skip,
                 end_datetime: 1626419128,
-                extension: {}
+                extension: {
+                    features: {
+                        inputs: ['name', 'age'],
+                        outputs: null,
+                        increased: null,
+                        reduced: null
+                    }
+                }
             }
         })
     }, delay * 2);
