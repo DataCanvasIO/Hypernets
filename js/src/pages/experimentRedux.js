@@ -68,10 +68,11 @@ const handleStepFinish = (experimentConfig, action, stepIndexInArray) => {
 
     const stepPayload = action.payload;
     const step = experimentConfig.steps[stepIndexInArray];
-    if (step.type !== 'SpaceSearchStep') {
+    if (step.type !== 'SpaceSearchStep') { // to avoid override 'trials'
         experimentConfig.steps[stepIndexInArray].extension = stepPayload.extension;
     } else {
         experimentConfig.steps[stepIndexInArray].extension.input_features = stepPayload.extension.input_features;
+        experimentConfig.steps[stepIndexInArray].extension.features = stepPayload.extension.features;
     }
     // experimentConfig.steps[i].extension = stepPayload.extension;
     experimentConfig.steps[stepIndexInArray].status = stepPayload.status;

@@ -236,7 +236,7 @@ export function ConfigurationForm({configurationData, sort=true}) {
         if (v === undefined || v === null){
             return <Input value={"None"} disabled={true} />
         } else if((typeof  v)  === "boolean"){
-            return  <Switch checked disabled />
+            return  <Switch checked={v} disabled />
         } else  if(v instanceof Array){
             return  <Input value={  v.join(",") } disabled={true} />
         } else {

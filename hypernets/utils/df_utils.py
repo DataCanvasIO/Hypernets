@@ -41,10 +41,10 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 			cont_y_num = 10
 			interval = (max_y-min_y)/cont_y_num
 			intervals = np.linspace(min_y, max_y, cont_y_num+1)
-			Freqs_y = pd.cut(y_train, intervals).value_counts()[0:cont_y_num]
+			Freqs_y = pd.cut(y_train, intervals).value_counts(sort=False)  # [0:cont_y_num]
 			count = list(Freqs_y)
 			region = list(map(lambda x: [x.left, x.right], list(Freqs_y.keys())))
-			target_distribution = {'count':count, 'region':region}
+			target_distribution = {'count': count, 'region': region}
 		else:
 			cont_y_num = None
 			disc_y_num = 10

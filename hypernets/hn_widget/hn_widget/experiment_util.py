@@ -136,6 +136,8 @@ class Extractor:
 
     def get_configuration(self):
         configuration = copy.deepcopy(self.step.get_params())
+        if 'scorer' in configuration:
+            configuration['scorer'] = str(configuration['scorer'])
         return configuration
 
     def get_output_features(self):
