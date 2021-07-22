@@ -12,6 +12,7 @@ from jupyter_packaging import (
     get_version,
 )
 
+# https://ipywidgets.readthedocs.io/en/latest/examples/Widget%20Custom.html
 
 here = os.path.dirname(os.path.abspath(__file__))
 

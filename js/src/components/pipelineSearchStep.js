@@ -1,8 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {Card, Col, Row, Table} from "antd";
 import EchartsCore from "./echartsCore";
-import {ConfigurationCard} from "./steps";
-
+import {ConfigurationCard, FeatureNumCard, getConfigData, SkippedStepContent, StepStatusCard} from "./steps";
 
 import * as echarts from "echarts/lib/echarts";
 import 'echarts/lib/chart/heatmap';
@@ -10,7 +9,7 @@ import PropTypes from 'prop-types';
 import { clear } from 'echarts/lib/util/throttle';
 import { LineChart } from 'echarts/charts';
 import { GridComponent } from 'echarts/components';
-import { TooltipComponent, ToolboxComponent, LegendComponent } from 'echarts/components';
+import { MarkPointComponent, TooltipComponent, ToolboxComponent, LegendComponent, TitleComponent  } from 'echarts/components';
 import { ScatterChart } from 'echarts/charts';
 import { BarChart } from 'echarts/charts';
 import 'echarts/lib/component/legend';
@@ -19,8 +18,6 @@ import 'echarts/lib/component/dataZoom';
 import { Progress, Tooltip } from 'antd';
 import {formatFloat, formatHumanDate} from "../util";
 import {Steps, StepStatus} from "../constants";
-
-
 
 class TrialChart extends React.Component {
 
@@ -43,7 +40,7 @@ class TrialChart extends React.Component {
 
     componentDidMount() {
 
-        echarts.use([LineChart, GridComponent, TooltipComponent, ToolboxComponent, LegendComponent, ScatterChart, BarChart]);  // this should be above of init echarts
+        echarts.use([MarkPointComponent, LineChart, GridComponent, TooltipComponent, ToolboxComponent, LegendComponent, ScatterChart, BarChart, TitleComponent]);  // this should be above of init echarts
 
         const echartsObj = this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts);
         this.renderChart(echartsObj);
@@ -62,20 +59,7 @@ class TrialChart extends React.Component {
 
     componentDidUpdate(prevProps) {  // 第二次更新时候执行了这个方法
         const echartsObj = this.echartsLib.getInstanceByDom(this.echartsElement);
-
         this.renderChart(echartsObj);
-
-        // on resize
-        // if (this.echartsElement) {
-        //     bind(this.echartsElement, () => {
-        //         try {
-        //             echartsObj.resize()
-        //         } catch (e) {
-        //             console.warn(e)
-        //         }
-        //     })
-        // }
-
     }
 
     renderChart(echartsObj){  // 第二次更新时候执行了这个方法
@@ -94,12 +78,7 @@ class TrialChart extends React.Component {
             nModles = this.props.stepConfig.num_folds;
         }
 
-        // 生成模型的分数数据
-        const rewardSeriesData = Array.from({length: nModles}, (k, v) => v).map(i => {
-            return trials.map(v => v.models[i].reward)
-        });
-
-        const chartOptions = this.getChartOptions(xAxisData, rewardSeriesData, trials, this.props.stepConfig.cv, this.props.stepConfig.num_folds);
+        const chartOptions = this.getChartOptions(xAxisData, trials, this.props.stepConfig.cv, this.props.stepConfig.num_folds);
 
         // fixme check echartsElement is not empty
         // const echartsObj = this.echartsLib.getInstanceByDom(this.echartsElement);
@@ -140,7 +119,7 @@ class TrialChart extends React.Component {
 
 
 
-    getChartOptions(xAxisData, modelsScore, trials, cv, num_folds){
+    getChartOptions(xAxisData, trials, cv, num_folds){
 
         const maxElapsed = Math.max(...trials.map(v => v.elapsed));
 
@@ -198,7 +177,7 @@ class TrialChart extends React.Component {
 
             const trialDetail = {
                 "Reward": trial.reward,
-                "Elapsed time": formatHumanDate(trial.elapsed),
+                "Elapsed": formatHumanDate(trial.elapsed),
                 "Trial no": trial.trialNo,
                 // todo "Status": 'finish'
             };
@@ -210,11 +189,8 @@ class TrialChart extends React.Component {
 
         };
 
-        const scoreSeries = [];
-
-        scoreSeries.push();
-
-        const colors = ['#5470C6', '#91CC75', '#EE6666'];
+        const colors_bak = ['#EE6666', '#91CC75', '#5470C6'];
+        const colors = ['#91CC75', '#5470C6'];
 
         return {
             color: colors,
@@ -226,25 +202,41 @@ class TrialChart extends React.Component {
                 axisPointer: {
                     type: 'cross'
                 },
+                padding: [
+                    2,  // 上
+                    2, // 右
+                    2,  // 下
+                    2, // 左
+                ],
+                position: function(point, params, dom, rect, size){
+                    return {
+                        left: point[0] + 5,
+                        top: point[1] - 5
+                    }
+                },
                 formatter(params){
-                    const trialNo = parseInt(params.name.substring(1, params.name.length));
-                    var body = '';
-                    trials.forEach(trial => {
-                        if(trial.trialNo === trialNo){
-                            body = getTooltipBody(trial)
-                        }
-                    });
-                    return body;
+                    if(params.componentType === 'markPoint'){
+                        return `<span style="display:inline-block;margin-right:5px;border-radius:50%;width:10px;height:10px;left:5px;background-color: ${params.color}"></span> ${params.name}: ${params.value}`
+                    }else {
+                        const trialNo = parseInt(params.name.substring(1, params.name.length));
+                        var body = '';
+                        trials.forEach(trial => {
+                            if(trial.trialNo === trialNo){
+                                body = getTooltipBody(trial)
+                            }
+                        });
+                        return body;
+                    }
                 }
             },
             grid: {
                 right: '20%'
             },
             toolbox: {
-
             },
             legend: {
-                data: ['Reward', 'Elapsed']
+                // data: ['Reward', 'Elapsed']
+                // data: []
             },
             xAxis: [
                 {
@@ -269,20 +261,6 @@ class TrialChart extends React.Component {
             yAxis: [
                 {
                     type: 'value',
-                    name: 'Elapsed',
-                    min: 0,
-                    max: timeMax,
-                    position: 'right',
-                    axisLine: {
-                        show: true,
-                        lineStyle: {}
-                    },
-                    axisLabel: {
-                        formatter: `{value} ${timeUnit}`
-                    }
-                },
-                {
-                    type: 'value',
                     name: 'Reward',
                     min: 0,
                     max: 1,
@@ -290,11 +268,26 @@ class TrialChart extends React.Component {
                     axisLine: {
                         show: true,
                         lineStyle: {
-
+                            // color: colors[0],
                         }
                     },
                     axisLabel: {
                         formatter: '{value}'
+                    }
+                }, {
+                    type: 'value',
+                    name: 'Elapsed',
+                    min: 0,
+                    // max: timeMax,
+                    position: 'right',
+                    axisLine: {
+                        show: true,
+                        lineStyle: {
+                            // color: colors[1],
+                        }
+                    },
+                    axisLabel: {
+                        formatter: `{value} ${timeUnit}`
                     }
                 }
             ],
@@ -302,15 +295,29 @@ class TrialChart extends React.Component {
                 {
                     name: 'Reward',
                     type: 'line',
-                    // color: '#f59311',
-                    color: '#6ca30f',
+                    color: colors[0],
                     yAxisIndex: 1,
-                    data: trials.map(t => t.reward)
+                    data: trials.map(t => parseFloat(t.reward)),
+                    markPoint: {
+                        symbol: 'pin',
+                        data: [
+                            {type: 'max', name: 'Max reward'},
+                        ],
+                        label:{
+                            color: 'white',
+                            formatter: function (v) {
+                                return formatFloat(v.value, 2)
+                            }
+                        }
+                    },
+                    tooltip: {
+                        trigger: 'item'
+                    }
                 },
                 {
                     name: 'Elapsed',
                     type: 'bar',
-                    color: '#4F69BB',
+                    color: colors[1],
                     data: elapsedSeriesData
                 },
             ]
@@ -425,13 +432,19 @@ function CircleProgress({title, style, strokeColor, data}) {
 export function PipelineOptimizationStep({stepData}){
 
     const [importanceData, setImportanceData] = useState([[]]);
-    const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-    const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-    const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    // const [trialsProcessData, setTrialsProcessData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    // const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    // const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+    // const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
 
-    const PROCESS_EMPTY_DATA = {percent: 0, value: '-', tip: 'Empty data'};
+    const ES_EMPTY = {percent: 0, value: '-', tip: 'Empty data'};
+    const ES_DISABLED = {percent: 0, value: '-', tip: 'EarlyStopping is disabled '};
 
-    const trailsData = stepData.extension?.trials;
+    const earlyStoppingConfig = stepData.configuration.earlyStopping;
+    const earlyStoppingStatus = stepData.extension.earlyStopping;
+
+
+    const trailsData = stepData.extension.trials;
 
     var lastTrial;
     if(trailsData !== undefined && trailsData !== null && trailsData.length > 0){
@@ -441,54 +454,66 @@ export function PipelineOptimizationStep({stepData}){
     }
 
     // SearchSpaceStep的配置数据要剔除EarlyStopping数据
-    const configurationForPanel =   {...stepData.configuration};
-    delete configurationForPanel['earlyStopping'];
-
+    const configurationForPanelObj =  {...stepData.configuration,
+        "earlyStoppingEnable": stepData.configuration.earlyStopping.enable};
+    delete configurationForPanelObj['earlyStopping'];
+    const configurationForPanel = getConfigData(configurationForPanelObj, Steps.SpaceSearch.configTip);
 
     useEffect(() => {
         if(lastTrial !== null){
             setImportanceData(lastTrial.models.map(m => m.importances));
-            setEarlyStoppingRewardData(getEarlyStoppingRewardData(lastTrial));
-            setEarlyStoppingTrialsData(getEarlyStoppingTrialsData(lastTrial));
-            setEarlyStoppingElapsedTimeData(getEarlyStoppingElapsedTimeData(lastTrial));
-
         }
     }, [lastTrial]);
 
-    const onTrialClick = (trialNo, modelIndex) => {
-        const trials = stepData.extension.trials;
-        trials.forEach(trial => {
-            if(trial.trialNo === trialNo){
-                setImportanceData(trial.models.map(m => m.importances))
-            }
-        });
+    const getESData = (func, earlyStoppingConfig, earlyStoppingStatus) => {
+        // check enabled es
+        const {enable} = earlyStoppingConfig;
+        if(enable !== true){
+            return ES_DISABLED;
+        }
+        if(earlyStoppingStatus !== undefined && earlyStoppingStatus !== null){
+            return func(earlyStoppingConfig, earlyStoppingStatus)
+        }else{
+            // es data may be null
+            return ES_EMPTY
+        }
     };
 
-    const getEarlyStoppingRewardData = (lastTrial) => {
-
-        const earlyStoppingConfig = lastTrial.earlyStopping.config;
-
-        if(earlyStoppingConfig === null || earlyStoppingConfig === undefined){
-            return PROCESS_EMPTY_DATA
+    const getEarlyStoppingTrialsData = (earlyStoppingConfig, earlyStoppingStatus) => {
+        const { maxNoImprovedTrials } = earlyStoppingConfig;
+        const { counterNoImprovementTrials } = earlyStoppingStatus;
+        let percent;
+        let tip;
+        let value;
+        if(maxNoImprovedTrials !== undefined && maxNoImprovedTrials !== null && maxNoImprovedTrials > 0){
+            // early stopping by trials num  is opening
+            percent = (counterNoImprovementTrials / maxNoImprovedTrials) * 100;
+            value = counterNoImprovementTrials;
+            tip =  `Max no improved trials is ${maxNoImprovedTrials}, now is ${value}`;
+        }else{
+            percent = 0;
+            value = '-';
+            tip = `This strategy is off`;
         }
-
-        const {exceptedReward, direction} = earlyStoppingConfig;
-
-        const {reward } = lastTrial.earlyStopping.status;
+        return {percent, value, tip}
+    };
+    const getEarlyStoppingRewardData = (earlyStoppingConfig, earlyStoppingStatus) => {
+        const {exceptedReward, mode} = earlyStoppingConfig;
+        const {bestReward } = earlyStoppingStatus;
         let percent;
         let tip;
         let value;
         if(exceptedReward !== undefined && exceptedReward !== null){
             // early stopping is opening
-            if(direction === 'max'){
-                if(reward !== undefined && reward !== null){
-                    percent = (reward / exceptedReward) * 100;
-                    value = formatFloat(reward, 4)
+            if(mode === 'max'){
+                if(bestReward !== undefined && bestReward !== null){
+                    percent = (bestReward / exceptedReward) * 100;
+                    value = formatFloat(bestReward, 4)
                 }
             }else{
                 percent = 0;
-                if(reward !== undefined && reward !== null){
-                    value = reward;
+                if(bestReward !== undefined && bestReward !== null){
+                    value = bestReward;
                 }else{
                     value = '-';
                 }
@@ -501,50 +526,17 @@ export function PipelineOptimizationStep({stepData}){
         }
         return {percent, value, tip}
     };
-
-    const getEarlyStoppingTrialsData = (lastTrial) => {
-        const earlyStoppingConfig = lastTrial.earlyStopping.config;
-        if(earlyStoppingConfig === null || earlyStoppingConfig === undefined){
-            return PROCESS_EMPTY_DATA
-        }
-
-        const { maxNoImprovedTrials } = earlyStoppingConfig;
-
-        const { noImprovedTrials } = lastTrial.earlyStopping.status;
+    const getEarlyStoppingElapsedTimeData = (earlyStoppingConfig, earlyStoppingStatus) => {
+        const { timeLimit } = earlyStoppingConfig;
+        const { elapsedTime } = earlyStoppingStatus;
         let percent;
         let tip;
         let value;
-        if(maxNoImprovedTrials !== undefined && maxNoImprovedTrials !== null && maxNoImprovedTrials > 0){
+        if(timeLimit !== undefined && timeLimit !== null && timeLimit > 0){
             // early stopping by trials num  is opening
-            percent = (noImprovedTrials / maxNoImprovedTrials) * 100;
-            value = noImprovedTrials;
-            tip =  `Max no improved trials is ${maxNoImprovedTrials}, now is ${value}`;
-        }else{
-            percent = 0;
-            value = '-';
-            tip = `This strategy is off`;
-        }
-        return {percent, value, tip}
-    };
-
-    const getEarlyStoppingElapsedTimeData = (lastTrial) => {
-        const earlyStoppingConfig = lastTrial.earlyStopping.config;
-
-        if(earlyStoppingConfig === null || earlyStoppingConfig === undefined){
-            return PROCESS_EMPTY_DATA
-        }
-
-        const { maxElapsedTime } = earlyStoppingConfig;
-
-        const { elapsedTime } = lastTrial.earlyStopping.status;
-        let percent;
-        let tip;
-        let value;
-        if(maxElapsedTime !== undefined && maxElapsedTime !== null && maxElapsedTime > 0){
-            // early stopping by trials num  is opening
-            percent = (elapsedTime / maxElapsedTime) * 100;
+            percent = (elapsedTime / timeLimit) * 100;
             value = formatHumanDate(elapsedTime);
-            tip =  `Limited time is ${formatHumanDate(maxElapsedTime)}, now running for ${value}`;
+            tip =  `Limited time is ${formatHumanDate(timeLimit)}, now running for ${value}`;
         }else{
             percent = 0;
             value = '-';
@@ -552,6 +544,38 @@ export function PipelineOptimizationStep({stepData}){
         }
         return {percent, value, tip}
     };
+
+    const getTrialsProcessData = (maxTrials, lastTrial) => {
+        // const finishedTrials = lastTrial.trialNo ;
+        // const maxTrials = stepData.extension.maxTrials
+
+        if(maxTrials !== undefined && maxTrials !== null ){
+            if(lastTrial !== undefined && lastTrial !== null){
+                const finishedTrials = lastTrial.trialNo;
+                const tip = `Max trials is ${maxTrials}, we've searched ${finishedTrials} time(s)`;
+                return {percent: (finishedTrials / maxTrials)*100 , value: finishedTrials, tip: tip}
+            }else{
+                return {percent: 0 , value: 0, tip: `Max trials is ${maxTrials}, but no finished trials yet`}
+            }
+        }else {
+            return {percent: 0 , value: 0, tip: "maxTrials is null"}
+        }
+    };
+
+    const earlyStoppingTrialsData = getESData(getEarlyStoppingTrialsData, earlyStoppingConfig, earlyStoppingStatus);
+    const earlyStoppingRewardData = getESData(getEarlyStoppingRewardData, earlyStoppingConfig, earlyStoppingStatus);
+    const earlyStoppingElapsedTimeData = getESData(getEarlyStoppingElapsedTimeData, earlyStoppingConfig, earlyStoppingStatus);
+    const trialsProcessData = getTrialsProcessData(stepData.extension.maxTrials, lastTrial);
+
+    const onTrialClick = (trialNo, modelIndex) => {
+        const trials = stepData.extension.trials;
+        trials.forEach(trial => {
+            if(trial.trialNo === trialNo){
+                setImportanceData(trial.models.map(m => m.importances))
+            }
+        });
+    };
+
     let featuresDataSource;
     if(stepData.status === StepStatus.Finish){
         featuresDataSource = stepData.extension.input_features.map((value, index, arr) => {
@@ -573,65 +597,92 @@ export function PipelineOptimizationStep({stepData}){
         }
     ];
 
-    return <><Row gutter={[2, 2]}>
-        <Col span={22} >
-            <Card title="Pipeline optimization" bordered={ false } style={{ width: '100%' }} size={'small'}>
-                <Row>
-                    <Col span={10} >
-                        <TrialChart
-                            trials={trailsData}
-                            stepConfig={stepData.configuration}
-                            onTrialClick={onTrialClick}
-                        />
-                    </Col>
-                    <Col span={10} offset={0}>
-                        <ImportanceBarChart
-                            importances={importanceData}
-                        />
-                    </Col>
-                </Row>
-            </Card>
-        </Col>
+    if(stepData.status === StepStatus.Skip) {
+        return <SkippedStepContent />
+    }else {
+        return <><Row gutter={[2, 2]}>
+            <Col span={22}>
+                <Card title="Search trials" bordered={false} style={{width: '100%'}} size={'small'}>
+                    <Row>
+                        <Col span={10}>
+                            <TrialChart
+                                trials={trailsData}
+                                stepConfig={stepData.configuration}
+                                onTrialClick={onTrialClick}
+                            />
+                        </Col>
+                        <Col span={10} offset={0}>
+                            <ImportanceBarChart
+                                importances={importanceData}
+                            />
+                        </Col>
+                    </Row>
+                </Card>
+            </Col>
 
-    </Row>
-    <Row gutter={[2, 2]}>
-        <Col span={10} offset={0} >
-            <Card title={"Configuration"} bordered={false} style={{ width: '100%' }} size={'small'}>
-                {
-                    <ConfigurationCard configurationData={configurationForPanel} configurationTip={Steps.SpaceSearch.configTip}/>
-                }
-            </Card>
-        </Col>
-        <Col span={10} offset={0} >
-            <Card title="Early stopping" bordered={false} style={{ width: '100%' , marginRight: 0, paddingRight: 0}} size={'small'}>
-                    <CircleProgress
-                        title={'Reward'}
-                        strokeColor ='#6ca30f'
-                        data={earlyStoppingRewardData}
+        </Row>
+            <Row gutter={[2, 2]}>
+                <Col span={10} offset={0}>
+                    <ConfigurationCard configurationData={configurationForPanel}
+                                       configurationTip={Steps.SpaceSearch.configTip}/>
+                </Col>
+                <Col span={10} offset={0}>
+                    <Card title="Search progress" bordered={false}
+                          style={{width: '100%', marginRight: 0, paddingRight: 0}} size={'small'}>
+                        <CircleProgress
+                            title={'Trials'}
+                            strokeColor='#2db7f5'
+                            data={trialsProcessData}
                         />
-                    <CircleProgress
-                        title={'Trials'}
-                        strokeColor ='#0e72cc'
-                        style={{marginLeft: '5%'}}
-                        data={earlyStoppingTrialsData}/>
-                    <CircleProgress
-                        title={'Time'}
-                        strokeColor ='#fa4343'
-                        style={{marginLeft: '5%'}}
-                        data={earlyStoppingElapsedTimeData}/>
-            </Card>
-        </Col>
-    </Row>
-    <Row gutter={[2, 2]}>
-        <Col span={10} offset={10} >
-            <Card title="Input features" bordered={false} style={{ width: '100%' }} size={'small'} >
-                <Table dataSource={featuresDataSource}
-                       columns={featuresColumns}
-                       pagination={ {defaultPageSize: 5, disabled: false, pageSize:  5}}
-                       showHeader={false} />
-            </Card>
-        </Col>
-    </Row>
-    </>
+                        <CircleProgress
+                            title={'Reward'}
+                            strokeColor='#6ca30f'
+                            style={{marginLeft: '5%'}}
+                            data={earlyStoppingRewardData}
+                        />
+                        <CircleProgress
+                            title={'Not improve'}
+                            strokeColor='#0e72cc'
+                            style={{marginLeft: '5%'}}
+                            data={earlyStoppingTrialsData}/>
+                        <CircleProgress
+                            title={'Time'}
+                            strokeColor='#fa4343'
+                            style={{marginLeft: '5%'}}
+                            data={earlyStoppingElapsedTimeData}/>
+                    </Card>
+                </Col>
+            </Row>
+            <Row gutter={[2, 2]}>
+                <Col span={10} offset={0}>
+
+                        {/*<Table dataSource={featuresDataSource}*/}
+                        {/*       columns={featuresColumns}*/}
+                        {/*       pagination={{defaultPageSize: 5, disabled: false, pageSize: 5}}*/}
+                        {/*       showHeader={false}/>*/}
+                        {/*<ConfigurationCard*/}
+                        {/*    configurationData={{*/}
+                        {/*    "Begin time": 10,*/}
+                        {/*    "Finished time": 10,*/}
+                        {/*    "Elapsed": 10,*/}
+                        {/*    "Status": 10,*/}
+                        {/*}} configurationTip={*/}
+                        {/*    {*/}
+                        {/*        "Begin time": 10,*/}
+                        {/*        "Finished time": 10,*/}
+                        {/*        "Elapsed": 10,*/}
+                        {/*        "Status": 10,*/}
+                        {/*    }*/}
+                        {/*}/>*/}
+                    <StepStatusCard
+                        stepData={stepData}
+                    />
+                </Col>
+                <Col span={10} offset={2}>
+                    <FeatureNumCard stepData={stepData} hasOutput={false}/>
+                </Col>
+            </Row>
+        </>
+    }
 }
 

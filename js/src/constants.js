@@ -1,3 +1,6 @@
+export const TWO_STAGE_SUFFIX = '(Two-stage)';
+
+
 export const Steps = {
     DataCleaning: {
         name: 'Data cleaning',
@@ -60,7 +63,7 @@ export const Steps = {
         }
     },
     PermutationImportanceSelection: {
-        name: 'Permutation importance selection',
+        name: 'Feature selection' + TWO_STAGE_SUFFIX,
         type: 'PermutationImportanceSelectionStep',
         configTip: {
             estimator_size: "The number of estimator to evaluate feature importance. Only valid when *feature_reselection* is True.",
@@ -69,11 +72,6 @@ export const Steps = {
             quantile: "Confidence quantile of feature_importance. Only valid when *feature_reselection_strategy* is 'quantile'.",
             number: "Expected feature number to keep. Only valid when *feature_reselection_strategy* is 'number'."
         }
-    },
-    TwoStageSpaceSearch: {
-        name: 'Two-stage pipeline optimization',
-        type: 'SpaceSearchStep',
-        key: 'two_stage_searching'
     },
     FinalTrain: {
         name: 'Final train',
@@ -107,6 +105,7 @@ export const StepStatus = {
   Wait: 'wait',
   Process: 'process',
   Finish: 'finish',
+  Skip: 'skip',
   Error: 'error'
 };
 

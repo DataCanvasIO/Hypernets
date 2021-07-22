@@ -66,13 +66,10 @@ class EchartsCore extends Component {
   getEchartsInstance = () => this.echartsLib.getInstanceByDom(this.echartsElement) || this.echartsLib.init(this.echartsElement, this.props.theme, this.props.opts)
 
   renderEchartDom = () => {
-    const  now = new Date().getSeconds();
+    // const  now = new Date().getSeconds();
     this.prepare(echarts);
-    console.info(" Prepare took: " + (new Date().getSeconds() - now));
+    // console.info(" Prepare took: " + (new Date().getSeconds() - now));  // prepare does not take a long time usually
     const echartsObj = this.getEchartsInstance();
-
-    // echarts.use([LineChart]);
-    // echarts.use([TooltipComponent, GridComponent, LineChart]);
 
     console.info("option: ");
     console.info(this.props.option);
@@ -83,16 +80,35 @@ class EchartsCore extends Component {
     if(onClickFunc !== null && onClickFunc !== undefined){
       echartsObj.on('click', onClickFunc);
     }
-
-    window.addEventListener('resize', () => {
-      if (echartsObj) echartsObj.resize();
-    });
+    // 4. on resize
+    if (this.ele) {
+        bind(this.ele, () => {
+          try {
+            if(!echartsObj.isDisposed()){
+              echartsObj.resize();
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        });
+      }
+    // window.addEventListener('resize', () => {
+    //   if (echartsObj) {
+    //     echartsObj.resize();
+    //   }
+    // });
     if (this.props.showLoading) echartsObj.showLoading(this.props.loadingOption || null);
     else echartsObj.hideLoading();
     return echartsObj;
   };
 
   dispose = () => {
+    console.info("dispose echarts obj .");
+    const echartsObj = this.getEchartsInstance();
+    console.info(echartsObj.isDisposed());
+    console.info(echartsObj.id);
+    console.info(echartsObj);
+
     if (this.echartsElement) {
       try {
         clear(this.echartsElement);
@@ -100,6 +116,7 @@ class EchartsCore extends Component {
         console.warn(e);
       }
       this.echartsLib.dispose(this.echartsElement);
+      this.echartsLib = null;
     }
   };
 
@@ -107,6 +124,7 @@ class EchartsCore extends Component {
     const { onEvents, onChartReady } = this.props;
     const echartsObj = this.renderEchartDom();
     this.bindEvents(echartsObj, onEvents || {});
+
     if (typeof onChartReady === 'function') this.props.onChartReady(echartsObj);
     // if (this.echartsElement) {
     //   bind( () => {
@@ -135,18 +153,18 @@ class EchartsCore extends Component {
   };
 
   render() {
+    console.info("echarts render: ");
     const { style, className } = this.props;
     const styleConfig = {
       height: 300,
       ...style,
     };
-    return (
-      <div
+    const d = <div
         ref={(e) => { this.echartsElement = e; }}
         style={styleConfig}
         className={className}
-      />
-    );
+      />;
+    return (d)
   }
 }
 
