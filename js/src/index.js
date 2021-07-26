@@ -2,9 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { ExperimentSummary } from './pages/experimentSummary'
 import { Steps } from "./constants";
+import { prepareExperimentData } from "./components/prepare";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
-import { getInitData, sendFinishData } from './mock/pseudoStepMockData.js'
+import { getInitData, sendFinishData } from './mock/spaceSearchMockData.js'
 import { datasetMockData, datasetMockDataClassification } from './mock/plotDatasetMockData.js'
 import { experimentConfigMockData } from './mock/experimentConfigMockData'
 import { Provider } from "react-redux"
@@ -19,16 +20,18 @@ export function renderDatasetSummary(data, domElement){
     );
 }
 
-export function renderExperimentSummary(data, domElement){
+export function renderExperimentSummary(experimentData, domElement){
+    const fixedExperimentData = prepareExperimentData(experimentData);
     ReactDOM.render(
-        <ExperimentSummary experimentData={data}/>,
+        <ExperimentSummary experimentData={fixedExperimentData}/>,
         domElement
     );
 }
 
 
 export function renderExperimentProcess(experimentData, domElement) {
-    const store = createStore(experimentReducer, experimentData);
+    const fixedExperimentData = prepareExperimentData(experimentData);
+    const store = createStore(experimentReducer, fixedExperimentData);
     ReactDOM.render(
         <Provider store={store}>
             <ExperimentUIContainer/>

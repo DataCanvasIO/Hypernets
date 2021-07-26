@@ -40,7 +40,7 @@ export function sendFinishData(store, delay = 2000) {
             type: 'stepFinished',
             payload: {
                 index: 0,
-                status: StepStatus.Skip,
+                status: StepStatus.Finish,
                 end_datetime: 1626419128,
                 extension: {
                     features: {
@@ -48,7 +48,9 @@ export function sendFinishData(store, delay = 2000) {
                         outputs: null,
                         increased: null,
                         reduced: null
-                    }
+                    },
+                    scores: [0.1, 0.3],
+                    weights: [0.1, 0.3],
                 }
             }
         })

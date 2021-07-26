@@ -13,21 +13,15 @@ import {
     DataCleaningStep,
     FinalTrainStep,
     GeneralImportanceSelectionStep,
-    FeatureGenerationStep
+    FeatureGenerationStep,
+    PipelineOptimizationStep
 } from '../components/steps'
 
-import { Steps, StepStatus, TWO_STAGE_SUFFIX } from '../constants'
-import { PipelineOptimizationStep} from '../components/pipelineSearchStep'
+import { Steps, StepStatus, ProgressBarStatus } from '../constants'
+
 
 const { Step } = AntdSteps;
 
-
-const ProgressBarStatus = {
-    Success: 'success',
-    Exception : 'exception',
-    Normal : 'normal',
-    Active : 'active',
-};
 
 export function ExperimentUI ({experimentData, dispatch} ) {
 
@@ -78,48 +72,11 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         return (((lastFinishedStepIndex + 1) / steps.length) * 100).toFixed(0);
     };
 
-    const add = (counter, key) => {
-        const v = counter[key];
-        if(v === undefined || v === null){
-            counter[key] = 1
-        }else{
-            counter[key] = v + 1;
-        }
-    };
-
-    // step type count
-    const stepsCounter = {};
 
     experimentData.steps.forEach(stepData=> {
         const stepType = stepData.type;
-
-        // check type
-        var found = false;
-        var stepMetaData = null;
-        Object.keys(Steps).forEach(k => {
-            if(Steps[k].type === stepType){
-                found = true;
-                stepMetaData = Steps[k];
-            }
-        });
-
-        if(found === false){
-            console.error("Unseen step type: " + stepType);
-            return ;
-        }
-        add(stepsCounter, stepType);
-        const stepCount = stepsCounter[stepType];
-
-        // set step ui title
-        const stepName = stepMetaData.name;
-        let stepTitle ;
-        if (stepCount > 1){
-            stepTitle = stepName + TWO_STAGE_SUFFIX
-        }else {
-            stepTitle = stepName;
-        }
-
-        // set step status
+        const stepMetaData = stepData.meta;
+        const stepTitle = stepData.displayName;
         const stepUIStatus = getStepUIStatus(stepData.status);
 
         const getComponent = (stepType) => {
@@ -137,7 +94,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
                 return GeneralImportanceSelectionStep;
             }  else if(stepType  === Steps.PermutationImportanceSelection.type){
                 return GeneralImportanceSelectionStep;
-            } else if(stepType  === Steps.PsudoLabeling.type){
+            } else if(stepType  === Steps.PseudoLabeling.type){
                 return PseudoLabelStep
             } else if(stepType  === Steps.FinalTrain.type){
                 return FinalTrainStep ;
@@ -156,7 +113,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
              return ;
         }
 
-        const stepStyle = {marginLeft: 20, marginRight: 20};
+        const stepStyle = { marginLeft: 20, marginRight: 20 };
         stepTabComponents.push(
             <Step status={stepUIStatus} title={stepTitle} key={`step_${stepTitle}`} style={stepStyle} />
         );
@@ -170,15 +127,14 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         setCurrentStepIndex(c);
     };
 
-    return <Card title="Experiment progress" bordered={false} style={{ width: '100%' }}>
+    return <Card title="Experiment progress" bordered={false} style={{ width: '85%', alignContent: 'center' }}>
             <Progress percent={  getProcessPercentage(steps) } status={ getProcessBarStatus (steps)} />
-            <div style={ {width: '100%', overflowX: 'auto', marginTop:10 }}>
+            <div style={ { overflowX: 'auto', marginTop:10 }}>
                 <AntdSteps
                     type="navigation"
                     size="small"
                     current={currentStepIndex}
                     onChange={onStepChange}
-                    style={{width: stepTabComponents.length * 250 }}
                 >
                     {stepTabComponents}
                 </AntdSteps>

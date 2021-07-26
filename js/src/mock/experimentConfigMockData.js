@@ -42,5 +42,24 @@ export const experimentConfigMockData = {
         "extension": {},
         "start_datetime": null,
         "end_datetime": null
-    }]
+    }, {
+        "index": 3,
+        "name": "space_searching",
+        "type": "SpaceSearchStep",
+        "status": null,
+        "configuration": {"cv": true, "name": "space_searching", "num_folds": 3},
+        "extension": {},
+        "start_datetime": null,
+        "end_datetime": null
+    }, {
+        "index": 4,
+        "name": "final_ensemble",
+        "type": "EnsembleStep",
+        "status": null,
+        "configuration": {"ensemble_size": 20, "name": "final_ensemble", "scorer": null},
+        "extension": {},
+        "start_datetime": null,
+        "end_datetime": null
+    }
+    ]
 };

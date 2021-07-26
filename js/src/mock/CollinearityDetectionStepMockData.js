@@ -26,7 +26,15 @@ export function sendFinishData(store, delay = 1000) {
                 type: 'stepFinished',
                 payload: {
                     index: 0,
-                    extension: {unselected_features: [{"removed": "age", "reserved": "data"}]} ,
+                    extension: {
+                        unselected_features: [{"removed": "age请问饿饿饿饿饿饿饿饿饿饿qewwwwwwwwwwwwwwwwwwwww", "reserved": "data"}],
+                        features: {
+                            inputs: ['name', 'age'],
+                            outputs: ['name', 'age'],
+                            increased: [],
+                            reduced: []
+                        },
+                    } ,
                     status: StepStatus.Finish,
                     end_datetime: 1626519128
                 }

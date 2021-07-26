@@ -5,9 +5,9 @@ export function getInitData(CV=false) {
     return {
         steps: [
             {
-                "name": Steps.PsudoLabeling.type,
+                "name": Steps.PseudoLabeling.type,
                 "index": 0,
-                "type": Steps.PsudoLabeling.type,
+                "type": Steps.PseudoLabeling.type,
                 "status": "wait",
                 "configuration": {
                     "proba_threshold": 0.8,

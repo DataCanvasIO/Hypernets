@@ -53,8 +53,8 @@ export const Steps = {
         }
         // drift_detection
     },
-    PsudoLabeling: {
-        name: 'Psudo labeling',
+    PseudoLabeling: {
+        name: 'Pseudo labeling',
         type: 'PseudoLabelStep',
         configTip: {
             proba_threshold: "Confidence threshold of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'threshold'.",
@@ -109,6 +109,13 @@ export const StepStatus = {
   Error: 'error'
 };
 
+export const ProgressBarStatus = {
+    Success: 'success',
+    Exception : 'exception',
+    Normal : 'normal',
+    Active : 'active',
+};
+
 export const ActionType = {
     EarlyStopped: 'earlyStopped',
     StepFinished: 'stepFinished',
@@ -124,5 +131,5 @@ export const ActionType = {
 export const MAX_FEATURES_OF_IMPORTANCES = 10;
 
 export const COMPONENT_SIZE = 'small';
-export const TABLE_ITEM_SIZE = '5';
+export const TABLE_ITEM_SIZE = 5;
 

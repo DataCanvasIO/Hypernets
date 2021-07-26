@@ -3,6 +3,7 @@ import numpy as np
 import copy
 
 import pandas as pd
+import numpy as np
 
 
 class StepType:
@@ -143,12 +144,13 @@ class Extractor:
     def get_output_features(self):
         return None
 
-    def get_extension(self):
+    def get_extension(self, copy_ext=True):
         if get_step_status(self.step) != StepStatus.Finish:
             return {}
         else:
-            extension = copy.deepcopy(self.step.get_fitted_params())
-            import numpy as np
+            extension = self.step.get_fitted_params()
+            if copy_ext:
+                extension = copy.deepcopy(extension)
             if isinstance(self.step.input_features_, np.ndarray):
                 _inputs_list = self.step.input_features_.tolist()
             else:
@@ -168,20 +170,32 @@ class Extractor:
                 'increased': increased,
                 'reduced': reduced
             }
-
             extension['features'] = features_data
             return self.handle_extenion(extension)
 
     def handle_extenion(self, extension):
         return extension
 
-class extract_data_clean_step(Extractor):
+class ABS_FeatureSelectionStepExtractor(Extractor):
+
+    def get_output_features(self):
+        selected_features = self.step.selected_features_  #
+        if selected_features is None:
+            return self.step.input_features_
+        else:
+            return selected_features
+
+class extract_data_clean_step(ABS_FeatureSelectionStepExtractor):
     def get_output_features(self):
         return self.step.input_features_
 
 class extract_feature_generation_step(Extractor):
     def get_output_features(self):
-        return self.step.transformer_.transformed_feature_names_
+        output_features = self.step.transformer_.transformed_feature_names_
+        if output_features is None:
+            return self.step.input_features_
+        else:
+            return output_features
 
     def handle_extenion(self, extension):
         transformer = self.step.transformer_
@@ -215,9 +229,7 @@ class extract_feature_generation_step(Extractor):
         extension = {"outputFeatures": output_features , 'features': extension['features']}
         return extension
 
-class extract_drift_step(Extractor):
-    def get_output_features(self):
-        return self.step.selected_features_
+class extract_drift_step(ABS_FeatureSelectionStepExtractor):
 
     def handle_extenion(self, extension):
         config = super(extract_drift_step, self).get_configuration()
@@ -262,10 +274,7 @@ class extract_drift_step(Extractor):
         del extension['history']
         return extension
 
-class abs_feature_selection_step(Extractor):
-
-    def get_output_features(self):
-        return self.step.selected_features_
+class abs_feature_selection_step(ABS_FeatureSelectionStepExtractor):
 
     def build_importances_result_(self, columns, importances_data, selected_features):
         features = []
@@ -288,9 +297,7 @@ class extract_feature_selection_step(abs_feature_selection_step):
         output_extension['features'] = extension['features']
         return output_extension
 
-class extract_multi_linearity_step(Extractor):
-    def get_output_features(self):
-        return self.step.selected_features_
+class extract_multi_linearity_step(ABS_FeatureSelectionStepExtractor):
 
     def handle_extenion(self, extension):
         feature_clusters = extension['feature_clusters']
@@ -367,7 +374,6 @@ class extract_ensemble_step(Extractor):
 
     def get_configuration(self):
         configuration = super(extract_ensemble_step, self).get_configuration()
-        configuration['scorer'] = None
         return configuration
 
     def get_extension(self):
@@ -375,11 +381,13 @@ class extract_ensemble_step(Extractor):
         if get_step_status(self.step) != StepStatus.Finish:
             return {}
         else:
-            extension = super(extract_ensemble_step, self).get_extension()
+            extension = super(extract_ensemble_step, self).get_extension(copy_ext=False)
             ensemble = extension['estimator']
-            extension['weights'] = np.array(ensemble.weights_).tolist()
-            extension['scores'] = np.array(ensemble.scores_).tolist()
-            del extension['estimator']
+            return {
+                'weights': np.array(ensemble.weights_).tolist(),
+                'scores': np.array(ensemble.scores_).tolist(),
+                'features': extension['features']
+            }
             return extension
 
 class extract_psedudo_step(Extractor):
