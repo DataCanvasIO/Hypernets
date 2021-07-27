@@ -15,8 +15,8 @@ import { GridComponent, MarkPointComponent, TooltipComponent, ToolboxComponent, 
 
 import EchartsCore from './echartsCore';
 
-import {formatHumanDate, showNotification, formatFloat, isEmpty} from "../util";
-import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps} from "../constants";
+import {formatHumanDate, showNotification, formatFloat, isEmpty, notEmpty, getOrDefault} from "../util";
+import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps, ActionType} from "../constants";
 
 
 const {TabPane} = Tabs;
@@ -56,6 +56,14 @@ const makeColumn  = (title, dataIndex, key=null, withEllipsis=true)=> {
 };
 
 export function getConfigData(configs, tips) {
+
+    if(isEmpty(configs)){
+        configs = {}
+    }
+    if(isEmpty(tips)){
+        tips = {}
+    }
+
     return Object.keys(configs).map(key => {
         const v = configs[key];
         const tip = tips[key];
@@ -353,8 +361,7 @@ export class BaseStepComponent extends React.Component{
     }
 
     getDisplayConfigData(){
-        const configTip = this.stepData.meta.configTip;
-        return getConfigData(this.stepData.configuration, configTip == null? {}: configTip);
+        return getConfigData(this.stepData.configuration, this.stepData.meta.configTip);
     }
 
 }
@@ -363,7 +370,7 @@ export class StepWithStdConfigAndStatusAndFeatureCard extends BaseStepComponent{
 
     getBasicCards(hasOutput = true){
         const stepData = this.stepData;
-        return <Col span={10}>
+        return <Col span={11}>
             <Row gutter={[2, 2]}>
                 <ConfigurationCard configurationData={this.getDisplayConfigData()}/>
             </Row>
@@ -379,6 +386,10 @@ export class StepWithStdConfigAndStatusAndFeatureCard extends BaseStepComponent{
 }
 
 export class DataCleaningStep extends StepWithStdConfigAndStatusAndFeatureCard {
+
+    getDisplayConfigData(){
+        return getConfigData(this.stepData.configuration.data_cleaner_args, this.stepData.meta.configTip);
+    }
 
     render() {
         const stepData = this.props.stepData;
@@ -403,7 +414,7 @@ export class DataCleaningStep extends StepWithStdConfigAndStatusAndFeatureCard {
 
         return <Row gutter={[2, 2]}>
             {this.getBasicCards()}
-            <Col span={10} offset={2}>
+            <Col span={11} offset={2}>
                 <Card title="Removed features" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                     <Table dataSource={removedFeaturesDataSource}
                            columns={removedFeaturesColumns}
@@ -453,7 +464,7 @@ export class FeatureGenerationStep extends StepWithStdConfigAndStatusAndFeatureC
 
         return <Row gutter={[2, 2]}>
             {this.getBasicCards()}
-            <Col span={10} offset={2}>
+            <Col span={11} offset={2}>
                 <Card title="Output features" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                     <Table dataSource={dataSource}
                            columns={columns}
@@ -494,7 +505,7 @@ export class CollinearityDetectionStep extends StepWithStdConfigAndStatusAndFeat
 
         return <Row gutter={[2, 2]}>
             {this.getBasicCards()}
-            <Col span={10} offset={2}>
+            <Col span={11} offset={2}>
                 <Card title="Removed features" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                     <Table dataSource={dataSource}
                            columns={columns}
@@ -545,7 +556,7 @@ export class DriftDetectionStep extends StepWithStdConfigAndStatusAndFeatureCard
 
         return <Row gutter={[2, 2]}>
             {this.getBasicCards()}
-            <Col span={10} offset={2}>
+            <Col span={11} offset={2}>
                 <Row gutter={[2, 2]}>
                     <Col span={24}>
                         <Card title={removeByEvaluateResultTitle} bordered={false} style={{width: '100%'}}
@@ -649,7 +660,7 @@ export class GeneralImportanceSelectionStep extends StepWithStdConfigAndStatusAn
         return <Row gutter={[2, 2]}>
             {this.getBasicCards()}
 
-            <Col span={10} offset={2}>
+            <Col span={11} offset={2}>
                 <Card title="Importances" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                     <Table dataSource={dataSource}
                            columns={columns}
@@ -910,7 +921,7 @@ export class EnsembleStep extends StepWithStdConfigAndStatusAndFeatureCard {
             return <>
                 <Row gutter={[2, 2]}>
                      {this.getBasicCards( false)}
-                    <Col span={10} offset={2}>
+                    <Col span={11} offset={2}>
                         <Row gutter={[2, 2]}>
                             <Card title="Weight" bordered={false} style={{width: '100%'}} size={COMPONENT_SIZE}>
                                 <EchartsCore option={getWeightsEchartOpts()} prepare={echarts => {
@@ -1269,10 +1280,6 @@ TrialChart.defaultProps = {
 };
 
 
-function notEmpty(obj) {
-    return obj !== undefined && obj !== null;
-}
-
 /***
  *
  * @param importances  [[{'name': 'age', 'imp': 0.6}]]
@@ -1351,265 +1358,239 @@ function CircleProgress({title, style, strokeColor, data}) {
     </Tooltip>
 }
 
-export function getPipelineOptimizationStepDisplayConfig(stepData) {
-    const outputs = {...stepData.configuration,
-        "earlyStoppingEnable": stepData.configuration.earlyStopping.enable};
-    delete outputs['earlyStopping'];  // do not display es
-    return outputs
-}
-
-export function PipelineOptimizationStep({stepData}){
-
-    const [importanceData, setImportanceData] = useState([[]]);
-    // const [trialsProcessData, setTrialsProcessData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-    // const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-    // const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-    // const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-
-    const ES_EMPTY = {percent: 0, value: '-', tip: 'Empty data'};
-    const ES_DISABLED = {percent: 0, value: '-', tip: 'EarlyStopping is disabled '};
-
-    const earlyStoppingConfig = stepData.configuration.earlyStopping;
-    const earlyStoppingStatus = stepData.extension.earlyStopping;
+export class PipelineOptimizationStep extends BaseStepComponent {
 
 
-    const trailsData = stepData.extension.trials;
-
-    var lastTrial;
-    if(trailsData !== undefined && trailsData !== null && trailsData.length > 0){
-        lastTrial =  trailsData[trailsData.length-1]
-    }else{
-        lastTrial = null;
+    getDisplayConfigData() {
+        const outputs = {...this.stepData.configuration,
+            "earlyStoppingEnable": this.stepData.configuration.earlyStopping.enable};
+        delete outputs['earlyStopping'];  // do not display es
+        const configTip = this.stepData.meta.configTip;
+        return getConfigData(outputs, configTip == null ? {} : configTip);
     }
 
-    // SearchSpaceStep的配置数据要剔除EarlyStopping数据
-    const configurationForPanelObj = getPipelineOptimizationStepDisplayConfig(stepData);
-    const configurationForPanel =  getConfigData(configurationForPanelObj, Steps.SpaceSearch.configTip);
+    render() {
+        const stepData = this.stepData;
+        // const [trialsProcessData, setTrialsProcessData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+        // const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+        // const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
+        // const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
 
-    useEffect(() => {
-        if(lastTrial !== null){
-            setImportanceData(lastTrial.models.map(m => m.importances));
-        }
-    }, [lastTrial]);
+        const ES_EMPTY = {percent: 0, value: '-', tip: 'Empty data'};
+        const ES_DISABLED = {percent: 0, value: '-', tip: 'EarlyStopping is disabled '};
 
-    const getESData = (func, earlyStoppingConfig, earlyStoppingStatus) => {
-        // check enabled es
-        const {enable} = earlyStoppingConfig;
-        if(enable !== true){
-            return ES_DISABLED;
-        }
-        if(earlyStoppingStatus !== undefined && earlyStoppingStatus !== null){
-            return func(earlyStoppingConfig, earlyStoppingStatus)
-        }else{
-            // es data may be null
-            return ES_EMPTY
-        }
-    };
+        const earlyStoppingConfig = stepData.configuration.earlyStopping;
+        const earlyStoppingStatus = stepData.extension.earlyStopping;
 
-    const getEarlyStoppingTrialsData = (earlyStoppingConfig, earlyStoppingStatus) => {
-        const { maxNoImprovedTrials } = earlyStoppingConfig;
-        const { counterNoImprovementTrials } = earlyStoppingStatus;
-        let percent;
-        let tip;
-        let value;
-        if(maxNoImprovedTrials !== undefined && maxNoImprovedTrials !== null && maxNoImprovedTrials > 0){
-            // early stopping by trials num  is opening
-            percent = (counterNoImprovementTrials / maxNoImprovedTrials) * 100;
-            value = counterNoImprovementTrials;
-            tip =  `Max no improved trials is ${maxNoImprovedTrials}, now is ${value}`;
-        }else{
-            percent = 0;
-            value = '-';
-            tip = `This strategy is off`;
+        const trailsData = stepData.extension.trials;
+        const selectedTrialNo = getOrDefault(stepData.extension.selectedTrialNo, -1);
+        let importanceData;
+        let lastTrial;
+        if(trailsData !== undefined && trailsData !== null && trailsData.length > 0){
+            lastTrial =  trailsData[trailsData.length-1];
+            var selectedTrailData = null ;
+            if(selectedTrialNo !== -1){
+                trailsData.forEach(trial => {
+                    if(trial.trialNo === selectedTrialNo){
+                        selectedTrailData = trial;
+                    }
+                });
+            }else{
+                selectedTrailData = trailsData[trailsData.length-1];
+            }
+            if(notEmpty(selectedTrailData)){
+                importanceData = selectedTrailData.models.map(m => m.importances)
+            }else {
+                importanceData = [[]]
+            }
+        } else {
+            lastTrial = null;
+            importanceData = [[]]
         }
-        return {percent, value, tip}
-    };
-    const getEarlyStoppingRewardData = (earlyStoppingConfig, earlyStoppingStatus) => {
-        const {exceptedReward, mode} = earlyStoppingConfig;
-        const {bestReward } = earlyStoppingStatus;
-        let percent;
-        let tip;
-        let value;
-        if(exceptedReward !== undefined && exceptedReward !== null){
-            // early stopping is opening
-            if(mode === 'max'){
-                if(bestReward !== undefined && bestReward !== null){
-                    percent = (bestReward / exceptedReward) * 100;
-                    value = formatFloat(bestReward, 4)
-                }
+        //
+
+        const configurationForPanel =  this.getDisplayConfigData();
+
+        const getESData = (func, earlyStoppingConfig, earlyStoppingStatus) => {
+            // check enabled es
+            const {enable} = earlyStoppingConfig;
+            if(enable !== true){
+                return ES_DISABLED;
+            }
+            if(earlyStoppingStatus !== undefined && earlyStoppingStatus !== null){
+                return func(earlyStoppingConfig, earlyStoppingStatus)
+            }else{
+                // es data may be null
+                return ES_EMPTY
+            }
+        };
+
+        const getEarlyStoppingTrialsData = (earlyStoppingConfig, earlyStoppingStatus) => {
+            const { maxNoImprovedTrials } = earlyStoppingConfig;
+            const { counterNoImprovementTrials } = earlyStoppingStatus;
+            let percent;
+            let tip;
+            let value;
+            if(maxNoImprovedTrials !== undefined && maxNoImprovedTrials !== null && maxNoImprovedTrials > 0){
+                // early stopping by trials num  is opening
+                percent = (counterNoImprovementTrials / maxNoImprovedTrials) * 100;
+                value = counterNoImprovementTrials;
+                tip =  `Max no improved trials is ${maxNoImprovedTrials}, now is ${value}`;
             }else{
                 percent = 0;
-                if(bestReward !== undefined && bestReward !== null){
-                    value = bestReward;
+                value = '-';
+                tip = `This strategy is off`;
+            }
+            return {percent, value, tip}
+        };
+        const getEarlyStoppingRewardData = (earlyStoppingConfig, earlyStoppingStatus) => {
+            const {exceptedReward, mode} = earlyStoppingConfig;
+            const {bestReward } = earlyStoppingStatus;
+            let percent;
+            let tip;
+            let value;
+            if(exceptedReward !== undefined && exceptedReward !== null){
+                // early stopping is opening
+                if(mode === 'max'){
+                    if(bestReward !== undefined && bestReward !== null){
+                        percent = (bestReward / exceptedReward) * 100;
+                        value = formatFloat(bestReward, 4)
+                    }
                 }else{
-                    value = '-';
+                    percent = 0;
+                    if(bestReward !== undefined && bestReward !== null){
+                        value = bestReward;
+                    }else{
+                        value = '-';
+                    }
                 }
-            }
-            tip = `Excepted reward is ${exceptedReward}, now best reward is ${value}`;
-        }else{
-            percent = 0;
-            value = '-';
-            tip = `This strategy is off`;
-        }
-        return {percent, value, tip}
-    };
-    const getEarlyStoppingElapsedTimeData = (earlyStoppingConfig, earlyStoppingStatus) => {
-        const { timeLimit } = earlyStoppingConfig;
-        const { elapsedTime } = earlyStoppingStatus;
-        let percent;
-        let tip;
-        let value;
-        if(timeLimit !== undefined && timeLimit !== null && timeLimit > 0){
-            // early stopping by trials num  is opening
-            percent = (elapsedTime / timeLimit) * 100;
-            value = formatHumanDate(elapsedTime);
-            tip =  `Limited time is ${formatHumanDate(timeLimit)}, now running for ${value}`;
-        } else {
-            percent = 0;
-            value = '-';
-            tip = `This strategy is off`;
-        }
-        return {percent, value, tip}
-    };
-
-    const getTrialsProcessData = (maxTrials, lastTrial) => {
-        // const finishedTrials = lastTrial.trialNo ;
-        // const maxTrials = stepData.extension.maxTrials
-
-        if(maxTrials !== undefined && maxTrials !== null ){
-            if(lastTrial !== undefined && lastTrial !== null){
-                const finishedTrials = lastTrial.trialNo;
-                const tip = `Max trials is ${maxTrials}, we've searched ${finishedTrials} time(s)`;
-                return {percent: (finishedTrials / maxTrials)*100 , value: finishedTrials, tip: tip}
+                tip = `Excepted reward is ${exceptedReward}, now best reward is ${value}`;
             }else{
-                return {percent: 0 , value: 0, tip: `Max trials is ${maxTrials}, but no finished trials yet`}
+                percent = 0;
+                value = '-';
+                tip = `This strategy is off`;
             }
+            return {percent, value, tip}
+        };
+        const getEarlyStoppingElapsedTimeData = (earlyStoppingConfig, earlyStoppingStatus) => {
+            const { timeLimit } = earlyStoppingConfig;
+            const { elapsedTime } = earlyStoppingStatus;
+            let percent;
+            let tip;
+            let value;
+            if(timeLimit !== undefined && timeLimit !== null && timeLimit > 0){
+                // early stopping by trials num  is opening
+                percent = (elapsedTime / timeLimit) * 100;
+                value = formatHumanDate(elapsedTime);
+                tip =  `Limited time is ${formatHumanDate(timeLimit)}, now running for ${value}`;
+            } else {
+                percent = 0;
+                value = '-';
+                tip = `This strategy is off`;
+            }
+            return {percent, value, tip}
+        };
+
+        const getTrialsProcessData = (maxTrials, lastTrial) => {
+            // const finishedTrials = lastTrial.trialNo ;
+            // const maxTrials = stepData.extension.maxTrials
+
+            if(maxTrials !== undefined && maxTrials !== null ){
+                if(lastTrial !== undefined && lastTrial !== null){
+                    const finishedTrials = lastTrial.trialNo;
+                    const tip = `Max trials is ${maxTrials}, we've searched ${finishedTrials} time(s)`;
+                    return {percent: (finishedTrials / maxTrials)*100 , value: finishedTrials, tip: tip}
+                }else{
+                    return {percent: 0 , value: 0, tip: `Max trials is ${maxTrials}, but no finished trials yet`}
+                }
+            }else {
+                return {percent: 0 , value: 0, tip: "maxTrials is null"}
+            }
+        };
+
+        const earlyStoppingTrialsData = getESData(getEarlyStoppingTrialsData, earlyStoppingConfig, earlyStoppingStatus);
+        const earlyStoppingRewardData = getESData(getEarlyStoppingRewardData, earlyStoppingConfig, earlyStoppingStatus);
+        const earlyStoppingElapsedTimeData = getESData(getEarlyStoppingElapsedTimeData, earlyStoppingConfig, earlyStoppingStatus);
+        const trialsProcessData = getTrialsProcessData(stepData.extension.maxTrials, lastTrial);
+
+        const onTrialClick = (trialNo, modelIndex) => {
+            this.props.dispatch({
+                type: ActionType.FeatureImportanceChange,
+                payload: {
+                    stepIndex: stepData.index,
+                    selectedTrialNo: trialNo
+                }
+            });
+        };
+
+        if(stepData.status === StepStatus.Skip) {
+            return <SkippedStepContent />
         }else {
-            return {percent: 0 , value: 0, tip: "maxTrials is null"}
-        }
-    };
-
-    const earlyStoppingTrialsData = getESData(getEarlyStoppingTrialsData, earlyStoppingConfig, earlyStoppingStatus);
-    const earlyStoppingRewardData = getESData(getEarlyStoppingRewardData, earlyStoppingConfig, earlyStoppingStatus);
-    const earlyStoppingElapsedTimeData = getESData(getEarlyStoppingElapsedTimeData, earlyStoppingConfig, earlyStoppingStatus);
-    const trialsProcessData = getTrialsProcessData(stepData.extension.maxTrials, lastTrial);
-
-    const onTrialClick = (trialNo, modelIndex) => {
-        const trials = stepData.extension.trials;
-        trials.forEach(trial => {
-            if(trial.trialNo === trialNo){
-                setImportanceData(trial.models.map(m => m.importances))
-            }
-        });
-    };
-
-    let featuresDataSource;
-    if(stepData.status === StepStatus.Finish){
-        featuresDataSource = stepData.extension.input_features.map((value, index, arr) => {
-            return {
-                key: index,
-                name: value,
-                index: index
-            }
-        });
-    }else{
-        featuresDataSource = null;
-    }
-
-    const featuresColumns = [
-        {
-            title: 'Name',
-            dataIndex: 'name',
-            key: 'name',
-        }
-    ];
-
-    if(stepData.status === StepStatus.Skip) {
-        return <SkippedStepContent />
-    }else {
-        return <><Row gutter={[2, 2]}>
-            <Col span={22}>
-                <Card title="Search trials" bordered={false} style={{width: '100%'}} size={'small'}>
-                    <Row>
-                        <Col span={10}>
-                            <TrialChart
-                                trials={trailsData}
-                                stepConfig={stepData.configuration}
-                                onTrialClick={onTrialClick}
-                            />
+            return <>
+                    <Row gutter={[2, 2]}>
+                        <Col span={24}>
+                            <Card title="Search trials" bordered={false} size={'small'}>
+                                <Row>
+                                    <Col span={12}>
+                                        <TrialChart
+                                            trials={trailsData}
+                                            stepConfig={stepData.configuration}
+                                            onTrialClick={onTrialClick}
+                                        />
+                                    </Col>
+                                    <Col span={12} offset={0}>
+                                        <ImportanceBarChart
+                                            importances={importanceData}
+                                        />
+                                    </Col>
+                                </Row>
+                            </Card>
                         </Col>
-                        <Col span={10} offset={0}>
-                            <ImportanceBarChart
-                                importances={importanceData}
+                </Row>
+                <Row gutter={[2, 2]}>
+                    <Col span={11} offset={0}>
+                        <ConfigurationCard configurationData={configurationForPanel}
+                                           configurationTip={Steps.SpaceSearch.configTip}/>
+                    </Col>
+                    <Col span={11} offset={2}>
+                        <Card title="Search progress" bordered={false}
+                              style={{width: '100%', marginRight: 0, paddingRight: 0}} size={'small'}>
+                            <CircleProgress
+                                title={'Trials'}
+                                strokeColor='#2db7f5'
+                                data={trialsProcessData}
                             />
-                        </Col>
-                    </Row>
-                </Card>
-            </Col>
-
-        </Row>
-            <Row gutter={[2, 2]}>
-                <Col span={10} offset={0}>
-                    <ConfigurationCard configurationData={configurationForPanel}
-                                       configurationTip={Steps.SpaceSearch.configTip}/>
-                </Col>
-                <Col span={10} offset={0}>
-                    <Card title="Search progress" bordered={false}
-                          style={{width: '100%', marginRight: 0, paddingRight: 0}} size={'small'}>
-                        <CircleProgress
-                            title={'Trials'}
-                            strokeColor='#2db7f5'
-                            data={trialsProcessData}
+                            <CircleProgress
+                                title={'Reward'}
+                                strokeColor='#6ca30f'
+                                style={{marginLeft: '5%'}}
+                                data={earlyStoppingRewardData}
+                            />
+                            <CircleProgress
+                                title={'Not improve'}
+                                strokeColor='#0e72cc'
+                                style={{marginLeft: '5%'}}
+                                data={earlyStoppingTrialsData}/>
+                            <CircleProgress
+                                title={'Time'}
+                                strokeColor='#fa4343'
+                                style={{marginLeft: '5%'}}
+                                data={earlyStoppingElapsedTimeData}/>
+                        </Card>
+                    </Col>
+                </Row>
+                <Row gutter={[2, 2]}>
+                    <Col span={11} offset={0}>
+                        <StepStatusCard
+                            stepData={stepData}
                         />
-                        <CircleProgress
-                            title={'Reward'}
-                            strokeColor='#6ca30f'
-                            style={{marginLeft: '5%'}}
-                            data={earlyStoppingRewardData}
-                        />
-                        <CircleProgress
-                            title={'Not improve'}
-                            strokeColor='#0e72cc'
-                            style={{marginLeft: '5%'}}
-                            data={earlyStoppingTrialsData}/>
-                        <CircleProgress
-                            title={'Time'}
-                            strokeColor='#fa4343'
-                            style={{marginLeft: '5%'}}
-                            data={earlyStoppingElapsedTimeData}/>
-                    </Card>
-                </Col>
-            </Row>
-            <Row gutter={[2, 2]}>
-                <Col span={10} offset={0}>
-
-                    {/*<Table dataSource={featuresDataSource}*/}
-                    {/*       columns={featuresColumns}*/}
-                    {/*       pagination={{defaultPageSize: 5, disabled: false, pageSize: 5}}*/}
-                    {/*       showHeader={false}/>*/}
-                    {/*<ConfigurationCard*/}
-                    {/*    configurationData={{*/}
-                    {/*    "Begin time": 10,*/}
-                    {/*    "Finished time": 10,*/}
-                    {/*    "Elapsed": 10,*/}
-                    {/*    "Status": 10,*/}
-                    {/*}} configurationTip={*/}
-                    {/*    {*/}
-                    {/*        "Begin time": 10,*/}
-                    {/*        "Finished time": 10,*/}
-                    {/*        "Elapsed": 10,*/}
-                    {/*        "Status": 10,*/}
-                    {/*    }*/}
-                    {/*}/>*/}
-                    <StepStatusCard
-                        stepData={stepData}
-                    />
-                </Col>
-                <Col span={10} offset={2}>
-                    <FeatureNumCard stepData={stepData} hasOutput={false}/>
-                </Col>
-            </Row>
-        </>
+                    </Col>
+                    <Col span={11} offset={2}>
+                        <FeatureNumCard stepData={stepData} hasOutput={false}/>
+                    </Col>
+                </Row>
+            </>
+        }
     }
 }
 

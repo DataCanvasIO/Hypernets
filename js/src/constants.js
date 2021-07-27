@@ -123,6 +123,7 @@ export const ActionType = {
     StepError: 'stepError',
     TrialFinished: 'trialFinished',
     ProbaDensityLabelChange: 'probaDensityLabelChange',
+    FeatureImportanceChange: 'featureImportanceChange',
     ExperimentData: 'experimentData'
 };
 

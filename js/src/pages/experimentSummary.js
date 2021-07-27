@@ -1,12 +1,12 @@
 import {Row, Col} from 'antd';
 import * as React from "react";
 import {ConfigurationCard, getConfigData, getStepComponent} from "../components/steps";
-
+import { prepareExperimentData } from '../components/prepare';
 import {showNotification} from "../util";
 
 export function ExperimentSummary ({experimentData, dispatch}) {
 
-    const steps = experimentData.steps;
+    const steps = prepareExperimentData(experimentData).steps;
     if(steps.length < 1){
         showNotification('Step is empty');
         return ;
@@ -41,13 +41,13 @@ export function ExperimentSummary ({experimentData, dispatch}) {
                                 const Comp = getStepComponent(step.type);
                                 let configurationData;
                                 if(Comp !== undefined && Comp !== null){
-                                    configurationData = Comp({stepData: step, dispatch: dispatch}).getDisplayConfigData()
+                                    configurationData = new Comp({stepData: step, dispatch: dispatch}).getDisplayConfigData()
                                 }else{
                                     console.error("Internal error, unhandled step type: " + stepType);
                                     configurationData = {}
                                 }
                                 return <Col span={10} key={indexC} >
-                                    <ConfigurationCard cardTitle={cardTitle} configurationData={getConfigData(configurationData, step.meta.configTip)}/>
+                                    <ConfigurationCard cardTitle={cardTitle} configurationData={configurationData} />
                                 </Col>
                             })
                         }

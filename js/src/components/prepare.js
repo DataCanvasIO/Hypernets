@@ -3,7 +3,7 @@ import {Steps, TWO_STAGE_SUFFIX} from "../constants";
 
 
 export function prepareExperimentData(experimentData) {
-
+    const steps = {...experimentData}.steps; // must clone a copy to avoid modify origin data
     const stepsCounter = {};
     const add = (counter, key) => {
         const v = counter[key];
@@ -14,7 +14,7 @@ export function prepareExperimentData(experimentData) {
         }
     };
 
-    for(const stepData of experimentData.steps){
+    for(const stepData of steps){
         const stepType = stepData.type;
         // check type
         var found = false;
@@ -41,15 +41,6 @@ export function prepareExperimentData(experimentData) {
             stepTitle = stepName + TWO_STAGE_SUFFIX
         } else {
             stepTitle = stepName;
-        }
-
-        // 3. fix config
-        if(stepType === Steps.DataCleaning.type){  // only required by frontend
-            stepData.configuration = stepData.configuration['data_cleaner_args']
-        } else if (stepType === Steps.SpaceSearch.type){
-            // stepData.configuration.earlyStopping = null
-            //
-
         }
 
         stepData['displayName'] = stepTitle;
