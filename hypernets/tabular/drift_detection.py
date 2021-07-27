@@ -4,6 +4,7 @@ __author__ = 'yangjian'
 
 """
 import copy
+import sys
 import time
 
 import dask
@@ -11,6 +12,7 @@ import dask.array as da
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from lightgbm.sklearn import LGBMClassifier
 from sklearn import model_selection as sksel
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, make_scorer
@@ -18,10 +20,12 @@ from sklearn.metrics import roc_auc_score, matthews_corrcoef, make_scorer
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
 from hypernets.utils import logging
+from .cfg import TabularCfg as cfg
 from .general import general_preprocessor, general_estimator
 
 logger = logging.getLogger(__name__)
 
+is_os_windows = sys.platform.find('win') >= 0
 roc_auc_scorer = make_scorer(roc_auc_score, greater_is_better=True, needs_threshold=True)
 matthews_corrcoef_scorer = make_scorer(matthews_corrcoef)
 
@@ -382,23 +386,36 @@ def covariate_shift_score(X_train, X_test, scorer=None, cv=None, copy_data=True)
     # Calculate the shift score for each column separately.
     scores = {}
     logger.info('Scoring...')
-    for c in X_merge.columns:
-        x = X_merge[[c]]
-        if dex.is_dask_dataframe(X_merge):
-            x = x.compute()
-        model = general_estimator(X_merge)
-        if cv is None:
-            mixed_x_train, mixed_x_test, mixed_y_train, mixed_y_test = \
-                sksel.train_test_split(x, y, test_size=0.3, random_state=9527, stratify=y)
-            model.fit(mixed_x_train, mixed_y_train,
-                      eval_set=(mixed_x_test, mixed_y_test),
-                      early_stopping_rounds=20,
-                      verbose=False)
-            score = scorer(model, mixed_x_test, mixed_y_test)
-        else:
-            score_ = sksel.cross_val_score(model, X=x, y=y, verbose=0, scoring=scorer, cv=cv)
-            score = np.mean(score_)
-        logger.info(f'column:{c}, score:{score}')
-        scores[c] = score
+    if dex.is_dask_dataframe(X_merge) or cfg.joblib_njobs in {0, 1}:
+        for c in X_merge.columns:
+            x = X_merge[[c]]
+            if dex.is_dask_dataframe(X_merge):
+                x = x.compute()
+            score = _shift_score(x, y, scorer, cv)
+            logger.info(f'column:{c}, score:{score}')
+            scores[c] = score
+    else:
+        col_parts = [X_merge[[c]] for c in X_merge.columns]
+        options = dict(backend='multiprocessing') if is_os_windows else dict(prefer='processes')
+        pss = Parallel(n_jobs=cfg.joblib_njobs, **options)(delayed(_shift_score)(x, y, scorer, cv) for x in col_parts)
+        scores = {k: v for k, v in zip(X_merge.columns.to_list(), pss)}
+        logger.info(f'scores: {scores}')
 
     return scores
+
+
+def _shift_score(x, y, scorer, cv):
+    model = general_estimator(x)
+    if cv:
+        score_ = sksel.cross_val_score(model, X=x, y=y, verbose=0, scoring=scorer, cv=cv)
+        score = np.mean(score_)
+    else:
+        mixed_x_train, mixed_x_test, mixed_y_train, mixed_y_test = \
+            sksel.train_test_split(x, y, test_size=0.3, random_state=9527, stratify=y)
+        model.fit(mixed_x_train, mixed_y_train,
+                  eval_set=(mixed_x_test, mixed_y_test),
+                  early_stopping_rounds=20,
+                  verbose=False)
+        score = scorer(model, mixed_x_test, mixed_y_test)
+
+    return score
