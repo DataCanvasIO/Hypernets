@@ -846,7 +846,7 @@ class SpaceSearchStep(ExperimentStep):
 class SpaceSearchWithDownSampleStep(SpaceSearchStep):
     def __init__(self, experiment, name, cv=False, num_folds=3,
                  size=None, max_trials=None, time_limit=None):
-        assert size is None or isinstance(size, (int, float))
+        assert size is None or isinstance(size, (int, float, dict))
         assert time_limit is None or isinstance(time_limit, (int, float))
         assert max_trials is None or isinstance(max_trials, int)
 
@@ -861,16 +861,17 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
 
     def search(self, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         # search with down sampled  data
-        X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled = \
-            self.down_sample(X_train, y_train, X_eval, y_eval)
-        if X_eval is not None:
-            kwargs['eval_set'] = (X_eval_sampled, y_eval_sampled)
         key_max_trials = 'max_trials'
 
         model0 = copy.deepcopy(self.experiment.hyper_model)  # copy from original hyper_model instance
         kwargs0 = kwargs.copy()
+        X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled = \
+            self.down_sample(X_train, y_train, X_eval, y_eval)
+        if X_eval_sampled is not None:
+            kwargs0['eval_set'] = (X_eval_sampled, y_eval_sampled)
+
         if self.max_trials is not None:
-            kwargs0[key_max_trials] *= self.max_trials
+            kwargs0[key_max_trials] = self.max_trials
         elif key_max_trials in kwargs.keys():
             kwargs0[key_max_trials] *= 3
         es0 = self.find_early_stopping_callback(model0.callbacks)
@@ -909,7 +910,9 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
                 es.time_limit = math.ceil(time_limit * 0.3)
             es.max_no_improvement_trials = 0
         model.searcher = playback
-        kwargs[key_max_trials] = len(playback.samples)
+        model.discriminator = None  # disable it
+        if isinstance(kwargs.get(key_max_trials), int) and kwargs[key_max_trials] > len(playback.samples):
+            kwargs[key_max_trials] = len(playback.samples)
         if logger.is_info_enabled():
             logger.info(f'playback with full data, max_trails={kwargs.get(key_max_trials)}, {es}')
         model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
@@ -922,22 +925,52 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
 
     def down_sample(self, X_train, y_train, X_eval, y_eval):
         size = self.size if self.size else 0.1
+        task = self.task
+
+        def sample_by_classes(X, y, class_size):
+            if X is None or y is None:
+                return None, None
+
+            name_y = '__experiment_y_tmp__'
+            df = X.copy()
+            df[name_y] = y
+            uniques = set(df[name_y].unique())
+            parts = {c: df[df[name_y] == c] for c in uniques}
+            dfs = [dex.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
+                   if c in class_size.keys() else part
+                   for c, part in parts.items()]
+            df = dex.concat_df(dfs, repartition=True)
+            if isinstance(df, pd.DataFrame):
+                df = df.sample(frac=1.0)
+            logger.warning(f'down_sampled: {df[name_y].value_counts().to_dict()}')
+            y = df.pop(name_y)
+            return df, y
 
         random_state = self.experiment.random_state
-        X_train_sampled, _, y_train_sampled, _ = \
-            dex.train_test_split(X_train, y_train, train_size=size, random_state=random_state)
-        if X_eval is not None:
-            X_eval_sampled, _, y_eval_sampled, _ = \
-                dex.train_test_split(X_eval, y_eval, train_size=size, random_state=random_state)
+        options = {}
+        if isinstance(size, dict):
+            assert task in {const.TASK_BINARY, const.TASK_MULTICLASS}
+            X_train_sampled, y_train_sampled = sample_by_classes(X_train, y_train, size)
+            X_eval_sampled, y_eval_sampled = sample_by_classes(X_eval, y_eval, size)
         else:
-            X_eval_sampled, y_eval_sampled = None, None
+            if task in {const.TASK_BINARY, const.TASK_MULTICLASS} and isinstance(X_train, pd.DataFrame):
+                options['stratify'] = y_train
+            X_train_sampled, _, y_train_sampled, _ = \
+                dex.train_test_split(X_train, y_train, train_size=size, random_state=random_state, **options)
+            if X_eval is not None:
+                if task in {const.TASK_BINARY, const.TASK_MULTICLASS} and isinstance(X_eval, pd.DataFrame):
+                    options['stratify'] = y_eval
+                X_eval_sampled, _, y_eval_sampled, _ = \
+                    dex.train_test_split(X_eval, y_eval, train_size=size, random_state=random_state, **options)
+            else:
+                X_eval_sampled, y_eval_sampled = None, None
 
         return X_train_sampled, y_train_sampled, X_eval_sampled, y_eval_sampled
 
     @staticmethod
     def create_playback_searcher(history):
         from hypernets.searchers import PlaybackSearcher
-        playback = PlaybackSearcher(history, reverse=True)
+        playback = PlaybackSearcher(history, reverse=False)
         return playback
 
     def from_fitted_step(self, fitted_step):
