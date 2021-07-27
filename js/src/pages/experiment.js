@@ -62,8 +62,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
     };
 
     for(var stepData of steps){
-       const stepType = stepData.type;
-        const stepMetaData = stepData.meta;
+        const stepType = stepData.type;
         const stepTitle = stepData.displayName;
         const stepUIStatus = getStepUIStatus(stepData.status);
 
@@ -80,7 +79,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         );
 
         stepContentComponents.push(
-            <StepComp stepData={stepData} dispatch={dispatch} key={`step_comp_${stepTitle}`} configTip={stepMetaData.configTip} />
+            <StepComp stepData={stepData} dispatch={dispatch} key={`step_comp_${stepTitle}`}  />
         );
     }
 

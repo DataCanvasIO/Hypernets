@@ -5,12 +5,12 @@ import { Steps } from "./constants";
 import { prepareExperimentData } from "./components/prepare";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
-import { getInitData, sendFinishData } from './mock/ensembleStepMockData.js'
+import { getInitData, sendFinishData } from './mock/debugData.js'
 import { datasetMockData, datasetMockDataClassification } from './mock/plotDatasetMockData.js'
 import { experimentConfigMockData } from './mock/experimentConfigMockData'
 import { Provider } from "react-redux"
 import { createStore } from "redux"
-import { Result, Button } from 'antd'
+import { Result } from 'antd'
 
 
 export function renderDatasetSummary(data, domElement){
@@ -51,8 +51,8 @@ export function renderLossState(domElement) {
 }
 
 // ----------------------------Test Experiment UI----------------------------------------
-const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
-sendFinishData(store);
+// const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
+// sendFinishData(store);
 // --------------------------------------------------------------------------------------
 
 // ----------------------------Test Dataset----------------------------------------

@@ -16,7 +16,7 @@ import { GridComponent, MarkPointComponent, TooltipComponent, ToolboxComponent, 
 import EchartsCore from './echartsCore';
 
 import {formatHumanDate, showNotification, formatFloat, isEmpty, notEmpty, getOrDefault} from "../util";
-import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, Steps, ActionType} from "../constants";
+import {StepStatus, COMPONENT_SIZE, TABLE_ITEM_SIZE, ActionType, TWO_STAGE_SUFFIX} from "../constants";
 
 
 const {TabPane} = Tabs;
@@ -344,7 +344,7 @@ export function ConfigurationCard({configurationData, cardTitle = CONFIGURATION_
 
 export function SkippedStepContent({style = {marginTop: 20, marginLeft: 20}}) {
 
-    const subTitle = `Step "${Steps.PseudoLabeling.name}" and step "${Steps.PermutationImportanceSelection.name}" have no impact on the dataset.`
+    const subTitle = `Step "${PseudoLabelStep.getTypeName()}" and step "${PermutationImportanceSelectionStep.getTypeName()}" have no impact on the dataset.` // fixme: distribute mode has another name
     return <Result
         style={{...style}}
         status="info"
@@ -355,13 +355,19 @@ export function SkippedStepContent({style = {marginTop: 20, marginLeft: 20}}) {
 
 
 export class BaseStepComponent extends React.Component{
+
+    static getDisplayName() { return null;}
+    static getTypeName() { return  null; }
+    static getConfigTip() { return  {}; }
+    getConfigTip() { return  BaseStepComponent.getConfigTip(); }  // instance can not call static method, so copy to instance
+
     constructor(props) {
         super(props);
         this.stepData = props.stepData;
     }
 
     getDisplayConfigData(){
-        return getConfigData(this.stepData.configuration, this.stepData.meta.configTip);
+        return getConfigData(this.stepData.configuration, this.getConfigTip());
     }
 
 }
@@ -387,8 +393,11 @@ export class StepWithStdConfigAndStatusAndFeatureCard extends BaseStepComponent{
 
 export class DataCleaningStep extends StepWithStdConfigAndStatusAndFeatureCard {
 
+    static getDisplayName() { return "Data cleaning";}
+    static getTypeName() { return  "DataCleanStep"; }
+
     getDisplayConfigData(){
-        return getConfigData(this.stepData.configuration.data_cleaner_args, this.stepData.meta.configTip);
+        return getConfigData(this.stepData.configuration.data_cleaner_args, this.getConfigTip());
     }
 
     render() {
@@ -428,6 +437,18 @@ export class DataCleaningStep extends StepWithStdConfigAndStatusAndFeatureCard {
 }
 
 export class FeatureGenerationStep extends StepWithStdConfigAndStatusAndFeatureCard{
+
+    static getDisplayName() { return "Feature generation";}
+    static getTypeName() { return  "FeatureGenerationStep"; }
+    static getConfigTip() {
+        return {
+            strategy:  "Strategy to select features",
+            threshold:  "Confidence threshold of feature_importance. Only valid when *feature_selection_strategy* is 'threshold'.",
+            quantile:  "Confidence quantile of feature_importance. Only valid when *feature_selection_strategy* is 'quantile'.",
+            number: "Expected feature number to keep. Only valid when *feature_selection_strategy* is 'number'.",
+        }
+    }
+    getConfigTip() { return  FeatureGenerationStep.getConfigTip(); }
 
     render() {
         const stepData = this.stepData;
@@ -482,7 +503,8 @@ export class FeatureGenerationStep extends StepWithStdConfigAndStatusAndFeatureC
 }
 
 export class CollinearityDetectionStep extends StepWithStdConfigAndStatusAndFeatureCard  {
-
+    static getDisplayName() { return "Collinearity detection";}
+    static getTypeName() { return  "MulticollinearityDetectStep"; }
     render() {
         const stepData = this.props.stepData;
         let dataSource;
@@ -517,7 +539,10 @@ export class CollinearityDetectionStep extends StepWithStdConfigAndStatusAndFeat
         </Row>
     }
 }
+
 export class DriftDetectionStep extends StepWithStdConfigAndStatusAndFeatureCard {
+    static getDisplayName() { return "Drift detection";}
+    static getTypeName() { return  "DriftDetectStep"; }
 
     render() {
         const stepData = this.stepData;
@@ -598,7 +623,7 @@ export class DriftDetectionStep extends StepWithStdConfigAndStatusAndFeatureCard
     }
 }
 
-export class GeneralImportanceSelectionStep extends StepWithStdConfigAndStatusAndFeatureCard{
+class BaseImportanceSelectionStep extends StepWithStdConfigAndStatusAndFeatureCard{
 
     constructor(props) {
         super(props);
@@ -682,7 +707,46 @@ export class GeneralImportanceSelectionStep extends StepWithStdConfigAndStatusAn
     }
 }
 
+class FeatureImportanceSelectionStep extends BaseImportanceSelectionStep{
+    static getDisplayName() { return "Feature selection"; }
+    static getTypeName() { return  "FeatureImportanceSelectionStep"; }
+
+    static getConfigTip() {
+        return {
+            feature_reselection: "Whether to enable two stage feature selection with permutation importance.",
+            estimator_size: "The number of estimator to evaluate feature importance. Only valid when *feature_reselection* is True.",
+            threshold: "Confidence threshold of the mean permutation importance. Only valid when *feature_reselection_strategy* is 'threshold'.",
+        }
+    }
+}
+
+class PermutationImportanceSelectionStep extends BaseImportanceSelectionStep{
+    static getDisplayName() { return 'Feature selection' + TWO_STAGE_SUFFIX }
+    static getTypeName() { return  "PermutationImportanceSelectionStep"; }
+    static getConfigTip() {
+        return {
+            estimator_size: "The number of estimator to evaluate feature importance. Only valid when *feature_reselection* is True.",
+            strategy: "Strategy to reselect features(*threshold*, *number* or *quantile*).",
+            threshold: "Confidence threshold of the mean permutation importance. Only valid when *feature_reselection_strategy* is 'threshold'.",
+            quantile: "Confidence quantile of feature_importance. Only valid when *feature_reselection_strategy* is 'quantile'.",
+            number: "Expected feature number to keep. Only valid when *feature_reselection_strategy* is 'number'."
+        }
+    }
+    getConfigTip() { return  PermutationImportanceSelectionStep.getConfigTip(); }
+}
+
 export class PseudoLabelStep extends StepWithStdConfigAndStatusAndFeatureCard {
+
+    static getDisplayName() { return 'Pseudo labeling' }
+    static getTypeName() { return  "PseudoLabelStep"; }
+    static getConfigTip() {
+        return {
+            proba_threshold: "Confidence threshold of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'threshold'.",
+            resplit: "Whether to re-split the training set and evaluation set after adding pseudo-labeled data. If False, the pseudo-labeled data is only appended to the training set. Only valid when *pseudo_labeling* is True.",
+            strategy: "Strategy to sample pseudo labeling data(*threshold*, *number* or *quantile*)."
+        }
+    }
+    getConfigTip() { return  PseudoLabelStep.getConfigTip(); }
 
     render() {
         const stepData = this.stepData;
@@ -804,7 +868,21 @@ export class PseudoLabelStep extends StepWithStdConfigAndStatusAndFeatureCard {
     }
 }
 
+export class DaskPseudoLabelStep extends PseudoLabelStep{
+    static getDisplayName() { return 'Dask Pseudo labeling'; }
+    static getTypeName() { return  "DaskPseudoLabelStep"; }
+}
+
 export class EnsembleStep extends StepWithStdConfigAndStatusAndFeatureCard {
+    static getDisplayName() { return 'Ensemble'; }
+    static getTypeName() { return  "EnsembleStep"; }
+
+    static getConfigTip() {
+        return {
+            scorer: "Scorer to used for feature importance evaluation and ensemble."
+        };
+    }
+    getConfigTip() { return  EnsembleStep.getConfigTip(); }
 
     render() {
         const stepData = this.stepData;
@@ -854,13 +932,11 @@ export class EnsembleStep extends StepWithStdConfigAndStatusAndFeatureCard {
                     type: 'line',
                     markPoint: {
                         data: marks,
-                        // label: {
-                        //     formatter: function (v) {
-                        //         console.info(v);
-                        //         // return formatFloat(v.value, 2)
-                        //         return v
-                        //     }
-                        // }
+                        label: {
+                            formatter: function (v) {
+                                return formatFloat(v.value, 2)
+                            }
+                        }
                     },
                     smooth: true
                 }]
@@ -943,7 +1019,15 @@ export class EnsembleStep extends StepWithStdConfigAndStatusAndFeatureCard {
         }
     }
 }
+
+export class DaskEnsembleStep extends EnsembleStep{
+    static getDisplayName() { return 'Dask ensemble'; }
+    static getTypeName() { return  "DaskEnsembleStep"; }
+}
+
 export class FinalTrainStep extends StepWithStdConfigAndStatusAndFeatureCard {
+    static getDisplayName() { return 'Final train'; }
+    static getTypeName() { return  "FinalTrainStep"; }
     render() {
         return <Row gutter={[2, 2]}>
                 {this.getBasicCards()}
@@ -1360,13 +1444,22 @@ function CircleProgress({title, style, strokeColor, data}) {
 
 export class PipelineOptimizationStep extends BaseStepComponent {
 
-
+    static getDisplayName() { return 'Pipeline optimization'; }
+    static getTypeName() { return  "SpaceSearchStep"; }
+    static getConfigTip(){
+        return {
+            cv: "If True, use cross-validation instead of evaluation set reward to guide the search process",
+            num_folds: "Number of cross-validated folds, only valid when cv is true"
+        }
+    }
+    getConfigTip(){
+        return PipelineOptimizationStep.getConfigTip();
+    }
     getDisplayConfigData() {
         const outputs = {...this.stepData.configuration,
             "earlyStoppingEnable": this.stepData.configuration.earlyStopping.enable};
         delete outputs['earlyStopping'];  // do not display es
-        const configTip = this.stepData.meta.configTip;
-        return getConfigData(outputs, configTip == null ? {} : configTip);
+        return getConfigData(outputs, this.getConfigTip());
     }
 
     render() {
@@ -1549,8 +1642,7 @@ export class PipelineOptimizationStep extends BaseStepComponent {
                 </Row>
                 <Row gutter={[2, 2]}>
                     <Col span={11} offset={0}>
-                        <ConfigurationCard configurationData={configurationForPanel}
-                                           configurationTip={Steps.SpaceSearch.configTip}/>
+                        <ConfigurationCard configurationData={configurationForPanel}/>
                     </Col>
                     <Col span={11} offset={2}>
                         <Card title="Search progress" bordered={false}
@@ -1595,28 +1687,24 @@ export class PipelineOptimizationStep extends BaseStepComponent {
 }
 
 export function getStepComponent(stepType) {
-    if (stepType === Steps.DataCleaning.type) {
-        return DataCleaningStep;
-    } else if (stepType === Steps.FeatureGeneration.type) {
-        return FeatureGenerationStep;
-    } else if (stepType === Steps.CollinearityDetection.type) {
-        return CollinearityDetectionStep;
-    } else if (stepType === Steps.DriftDetection.type) {
-        return DriftDetectionStep;
-    } else if (stepType === Steps.SpaceSearch.type) {
-        return PipelineOptimizationStep;
-    } else if (stepType === Steps.FeatureSelection.type) {
-        return GeneralImportanceSelectionStep;
-    } else if (stepType === Steps.PermutationImportanceSelection.type) {
-        return GeneralImportanceSelectionStep;
-    } else if (stepType === Steps.PseudoLabeling.type) {
-        return PseudoLabelStep
-    } else if (stepType === Steps.FinalTrain.type) {
-        return FinalTrainStep;
-    } else if (stepType === Steps.Ensemble.type) {
-        return EnsembleStep;
-    } else {
-        return null;
+    const stepClassList = [ DataCleaningStep,
+                            FeatureGenerationStep,
+                            CollinearityDetectionStep,
+                            DriftDetectionStep,
+                            PipelineOptimizationStep,
+                            FeatureImportanceSelectionStep,
+                            PermutationImportanceSelectionStep,
+                            PseudoLabelStep,
+                            DaskPseudoLabelStep,
+                            FinalTrainStep,
+                            EnsembleStep,
+                            DaskEnsembleStep ];
+
+    for (var cls of stepClassList){
+        if (cls.getTypeName() === stepType){
+            return cls;
+        }
     }
+    return  null;
 }
 

@@ -13,10 +13,12 @@ class StepType:
     SpaceSearch = 'SpaceSearchStep'
     FeatureSelection = 'FeatureImportanceSelectionStep'
     PseudoLabeling  = 'PseudoLabelStep'
+    DaskPseudoLabelStep  = 'DaskPseudoLabelStep'
     FeatureGeneration  = 'FeatureGenerationStep'
     PermutationImportanceSelection  = 'PermutationImportanceSelectionStep'
     ReSpaceSearch = 'ReSpaceSearch'
     Ensemble = 'EnsembleStep'
+    DaskEnsembleStep = 'DaskEnsembleStep'
     FinalTrain = 'FinalTrainStep'
 
 class StepStatus:
@@ -506,15 +508,21 @@ extractors = {
     StepType.FeatureSelection: extract_feature_selection_step,
     StepType.CollinearityDetection: extract_multi_linearity_step,
     StepType.PseudoLabeling: extract_psedudo_step,
+    StepType.DaskPseudoLabelStep: extract_psedudo_step,
     StepType.PermutationImportanceSelection: extract_permutation_importance_step,
     StepType.SpaceSearch: extract_space_search_step,
     StepType.FinalTrain: extract_final_train_step,
-    StepType.Ensemble: extract_ensemble_step
+    StepType.Ensemble: extract_ensemble_step,
+    StepType.DaskEnsembleStep: extract_ensemble_step
 }
 
 def extract_step(index, step):
     stepType = step.__class__.__name__
-    extractor = extractors.get(stepType,  Extractor)(step)
+
+    extractor_cls = extractors.get(stepType)
+    if extractor_cls is None:
+        raise Exception(f"Unseen Step class {stepType} ")
+    extractor = extractor_cls(step)
     configuration = extractor.get_configuration()
     extension = extractor.get_extension()
 

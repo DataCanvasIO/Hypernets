@@ -1,5 +1,7 @@
 // Append display name to experimentData, the name only required by frontend
 import {Steps, TWO_STAGE_SUFFIX} from "../constants";
+import {getStepComponent} from "./steps";
+import {isEmpty, notEmpty} from "../util";
 
 
 export function prepareExperimentData(experimentData) {
@@ -16,35 +18,27 @@ export function prepareExperimentData(experimentData) {
 
     for(const stepData of steps){
         const stepType = stepData.type;
-        // check type
-        var found = false;
-        var stepMetaData = null;
         // 1. find meta data
-        Object.keys(Steps).forEach(k => {
-            if (Steps[k].type === stepType) {
-                found = true;
-                stepMetaData = Steps[k];
-            }
-        });
-
-        if (found === false) {
+        const CompCls = getStepComponent(stepType);
+        if(isEmpty(CompCls)){
             console.error("Unseen step type: " + stepType);
-            return;
+            return null;
         }
+
+        const displayName = CompCls.getDisplayName();
+
         add(stepsCounter, stepType);
         const stepCount = stepsCounter[stepType];
 
         // 2. get step ui title
-        const stepName = stepMetaData.name;
         let stepTitle;
         if (stepCount > 1) {
-            stepTitle = stepName + TWO_STAGE_SUFFIX
+            stepTitle = displayName + TWO_STAGE_SUFFIX
         } else {
-            stepTitle = stepName;
+            stepTitle = displayName;
         }
 
         stepData['displayName'] = stepTitle;
-        stepData['meta'] = stepMetaData;
     }
 
     return experimentData;

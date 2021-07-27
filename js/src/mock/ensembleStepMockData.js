@@ -1,13 +1,15 @@
-import {ActionType, Steps, StepStatus} from "../constants";
+import {ActionType, StepStatus} from "../constants";
+import {EnsembleStep, DaskEnsembleStep} from "../components/steps";
 
-export function getInitData() {
+export function getInitData(distribution=false) {
 
+    const  cls = distribution ? DaskEnsembleStep:EnsembleStep;
     return {
         steps: [
             {
-                "name": Steps.Ensemble.name,
+                "name": cls.getDisplayName(),
                 "index": 0,
-                "type":  Steps.Ensemble.type,
+                "type":  cls.getTypeName(),
                 "status": StepStatus.Wait,
                 "configuration": {
                     "ensemble_size": 20,
