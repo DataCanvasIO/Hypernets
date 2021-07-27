@@ -1,4 +1,4 @@
-import { Steps, StepStatus} from "../constants";
+import {ActionType, Steps, StepStatus} from "../constants";
 
 const CV = false;  // 控制模拟数据是否开启cv
 const N_FOLDS = 3;
@@ -11,17 +11,38 @@ export function getInitData() {
                 "name": Steps.SpaceSearch.name,
                 "index": 0,
                 "type": Steps.SpaceSearch.type,
-                "status": "wait",
+                "status": StepStatus.Wait,
                 "configuration": {
-                    "cv": false,
-                    "name": "space_search",
-                    "num_folds": null
+                    "cv": true,
+                    "name": "space_searching",
+                    "num_folds": 3,
+                    "earlyStopping": {
+                        "enable": true,
+                        "exceptedReward": 1,
+                        "maxNoImprovedTrials": 10,
+                        "timeLimit": 60000,
+                        "mode": "max"
+                    }
                 },
                 "extension": {
-                    trials: []
+                    trials: [],
+                    "earlyStopping": {
+                        "bestReward": null,
+                        "bestTrialNo": null,
+                        "counterNoImprovementTrials": null,
+                        "triggered": null,
+                        "triggeredReason": null,
+                        "elapsedTime": null
+                    },
+                    features: {
+                        inputs: ['name', 'age'],
+                        outputs: ['name', 'age'],
+                        increased: [],
+                        reduced: []
+                    },
                 },
-                "start_datetime": "2020-11-11 22:22:22",
-                "end_datetime": "2020-11-11 22:22:22"
+                "start_datetime": 1626419128,
+                "end_datetime": null
             }
         ]
     }
@@ -49,28 +70,24 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
         type: 'trialFinished',
         payload: {
             stepIndex: 0,
-            trialData: {
+            data: {
                 trialNo: trialNoIndex,
+                maxTrials: 6,
                 hyperParams: {
                     max_depth: 10,
                     n_estimator: 100
                 },
                 models: models,
-                reward: 0.7,
-                elapsed: 100,
+                reward: Math.random(),
+                elapsed: Math.random() * 100,
                 metricName: 'auc',
                 earlyStopping: {
-                    status: {
-                        reward: trialNoIndex/10,
-                        noImprovedTrials: trialNoIndex + 2,
-                        elapsedTime: 10000 + trialNoIndex * 5000
-                    },
-                    config: {
-                        exceptedReward: 0.9,
-                        maxNoImprovedTrials: 8,
-                        maxElapsedTime: 100000,
-                        direction: 'max'
-                    }
+                    bestReward: Math.random(),
+                    bestTrialNo: 1,
+                    counterNoImprovementTrials: trialNoIndex + 2,
+                    triggered: false,
+                    triggeredReason: null,
+                    elapsedTime: 10000 + trialNoIndex * 5000
                 }
             }
         }
@@ -80,37 +97,62 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
 
 export function sendFinishData(store, delay = 1000) {
 
-var fakeTrialNo = 0;
-let trialInterval;
-setTimeout(function () {
-    trialInterval = setInterval(function () {
-        fakeTrialNo = fakeTrialNo + 1;
-        if (fakeTrialNo <= 5) {
-            const d = getNewTrialData(fakeTrialNo, fakeTrialNo === 5);
-            store.dispatch(
-                d
-            )
-        } else {
-            clearInterval(trialInterval);
-        }
+    var fakeTrialNo = 0;
+    let trialInterval;
+    setTimeout(function () {
+        trialInterval = setInterval(function () {
+            fakeTrialNo = fakeTrialNo + 1;
+            if (fakeTrialNo <= 5) {
+                const d = getNewTrialData(fakeTrialNo, fakeTrialNo === 5);
+                store.dispatch(
+                    d
+                )
+            } else {
+                clearInterval(trialInterval);
+            }
+        }, 1000);
+    }, 500);
 
+    setTimeout(function () {
+        store.dispatch(
+            {
+                type: ActionType.EarlyStopped,
+                payload: {
+                    stepIndex: 0,
+                    data:{
+                        bestReward: 0.9,
+                        bestTrialNo: 1,
+                        counterNoImprovementTrials: 10,
+                        triggered: true,
+                        triggeredReason: null,
+                        elapsedTime: 10000
+                    }
+                }
+            }
+        )
+    }, 10000);
+
+    setTimeout(function () {
         store.dispatch(
             {
                 type: 'stepFinished',
                 payload: {
                     index: 0,
-                    type: 'SearchSpaceStep',
                     extension: {
                         input_features: [{"name": "age"}, {"name": "data"}],
                     },
                     status: StepStatus.Finish,
-                    datetime: ''
+                    features: {
+                        inputs: ['name', 'age'],
+                        outputs: ['name_1', 'name'],
+                        increased: ['name_1'],
+                        reduced: ['age']
+                    },
+                    end_datetime: 1626519128
                 }
             }
         )
-
-    }, 1000);
-}, 500);
+    }, 11000);
 
 }
 

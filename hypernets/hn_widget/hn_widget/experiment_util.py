@@ -11,7 +11,7 @@ class StepType:
     DriftDetection =  'DriftDetectStep'
     SpaceSearch = 'SpaceSearchStep'
     FeatureSelection = 'FeatureImportanceSelectionStep'
-    PsudoLabeling  = 'PseudoLabelStep'
+    PseudoLabeling  = 'PseudoLabelStep'
     FeatureGeneration  = 'FeatureGenerationStep'
     PermutationImportanceSelection  = 'PermutationImportanceSelectionStep'
     ReSpaceSearch = 'ReSpaceSearch'
@@ -22,7 +22,47 @@ class StepStatus:
     Wait = 'wait'
     Process = 'process'
     Finish = 'finish'
+    Skip = 'skip'
     Error = 'error'
+
+class EarlyStoppingConfig(object):
+
+    def __init__(self, enable, excepted_reward, max_no_improved_trials, time_limit, mode):
+        self.enable = enable
+        self.excepted_reward = excepted_reward
+        self.max_no_improved_trials = max_no_improved_trials
+        self.time_limit = time_limit
+        self.mode = mode
+
+
+    def to_dict(self):
+        return {
+            "enable": self.enable,
+            "exceptedReward": self.excepted_reward,
+            "maxNoImprovedTrials": self.max_no_improved_trials,
+            "timeLimit": self.time_limit,
+            "mode": self.mode,
+        }
+
+class EarlyStoppingStatus(object):
+
+    def __init__(self, best_reward, best_trial_no, counter_no_improvement_trials, triggered, triggered_reason, elapsed_time):
+        self.best_reward = best_reward
+        self.best_trial_no = best_trial_no
+        self.counter_no_improvement_trials = counter_no_improvement_trials
+        self.triggered = triggered
+        self.triggered_reason = triggered_reason
+        self.elapsed_time = elapsed_time
+
+    def to_dict(self):
+        return {
+             "bestReward": self.best_reward,
+             "bestTrialNo": self.best_trial_no,
+             "counterNoImprovementTrials": self.counter_no_improvement_trials,
+             "triggered": self.triggered,
+             "triggeredReason": self.triggered_reason,
+             "elapsedTime": self.elapsed_time
+        }
 
 
 class StepData:
@@ -60,7 +100,23 @@ def get_extra_attr(obj, name, default=None):
         return None
 
 def get_step_status(step):
-    return get_extra_attr(step, 'status', default=StepStatus.Wait)
+    # STATUS_NONE = -1
+    # STATUS_SUCCESS = 0
+    # STATUS_FAILED = 1
+    # STATUS_SKIPPED = 2
+    # STATUS_RUNNING = 10
+
+    status_mapping = {
+        -1: StepStatus.Wait,
+        0: StepStatus.Finish,
+        1:  StepStatus.Error,
+        2:  StepStatus.Skip,
+        10:  StepStatus.Skip,
+    }
+    s = step.status_
+    if s not in status_mapping:
+        raise Exception("Unseen status: " + str(s));
+    return status_mapping[s]
 
 def get_step_index(experiment, step_name):
     for i, step in enumerate(experiment.steps):
@@ -80,24 +136,75 @@ class Extractor:
 
     def get_configuration(self):
         configuration = copy.deepcopy(self.step.get_params())
+        if 'scorer' in configuration:
+            configuration['scorer'] = str(configuration['scorer'])
         return configuration
+
+    def get_output_features(self):
+        return None
 
     def get_extension(self):
         if get_step_status(self.step) != StepStatus.Finish:
             return {}
         else:
             extension = copy.deepcopy(self.step.get_fitted_params())
+            import numpy as np
+            if isinstance(self.step.input_features_, np.ndarray):
+                _inputs_list = self.step.input_features_.tolist()
+            else:
+                _inputs_list = self.step.input_features_
+
+            _outputs_list = self.get_output_features()
+            if _outputs_list is not None:
+                increased = list(set(_outputs_list) - set(_inputs_list))
+                reduced = list(set(_inputs_list) - set(_outputs_list))
+            else:  # has no output
+                increased = None
+                reduced = None
+
+            features_data = {
+                'inputs': _inputs_list,
+                'outputs': _outputs_list,
+                'increased': increased,
+                'reduced': reduced
+            }
+
+            extension['features'] = features_data
             return self.handle_extenion(extension)
 
     def handle_extenion(self, extension):
         return extension
 
-class   extract_feature_generation_step(Extractor):
+class extract_data_clean_step(Extractor):
+    def get_output_features(self):
+        return self.step.input_features_
+
+class extract_feature_generation_step(Extractor):
+    def get_output_features(self):
+        return self.step.transformer_.transformed_feature_names_
 
     def handle_extenion(self, extension):
+        transformer = self.step.transformer_
+        replaced_feature_defs_names = transformer.transformed_feature_names_
+        feature_defs_names = transformer.feature_defs_names_
+
+        mapping = None
+        if replaced_feature_defs_names is not None and len(replaced_feature_defs_names) > 0 and feature_defs_names is not None and len(feature_defs_names) > 0:
+            if len(replaced_feature_defs_names) == len(feature_defs_names):
+                mapping = {}
+                for (k, v) in zip(feature_defs_names, replaced_feature_defs_names):
+                    mapping[k] = v
+            else:
+                pass  # replaced_feature_defs_names or feature_defs_names missing match
+        else:
+            pass  # replaced_feature_defs_names or feature_defs_names is empty
+
         def get_feature_detail(f):
+            f_name = f.get_name()
+            if mapping is not None:
+                f_name = mapping.get(f_name)
             return {
-                'name': f.get_name(),
+                'name': f_name,
                 'primitive': type(f.primitive).__name__,
                 'parentFeatures': list(map(lambda x: x.get_name(), f.base_features)),
                 'variableType': f.variable_type.type_string,
@@ -105,10 +212,13 @@ class   extract_feature_generation_step(Extractor):
             }
         feature_defs = self.step.transformer_.feature_defs_
         output_features = list(map(lambda f: get_feature_detail(f), feature_defs))
-        extension = {"outputFeatures": output_features }
+        extension = {"outputFeatures": output_features , 'features': extension['features']}
         return extension
 
 class extract_drift_step(Extractor):
+    def get_output_features(self):
+        return self.step.selected_features_
+
     def handle_extenion(self, extension):
         config = super(extract_drift_step, self).get_configuration()
         extension['drifted_features_auc'] = []
@@ -138,22 +248,24 @@ class extract_drift_step(Extractor):
                 feature_importances = history['feature_importances'].tolist()
 
                 removed_features = [] if 'removed_features' not in history else history['removed_features']
-                removed_features_importances = [{'feature': f, 'importance': get_importance(f, feature_names, feature_importances)} for f in removed_features]
-                removed_features_importances = sorted(removed_features_importances, key=lambda item: item['importance'], reverse=True)
-
-                d = {
-                    "epoch": i,
-                    "elapsed": history['elapsed'],
-                    "removed_features": removed_features_importances
-                }
-
-                removed_features_in_epochs.append(d)
+                if removed_features is not None and len(removed_features) > 0:  # ignore empty epoch
+                    removed_features_importances = [{'feature': f, 'importance': get_importance(f, feature_names, feature_importances)} for f in removed_features]
+                    removed_features_importances = sorted(removed_features_importances, key=lambda item: item['importance'], reverse=True)
+                    d = {
+                        "epoch": i,
+                        "elapsed": history['elapsed'],
+                        "removed_features": removed_features_importances
+                    }
+                    removed_features_in_epochs.append(d)
             extension['removed_features_in_epochs'] = removed_features_in_epochs
         del extension['scores']
         del extension['history']
         return extension
 
 class abs_feature_selection_step(Extractor):
+
+    def get_output_features(self):
+        return self.step.selected_features_
 
     def build_importances_result_(self, columns, importances_data, selected_features):
         features = []
@@ -172,9 +284,13 @@ class extract_feature_selection_step(abs_feature_selection_step):
     def handle_extenion(self, extension):
         imps = extension['importances']
         extension['importances'] = imps.tolist() if imps is not None else []
-        return self.build_importances_result_(self.step.input_features_, imps, self.step.selected_features_)
+        output_extension = self.build_importances_result_(self.step.input_features_, imps, self.step.selected_features_)
+        output_extension['features'] = extension['features']
+        return output_extension
 
 class extract_multi_linearity_step(Extractor):
+    def get_output_features(self):
+        return self.step.selected_features_
 
     def handle_extenion(self, extension):
         feature_clusters = extension['feature_clusters']
@@ -185,7 +301,7 @@ class extract_multi_linearity_step(Extractor):
                 for f_i, remove in enumerate(fs):
                     if f_i > 0:  # drop first element
                         unselected_features.append({"removed": remove, "reserved": reserved})
-        output_extension = {'unselected_features': unselected_features}
+        output_extension = {'unselected_features': unselected_features , 'features': extension['features']}
         return output_extension
 
 # class extract_psedudo_step(Extractor):
@@ -214,17 +330,38 @@ class extract_permutation_importance_step(abs_feature_selection_step):
         columns = importances.columns if importances.columns is not None else []
         importances_data = importances.importances_mean.tolist() if importances.importances_mean is not None else []
 
-        return self.build_importances_result_(columns, importances_data, selected_features)
+        output_extension = self.build_importances_result_(columns, importances_data, selected_features)
+        output_extension['features'] = extension['features']
+        return output_extension
 
 class extract_space_search_step(Extractor):
     def handle_extenion(self, extension):
         extension['history'] = None
         return extension
 
+    def get_configuration(self):
+        configs = super(extract_space_search_step, self).get_configuration()
+        callbacks = self.step.experiment.hyper_model.callbacks
+        earlyStoppingConfig = EarlyStoppingConfig(False, None, None, None, None)
+        if callbacks is not None and len(callbacks) > 0:
+            for c in callbacks:
+                if c.__class__.__name__ == 'EarlyStoppingCallback':
+                    earlyStoppingConfig = EarlyStoppingConfig(True, c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode)
+                    break
+        configs['earlyStopping'] = earlyStoppingConfig.to_dict()
+        return configs
+
+
 class extract_final_train_step(Extractor):
-    def handle_extenion(self, extension):
-        extension = {"estimator": self.step.estimator_.gbm_model.__class__.__name__}
-        return extension
+
+    def get_extension(self):
+
+        if get_step_status(self.step) != StepStatus.Finish:
+            return {}
+        else:
+            extension = super(extract_final_train_step, self).get_extension()
+            extension["estimator"] = self.step.estimator_.gbm_model.__class__.__name__
+            return extension
 
 class extract_ensemble_step(Extractor):
 
@@ -233,14 +370,22 @@ class extract_ensemble_step(Extractor):
         configuration['scorer'] = None
         return configuration
 
-    def handle_extenion(self, extension):
-        ensemble = extension['estimator']
-        return {
-            'weights': np.array(ensemble.weights_).tolist(),
-            'scores': np.array(ensemble.scores_).tolist(),
-        }
+    def get_extension(self):
+
+        if get_step_status(self.step) != StepStatus.Finish:
+            return {}
+        else:
+            extension = super(extract_ensemble_step, self).get_extension()
+            ensemble = extension['estimator']
+            extension['weights'] = np.array(ensemble.weights_).tolist()
+            extension['scores'] = np.array(ensemble.scores_).tolist()
+            del extension['estimator']
+            return extension
 
 class extract_psedudo_step(Extractor):
+    def get_output_features(self):
+        return self.step.input_features_
+
     def get_configuration(self):
         configuration = super(extract_psedudo_step, self).get_configuration()
         # del configuration['estimator_builder']
@@ -271,7 +416,8 @@ class extract_psedudo_step(Extractor):
             {
                 "probabilityDensity": probability_density,
                 "samples": pseudo_label_stat,
-                "selectedLabel": classes_[0]
+                "selectedLabel": classes_[0],
+                'features': extension['features'],
             }
         return result_extension
 
@@ -345,21 +491,21 @@ class extract_psedudo_step(Extractor):
         return probability_density
 
 
+extractors = {
+    StepType.DataCleaning: extract_data_clean_step,
+    StepType.FeatureGeneration: extract_feature_generation_step,
+    StepType.DriftDetection: extract_drift_step,
+    StepType.FeatureSelection: extract_feature_selection_step,
+    StepType.CollinearityDetection: extract_multi_linearity_step,
+    StepType.PseudoLabeling: extract_psedudo_step,
+    StepType.PermutationImportanceSelection: extract_permutation_importance_step,
+    StepType.SpaceSearch: extract_space_search_step,
+    StepType.FinalTrain: extract_final_train_step,
+    StepType.Ensemble: extract_ensemble_step
+}
+
 def extract_step(index, step):
     stepType = step.__class__.__name__
-    extractors = {
-        # StepType.DataCleaning: None,
-        StepType.FeatureGeneration: extract_feature_generation_step,
-        StepType.DriftDetection: extract_drift_step,
-        StepType.FeatureSelection: extract_feature_selection_step,
-        StepType.CollinearityDetection: extract_multi_linearity_step,
-        StepType.PsudoLabeling: extract_psedudo_step,
-        StepType.PermutationImportanceSelection: extract_permutation_importance_step,
-        StepType.SpaceSearch: extract_space_search_step,
-        StepType.FinalTrain: extract_final_train_step,
-        StepType.Ensemble: extract_ensemble_step
-    }
-
     extractor = extractors.get(stepType,  Extractor)(step)
     configuration = extractor.get_configuration()
     extension = extractor.get_extension()
@@ -371,8 +517,8 @@ def extract_step(index, step):
                  status=get_step_status(step),
                  configuration=configuration,
                  extension=extension,
-                 start_datetime=get_extra_attr(step, 'start_datetime'),
-                 end_datetime=get_extra_attr(step, 'end_datetime'))
+                 start_datetime=step.start_time,
+                 end_datetime=step.done_time)
     return d.to_dict()
 
 

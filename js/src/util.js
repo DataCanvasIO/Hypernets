@@ -36,7 +36,7 @@ export function isEmpty(obj){
 
 export function formatFloat(num, length=4) {
     if(num !== undefined && num !== null){
-        return num.toFixed(4)
+        return num.toFixed(length)
     }else{
         return null;
     }
