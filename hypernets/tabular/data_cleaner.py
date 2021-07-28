@@ -156,7 +156,8 @@ def _drop_idness_columns(X, excludes=None):
         nunique = X_.nunique(dropna=True)
         rows = X_.shape[0]
 
-    dropped = [i for i, v in nunique.items() if v / rows > 0.99 and (excludes is None or i not in excludes)]
+    threshold = cfg.idness_threshold
+    dropped = [i for i, v in nunique.items() if v / rows > threshold and (excludes is None or i not in excludes)]
     columns = [c for c in X.columns.to_list() if c not in dropped]
     X = X[columns]
     return X, dropped

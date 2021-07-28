@@ -49,6 +49,12 @@ class TabularCfg(Configurable):
               help=''
               )
 
+    idness_threshold = \
+        Float(0.99,
+              config=True,
+              help=''
+              )
+
     column_selector_text_word_count_threshold = \
         Int(10, min=1,
             config=True,
