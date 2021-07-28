@@ -1,5 +1,15 @@
 from hypernets.conf import configure, Configurable, Bool, Int, String, List, Dict
 
+try:
+    import hn_widget
+
+    default_experiment_ncb = ['hypernets.core.nb_callbacks.JupyterWidgetExperimentCallback', ]
+    default_hyper_model_ncb = ['hypernets.core.nb_callbacks.JupyterHyperModelCallback', ]
+except ImportError:
+    default_experiment_ncb = ['hypernets.experiment.SimpleNotebookCallback', ]
+    default_hyper_model_ncb = ['hypernets.core.callbacks.NotebookCallback',
+                               'hypernets.core.callbacks.ProgressiveCallback', ]
+
 
 @configure()
 class ExperimentCfg(Configurable):
@@ -8,9 +18,8 @@ class ExperimentCfg(Configurable):
              allow_none=True, config=True,
              help='ExperimentCallback instance or name list.'
              )
-    # hypernets.experiment.SimpleNotebookCallback
     experiment_callbacks_notebook = \
-        List(default_value=['hypernets.core.nb_callbacks.JupyterWidgetExperimentCallback', ],
+        List(default_value=default_experiment_ncb,
              allow_none=True, config=True,
              help='ExperimentCallback instance or name list.'
              )
@@ -47,10 +56,8 @@ class ExperimentCfg(Configurable):
              allow_none=True, config=True,
              help='Callback instance or name list.'
              )
-    # hypernets.core.callbacks.NotebookCallback
-    # hypernets.core.callbacks.ProgressiveCallback
     hyper_model_callbacks_notebook = \
-        List(default_value=['hypernets.core.nb_callbacks.JupyterHyperModelCallback'],
+        List(default_value=default_hyper_model_ncb,
              allow_none=True, config=True,
              help='Callback instance or name list.'
              )
