@@ -116,7 +116,9 @@ def isnotebook():
         return False
 
 
-def infer_task_type(y):
+def infer_task_type(y, excludes=None):
+    assert excludes is None or isinstance(excludes, (list, tuple, set))
+
     if len(y.shape) > 1 and y.shape[-1] > 1:
         labels = list(range(y.shape[-1]))
         task = TASK_MULTILABEL  # 'multilable'
@@ -131,6 +133,8 @@ def infer_task_type(y):
 
     if uniques.__contains__(np.nan):
         uniques.remove(np.nan)
+    if excludes is not None and len(excludes) > 0:
+        uniques -= set(excludes)
     n_unique = len(uniques)
     labels = []
 

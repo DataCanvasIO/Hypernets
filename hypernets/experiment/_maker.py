@@ -2,7 +2,6 @@
 """
 
 """
-
 from sklearn.metrics import get_scorer
 
 from hypernets.discriminators import make_discriminator
@@ -13,7 +12,7 @@ from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
-from hypernets.utils import load_data, infer_task_type, hash_data, logging, const, isnotebook, load_module, DocLens
+from hypernets.utils import const, load_data, infer_task_type, hash_data, logging, isnotebook, load_module, DocLens
 
 logger = logging.get_logger(__name__)
 
@@ -217,7 +216,8 @@ def make_experiment(hyper_model_cls,
     y_eval = X_eval.pop(target) if X_eval is not None else None
 
     if task is None:
-        task, _ = infer_task_type(y_train)
+        dc_nan_chars = kwargs.get('data_cleaner_args', {}).get('nan_chars')
+        task, _ = infer_task_type(y_train, excludes=[dc_nan_chars] if dc_nan_chars is not None else None)
 
     if reward_metric is None:
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
