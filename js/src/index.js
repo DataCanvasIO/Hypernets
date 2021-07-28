@@ -5,7 +5,7 @@ import { Steps } from "./constants";
 import { prepareExperimentData } from "./components/prepare";
 import { Dataset } from './pages/dataset'
 import { experimentReducer, ExperimentUIContainer } from './pages/experimentRedux'
-import { getInitData, sendFinishData } from './mock/debugData.js'
+import { getInitData, sendFinishData } from './mock/spaceSearchMockData.js'
 import { datasetMockData, datasetMockDataClassification } from './mock/plotDatasetMockData.js'
 import { experimentConfigMockData } from './mock/experimentConfigMockData'
 import { Provider } from "react-redux"
@@ -51,8 +51,8 @@ export function renderLossState(domElement) {
 }
 
 // ----------------------------Test Experiment UI----------------------------------------
-// const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
-// sendFinishData(store);
+const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
+sendFinishData(store);
 // --------------------------------------------------------------------------------------
 
 // ----------------------------Test Dataset----------------------------------------

@@ -17,7 +17,7 @@ export function getInitData() {
                     "name": "space_searching",
                     "num_folds": 3,
                     "earlyStopping": {
-                        "enable": true,
+                        "enable": false,
                         "exceptedReward": 1,
                         "maxNoImprovedTrials": 10,
                         "timeLimit": 60000,
@@ -78,7 +78,7 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
                     n_estimator: 100
                 },
                 models: models,
-                reward: Math.random(),
+                reward: Math.random() * 10,
                 elapsed: Math.random() * 100,
                 metricName: 'auc',
                 earlyStopping: {
@@ -148,7 +148,6 @@ export function sendFinishData(store, delay = 1000) {
                         }
                     },
                     status: StepStatus.Finish,
-
                     end_datetime: 1626519128
                 }
             }

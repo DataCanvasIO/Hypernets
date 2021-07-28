@@ -1537,33 +1537,56 @@ export class PipelineOptimizationStep extends BaseStepComponent {
             return {percent, value, tip}
         };
         const getEarlyStoppingRewardData = (earlyStoppingConfig, earlyStoppingStatus) => {
-            const {exceptedReward, mode} = earlyStoppingConfig;
-            const {bestReward } = earlyStoppingStatus;
-            let percent;
-            let tip;
-            let value;
-            if(exceptedReward !== undefined && exceptedReward !== null){
-                // early stopping is opening
-                if(mode === 'max'){
-                    if(bestReward !== undefined && bestReward !== null){
-                        percent = (bestReward / exceptedReward) * 100;
-                        value = formatFloat(bestReward, 4)
+
+            // check enabled es
+            const {enable} = earlyStoppingConfig;
+            if(enable !== true){
+                let maxReward;
+                // use trials reward
+                if(trailsData !== undefined && trailsData !== null && trailsData.length > 0){
+                    const reward = Math.max(...trailsData.map( v => v.reward));
+                    if(isNaN(reward)){
+                        maxReward = 'NaN'
+                    }else{
+                        maxReward = formatFloat(reward)
                     }
                 }else{
-                    percent = 0;
-                    if(bestReward !== undefined && bestReward !== null){
-                        value = bestReward;
-                    }else{
-                        value = '-';
-                    }
+                    maxReward = 'null'
                 }
-                tip = `Excepted reward is ${exceptedReward}, now best reward is ${value}`;
-            }else{
-                percent = 0;
-                value = '-';
-                tip = `This strategy is off`;
+                return {percent: 0, value: maxReward, tip: 'Max reward'}
             }
-            return {percent, value, tip}
+            if(earlyStoppingStatus !== undefined && earlyStoppingStatus !== null){
+                const {exceptedReward, mode} = earlyStoppingConfig;
+                const {bestReward } = earlyStoppingStatus;
+                let percent;
+                let tip;
+                let value;
+                if(exceptedReward !== undefined && exceptedReward !== null){
+                    // early stopping is opening
+                    if(mode === 'max'){
+                        if(bestReward !== undefined && bestReward !== null){
+                            percent = (bestReward / exceptedReward) * 100;
+                            value = formatFloat(bestReward, 4)
+                        }
+                    }else{
+                        percent = 0;
+                        if(bestReward !== undefined && bestReward !== null){
+                            value = bestReward;
+                        }else{
+                            value = '-';
+                        }
+                    }
+                    tip = `Excepted reward is ${exceptedReward}, now best reward is ${value}`;
+                }else{
+                    percent = 0;
+                    value = '-';
+                    tip = `This strategy is off`;
+                }
+                return {percent, value, tip}
+            }else{
+                // es data may be null
+                return ES_EMPTY
+            }
         };
         const getEarlyStoppingElapsedTimeData = (earlyStoppingConfig, earlyStoppingStatus) => {
             const { timeLimit } = earlyStoppingConfig;
@@ -1602,7 +1625,7 @@ export class PipelineOptimizationStep extends BaseStepComponent {
         };
 
         const earlyStoppingTrialsData = getESData(getEarlyStoppingTrialsData, earlyStoppingConfig, earlyStoppingStatus);
-        const earlyStoppingRewardData = getESData(getEarlyStoppingRewardData, earlyStoppingConfig, earlyStoppingStatus);
+        const earlyStoppingRewardData = getEarlyStoppingRewardData(earlyStoppingConfig, earlyStoppingStatus);
         const earlyStoppingElapsedTimeData = getESData(getEarlyStoppingElapsedTimeData, earlyStoppingConfig, earlyStoppingStatus);
         const trialsProcessData = getTrialsProcessData(stepData.extension.maxTrials, lastTrial);
 
