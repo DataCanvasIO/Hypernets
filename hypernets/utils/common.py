@@ -50,11 +50,16 @@ def get_params(obj, include_default=False):
 
 
 def to_repr(obj, excludes=None):
-    if excludes is None:
-        excludes = []
-    out = ['%s=%r' % (k, v) for k, v in get_params(obj).items() if k not in excludes]
-    repr_ = ', '.join(out)
-    return f'{type(obj).__name__}({repr_})'
+    try:
+        if excludes is None:
+            excludes = []
+        out = ['%s=%r' % (k, v) for k, v in get_params(obj).items() if k not in excludes]
+        repr_ = ', '.join(out)
+        return f'{type(obj).__name__}({repr_})'
+    except Exception as e:
+        if logger.is_info_enabled():
+            logger.info(e)
+        return f'{e} <to_repr>: {obj}'
 
 
 def combinations(n, m_max, m_min=1):
