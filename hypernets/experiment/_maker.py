@@ -217,7 +217,9 @@ def make_experiment(hyper_model_cls,
 
     if task is None:
         dc_nan_chars = kwargs.get('data_cleaner_args', {}).get('nan_chars')
-        task, _ = infer_task_type(y_train, excludes=[dc_nan_chars] if dc_nan_chars is not None else None)
+        if isinstance(dc_nan_chars, str):
+            dc_nan_chars = [dc_nan_chars]
+        task, _ = infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
 
     if reward_metric is None:
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
