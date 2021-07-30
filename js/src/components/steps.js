@@ -124,7 +124,7 @@ export function FeatureNumCard({stepData, hasOutput = true}) {  // why not use `
 
     const formData = [
         {
-            name: "Input features number",
+            name: "Inputs ",
             tip: null,
             value: featuresData.inputs,
             render: _render
@@ -133,17 +133,17 @@ export function FeatureNumCard({stepData, hasOutput = true}) {  // why not use `
     if (hasOutput) {
         const items = [
             {
-                name: "Output features number",
+                name: "Outputs",
                 tip: null,
                 value: featuresData.outputs,
                 render: _render
             }, {
-                name: "Increased features number",
+                name: "Increased",
                 tip: null,
                 value: featuresData.increased,
                 render: _render
             }, {
-                name: "Reduced features number",
+                name: "Reduced",
                 tip: null,
                 value: featuresData.reduced,
                 render: _render
@@ -450,6 +450,21 @@ export class FeatureGenerationStep extends StepWithStdConfigAndStatusAndFeatureC
     }
     getConfigTip() { return  FeatureGenerationStep.getConfigTip(); }
 
+    constructor(props) {
+        super(props);
+        this.state = {
+            featurePageSize: TABLE_ITEM_SIZE * 2
+        }
+    }
+
+    getFeaturePageSize() {
+        return this.state.featurePageSize
+    };
+
+    setFeaturePageSize(featurePageSize){
+        this.setState({featurePageSize: featurePageSize})
+    }
+
     render() {
         const stepData = this.stepData;
         let dataSource;
@@ -490,10 +505,16 @@ export class FeatureGenerationStep extends StepWithStdConfigAndStatusAndFeatureC
                     <Table dataSource={dataSource}
                            columns={columns}
                            pagination={{
+                               total: dataSource !== undefined && dataSource !== null ? dataSource.length : 0,
+                               showQuickJumper: true,
+                               showSizeChanger: true,
+                               pageSize: this.getFeaturePageSize(),
                                defaultPageSize: TABLE_ITEM_SIZE,
                                disabled: false,
-                               pageSize: TABLE_ITEM_SIZE,
-                               hideOnSinglePage: true
+                               hideOnSinglePage: true,
+                               onShowSizeChange: (current, pageSize) => {
+                                   this.setFeaturePageSize(pageSize);
+                               }
                            }}
                            size={COMPONENT_SIZE}/>
                 </Card>
@@ -1416,7 +1437,19 @@ function ImportanceBarChart({importances}) {
         },
         yAxis: {
             type: 'category',
-            data: features
+            data: features,
+            axisLabel: {
+                rotate:45,
+                formatter: function (value, index) {
+                    const label = value.toString();
+                    const maxlength = 8;
+                    if (label.length>maxlength) {
+                        return label.substring(0, maxlength-3)+'...';
+                    } else {
+                        return label;
+                    }
+                }
+            }
         },
         series: series
     };

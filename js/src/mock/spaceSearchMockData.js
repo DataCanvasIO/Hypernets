@@ -62,7 +62,7 @@ const getNewTrialData = (trialNoIndex, isLatest) => {
     } else {
         models = [{
             fold: null,
-            importances: [{ name: 'age', imp: Math.random()}]
+            importances: [{ name: 'ageewqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq', imp: Math.random()}]
         }]
     }
 

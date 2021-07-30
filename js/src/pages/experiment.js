@@ -87,7 +87,7 @@ export function ExperimentUI ({experimentData, dispatch} ) {
         setCurrentStepIndex(c);
     };
 
-    return <Card title="Experiment progress" bordered={false} style={{ width: '85%', alignContent: 'center' }}>
+    return <Card title="Experiment progress" bordered={false} style={{ alignContent: 'center' }}>
             <Progress percent={  getProcessPercentage(steps) } status={ getProcessBarStatus (steps)} />
             <div style={ { overflowX: 'auto', marginTop:10 }}>
                 <AntdSteps

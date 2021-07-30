@@ -51,8 +51,8 @@ export function renderLossState(domElement) {
 }
 
 // ----------------------------Test Experiment UI----------------------------------------
-const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
-sendFinishData(store);
+// const store = renderExperimentProcess(getInitData(), document.getElementById('root'));
+// sendFinishData(store);
 // --------------------------------------------------------------------------------------
 
 // ----------------------------Test Dataset----------------------------------------
