@@ -58,7 +58,6 @@ class Estimator():
         raise NotImplementedError
 
 
-
 class CrossValidationEstimator():
     def __init__(self, base_estimator, task, num_folds=3, stratified=False, shuffle=False, random_state=None):
         self.base_estimator = base_estimator
@@ -114,8 +113,9 @@ class CrossValidationEstimator():
         for est in self.estimators_:
             proba = est.predict_proba(X)
             if proba_sum is None:
-                proba_sum = np.zeros_like(proba)
-            proba_sum += proba
+                proba_sum = proba
+            else:
+                proba_sum += proba
         return proba_sum / len(self.estimators_)
 
     def predict(self, X):
@@ -124,8 +124,9 @@ class CrossValidationEstimator():
             for est in self.estimators_:
                 pred = est.predict(X)
                 if pred_sum is None:
-                    pred_sum = np.zeros_like(pred)
-                pred_sum += pred
+                    pred_sum = pred
+                else:
+                    pred_sum += pred
             return pred_sum / len(self.estimators_)
         elif self.task == 'binary':
             proba = self.predict_proba(X)

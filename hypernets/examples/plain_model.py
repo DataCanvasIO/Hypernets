@@ -245,8 +245,9 @@ class PlainEstimator(Estimator):
                 for est in self.cv_models_:
                     pred = est.predict(X, **kwargs)
                     if pred_sum is None:
-                        pred_sum = np.zeros_like(pred)
-                    pred_sum += pred
+                        pred_sum = pred
+                    else:
+                        pred_sum += pred
                 preds = pred_sum / len(self.cv_models_)
             else:
                 proba = self.predict_proba(X, **kwargs)
@@ -270,8 +271,9 @@ class PlainEstimator(Estimator):
                 if self.task == const.TASK_BINARY:
                     proba = fix_binary_predict_proba_result(proba)
                 if proba_sum is None:
-                    proba_sum = np.zeros_like(proba)
-                proba_sum += proba
+                    proba_sum = proba
+                else:
+                    proba_sum += proba
             proba = proba_sum / len(self.cv_models_)
         else:
             proba = self.model.predict_proba(X, **kwargs)
