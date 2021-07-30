@@ -199,6 +199,8 @@ def hash_array(arr, method='md5'):
     m = getattr(hashlib, method)()
 
     if isinstance(arr, da.Array):
+        if len(arr.shape) == 1:
+            arr = arr.compute_chunk_sizes().reshape(-1, 1)
         x = arr.map_blocks(_hash_array, dtype='u8').compute()
     elif isinstance(arr, np.ndarray):
         x = _hash_array(arr)
