@@ -189,7 +189,10 @@ def metric_to_scoring(metric, task=const.TASK_BINARY, pos_label=None):
         raise ValueError(f'Not found matching scoring for {metric}')
 
     if metric_lower in metric2fn.keys():
-        scoring = sk_metrics.make_scorer(metric2fn[metric_lower], pos_label=pos_label, average=task_to_average(task))
+        options = dict(average=task_to_average(task))
+        if pos_label is not None:
+            options['pos_label'] = pos_label
+        scoring = sk_metrics.make_scorer(metric2fn[metric_lower], **options)
     else:
         scoring = sk_metrics.get_scorer(metric2scoring[metric_lower])
 
@@ -212,7 +215,7 @@ def evaluate(estimator, X, y, metrics, *, task=None, pos_label=None, classes=Non
     n_jobs = _detect_jobs(X, n_jobs)
     if task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
         proba = predict_proba(estimator, X, n_jobs=n_jobs)
-        pred = proba2predict(proba, task, threshold=threshold, classes=classes)
+        pred = proba2predict(proba, task=task, threshold=threshold, classes=classes)
     else:
         pred = predict(estimator, X, n_jobs=n_jobs)
         proba = None
@@ -260,26 +263,32 @@ def predict(estimator, X, *, task=None, classes=None, threshold=0.5, n_jobs=-1):
         proba = predict_proba(estimator, X, n_jobs=n_jobs)
         if task is None and (len(proba.shape) < 2 or proba.shape[1] == 1):
             task = const.TASK_REGRESSION
-        pred = proba2predict(proba, task, threshold=threshold, classes=classes)
+        pred = proba2predict(proba, task=task, threshold=threshold, classes=classes)
     return pred
 
 
-def proba2predict(proba, task, *, threshold=0.5, classes=None):
+def proba2predict(proba, *, task=None, threshold=0.5, classes=None):
     assert len(proba.shape) <= 2
+
+    def is_one_dim(x):
+        return len(x.shape) == 1 or (len(x.shape) == 2 and x.shape[1] == 1)
 
     if logger.is_info_enabled():
         logger.info(f'proba2predict with task={task}, classes={classes}, threshold={threshold}')
 
-    if task == const.TASK_REGRESSION:
+    if len(proba.shape) == 0:  # empty
         return proba
 
-    if len(proba.shape) == 2:
-        if proba.shape[-1] > 2:
-            predict = proba.argmax(axis=-1)
-        else:
-            predict = (proba[:, -1] > threshold).astype(np.int32)
-    else:
-        predict = (proba > threshold).astype(np.int32)
+    if task == const.TASK_BINARY and is_one_dim(proba):
+        proba = dex.fix_binary_predict_proba_result(proba)
+
+    if task == const.TASK_REGRESSION or is_one_dim(proba):  # regression
+        return proba
+
+    if proba.shape[-1] > 2:  # multiclass
+        predict = proba.argmax(axis=-1)
+    else:  # binary
+        predict = (proba[:, -1] > threshold).astype(np.int32)
 
     if classes is not None:
         if dex.is_dask_object(predict):

@@ -301,6 +301,8 @@ def fix_binary_predict_proba_result(proba):
     else:
         if proba.ndim == 1:
             proba = np.vstack([1 - proba, proba]).T
+        elif proba.shape[1] == 1:
+            proba = np.hstack([1 - proba, proba])
 
     return proba
 
