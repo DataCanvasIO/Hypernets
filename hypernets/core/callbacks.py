@@ -274,8 +274,8 @@ class NotebookCallback(Callback):
                     'num_folds': num_folds,
                     'max_trials': max_trials,
                     # 'dataset_id': dataset_id,
-                    'trail_store': trial_store,
-                    'fit_kwargs': fit_kwargs
+                    # 'trail_store': trial_store,
+                    'fit_kwargs': fit_kwargs.keys()
                     }
         df_settings = pd.DataFrame({k: [v] for k, v in settings.items()})
 
