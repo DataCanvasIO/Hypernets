@@ -1,13 +1,14 @@
 import {Steps, StepStatus} from "../constants";
+import {PseudoLabelStep, DaskPseudoLabelStep} from "../components/steps";
 
-export function getInitData(CV=false) {
-
+export function getInitData(distribution=false) {
+    const cls = distribution ? DaskPseudoLabelStep: PseudoLabelStep;
     return {
         steps: [
             {
-                "name": Steps.PsudoLabeling.type,
+                "name": cls.getDisplayName(),
                 "index": 0,
-                "type": Steps.PsudoLabeling.type,
+                "type": cls.getTypeName(),
                 "status": "wait",
                 "configuration": {
                     "proba_threshold": 0.8,

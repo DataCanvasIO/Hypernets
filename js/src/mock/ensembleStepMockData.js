@@ -1,13 +1,15 @@
-import {ActionType, Steps, StepStatus} from "../constants";
+import {ActionType, StepStatus} from "../constants";
+import {EnsembleStep, DaskEnsembleStep} from "../components/steps";
 
-export function getInitData() {
+export function getInitData(distribution=false) {
 
+    const  cls = distribution ? DaskEnsembleStep:EnsembleStep;
     return {
         steps: [
             {
-                "name": Steps.Ensemble.name,
+                "name": cls.getDisplayName(),
                 "index": 0,
-                "type":  Steps.Ensemble.type,
+                "type":  cls.getTypeName(),
                 "status": StepStatus.Wait,
                 "configuration": {
                     "ensemble_size": 20,
@@ -40,7 +42,7 @@ export function sendFinishData(store, delay = 2000) {
             type: 'stepFinished',
             payload: {
                 index: 0,
-                status: StepStatus.Skip,
+                status: StepStatus.Finish,
                 end_datetime: 1626419128,
                 extension: {
                     features: {
@@ -48,7 +50,9 @@ export function sendFinishData(store, delay = 2000) {
                         outputs: null,
                         increased: null,
                         reduced: null
-                    }
+                    },
+                    scores: [0.1, 0.3],
+                    weights: [0.1, 0.3],
                 }
             }
         })

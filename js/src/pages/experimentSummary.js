@@ -1,13 +1,12 @@
-import {Row, Col, Card} from 'antd';
+import {Row, Col} from 'antd';
 import * as React from "react";
-import {ConfigurationCard} from "../components/steps";
-
-import {Steps, getStepName} from '../constants';
+import {ConfigurationCard, getConfigData, getStepComponent} from "../components/steps";
+import { prepareExperimentData } from '../components/prepare';
 import {showNotification} from "../util";
 
 export function ExperimentSummary ({experimentData, dispatch}) {
 
-    const steps = experimentData.steps;
+    const steps = prepareExperimentData(experimentData).steps;
     if(steps.length < 1){
         showNotification('Step is empty');
         return ;
@@ -19,17 +18,7 @@ export function ExperimentSummary ({experimentData, dispatch}) {
     var buffer = [];
     const groups = [];
     for (let i = 0; i < stepLen; i++) {
-        var c = {...steps[i].configuration};
-        if(steps[i].type === Steps.DataCleaning.type){
-            c = c['data_cleaner_args']
-        } else if (steps[i].type === Steps.SpaceSearch.type ){
-            c.earlyStopping = null
-        }
-        const configCardData = {
-            'stepName': getStepName(steps[i].type),
-            'config': {...c}
-        };
-        buffer.push(configCardData);
+        buffer.push(steps[i]);
         if(buffer.length === groupSize){
             groups.push([...buffer]);
             buffer = [];
@@ -43,16 +32,22 @@ export function ExperimentSummary ({experimentData, dispatch}) {
 
     return <div>
             {
-                groups.map((configs, index, arrar) => {
+                groups.map((steps, index, arrar) => {
                     return <Row gutter={[4, 4]} key={index}>
                         {
-                            configs.map((valueC, indexC, arrayC) => {
-                                const stepName = valueC.stepName;
-
+                            steps.map((step, indexC, arrayC) => {
+                                const cardTitle = step.displayName;
+                                const stepType = step.type;
+                                const Comp = getStepComponent(step.type);
+                                let configurationData;
+                                if(Comp !== undefined && Comp !== null){
+                                    configurationData = new Comp({stepData: step, dispatch: dispatch}).getDisplayConfigData()
+                                }else{
+                                    console.error("Internal error, unhandled step type: " + stepType);
+                                    configurationData = {}
+                                }
                                 return <Col span={10} key={indexC} >
-                                    <Card title={stepName} bordered={false} style={{ width: '100%' }}>
-                                        <ConfigurationCard configurationData={valueC.config}/>
-                                    </Card>
+                                    <ConfigurationCard cardTitle={cardTitle} configurationData={configurationData} />
                                 </Col>
                             })
                         }

@@ -1,12 +1,20 @@
+import {DataCleaningStep} from "./components/steps";
+
 export const TWO_STAGE_SUFFIX = '(Two-stage)';
+
+const pseudoLabelStepConfigTip =  {
+    proba_threshold: "Confidence threshold of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'threshold'.",
+    resplit: "Whether to re-split the training set and evaluation set after adding pseudo-labeled data. If False, the pseudo-labeled data is only appended to the training set. Only valid when *pseudo_labeling* is True.",
+    strategy: "Strategy to sample pseudo labeling data(*threshold*, *number* or *quantile*)."
+};
+
+const daskEnsembleConfigTip = {
+    scorer: "Scorer to used for feature importance evaluation and ensemble."
+};
 
 
 export const Steps = {
-    DataCleaning: {
-        name: 'Data cleaning',
-        type: 'DataCleanStep',
-        configTip: {}
-    },
+    DataCleaningStep: 'DataCleaningStep',
     FeatureGeneration: {
         name: 'Feature generation',
         type: 'FeatureGenerationStep',
@@ -53,14 +61,15 @@ export const Steps = {
         }
         // drift_detection
     },
-    PsudoLabeling: {
-        name: 'Psudo labeling',
+    PseudoLabeling: {
+        name: 'Pseudo labeling',
         type: 'PseudoLabelStep',
-        configTip: {
-            proba_threshold: "Confidence threshold of pseudo-label samples. Only valid when *pseudo_labeling_strategy* is 'threshold'.",
-            resplit: "Whether to re-split the training set and evaluation set after adding pseudo-labeled data. If False, the pseudo-labeled data is only appended to the training set. Only valid when *pseudo_labeling* is True.",
-            strategy: "Strategy to sample pseudo labeling data(*threshold*, *number* or *quantile*)."
-        }
+        configTip: pseudoLabelStepConfigTip
+    },
+    DaskPseudoLabelStep: {
+        name: 'Dask Pseudo labeling',
+        type: 'DaskPseudoLabelStep',
+        configTip: pseudoLabelStepConfigTip
     },
     PermutationImportanceSelection: {
         name: 'Feature selection' + TWO_STAGE_SUFFIX,
@@ -81,9 +90,12 @@ export const Steps = {
     Ensemble: {
         name: 'Ensemble',
         type: 'EnsembleStep',
-        configTip: {
-            scorer: "Scorer to used for feature importance evaluation and ensemble."
-        }
+        configTip: daskEnsembleConfigTip
+    },
+    DaskEnsembleStep: {
+        name: 'Dask ensemble',
+        type: 'DaskEnsembleStep',
+        configTip: daskEnsembleConfigTip
     }
 };
 
@@ -109,6 +121,13 @@ export const StepStatus = {
   Error: 'error'
 };
 
+export const ProgressBarStatus = {
+    Success: 'success',
+    Exception : 'exception',
+    Normal : 'normal',
+    Active : 'active',
+};
+
 export const ActionType = {
     EarlyStopped: 'earlyStopped',
     StepFinished: 'stepFinished',
@@ -116,6 +135,7 @@ export const ActionType = {
     StepError: 'stepError',
     TrialFinished: 'trialFinished',
     ProbaDensityLabelChange: 'probaDensityLabelChange',
+    FeatureImportanceChange: 'featureImportanceChange',
     ExperimentData: 'experimentData'
 };
 
@@ -124,5 +144,5 @@ export const ActionType = {
 export const MAX_FEATURES_OF_IMPORTANCES = 10;
 
 export const COMPONENT_SIZE = 'small';
-export const TABLE_ITEM_SIZE = '5';
+export const TABLE_ITEM_SIZE = 5;
 

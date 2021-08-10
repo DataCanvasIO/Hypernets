@@ -25,11 +25,19 @@ const handleAction = (state, action, stepIndex, handler, actionType) => {
 
 };
 
-const handleProbaDensityLabelChanged = (experimentConfig, action, stepIndexInArray) => {
+const handleProbaDensityLabelChange = (experimentConfig, action, stepIndexInArray) => {
     const  stepPayload = action.payload;
     experimentConfig.steps[stepIndexInArray].extension.selectedLabel = stepPayload.selectedLabel;
     return experimentConfig;
 };
+
+
+const handleFeatureImportanceChange = (experimentConfig, action, stepIndexInArray) => {
+    const  stepPayload = action.payload;
+    experimentConfig.steps[stepIndexInArray].extension.selectedTrialNo = stepPayload.selectedTrialNo;
+    return experimentConfig;
+};
+
 
 const handleTrailFinish = (experimentConfig, action, stepIndexInArray) => {
 
@@ -132,9 +140,7 @@ export function experimentReducer(state, action) {
     console.info(state);
 
     let newState;
-    if (type === ActionType.ExperimentData) {
-        newState = {experimentData: action}  // init data
-    } else if (type === ActionType.StepFinished) {
+    if (type === ActionType.StepFinished) {
         const { index } = payload;
         newState  = handleAction(state, action, index, handleStepFinish, type);
     } else if (type === ActionType.StepBegin) {
@@ -145,7 +151,10 @@ export function experimentReducer(state, action) {
         newState  = handleAction(state, action, index, handleStepError, type);
     } else if (type === ActionType.ProbaDensityLabelChange) {
         const { stepIndex } = payload;
-        newState  = handleAction(state, action, stepIndex, handleProbaDensityLabelChanged, type);
+        newState  = handleAction(state, action, stepIndex, handleProbaDensityLabelChange, type);
+    } else if (type === ActionType.FeatureImportanceChange) {
+        const { stepIndex } = payload;
+        newState  = handleAction(state, action, stepIndex, handleFeatureImportanceChange, type);
     } else if (type === ActionType.TrialFinished) {
         const { stepIndex } = payload;
         newState  = handleAction(state, action, stepIndex, handleTrailFinish, type);

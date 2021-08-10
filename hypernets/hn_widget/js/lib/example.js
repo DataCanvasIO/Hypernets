@@ -73,10 +73,8 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
     reactStore: null,
     // Defines how the widget gets rendered into the DOM
     render: function() {
-        console.log('hypernetsExperiment lib 1 : ');
+        console.log('hypernetsExperiment lib: ');
         console.log(hypernetsExperiment);
-
-        console.info("Received origin init data from backend1111: ");
         const originInitData = this.model.get('initData');
         console.info("Received origin init data from backend: ");
         console.info(originInitData);
