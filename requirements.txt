@@ -12,3 +12,4 @@ ipython
 traitlets
 featuretools
 python-geohash
+hypernets-jupyter-widget

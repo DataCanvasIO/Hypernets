@@ -34,6 +34,19 @@ export function isEmpty(obj){
     return obj === null || obj === undefined;
 }
 
+export function notEmpty(obj) {
+    return obj !== undefined && obj !== null;
+}
+
+export function getOrDefault(obj, defaultValue) {
+    if(obj !== undefined && obj !== null){
+        return obj;
+    }else{
+        return defaultValue;
+    }
+}
+
+
 export function formatFloat(num, length=4) {
     if(num !== undefined && num !== null){
         return num.toFixed(length)
