@@ -6,16 +6,13 @@ __author__ = 'yangjian'
 import numpy as np
 
 _hypernets_random_state = None
-_hypernets_random_seed = 9527
 
 def set_random_state(seed):
-    global _hypernets_random_state,_hypernets_random_seed
+    global _hypernets_random_state
     if seed is None:
         _hypernets_random_state = None
     else:
         _hypernets_random_state = np.random.RandomState(seed=seed)
-        _hypernets_random_seed = seed
-
 
 def get_random_state():
     global _hypernets_random_state
