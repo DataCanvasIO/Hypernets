@@ -19,6 +19,7 @@ from hypernets.searchers import make_searcher
 from hypernets.tabular.dask_ex import fix_binary_predict_proba_result
 from hypernets.tabular.metrics import calc_score
 from hypernets.utils import fs, logging, const, infer_task_type
+from hypernets.core.random_state import _hypernets_random_seed
 
 logger = logging.get_logger(__name__)
 
@@ -172,6 +173,7 @@ class PlainEstimator(Estimator):
         assert num_folds > 0
         assert isinstance(metrics, (list, tuple))
 
+        random_state = _hypernets_random_seed
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
         if self.transformer is not None:

@@ -58,8 +58,7 @@ class HyperModel:
         try:
             if cv:
                 scores, oof, oof_scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
-                                                                         shuffle=False, random_state=9527,
-                                                                         metrics=[self.reward_metric],
+                                                                         shuffle=False,metrics=[self.reward_metric],
                                                                          **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
