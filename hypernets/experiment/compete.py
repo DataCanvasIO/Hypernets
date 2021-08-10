@@ -476,7 +476,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
         super(FeatureGenerationStep, self).__init__(experiment, name,
                                                     FeatureGenerationTransformer,
                                                     trans_primitives=trans_primitives,
-                                                    fix_input=False,
+                                                    fix_input=True,
                                                     continuous_cols=continuous_cols,
                                                     datetime_cols=datetime_cols,
                                                     categories_cols=categories_cols,

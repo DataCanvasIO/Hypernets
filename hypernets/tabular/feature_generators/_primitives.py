@@ -75,7 +75,10 @@ class DaskCompatibleHaversine(DaskCompatibleTransformPrimitive):
 
 
 def _geo_hash(x, precision=12):
-    return geohash.encode(x[0], x[1], precision=precision)
+    if any(np.isnan(x)):
+        return np.nan
+    else:
+        return geohash.encode(x[0], x[1], precision=precision)
 
 
 class GeoHashPrimitive(DaskCompatibleTransformPrimitive):

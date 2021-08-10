@@ -127,7 +127,7 @@ class Test_FeatureGenerator():
     def test_latlong(self):
         df = pd.DataFrame()
         df['latitude'] = [51.52, 9.93, 37.38]
-        df['longitude'] = [-0.17, 76.25, -122.08]
+        df['longitude'] = [np.nan, 76.25, -122.08]
         df['latlong'] = df[['latitude', 'longitude']].apply(tuple, axis=1)
         ftt = FeatureGenerationTransformer(latlong_cols=['latlong'])
         x_t = ftt.fit_transform(df)

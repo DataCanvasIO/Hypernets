@@ -83,9 +83,9 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         self.fix_feature_names = fix_feature_names
 
         # fitted
-        self._imputed_input = None
         self.original_cols = []
         self.selection_transformer = None
+        self.imputed_input_ = None
         self.feature_defs_ = None
         self.transformed_feature_names_ = None
         self.feature_defs_names_ = None
@@ -110,18 +110,8 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
             self.text_cols = []
 
         if self.fix_input:
-            self._imputed_input = {}
-            if len(self.continuous_cols) > 0:
-                _mean = X[self.continuous_cols].mean()
-                if hasattr(_mean, 'compute'):
-                    _mean = _mean.compute()
-                self._merge_dict(self._imputed_input, _mean.to_dict())
-            if len(self.datetime_cols) > 0:
-                _mode = X[self.datetime_cols].mode()
-                if hasattr(_mode, 'compute'):
-                    _mode = _mode.compute()
-                self._merge_dict(self._imputed_input, _mode.iloc[0].to_dict())
-            X = self._replace_invalid_values(X, self._imputed_input)
+            self.imputed_input_ = self._detect_impute_dict(X)
+            X = self._replace_invalid_values(X, self.imputed_input_)
 
         if self.trans_primitives is None:
             self.trans_primitives = self._default_trans_primitives(X, y)
@@ -168,7 +158,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
 
         # 2. fix input
         if self.fix_input:
-            X = self._replace_invalid_values(X, self._imputed_input)
+            X = self._replace_invalid_values(X, self.imputed_input_)
 
         # 3. transform
         es = ft.EntitySet(id='es_hypernets_transform')
@@ -216,6 +206,25 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
             primitives += _DEFAULT_PRIMITIVES_LATLONG
 
         return primitives
+
+    def _detect_impute_dict(self, X):
+        imputed_input = {}
+        if len(self.continuous_cols) > 0:
+            _mean = X[self.continuous_cols].mean()
+            if hasattr(_mean, 'compute'):
+                _mean = _mean.compute()
+            self._merge_dict(imputed_input, _mean.to_dict())
+        if len(self.datetime_cols) > 0:
+            _mode = X[self.datetime_cols].mode()
+            if hasattr(_mode, 'compute'):
+                _mode = _mode.compute()
+            self._merge_dict(imputed_input, _mode.iloc[0].to_dict())
+        if len(self.text_cols) > 0:
+            self._merge_dict(imputed_input, {c: '' for c in self.text_cols})
+        if len(self.latlong_cols) > 0:
+            pass  # do nothing
+
+        return imputed_input
 
     def _replace_invalid_values(self, df, imputed_dict):
         df = df.replace([np.inf, -np.inf], np.nan)
