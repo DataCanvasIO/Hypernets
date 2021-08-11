@@ -58,6 +58,10 @@ class TestStacking():
         greedy = GreedyEnsemble('binary', ests, need_fit=True, n_folds=5, ensemble_size=10)
         greedy_auc = self.get_auc(greedy, X_train, X_test, y_train, y_test)
 
+        # save and load
+        greedy.save('test_ensemble_output_')
+        greedy = GreedyEnsemble.load('test_ensemble_output_')
+
         pred = greedy.predict(X_test)
 
         greedy = GreedyEnsemble('binary', ests, need_fit=True, n_folds=5, ensemble_size=10, scoring='accuracy')
