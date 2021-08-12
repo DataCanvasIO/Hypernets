@@ -39,8 +39,8 @@
   color: #c4c4c4;
   margin-left: 15px;
 }
-/* Fix jupyter has no scroll */
+/* Fix jupyter has no scroll, scroll, auto */
 .jp-OutputArea-output {
   flex: 1;
-  overflow: auto;
+  overflow: scroll;
 }

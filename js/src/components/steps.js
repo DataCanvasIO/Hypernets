@@ -592,7 +592,7 @@ export class DriftDetectionStep extends StepWithStdConfigAndStatusAndFeatureCard
 
         const removeByEvaluateResultTitle = <Tooltip
             title={"Labeling the training set and the test set with different labels respectively as traget, and use only one feature to train a model step by step, if the evaluation score of the model exceed the set threshold, indicate that the feature drifts"}>
-            Remove by evaluate result
+            Remove by evaluation
         </Tooltip>;
 
         const removeByFeatureImportance = <Tooltip
@@ -1701,7 +1701,7 @@ export class PipelineOptimizationStep extends BaseStepComponent {
                         <ConfigurationCard configurationData={configurationForPanel}/>
                     </Col>
                     <Col span={11} offset={2}>
-                        <Card title="Search progress" bordered={false}
+                        <Card title="Progress" bordered={false}
                               style={{width: '100%', marginRight: 0, paddingRight: 0}} size={'small'}>
                             <CircleProgress
                                 title={'Trials'}
