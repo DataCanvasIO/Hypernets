@@ -3,8 +3,13 @@ __author__ = 'yangjian'
 """
 
 """
+import copy
+import pickle
+
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
+
+from hypernets.utils import fs
 
 
 class BaseEnsemble():
@@ -118,3 +123,52 @@ class BaseEnsemble():
 
     def predictions2predict(self, predictions):
         raise NotImplementedError()
+
+    def save(self, model_path):
+        if not model_path.endswith(fs.sep):
+            model_path = model_path + fs.sep
+        if not fs.exists(model_path):
+            fs.mkdirs(model_path, exist_ok=True)
+
+        stub = copy.copy(self)
+        estimators = self.estimators
+        if estimators is not None:
+            stub.estimators = [None for _ in estimators]  # keep size
+
+        if estimators is not None:
+            for i, est in enumerate(estimators):
+                est_pkl = f'{model_path}{i}.pkl'
+                est_model = f'{model_path}{i}.model'
+                for t in [est_pkl, est_model]:
+                    if fs.exists(t):
+                        fs.rm(t)
+
+                if est is None:
+                    continue
+                with fs.open(est_pkl, 'wb') as f:
+                    pickle.dump(est, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+                if hasattr(est, 'save') and hasattr(est, 'load'):
+                    est.save(est_model)
+
+        with fs.open(f'{model_path}ensemble.pkl', 'wb') as f:
+            pickle.dump(stub, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(model_path):
+        if not model_path.endswith(fs.sep):
+            model_path = model_path + fs.sep
+
+        with fs.open(f'{model_path}ensemble.pkl', 'rb') as f:
+            stub = pickle.load(f)
+
+        if stub.estimators is not None:
+            for i in range(len(stub.estimators)):
+                if fs.exists(f'{model_path}{i}.pkl'):
+                    with fs.open(f'{model_path}{i}.pkl', 'rb') as f:
+                        est = pickle.load(f)
+                    if fs.exists(f'{model_path}{i}.model') and hasattr(est, 'load'):
+                        est = est.load(f'{model_path}{i}.model')
+                    stub.estimators[i] = est
+
+        return stub
