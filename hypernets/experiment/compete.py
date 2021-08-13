@@ -680,10 +680,9 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
         estimators = [hyper_model.load_estimator(trial.model_file) for trial in best_trials]
         self.step_progress('load estimators')
 
-        if X_eval is None or y_eval is None:
-            importances = fi.permutation_importance_batch(estimators, X_train, y_train, self.scorer, n_repeats=5)
-        else:
-            importances = fi.permutation_importance_batch(estimators, X_eval, y_eval, self.scorer, n_repeats=5)
+        X, y = (X_train, y_train) if X_eval is None or y_eval is None else (X_eval, y_eval)
+        importances = fi.permutation_importance_batch(estimators, X, y, self.scorer, n_repeats=5,
+                                                      random_state=self.experiment.random_state)
 
         # feature_index = np.argwhere(importances.importances_mean < self.threshold)
         # selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
@@ -748,7 +747,10 @@ class SpaceSearchStep(ExperimentStep):
                                                 isinstance(s, SpaceSearchStep) and s.dataset_id == dataset_id,
                                                 until_step_name=self.name)
         if fitted_step is None:
-            model = self.search(X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
+            model = self.search(X_train.copy(), y_train.copy(),
+                                X_test=X_test.copy() if X_test is not None else None,
+                                X_eval=X_eval.copy() if X_eval is not None else None,
+                                y_eval=y_eval.copy() if y_eval is not None else None,
                                 dataset_id=dataset_id, **kwargs)
             if model.get_best_trial() is None or model.get_best_trial().reward == 0:
                 raise RuntimeError('Not found available trial, change experiment settings and try again pls.')

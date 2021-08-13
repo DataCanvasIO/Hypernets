@@ -136,7 +136,8 @@ def permutation_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
         permutation_importance = sk_permutation_importance
 
     if X_shape[0] > c.permutation_importance_sample_limit:
-        logger.info(f'{X_shape[0]} rows data found, sample to {c.permutation_importance_sample_limit}')
+        if logger.is_info_enabled():
+            logger.info(f'{X_shape[0]} rows data found, sample to {c.permutation_importance_sample_limit}')
         frac = c.permutation_importance_sample_limit / X_shape[0]
         X, _, y, _ = dex.train_test_split(X, y, train_size=frac, random_state=random_state)
 
@@ -144,8 +145,9 @@ def permutation_importance_batch(estimators, X, y, scoring=None, n_repeats=5,
         n_jobs = c.joblib_njobs
 
     for i, est in enumerate(estimators):
-        logger.info(f'score permutation importance by estimator {i}/{len(estimators)}')
-        importance = permutation_importance(est, X, y,
+        if logger.is_info_enabled():
+            logger.info(f'score permutation importance by estimator {i}/{len(estimators)}')
+        importance = permutation_importance(est, X.copy(), y.copy(),
                                             scoring=scoring, n_repeats=n_repeats, n_jobs=n_jobs,
                                             random_state=random_state)
         importances.append(importance.importances)
