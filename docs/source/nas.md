@@ -15,14 +15,18 @@ The 3 problems of NAS: Search Space, Search Strategy, and Performance Estimation
 <img src="https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/abstract_illustration_of_nas.png" width="100%"/>
 </p>
 
+We'll use some definitions from [HyperKeras](https://github.com/DataCanvasIO/HyperKeras) in this chapter's examples, install it with `pip`:
+```bash
+pip install hyperkeras
+```
+
 ## Define A DNN Search Space
 
 ```python
 # define a DNN search space
-
-from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization, Dropout, Activation
-from hypernets.core.search_space import HyperSpace, Bool, Choice, Real, Dynamic
+from hyperkeras.layers import Dense, Input, BatchNormalization, Dropout, Activation
 from hypernets.core.ops import Permutation, Sequential, Optional, Repeat
+from hypernets.core.search_space import HyperSpace, Bool, Choice, Real, Dynamic
 import itertools
 
 
@@ -70,10 +74,10 @@ def dnn_search_space(input_shape, output_units, output_activation, units_choices
     return space
 
 
-# Search the best model in search space defined above 
+# Search the best model in search space defined above
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import SummaryCallback
-from hypernets.frameworks.keras.hyper_keras import HyperKeras
+from hyperkeras.hyper_keras import HyperKeras
 import numpy as np
 
 rs = RandomSearcher(lambda: dnn_search_space(input_shape=10, output_units=2, output_activation='sigmoid'),
@@ -91,12 +95,11 @@ assert hk.get_best_trial()
 ## Define A CNN Search Space
 
 ```python
-from hypernets.frameworks.keras.layers import Dense, Input, BatchNormalization, Activation,
+import itertools
 
-Conv2D, MaxPooling2D, AveragePooling2D, Flatten
+from hyperkeras.layers import Dense, Input, BatchNormalization, Activation, Conv2D, MaxPooling2D, AveragePooling2D, Flatten
 from hypernets.core.search_space import HyperSpace, Bool, Choice, Dynamic
 from hypernets.core.ops import Permutation, Sequential, Optional, Repeat, ModuleChoice
-import itertools
 
 
 def conv_block(block_no, hp_pooling, hp_filters, hp_kernel_size, hp_bn_act, hp_use_bn, hp_activation, strides=(1, 1)):
@@ -162,7 +165,7 @@ def cnn_search_space(input_shape, output_units, output_activation='softmax', blo
 
 from hypernets.searchers.random_searcher import RandomSearcher
 from hypernets.core.callbacks import SummaryCallback
-from hypernets.frameworks.keras.hyper_keras import HyperKeras
+from hyperkeras.hyper_keras import HyperKeras
 import numpy as np
 import tensorflow as tf
 
@@ -202,11 +205,9 @@ assert hk.get_best_trial()
 
 ```python
 # define an ENAS micro search space
-
-from hypernets.frameworks.keras.enas_layers import SafeMerge, Identity, CalibrateSize
-from hypernets.frameworks.keras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D,
-
-SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
+from hyperkeras.search_space.enas_layers import SafeMerge, Identity, CalibrateSize
+from hyperkeras.layers import BatchNormalization, Activation, Add, MaxPooling2D, AveragePooling2D, \
+    SeparableConv2D, Conv2D, GlobalAveragePooling2D, Dense, Dropout
 from hypernets.core.ops import ModuleChoice, InputChoice, ConnectLooseEnd
 from hypernets.core.search_space import ModuleSpace
 
@@ -345,9 +346,9 @@ def classfication(x, classes, dropout_rate=0, data_format=None):
     return x
 
 
-from hypernets.frameworks.keras.enas_common_ops import *
-from hypernets.frameworks.keras.layers import Input
-from hypernets.frameworks.keras.enas_layers import FactorizedReduction
+from hyperkeras.search_space.enas_common_ops import *
+from hyperkeras.layers import Input
+from hyperkeras.search_space.enas_layers import FactorizedReduction
 from hypernets.core.search_space import HyperSpace
 
 
@@ -393,11 +394,12 @@ def enas_micro_search_space(arch='NRNR', input_shape=(28, 28, 1), init_filters=6
 
 # Search the best model in search space defined above on mnist dataset
 import tensorflow as tf
+import numpy as np
 
 from hypernets.core.callbacks import SummaryCallback
 from hypernets.core.ops import *
-from hypernets.frameworks.keras.enas_micro import enas_micro_search_space
-from hypernets.frameworks.keras.hyper_keras import HyperKeras
+from hyperkeras.search_space.enas_micro import enas_micro_search_space
+from hyperkeras.hyper_keras import HyperKeras
 from hypernets.searchers.random_searcher import RandomSearcher
 
 rs = RandomSearcher(
@@ -422,8 +424,9 @@ hk.search(x_train[:samples], y_train[:samples], x_test[:int(samples / 10)], y_te
 assert hk.get_best_trial()
 ```
 
+Console output:
 
-```log
+```console
 /Users/jack/opt/anaconda3/envs/hypernets/bin/python /Users/jack/workspace/aps/Hypernets/tests/keras/run_enas.py
 /Users/jack/opt/anaconda3/envs/hypernets/lib/python3.6/site-packages/lightgbm/__init__.py:48: UserWarning: Starting from version 2.2.1, the library file in distribution wheels for macOS is built by the Apple Clang (Xcode_8.3.3) compiler.
 This means that in case of installing LightGBM from PyPI via the ``pip install lightgbm`` command, you don't need to install the gcc compiler anymore.
@@ -704,15 +707,7 @@ space signatures: {'76001d37233837206b28fd9999cb2e75'}
 Trial No:2
 ......
 ```
-## API Reference
-
-```python
-# api
-
-```
-
-
-References
+## References
 
 [1] Pham H, Guan M Y, Zoph B, et al. Efficient neural architecture search via parameter sharing[J]. arXiv preprint arXiv:1802.03268, 2018.
 

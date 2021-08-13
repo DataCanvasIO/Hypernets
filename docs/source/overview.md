@@ -18,7 +18,10 @@ The space of all feasible solutions for a model is called **Search Space**. Hype
 Search algorithms that looking for a optimal solution in `HyperSpace` and generating samples for `HyperModel`.
 
 ### HyperModel
-High-level interface for users to perform model search and training, as long as the defined search space and training data are passed in to get the best model. HyperModel is an abstract class that needs to implement a dedicated HyperModel for different frameworks or domains. For example, `HyperKeras` is used to automatically search for neural networks built with keras, and `HyperML` is used to automatically optimize ML pipeline composed of sklearn, xgboost, and lightgbm....
+High-level interface for users to perform model search and training, as long as the defined search space and training data are passed in to get the best model. HyperModel is an abstract class that needs to implement a dedicated HyperModel for different frameworks or domains. For example, `HyperKeras` is used to automatically search for neural networks built with keras, and `HyperGBM` is used to automatically optimize ML pipeline composed of sklearn, xgboost, and lightgbm....
 
 ### Estimator
 A specific `HyperModle` needs to be paired with a dedicated `Estimator` to fit and evaluate the sample given by the `HyperModel`. This sample may be a set of hyperparameters, a network architecture, or a mixture of them.
+
+### Experiment
+The playground to prepare training and testing data, and search the optimized estimator with HyperModel.
