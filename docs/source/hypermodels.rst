@@ -12,7 +12,7 @@ HyperModel is an abstract class that needs to implement a dedicated HyperModel f
 Customize HyperModel
 --------------
 
-To customize HyerModel, two component are required:
+To customize HyerModel, two components are required:
 
 * HyperModel: subclass of *hypernets.model.HyperModel*, create newer Estimator instance with searched space sample, and load trained estimator from storage.
 
