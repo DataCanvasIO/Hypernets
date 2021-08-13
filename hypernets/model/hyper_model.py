@@ -201,7 +201,29 @@ class HyperModel:
         self._after_search(trial_no)
 
     def generate_dataset_id(self, X, y):
-        sign = hash_data([X, y])
+        if hasattr(X, 'shape') and len(getattr(X, 'shape')) == 2:
+            sign = hash_data([X, y])
+        else:
+            import hashlib
+            repr = ''
+            if X is not None:
+                if isinstance(X, list):
+                    repr += f'X len({len(X)})|'
+                if hasattr(X, 'shape'):
+                    repr += f'X shape{X.shape}|'
+                if hasattr(X, 'dtypes'):
+                    repr += f'x.dtypes({list(X.dtypes)})|'
+
+            if y is not None:
+                if isinstance(y, list):
+                    repr += f'y len({len(y)})|'
+                if hasattr(y, 'shape'):
+                    repr += f'y shape{y.shape}|'
+
+                if hasattr(y, 'dtype'):
+                    repr += f'y.dtype({y.dtype})|'
+
+            sign = hashlib.md5(repr.encode('utf-8')).hexdigest()
         return sign
 
     def final_train(self, space_sample, X, y, **kwargs):

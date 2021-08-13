@@ -55,7 +55,7 @@ class Estimator():
         return predict
 
     def get_iteration_scores(self):
-        raise NotImplementedError
+        return []
 
 
 class CrossValidationEstimator():
