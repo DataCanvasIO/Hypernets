@@ -5,9 +5,7 @@ We introduced an abstract search space representation, taking into account the r
 
 The figure below shows conceptual model of Hypernets.
 
-<p align="center">
-<img src="https://github.com/DataCanvasIO/Hypernets/raw/master/docs/source/images/hypernets_conceptual_model.png" width="100%"/>
-</p>
+![hypernets_conceptual_model](images/hypernets_conceptual_model.png)
 
 ## Key Components
 
