@@ -26,6 +26,7 @@ from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
 from hypernets.tabular.feature_selection import select_by_multicollinearity
 from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
+from hypernets.tabular.metrics import metric_to_scoring
 from hypernets.utils import logging, const, hash_data, df_utils, infer_task_type
 
 logger = logging.get_logger(__name__)
@@ -1478,7 +1479,7 @@ class CompeteExperiment(SteppedExperiment):
             Scorer to used for feature importance evaluation and ensemble. It can be a single string
             (see [get_scorer](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.get_scorer.html))
             or a callable (see [make_scorer](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.make_scorer.html)).
-            If None, exception will occur.
+            Will be inferred from *hyper_model.reward_metric* if it's None.
         data_cleaner_args : dict, (default=None)
             dictionary of parameters to initialize the `DataCleaner` instance. If None, `DataCleaner` will initialized
             with default values.
@@ -1578,7 +1579,13 @@ class CompeteExperiment(SteppedExperiment):
         set_random_state(random_state)
 
         if task is None:
-            task, _ = infer_task_type(y_train)
+            dc_nan_chars = data_cleaner_args.get('nan_chars') if data_cleaner_args is not None else None
+            if isinstance(dc_nan_chars, str):
+                dc_nan_chars = [dc_nan_chars]
+            task, _ = infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
+
+        if scorer is None:
+            scorer = metric_to_scoring(hyper_model.reward_metric, task=task, pos_label=kwargs.get('pos_label'))
 
         steps = []
         two_stage = False
