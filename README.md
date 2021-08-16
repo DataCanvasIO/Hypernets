@@ -26,14 +26,39 @@ We introduced an abstract search space representation, taking into account the r
 
 
 ## Installation
-```shell script
+
+Install Hypernets with `pip` command:
+ 
+```bash
 pip install hypernets
 ```
 
-***Verify installation***:
-```shell script
-python -c "from examples import smoke_testing;"
+Optional, to run Hypernets in JupyterLab notebooks, install Hypernets and JupyterLab with command:
+```bash
+pip install hypernets[notebook]
 ```
+
+Optional, to run Hypernets in distributed Dask cluster, install Hypernets with command:
+```bash
+pip install hypernets[dask]
+```
+
+Optional, to support dataset with simplified Chinese in feature generation, install `jieba` package before run Hypernets, or install Hypernets with command:
+```bash
+pip install hypernets[zhcn]
+```
+
+Optional, install all Hypernets components and dependencies with one command:
+```bash
+pip install hypernets[all]
+```
+
+
+***Verify installation***:
+```bash
+python -m hypernets.examples.smoke_testing
+```
+
 ## Related Links
 
 * [A Brief Tutorial for Developing AutoML Tools with Hypernets](https://github.com/BochenLv/knn_toy_model/blob/main/hypertoy/intro.md)

@@ -7,9 +7,32 @@
 
 ### Installation
 
+Install Hypernets with `pip` command:
+ 
 ```bash
 pip install hypernets
 ```
+
+Optional, to run Hypernets in JupyterLab notebooks, install Hypernets and JupyterLab with command:
+```bash
+pip install hypernets[notebook]
+```
+
+Optional, to run Hypernets in distributed Dask cluster, install Hypernets with command:
+```bash
+pip install hypernets[dask]
+```
+
+Optional, to support simplified Chinese in feature generation, install `jieba` package before run Hypernets, or install Hypernets with command:
+```bash
+pip install hypernets[zhcn]
+```
+
+Optional, install all Hypernets components and dependencies with one command:
+```bash
+pip install hypernets[all]
+```
+``
 
 ***Verify installation***:
 ```bash
