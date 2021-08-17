@@ -41,7 +41,7 @@ export function getInitData() {
                         reduced: []
                     },
                 },
-                "start_datetime": 1626419128,
+                "start_datetime": 1629184489.0386312,
                 "end_datetime": null
             }
         ]
@@ -148,7 +148,7 @@ export function sendFinishData(store, delay = 1000) {
                         }
                     },
                     status: StepStatus.Finish,
-                    end_datetime: 1626519128
+                    end_datetime: 1629184589.0386312
                 }
             }
         )

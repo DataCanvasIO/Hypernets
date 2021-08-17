@@ -475,7 +475,7 @@ class extract_psedudo_step(Extractor):
         from seaborn._statistics import KDE
         for i, class_ in enumerate(classes):
             selected_proba = np.array(scores[:, i])
-            selected_proba_series = pd.Series(selected_proba).dropna()
+            selected_proba_series = pd.Series(selected_proba).dropna()  # todo use numpy instead to remove pandas
             # selected_proba = selected_proba.reshape((selected_proba.shape[0], 1))
             estimator = KDE(bw_method='scott', bw_adjust=0.01, gridsize=200, cut=3, clip=None, cumulative=False)
             density, support = estimator(selected_proba_series, weights=None)
