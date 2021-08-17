@@ -431,7 +431,7 @@ def compute_class_weight(class_weight, *, classes, y):
     # f"""{sk_utils.class_weight.compute_class_weight.__doc__}"""
 
     if not is_dask_object(y):
-        return sk_utils.class_weight.compute_class_weight(class_weight, classes, y)
+        return sk_utils.class_weight.compute_class_weight(class_weight, classes=classes, y=y)
 
     y = make_chunk_size_known(y)
     if set(compute(da.unique(y))[0]) - set(classes):
@@ -471,7 +471,7 @@ def compute_sample_weight(y):
         y = y.values
 
     unique = compute(da.unique(y))[0] if is_dask_object(y) else np.unique(y)
-    cw = list(compute_class_weight('balanced', unique, y))
+    cw = list(compute_class_weight('balanced', classes=unique, y=y))
 
     if is_dask_object(y):
         sample_weight = y.map_blocks(_compute_chunk_sample_weight, unique, cw, dtype=np.float64)
