@@ -20,12 +20,12 @@ export function formatHumanDate(seconds) {
         min = getMinutes(seconds);
     }
     if (hours !== null) {
-        return `${hours}h ${min}m`
+        return `≈${hours}h ${min}m`
     } else {
         if (min < 1){
             return `<1m`
         }else{
-            return `${min}m`
+            return `≈${min}m`
         }
     }
 }

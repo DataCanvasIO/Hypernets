@@ -186,7 +186,7 @@ export function StepStatusCard({stepData}) {
     if (status === StepStatus.Finish) {  // calc elapsed time
         if (start_datetime !== undefined && start_datetime !== null) {
             if (end_datetime !== undefined && end_datetime !== null) {
-                elapsed = formatHumanDate((end_datetime - start_datetime) / 1000);
+                elapsed = formatHumanDate(end_datetime - start_datetime);
             } else {
                 console.error(`status is ${status} but end_datetime is null `);
             }
