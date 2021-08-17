@@ -1,4 +1,4 @@
-from ._version import version_info, __version__
+from ._version import __version__
 
 from .widget import *
 
