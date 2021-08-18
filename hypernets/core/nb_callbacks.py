@@ -1,28 +1,48 @@
+import pickle
+import time
+import sys
 
-# hk.search(X_train, y_train, X_test, y_test, cv=False, max_trials=3)
+from IPython.display import display
+
+from hypernets.core.callbacks import Callback
+from hypernets.core.callbacks import EarlyStoppingCallback
+from hypernets.experiment import ExperimentCallback
+from hypernets.utils import fs
+
+try:
+    import hn_widget
+except Exception as e:
+    sys.stderr.write("Please install the hypernets widget with command: pip install hypernets-jupyter-widget ")
+
+from hn_widget.experiment_util import EarlyStoppingStatus
+from hn_widget.experiment_util import get_step_index
 from hn_widget.experiment_util import StepStatus
 
-from hypernets.experiment import ExperimentCallback
-from hypernets.core.callbacks import Callback
-import json
-from IPython.display import display_html, HTML, display
-import pickle
-
-from hypernets.experiment.compete import SpaceSearchStep
-from hypernets.utils import fs
-from hypernets.core.callbacks import EarlyStoppingCallback
-import time
-import lightgbm as lgb
-import xgboost as xgb
-import catboost
-from xgboost.sklearn import XGBModel
-from lightgbm.sklearn import LGBMModel
-from catboost.core import CatBoost
-
-from hn_widget.widget import ExperimentProcessWidget
-from hn_widget.experiment_util import EarlyStoppingStatus, EarlyStoppingConfig
-
 MAX_IMPORTANCE_NUM = 10
+
+
+def _is_light_gbm_model(m):
+    try:
+        from lightgbm.sklearn import LGBMModel
+        return isinstance(m, LGBMModel)
+    except Exception as e:
+        return False
+
+
+def _is_xgboost_model(m):
+    try:
+        from xgboost.sklearn import XGBModel
+        return isinstance(m, XGBModel)
+    except Exception as e:
+        return False
+
+
+def _is_catboost_model(m):
+    try:
+        from catboost.core import CatBoost
+        return isinstance(m, CatBoost)
+    except Exception as e:
+        return False
 
 
 def extract_importances(gbm_model):
@@ -34,15 +54,15 @@ def extract_importances(gbm_model):
             # print(e)
             return [0 for i in range(n_features)]
 
-    if isinstance(gbm_model, XGBModel):
+    if _is_xgboost_model(gbm_model):
         importances_pairs = list(zip(gbm_model._Booster.feature_names, get_imp(len(gbm_model._Booster.feature_names))))
-    elif isinstance(gbm_model, LGBMModel):
+    elif _is_light_gbm_model(gbm_model):
         if hasattr(gbm_model, 'feature_name_'):
             names = gbm_model.feature_name_
         else:
             names = [f'col_{i}' for i in range(gbm_model.feature_importances_.shape[0])]
         importances_pairs = list(zip(names, get_imp(len(names))))
-    elif isinstance(gbm_model, CatBoost):
+    elif _is_catboost_model(gbm_model):
         importances_pairs = list(zip(gbm_model.feature_names_, get_imp(len(gbm_model.feature_names_))))
     else:
         importances_pairs = []
@@ -238,9 +258,7 @@ class JupyterHyperModelCallback(Callback):
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
         pass
 
-
 DOM_WIDGETS = {}
-
 
 class JupyterWidgetExperimentCallback(ExperimentCallback):
 
@@ -255,6 +273,7 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
                 break
 
     def experiment_start(self, exp):
+        from hn_widget.widget import ExperimentProcessWidget
         self.set_up_hyper_model_callback(exp, lambda c: c.set_widget_id(self.widget_id))
         # c.set_step_index(i)
         dom_widget = ExperimentProcessWidget(exp)
@@ -269,8 +288,6 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
         send_action(self.widget_id, ActionType.ExperimentBreak, {})
 
     def step_start(self, exp, step):
-        from hn_widget.experiment_util import get_step_index
-        from hn_widget.experiment_util import StepStatus
         step_name = step
         step_index = get_step_index(exp, step_name)
         self.set_up_hyper_model_callback(exp, lambda c: c.set_step_index(step_index))
@@ -286,7 +303,6 @@ class JupyterWidgetExperimentCallback(ExperimentCallback):
 
     def step_end(self, exp, step, output, elapsed):
         from hn_widget import experiment_util
-        from hn_widget.experiment_util import StepStatus
         step_name = step
         step = exp.get_step(step_name)
         # setattr(step, 'status', StepStatus.Finish)
