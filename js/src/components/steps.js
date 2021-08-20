@@ -1062,13 +1062,11 @@ class TrialChart extends React.Component {
         super(props);
         this.echartsLib = echarts;
         this.echartsElement = null;
-        // props.trials
-        // props.onTrialClick = (trialNo) => {}
     }
 
     onChartClick(params){
 
-        // 1. if (params.) componentType:series , seriesType: scatter should match
+        // if (params.) componentType:series , seriesType: scatter should match
         const xAxisName = params.name ; // FIXME: this is a bug
         const trainNo = parseInt(xAxisName.substring(1, xAxisName.length));
         this.props.onTrialClick(trainNo, 0);
@@ -1154,29 +1152,24 @@ class TrialChart extends React.Component {
         );
     }
 
-
-
     getChartOptions(xAxisData, trials, cv, num_folds){
-
-        const maxElapsed = Math.max(...trials.map(v => v.elapsed));
-
-        let timeMax ;
-        let timeUnit;
-        let elapsedSeriesData;
-        if(maxElapsed < 60){
-            timeMax = 60;
-            timeUnit = 's';
-            elapsedSeriesData = trials.map(v => v.elapsed);
-        } else if(maxElapsed >= 60 && maxElapsed < 3600 ){
-            timeMax = 60;
-            timeUnit = 'min';
-            elapsedSeriesData = trials.map(v => v.elapsed / 60);
-        } else {
-            timeUnit = 'hour';
-            timeMax = Math.floor(maxElapsed / 3600) + 1;
-            elapsedSeriesData = trials.map(v => v.elapsed / 3600 );
-        }
-
+        // const maxElapsed = Math.max(...trials.map(v => v.elapsed));
+        let elapsedSeriesData = trials.map(v => v.elapsed);
+        // let timeMax ;
+        // let timeUnit;
+        // if(maxElapsed < 60){
+        //     timeMax = 60;
+        //     timeUnit = 's';
+        //     elapsedSeriesData = trials.map(v => v.elapsed)
+        // } else if(maxElapsed >= 60 && maxElapsed < 3600 ){
+        //     timeMax = 60;
+        //     timeUnit = 'min';
+        //     elapsedSeriesData = trials.map(v => v.elapsed / 60);
+        // } else {
+        //     timeUnit = 'hour';
+        //     timeMax = Math.floor(maxElapsed / 3600) + 1;
+        //     elapsedSeriesData = trials.map(v => v.elapsed / 3600 );
+        // }
         // [ [0.5,0.5,0.9], [0.5,0.5,0.9] ]
         const limitStrLen = (str, len=12, fromBegin=true) => {
             if(str.length > len){
@@ -1299,8 +1292,8 @@ class TrialChart extends React.Component {
                 {
                     type: 'value',
                     name: 'Reward',
-                    min: 0,
-                    max: 1,
+                    // min: 0,
+                    // max: 1,
                     position: 'left',
                     axisLine: {
                         show: true,
@@ -1324,7 +1317,7 @@ class TrialChart extends React.Component {
                         }
                     },
                     axisLabel: {
-                        formatter: `{value} ${timeUnit}`
+                        formatter: `{value} s`
                     }
                 }
             ],
@@ -1333,7 +1326,7 @@ class TrialChart extends React.Component {
                     name: 'Reward',
                     type: 'line',
                     color: colors[0],
-                    yAxisIndex: 1,
+                    yAxisIndex: 0,
                     data: trials.map(t => parseFloat(t.reward)),
                     markPoint: {
                         symbol: 'pin',
@@ -1355,6 +1348,7 @@ class TrialChart extends React.Component {
                 {
                     name: 'Elapsed',
                     type: 'bar',
+                    yAxisIndex: 1,
                     color: colors[1],
                     data: elapsedSeriesData
                 },
@@ -1497,13 +1491,10 @@ export class PipelineOptimizationStep extends BaseStepComponent {
 
     render() {
         const stepData = this.stepData;
-        // const [trialsProcessData, setTrialsProcessData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-        // const [earlyStoppingRewardData, setEarlyStoppingRewardData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-        // const [earlyStoppingTrialsData, setEarlyStoppingTrialsData] = useState({percent: 0, value: '-', tip: 'Waiting'});
-        // const [earlyStoppingElapsedTimeData, setEarlyStoppingElapsedTimeData] = useState({percent: 0, value: '-', tip: 'Waiting'});
 
         const ES_EMPTY = {percent: 0, value: '-', tip: 'Empty data'};
         const ES_DISABLED = {percent: 0, value: '-', tip: 'EarlyStopping is disabled '};
+        const ES_TIP_OFF = {percent: 0, value: '-', tip: 'This strategy is off'};
 
         const earlyStoppingConfig = stepData.configuration.earlyStopping;
         const earlyStoppingStatus = stepData.extension.earlyStopping;
@@ -1533,7 +1524,6 @@ export class PipelineOptimizationStep extends BaseStepComponent {
             lastTrial = null;
             importanceData = [[]]
         }
-        //
 
         const configurationForPanel =  this.getDisplayConfigData();
 
@@ -1562,12 +1552,11 @@ export class PipelineOptimizationStep extends BaseStepComponent {
                 percent = (counterNoImprovementTrials / maxNoImprovedTrials) * 100;
                 value = counterNoImprovementTrials;
                 tip =  `Max no improved trials is ${maxNoImprovedTrials}, now is ${value}`;
+                return {percent, value, tip}
             }else{
-                percent = 0;
-                value = '-';
-                tip = `This strategy is off`;
+                return ES_TIP_OFF;
             }
-            return {percent, value, tip}
+
         };
         const getEarlyStoppingRewardData = (earlyStoppingConfig, earlyStoppingStatus) => {
 
@@ -1610,12 +1599,10 @@ export class PipelineOptimizationStep extends BaseStepComponent {
                         }
                     }
                     tip = `Excepted reward is ${exceptedReward}, now best reward is ${value}`;
+                    return {percent, value, tip}
                 }else{
-                    percent = 0;
-                    value = '-';
-                    tip = `This strategy is off`;
+                    return ES_TIP_OFF;
                 }
-                return {percent, value, tip}
             }else{
                 // es data may be null
                 return ES_EMPTY
