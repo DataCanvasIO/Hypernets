@@ -10,7 +10,7 @@ HyperModel is an abstract class that needs to implement a dedicated HyperModel f
 
 
 Customize HyperModel
---------------
+-------------------------
 
 To customize HyerModel, two components are required:
 

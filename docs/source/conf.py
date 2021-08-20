@@ -34,7 +34,7 @@ copyright = f'{now.year}, DataCanvas.com'
 author = 'DataCanvas.com'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.1'
+release = '0.2.3'
 extensions = ['recommonmark',
               'sphinx.ext.autodoc',
               'sphinx.ext.napoleon',
