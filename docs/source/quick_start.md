@@ -1,14 +1,9 @@
 # Quick-Start
 
-## Installation Guide
+## Installation
 
-### Requirements
-**Python 3**: Hypernets requires Python version 3.6 or 3.7. 
+Python version 3.6 or above is necessary before installing Hypernets. Install Hypernets with `pip` command:
 
-### Installation
-
-Install Hypernets with `pip` command:
- 
 ```bash
 pip install hypernets
 ```
