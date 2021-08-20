@@ -1,7 +1,6 @@
 # Hypernets
 
 [![Python Versions](https://img.shields.io/pypi/pyversions/hypernets.svg)](https://pypi.org/project/hypernets)
-[![TensorFlow Versions](https://img.shields.io/badge/TensorFlow-2.0+-blue.svg)](https://pypi.org/project/hypernets)
 [![Downloads](https://pepy.tech/badge/hypernets)](https://pepy.tech/project/hypernets)
 [![PyPI Version](https://img.shields.io/pypi/v/hypernets.svg)](https://pypi.org/project/hypernets)
 
