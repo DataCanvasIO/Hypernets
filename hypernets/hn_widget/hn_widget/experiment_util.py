@@ -188,8 +188,10 @@ class ABS_FeatureSelectionStepExtractor(Extractor):
             return selected_features
 
 class extract_data_clean_step(ABS_FeatureSelectionStepExtractor):
-    def get_output_features(self):
-        return self.step.input_features_
+    pass
+    # fixbug: data clean's outputs features is the same as input's
+    # def get_output_features(self):
+    #     return self.step.input_features_
 
 class extract_feature_generation_step(Extractor):
     def get_output_features(self):
