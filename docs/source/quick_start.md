@@ -12,6 +12,7 @@ Optional, to run Hypernets in JupyterLab notebooks, install Hypernets and Jupyte
 ```bash
 pip install hypernets[notebook]
 ```
+See more about [Hypernets jupyter notebook widget](jupyter_widget.md)
 
 Optional, to run Hypernets in distributed Dask cluster, install Hypernets with command:
 ```bash

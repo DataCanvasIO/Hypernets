@@ -1,5 +1,6 @@
 import {notification} from "antd";
-import uuidv4 from 'uuid/v4';
+import { uuid } from 'uuidv4';
+
 
 
 export function formatHumanDate(seconds) {
@@ -57,7 +58,7 @@ export function formatFloat(num, length=4) {
 
 export const showNotification = (message) => {
     notification.error({
-        key: uuidv4(),
+        key: uuid(),
         message: message,
         duration: 10,
     });
