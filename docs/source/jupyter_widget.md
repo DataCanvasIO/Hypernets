@@ -14,7 +14,7 @@ There are two projects related to the widget:
 - [python 3.7+](https://python.org)
 - [nodejs v14.15.0+](https://nodejs.org/en/)
 - [pip 20.0.2+](https://pypi.org/project/pip/)
-
+- [jupyterlab 2.0.0+ ](https://jupyter.org/) (if you're using jupyterlab)
 
 Clone the repo:
 ```buildoutcfg
@@ -24,15 +24,14 @@ git clone https://github.com/DataCanvasIO/Hypernets.git
 Build React project `hypernets-experiment`:
 ```bash
 cd Hypernets/js
-npm install yarn -g   
+npm install yarn webpack webpack-cli -g   
+npm install 
 webpack # build index.js file
-yarn link  # register for module `hypernets-jupyter-widget`
 ```
 
 Build and install the widget:
 ```bash
 cd Hypernets/hypernets/hn_widget
-yarn link "hypernets-experiment"
 pip install jupyter_packaging  # jupyter_packaging is required by setup.py
 pip install .  # build and install the widget
 ```
