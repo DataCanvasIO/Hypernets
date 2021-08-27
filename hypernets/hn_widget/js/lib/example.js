@@ -1,8 +1,8 @@
 var widgets = require('@jupyter-widgets/base');
 var _ = require('lodash');
 
-// var hypernetsExperiment = require('./hypernetsExperiment.js');
-var hypernetsExperiment = require('hypernets-experiment').hypernetsExperiment;
+var experimentVisLib = require('./experimentVis.js');
+var hypernetsExperiment = experimentVisLib.experimentVis;
 
 var ExperimentSummaryModel = widgets.DOMWidgetModel.extend({
     defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
@@ -73,6 +73,8 @@ var ExperimentProcessWidgetView = widgets.DOMWidgetView.extend({
     reactStore: null,
     // Defines how the widget gets rendered into the DOM
     render: function() {
+        console.log('experimentVisLib lib: ');
+        console.log(experimentVisLib);
         console.log('hypernetsExperiment lib: ');
         console.log(hypernetsExperiment);
         const originInitData = this.model.get('initData');

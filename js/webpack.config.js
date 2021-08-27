@@ -2,9 +2,9 @@ const config = {
     entry: ['./src/index.js'],
     output: {
         path: __dirname + '/build',
-        filename: 'index.js',
+        filename: 'experimentVis.js',
         libraryTarget: "commonjs", // commonjs, var
-        library: 'hypernetsExperiment'
+        library: 'experimentVis'
     },
     module: {
         rules: [

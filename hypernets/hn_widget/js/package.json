@@ -36,8 +36,7 @@
   },
   "dependencies": {
     "@jupyter-widgets/base": "^1.1 || ^2 || ^3 || ^4",
-    "lodash": "^4.17.4",
-    "hypernets-experiment": "file:../js"
+    "lodash": "^4.17.4"
   },
   "jupyterlab": {
     "extension": "lib/labplugin",

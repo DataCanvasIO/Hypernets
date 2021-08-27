@@ -17,7 +17,8 @@ There are two projects related to the widget:
 - [jupyterlab 2.0.0+ ](https://jupyter.org/) (if you're using jupyterlab)
 
 Clone the repo:
-```buildoutcfg
+
+```bash
 git clone https://github.com/DataCanvasIO/Hypernets.git
 ```
 
@@ -26,7 +27,8 @@ Build React project `hypernets-experiment`:
 cd Hypernets/js
 npm install yarn webpack webpack-cli -g   
 npm install 
-webpack # build index.js file
+webpack # build experimentVis.js file
+cp build/experimentVis.js ../hypernets/hn_widget/build/lib/
 ```
 
 Build and install the widget:
