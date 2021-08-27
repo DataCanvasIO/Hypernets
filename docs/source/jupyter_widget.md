@@ -28,7 +28,7 @@ cd Hypernets/js
 npm install yarn webpack webpack-cli -g   
 npm install 
 webpack # build experimentVis.js file
-cp build/experimentVis.js ../hypernets/hn_widget/build/lib/
+cp build/experimentVis.js ../hypernets/hn_widget/js/lib/
 ```
 
 Build and install the widget:
