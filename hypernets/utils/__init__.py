@@ -3,6 +3,9 @@ __author__ = 'yangjian'
 """
 
 """
+import sys as sys_
+
+is_os_windows = sys_.platform.find('win') == 0
 
 from ._doc_lens import DocLens
 from ._fsutils import filesystem as fs

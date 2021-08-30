@@ -5,16 +5,13 @@
 
 import json
 import os
-import sys
 import tempfile
-
 import fsspec
 
 from hypernets.conf import Configurable, configure, Unicode
-from . import logging
+from . import logging, is_os_windows
 
 logger = logging.get_logger(__name__)
-is_windows = sys.platform.find('win') >= 0
 
 
 @configure()
@@ -41,7 +38,7 @@ class FileSystemAdapter(object):
         self.remote_root = remote_root
         self.local_root = local_root
         self.remote_sep = remote_sep
-        self.remote_root_alias = remote_root.replace('\\', '/') if is_windows else None
+        self.remote_root_alias = remote_root.replace('\\', '/') if is_os_windows else None
 
     def _inner_to_rpath(self, rpath):
         if rpath.startswith(self.remote_root):
@@ -50,7 +47,7 @@ class FileSystemAdapter(object):
         if self.remote_root_alias and rpath.startswith(self.remote_root_alias):
             return rpath
 
-        if is_windows and rpath.find(':') > 0:
+        if is_os_windows and rpath.find(':') > 0:
             return rpath
 
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)

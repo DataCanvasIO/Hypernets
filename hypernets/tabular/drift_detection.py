@@ -4,7 +4,6 @@ __author__ = 'yangjian'
 
 """
 import copy
-import sys
 import time
 
 import dask
@@ -19,13 +18,12 @@ from sklearn.metrics import roc_auc_score, matthews_corrcoef, make_scorer
 
 from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
-from hypernets.utils import logging
+from hypernets.utils import logging, is_os_windows
 from .cfg import TabularCfg as cfg
 from .general import general_preprocessor, general_estimator
 
 logger = logging.getLogger(__name__)
 
-is_os_windows = sys.platform.find('win') >= 0
 roc_auc_scorer = make_scorer(roc_auc_score, greater_is_better=True, needs_threshold=True)
 matthews_corrcoef_scorer = make_scorer(matthews_corrcoef)
 

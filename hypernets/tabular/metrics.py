@@ -5,7 +5,6 @@
 import math
 import os
 import pickle
-import sys
 
 import numpy as np
 import psutil
@@ -13,15 +12,12 @@ from dask import dataframe as dd
 from joblib import Parallel, delayed
 from sklearn import metrics as sk_metrics
 
-from hypernets.utils import const, infer_task_type, logging
+from hypernets.utils import const, infer_task_type, logging, is_os_windows
 from . import dask_ex as dex
 
 logger = logging.get_logger(__name__)
 
-_is_os_windows = sys.platform.find('win') >= 0
-
 _MIN_BATCH_SIZE = 100000
-
 _DASK_METRICS = ('accuracy', 'logloss')
 
 
@@ -370,7 +366,7 @@ def _call_predict(estimator, fn_name, df, n_jobs=1):
     if n_jobs > 1:
         batch_size = math.ceil(df.shape[0] / n_jobs)
         df_parts = [df[i:i + batch_size].copy() for i in range(df.index.start, df.index.stop, batch_size)]
-        options = dict(backend='multiprocessing') if _is_os_windows else dict(prefer='processes')
+        options = dict(backend='multiprocessing') if is_os_windows else dict(prefer='processes')
         pss = Parallel(n_jobs=n_jobs, **options)(delayed(_load_and_run)(estimator, fn_name, x) for x in df_parts)
 
         if len(pss[0].shape) > 1:
