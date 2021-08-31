@@ -37,7 +37,6 @@ def detect_strategy(strategy=None, threshold=None, quantile=None, number=None):
     if strategy == _STRATEGY_THRESHOLD:
         if threshold is None:
             threshold = _DEFAULT_THRESHOLD
-        assert 0 < threshold < 1.0
     elif strategy == _STRATEGY_NUMBER:
         if number is None:
             number = _DEFAULT_TOP_PERCENT
