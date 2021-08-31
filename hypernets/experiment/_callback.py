@@ -230,14 +230,18 @@ class SimpleNotebookCallback(ExperimentCallback):
             import seaborn as sns
             import matplotlib.pyplot as plt
             from sklearn.preprocessing import LabelEncoder
-
-            le = LabelEncoder()
-            y = le.fit_transform(y_train.dropna())
-            # Draw Plot
-            plt.figure(figsize=(8, 4), dpi=80)
-            sns.distplot(y, kde=False, color="g", label="y")
+            if exp.task == const.TASK_REGRESSION:
+                # Draw Plot
+                plt.figure(figsize=(8, 4), dpi=80)
+                sns.kdeplot(y_train.dropna(), shade=True, color="g", label="Proba", alpha=.7, bw_adjust=0.01)
+            else:
+                le = LabelEncoder()
+                y = le.fit_transform(y_train.dropna())
+                # Draw Plot
+                plt.figure(figsize=(8, 4), dpi=80)
+                sns.distplot(y, kde=False, color="g", label="y")
             # Decoration
-            plt.title('Distribution of y', fontsize=12)
+            plt.title('Distribution of y', fontsize=22)
             plt.legend()
             plt.show()
         except:
