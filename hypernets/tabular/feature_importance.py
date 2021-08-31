@@ -3,6 +3,8 @@ __author__ = 'yangjian'
 """
 
 """
+import math
+
 import numpy as np
 from sklearn.inspection import permutation_importance as sk_permutation_importance
 from sklearn.utils import Bunch
@@ -56,7 +58,7 @@ def select_by_feature_importance(feature_importance, strategy=None,
 
     strategy, threshold, quantile, number = detect_strategy(strategy, threshold, quantile, number)
     if strategy == _STRATEGY_NUMBER and isinstance(number, float) and 0 < number < 1.0:
-        number = len(feature_importance) * _DEFAULT_TOP_PERCENT
+        number = math.ceil(len(feature_importance) * number)
 
     feature_importance = np.array(feature_importance)
     idx = np.arange(len(feature_importance))
@@ -68,8 +70,8 @@ def select_by_feature_importance(feature_importance, strategy=None,
         selected = np.where(np.where(feature_importance >= q, idx, -1) >= 0)[0]
     elif strategy == _STRATEGY_NUMBER:
         pos = len(feature_importance) - number
-        sorted = np.argsort(np.argsort(feature_importance))
-        selected = np.where(sorted >= pos)[0]
+        sorted_ = np.argsort(np.argsort(feature_importance))
+        selected = np.where(sorted_ >= pos)[0]
     else:
         raise ValueError(f'Unsupported strategy: {strategy}')
 
