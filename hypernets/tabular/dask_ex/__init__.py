@@ -129,6 +129,15 @@ def to_dask_type(X):
     return X
 
 
+def to_dask_frame_or_series(X):
+    X = to_dask_type(X)
+
+    if isinstance(X, da.Array):
+        X = dd.from_dask_array(X)
+
+    return X
+
+
 def _reset_part_index(df, start):
     new_index = pd.RangeIndex.from_range(range(start, start + df.shape[0]))
     df.index = new_index
@@ -175,11 +184,12 @@ def make_divisions_known(X):
 
     if is_dask_dataframe(X):
         if not X.known_divisions:
-            columns = X.columns.tolist()
-            X = X.reset_index()
-            new_columns = X.columns.tolist()
-            index_name = set(new_columns) - set(columns)
-            X = X.set_index(list(index_name)[0] if index_name else 'index')
+            # columns = X.columns.tolist()
+            # X = X.reset_index()
+            # new_columns = X.columns.tolist()
+            # index_name = set(new_columns) - set(columns)
+            # X = X.set_index(list(index_name)[0] if index_name else 'index')
+            X = reset_index(X)
             assert X.known_divisions
     elif is_dask_series(X):
         if not X.known_divisions:
@@ -277,13 +287,12 @@ def concat_df(dfs, axis=0, repartition=False, **kwargs):
 def train_test_split(*data, shuffle=True, random_state=None, **kwargs):
     if exist_dask_dataframe(*data):
         if len(data) > 1:
-            data = [make_divisions_known(to_dask_type(x)) for x in data]
+            data = [make_divisions_known(to_dask_frame_or_series(x)) for x in data]
             head = data[0]
             for i in range(1, len(data)):
                 if data[i].divisions != head.divisions:
-                    print('-' * 10, f'repartition {i} from {data[i].divisions} to {head.divisions}')
+                    logger.info(f'repartition {i} from {data[i].divisions} to {head.divisions}')
                     data[i] = data[i].repartition(divisions=head.divisions)
-
         result = dm_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, **kwargs)
     else:
         result = sk_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, **kwargs)
