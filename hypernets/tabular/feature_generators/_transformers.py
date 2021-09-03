@@ -8,6 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from hypernets.tabular.column_selector import column_all_datetime, column_number_exclude_timedelta
 from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
 from ._primitives import CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive
+from hypernets.tabular import dask_ex as dex
 
 _named_primitives = [CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive]
 
@@ -124,6 +125,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         es = ft.EntitySet(id='es_hypernets_fit')
         make_index = self.ft_index not in original_cols
         feature_type_dict = self._get_feature_types(X)
+        X, y = [dex.make_divisions_known(t) if dex.is_dask_object(t) else t for t in (X, y)]
         es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
                                  make_index=make_index, index=self.ft_index)
         feature_matrix, feature_defs = ft.dfs(entityset=es, target_entity="e_hypernets_ft",
@@ -164,6 +166,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         es = ft.EntitySet(id='es_hypernets_transform')
         feature_type_dict = self._get_feature_types(X)
         make_index = self.ft_index not in X.columns.to_list()
+        X, y = [dex.make_divisions_known(t) if dex.is_dask_object(t) else t for t in (X, y)]
         es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
                                  make_index=make_index, index=self.ft_index)
         Xt = ft.calculate_feature_matrix(self.feature_defs_, entityset=es, n_jobs=1, verbose=False)
