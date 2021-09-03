@@ -121,6 +121,16 @@ def isnotebook():
         return False
 
 
+def unique(y):
+    if hasattr(y, 'unique'):
+        uniques = set(y.unique())
+    elif isinstance(y, da.Array):
+        uniques = set(da.unique(y).compute())
+    else:
+        uniques = set(y)
+    return uniques
+
+
 def infer_task_type(y, excludes=None):
     assert excludes is None or isinstance(excludes, (list, tuple, set))
 
@@ -129,13 +139,7 @@ def infer_task_type(y, excludes=None):
         task = TASK_MULTILABEL  # 'multilable'
         return task, labels
 
-    if hasattr(y, 'unique'):
-        uniques = set(y.unique())
-    elif isinstance(y, da.Array):
-        uniques = set(da.unique(y).compute())
-    else:
-        uniques = set(y)
-
+    uniques = unique(y)
     if uniques.__contains__(np.nan):
         uniques.remove(np.nan)
     if excludes is not None and len(excludes) > 0:
