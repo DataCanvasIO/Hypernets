@@ -124,7 +124,7 @@ def to_dask_type(X):
     elif isinstance(X, (pd.DataFrame, pd.Series)):
         worker_count = dask_worker_count()
         partition_count = worker_count if worker_count > 0 else 1
-        X = dd.from_pandas(X, npartitions=partition_count)
+        X = dd.from_pandas(X, npartitions=partition_count).clear_divisions()
 
     return X
 
@@ -168,6 +168,23 @@ def reset_index(X):
         return X.reset_index(drop=True)
 
 
+def _select_df_by_index(df, idx):
+    return df[df.index.isin(idx)]
+
+
+def select_df(df, indices):
+    """
+    Select dataframe by row indices. For dask dataframe, call 'reset_index' before this.
+    """
+    assert isinstance(df, (pd.DataFrame, dd.DataFrame))
+
+    if isinstance(df, dd.DataFrame):
+        df = df.map_partitions(_select_df_by_index, indices, meta=df.dtypes.to_dict())
+        return df
+    else:
+        return df.iloc[indices]
+
+
 def make_chunk_size_known(a):
     assert is_dask_array(a)
 
@@ -193,7 +210,9 @@ def make_divisions_known(X):
             assert X.known_divisions
     elif is_dask_series(X):
         if not X.known_divisions:
-            X = make_divisions_known(X.to_frame())[X.name]
+            name = X.name
+            X = make_divisions_known(X.to_frame()).iloc[:, 0]
+            X.name = name
     else:  # dask array
         X = make_chunk_size_known(X)
 
@@ -294,6 +313,7 @@ def train_test_split(*data, shuffle=True, random_state=None, **kwargs):
                     logger.info(f'repartition {i} from {data[i].divisions} to {head.divisions}')
                     data[i] = data[i].repartition(divisions=head.divisions)
         result = dm_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, **kwargs)
+        result = [x.clear_divisions() for x in result]
     else:
         result = sk_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, **kwargs)
 
@@ -476,7 +496,7 @@ def _compute_chunk_sample_weight(y, classes, classes_weights):
 def compute_sample_weight(y):
     assert len(y.shape) == 1 or (len(y.shape) == 2 and y.shape[1] == 1)
 
-    if is_dask_dataframe_or_series(y):
+    if hasattr(y, 'values'):
         y = y.values
 
     unique = compute(da.unique(y))[0] if is_dask_object(y) else np.unique(y)

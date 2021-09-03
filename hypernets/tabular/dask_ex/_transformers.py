@@ -136,7 +136,7 @@ class TruncatedSVD(dm_dec.TruncatedSVD):
     def fit_transform(self, X, y=None):
         X_orignal = X
         if isinstance(X, pd.DataFrame):
-            X = dd.from_pandas(X, npartitions=2)
+            X = dd.from_pandas(X, npartitions=2).clear_divisions()
 
         if isinstance(X, dd.DataFrame):
             # y = y.values.compute_chunk_sizes() if y is not None else None
@@ -543,7 +543,7 @@ class AdaptedTransformer(BaseEstimator):
 
         if isinstance(r, (pd.DataFrame, pd.Series, np.ndarray)):
             if is_dask_frame_X:
-                r = dd.from_pandas(r, npartitions=npartitions)
+                r = dd.from_pandas(r, npartitions=npartitions).clear_divisions()
             elif is_dask_array_X:
                 r = da.from_array(r, chunks=chunks)
 
