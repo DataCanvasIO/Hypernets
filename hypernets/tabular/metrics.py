@@ -282,17 +282,17 @@ def proba2predict(proba, *, task=None, threshold=0.5, classes=None):
         return proba
 
     if proba.shape[-1] > 2:  # multiclass
-        predict = proba.argmax(axis=-1)
+        pred = proba.argmax(axis=-1)
     else:  # binary
-        predict = (proba[:, -1] > threshold).astype(np.int32)
+        pred = (proba[:, -1] > threshold).astype(np.int32)
 
     if classes is not None:
-        if dex.is_dask_object(predict):
-            predict = dex.da.take(np.array(classes), predict, axis=0)
+        if dex.is_dask_object(pred):
+            pred = dex.da.take(np.array(classes), pred, axis=0)
         else:
-            predict = np.take(np.array(classes), predict, axis=0)
+            pred = np.take(np.array(classes), pred, axis=0)
 
-    return predict
+    return pred
 
 
 def _detect_jobs(X, n_jobs):
