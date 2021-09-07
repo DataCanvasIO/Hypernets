@@ -185,7 +185,8 @@ def hash_dataframe(df, method='md5', index=False):
     else:
         x = pd.util.hash_pandas_object(df, index=index)
 
-    np.vectorize(m.update, otypes=[None], signature='()->()')(x.values)
+    # np.vectorize(m.update, otypes=[None], signature='()->()')(x.values)
+    m.update(x.values)
 
     return m.hexdigest()
 
@@ -211,7 +212,8 @@ def hash_array(arr, method='md5'):
     else:
         x = _hash_array(np.array(arr))
 
-    np.vectorize(m.update, otypes=[None], signature='()->()')(x)
+    # np.vectorize(m.update, otypes=[None], signature='()->()')(x)
+    m.update(x)
 
     return m.hexdigest()
 
