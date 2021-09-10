@@ -74,6 +74,9 @@ class HyperSpace(Mutable):
         visited = {}
         while not self.all_assigned:
             for p in self.get_unassigned_params():
+                if p.is_mutable == False:
+                    p.random_sample()
+                    continue
                 if not p.assigned:
                     if visited.get(p):
                         visited[p] += 1
