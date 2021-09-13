@@ -89,7 +89,7 @@ def make_experiment(hyper_model_cls,
     early_stopping_reward : float, optional
         Setting of EarlyStoppingCallback, is used if EarlyStoppingCallback instance not found from search_callbacks.
         Set zero or None to disable it, default is None.
-    reward_metric : str, callable, optional, (default 'accuracy' for binary/multicalss task, 'rmse' for regression task)
+    reward_metric : str, callable, optional, (default 'accuracy' for binary/multiclass task, 'rmse' for regression task)
         Hypernets search reward metric name or callable. Possible values:
             - accuracy
             - auc
