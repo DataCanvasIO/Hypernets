@@ -42,9 +42,9 @@ class Test_drift_detection:
         assert len(indices[0][1]) == 300
 
     def test_drift_detector_lightgbm(self):
-        df = load_bank().head(10000)
+        df = load_bank()
         y = df.pop('y')
-        X_train, X_test = train_test_split(df, train_size=0.7, shuffle=True, random_state=9527)
+        X_train, X_test = train_test_split(df.copy(), train_size=0.7, shuffle=True, random_state=9527)
         dd = DriftDetector()
         dd.fit(X_train, X_test)
 
@@ -54,15 +54,16 @@ class Test_drift_detection:
         assert len(dd.estimator_) == 5
 
         proba = dd.predict_proba(df)
-        assert proba.shape[0] == 10000
+        assert proba.shape[0] == df.shape[0]
 
         df = load_bank()
         y = df.pop('y')
-        X_train, X_test, y_train, y_test = dd.train_test_split(df, y, test_size=0.2)
-        assert X_train.shape, (86804, 17)
-        assert y_train.shape, (86804,)
-        assert X_test.shape, (21700, 17)
-        assert y_test.shape, (21700,)
+        p = int(df.shape[0] * 0.2)
+        X_train, X_test, y_train, y_test = dd.train_test_split(df.copy(), y, test_size=0.2)
+        assert X_train.shape == (df.shape[0] - p, df.shape[1])
+        assert y_train.shape == (df.shape[0] - p,)
+        assert X_test.shape == (p, df.shape[1])
+        assert y_test.shape == (p,)
 
     def test_drift_detector_fit_decisiontree(self):
         df = load_bank().head(10000)
@@ -95,19 +96,22 @@ class Test_drift_detection:
         assert len(dd_rf.estimator_) == 5
 
     def test_feature_selection(self):
-        df = load_bank().head(10000)
+        df = load_bank()
         y = df.pop('y')
-        X_train = df[:7000]
-        X_test = df[7000:]
+        p = int(df.shape[0] * 0.8)
+        X_train = df[:p]
+        X_test = df[p:]
         # = train_test_split(df, train_size=0.7,  random_state=9527)
 
-        remain_features, history, scores = feature_selection(X_train, X_test, remove_shift_variable=False, auc_threshold=0.55,
-                                                     min_features=15,
-                                                     remove_size=0.2, copy_data=True)
+        remain_features, history, scores = feature_selection(X_train, X_test, remove_shift_variable=False,
+                                                             auc_threshold=0.55,
+                                                             min_features=15,
+                                                             remove_size=0.2, copy_data=True)
         assert len(remain_features) == 15
 
-        remain_features, history, scores = feature_selection(X_train, X_test, remove_shift_variable=True, auc_threshold=0.55,
-                                                     min_features=15,
-                                                     remove_size=0.2, copy_data=True)
+        remain_features, history, scores = feature_selection(X_train, X_test, remove_shift_variable=True,
+                                                             auc_threshold=0.55,
+                                                             min_features=15,
+                                                             remove_size=0.2, copy_data=True)
 
         assert len(remain_features) == 16
