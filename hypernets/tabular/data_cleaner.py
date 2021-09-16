@@ -16,6 +16,21 @@ from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
 
+HELPERS = {}
+
+
+def _qname(cls):
+    return f'{cls.__module__}.{cls.__name__}'
+
+
+def make_helper(X, y):
+    qn = _qname(type(X))
+    if qn not in HELPERS.keys():
+        raise ValueError(f'Unsupported data type: {qn}')
+
+    cls = HELPERS[qn]
+    return cls()
+
 
 class _CleanerHelper:
     @staticmethod
@@ -179,23 +194,38 @@ class _DaskCleanerHelper(_CleanerHelper):
         return {c: v for c, v in zip(columns, dask.compute(*uniques))}
 
 
-def _qname(cls):
-    return f'{cls.__module__}.{cls.__name__}'
+HELPERS[_qname(pd.DataFrame)] = _CleanerHelper
+HELPERS[_qname(dd.DataFrame)] = _DaskCleanerHelper
+
+try:
+    import cudf
 
 
-_helpers = {
-    _qname(pd.DataFrame): _CleanerHelper,
-    _qname(dd.DataFrame): _DaskCleanerHelper,
-}
+    class _CudfCleanerHelper(_CleanerHelper):
+        @staticmethod
+        def _get_duplicated_columns(df):
+            columns = df.columns.to_list()
+            duplicates = set()
+
+            for i, c in enumerate(columns[:-1]):
+                if c in duplicates:
+                    continue
+                for nc in columns[i + 1:]:
+                    if df[c].equals(df[nc]):
+                        duplicates.add(nc)
+
+            return {c: c in duplicates for c in columns}
+
+        @staticmethod
+        def _get_df_uniques(df):
+            columns = df.columns.to_list()
+            uniques = [df[c].nunique() for c in columns]
+            return {c: v for c, v in zip(columns, uniques)}
 
 
-def make_helper(X, y):
-    qn = _qname(type(X))
-    if qn not in _helpers.keys():
-        raise ValueError(f'Unsupported data type: {qn}')
-
-    cls = _helpers[qn]
-    return cls()
+    HELPERS[_qname(cudf.DataFrame)] = _CudfCleanerHelper
+except ImportError:
+    pass
 
 
 class DataCleaner:
@@ -268,25 +298,29 @@ class DataCleaner:
         helper = make_helper(X, y)
 
         if self.drop_duplicated_columns:
-            logger.debug('drop duplicated columns')
             if self.dropped_duplicated_columns_ is not None:
                 X = self._drop_columns(X, self.dropped_duplicated_columns_)
             else:
                 X, self.dropped_duplicated_columns_ = helper.drop_duplicated_columns(X, self.reserve_columns)
+            logger.info(f'drop duplicated columns: "{self.dropped_duplicated_columns_}')
 
         if self.drop_idness_columns:
-            logger.debug('drop idness columns')
             if self.dropped_idness_columns_ is not None:
                 X = self._drop_columns(X, self.dropped_idness_columns_)
             else:
                 X, self.dropped_idness_columns_ = helper.drop_idness_columns(X, self.reserve_columns)
+            logger.debug(f'drop idness columns: {self.dropped_idness_columns_}')
 
         if self.drop_constant_columns:
-            logger.debug('drop constant columns')
             if self.dropped_constant_columns_ is not None:
                 X = self._drop_columns(X, self.dropped_constant_columns_)
             else:
                 X, self.dropped_constant_columns_ = helper.drop_constant_columns(X, self.reserve_columns)
+            logger.debug(f'drop constant columns: {self.dropped_constant_columns_}')
+
+        if self.replace_inf_values is not None:
+            logger.info(f'replace [inf,-inf] to {self.replace_inf_values}')
+            X = X.replace([np.inf, -np.inf], self.replace_inf_values)
 
         if self.correct_object_dtype:
             logger.debug('correct data type for object columns.')
@@ -298,15 +332,12 @@ class DataCleaner:
             X = helper.correct_object_dtype(X, df_meta, excludes=self.reserve_columns)
 
         if self.int_convert_to is not None:
-            logger.debug(f'convert int type to {self.int_convert_to}')
             int_cols = cs.column_int(X)
             if self.reserve_columns:
                 int_cols = list(filter(lambda _: _ not in self.reserve_columns, int_cols))
-            X[int_cols] = X[int_cols].astype(self.int_convert_to)
-
-        if self.replace_inf_values is not None:
-            logger.debug(f'replace [inf,-inf] to {self.replace_inf_values}')
-            X = X.replace([np.inf, -np.inf], self.replace_inf_values)
+            if len(int_cols) > 0:
+                logger.info(f'convert int type to {self.int_convert_to}')
+                X[int_cols] = X[int_cols].astype(self.int_convert_to)
 
         o_cols = cs.column_object(X)
         if self.reserve_columns:
@@ -315,7 +346,7 @@ class DataCleaner:
             X[o_cols] = X[o_cols].astype('str')
 
         if reduce_mem_usage:
-            logger.debug('reduce memory usage')
+            logger.info('try reduce memory usage')
             helper.reduce_mem_usage(X, excludes=self.reserve_columns)
 
         return X, y
@@ -336,7 +367,7 @@ class DataCleaner:
                 df_meta[dtype] = []
             df_meta[dtype].append(col_info[0])
 
-        logger.info(f'dataframe meta:{df_meta}')
+        logger.info(f'cleaned dataframe meta:{df_meta}')
         self.df_meta_ = df_meta
         self.columns_ = X.columns.to_list()
 
