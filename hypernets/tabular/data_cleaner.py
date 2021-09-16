@@ -275,7 +275,6 @@ class DataCleaner:
         return X
 
     def clean_data(self, X, y, *, df_meta=None, reduce_mem_usage):
-        assert isinstance(X, (pd.DataFrame, dd.DataFrame))
         y_name = '__tabular-toolbox__Y__'
 
         if y is not None:
