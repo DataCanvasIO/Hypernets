@@ -10,94 +10,73 @@ import numpy as np
 import pandas as pd
 from dask import dataframe as dd
 
+from hypernets.tabular import column_selector as cs
 from hypernets.tabular.cfg import TabularCfg as cfg
-from hypernets.tabular.column_selector import column_object, column_int, column_object_category_bool_int, \
-    AutoCategoryColumnSelector
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
 
 
-def _reduce_mem_usage(df, excludes=None):
-    """
-    Adaption from :https://blog.csdn.net/xckkcxxck/article/details/88170281
-    :param verbose:
-    :return:
-    """
-    if isinstance(df, dd.DataFrame):
-        raise Exception('"reduce_mem_usage" is not supported for Dask DataFrame.')
-
-    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
-    start_mem = df.memory_usage().sum() / 1024 ** 2
-    for col in df.columns:
-        if excludes is not None and col in excludes:
-            continue
-        col_type = df[col].dtypes
-        if col_type in numerics:
-            c_min = df[col].min()
-            c_max = df[col].max()
-            if str(col_type)[:3] == 'int':
-                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-                    df[col] = df[col].astype(np.int8)
-                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-                    df[col] = df[col].astype(np.int16)
-                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-                    df[col] = df[col].astype(np.int32)
-                elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
-                    df[col] = df[col].astype(np.int64)
-            else:
-                if c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-                    df[col] = df[col].astype(np.float32)
+class _CleanerHelper:
+    @staticmethod
+    def reduce_mem_usage(df, excludes=None):
+        """
+        Adaption from :https://blog.csdn.net/xckkcxxck/article/details/88170281
+        """
+        numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+        start_mem = df.memory_usage().sum() / 1024 ** 2
+        for col in df.columns:
+            if excludes is not None and col in excludes:
+                continue
+            col_type = df[col].dtypes
+            if col_type in numerics:
+                c_min = df[col].min()
+                c_max = df[col].max()
+                if str(col_type)[:3] == 'int':
+                    if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                        df[col] = df[col].astype(np.int8)
+                    elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                        df[col] = df[col].astype(np.int16)
+                    elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                        df[col] = df[col].astype(np.int32)
+                    elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
+                        df[col] = df[col].astype(np.int64)
                 else:
-                    df[col] = df[col].astype(np.float64)
-    end_mem = df.memory_usage().sum() / 1024 ** 2
-    if logger.is_info_enabled():
-        logger.info('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'
-                    .format(end_mem, 100 * (start_mem - end_mem) / start_mem))
+                    if c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                        df[col] = df[col].astype(np.float32)
+                    else:
+                        df[col] = df[col].astype(np.float64)
+        end_mem = df.memory_usage().sum() / 1024 ** 2
+        if logger.is_info_enabled():
+            logger.info('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'
+                        .format(end_mem, 100 * (start_mem - end_mem) / start_mem))
 
+    def correct_object_dtype(self, X, df_meta=None, excludes=None):
+        if df_meta is None:
+            Xt = X[[c for c in X.columns.to_list() if c not in excludes]] if excludes else X
+            if cfg.auto_categorize:
+                cat_exponent = cfg.auto_categorize_shape_exponent
+                cats = cs.AutoCategoryColumnSelector(cat_exponent=cat_exponent)(Xt, uniquer=self._get_df_uniques)
+                if logger.is_info_enabled() and len(cats) > 0:
+                    auto_cats = list(filter(lambda _: str(X[_].dtype) != 'object', cats))
+                    if auto_cats:
+                        logger.info(f'auto categorize columns: {auto_cats}')
+            else:
+                cats = []
 
-def _drop_duplicated_columns(X, excludes=None):
-    if isinstance(X, dd.DataFrame):
-        duplicates = X.reduction(chunk=lambda c: pd.DataFrame(c.T.duplicated()).T,
-                                 aggregate=lambda a: np.all(a, axis=0)).compute()
-    else:
-        duplicates = X.T.duplicated()
+            cons = [c for c in cs.column_object(Xt) if c not in cats]
+            df_meta = {'object': cats, 'float': cons}
 
-    dup_cols = [i for i, v in duplicates.items() if v and (excludes is None or i not in excludes)]
-    columns = [c for c in X.columns.to_list() if c not in dup_cols]
-    X = X[columns]
-    return X, dup_cols
+        X = self._correct_object_dtype_as(X, df_meta)
 
+        return X
 
-def _detect_dtype(dtype, df):
-    result = {}
-    df = df.copy()
-    for col in df.columns.to_list():
-        try:
-            df[col] = df[col].astype(dtype)
-            result[col] = [True]  # as-able
-        except:
-            result[col] = [False]
-    return pd.DataFrame(result)
+    def _correct_object_dtype_as(self, X, df_meta):
+        for dtype, columns in df_meta.items():
+            columns = [c for c in columns if str(X[c].dtype) != dtype]
+            if len(columns) == 0:
+                continue
 
-
-def _correct_object_dtype_as(X, df_meta):
-    for dtype, columns in df_meta.items():
-        columns = [c for c in columns if str(X[c].dtype) != dtype]
-        if len(columns) == 0:
-            continue
-
-        if isinstance(X, dd.DataFrame):
-            correctable = X[columns].reduction(chunk=partial(_detect_dtype, dtype),
-                                               aggregate=lambda a: np.all(a, axis=0),
-                                               meta={c: 'bool' for c in columns}).compute()
-            correctable = [i for i, v in correctable.items() if v]
-            # for col in correctable:
-            #     X[col] = X[col].astype(dtype)
-            if correctable:
-                X[correctable] = X[correctable].astype(dtype)
-            logger.info(f'Correct columns [{",".join(correctable)}] to {dtype}.')
-        else:
             if dtype in ['object', 'str']:
                 X[columns] = X[columns].astype(dtype)
             else:
@@ -109,58 +88,114 @@ def _correct_object_dtype_as(X, df_meta):
                         if logger.is_debug_enabled():
                             logger.debug(f'Correct object column [{col}] as {dtype} failed. {e}')
 
-    return X
+        return X
+
+    def drop_duplicated_columns(self, X, excludes=None):
+        duplicates = self._get_duplicated_columns(X)
+        dup_cols = [i for i, v in duplicates.items() if v and (excludes is None or i not in excludes)]
+        if len(dup_cols) > 0:
+            columns = [c for c in X.columns.to_list() if c not in dup_cols]
+            X = X[columns]
+
+        return X, dup_cols
+
+    def drop_constant_columns(self, X, excludes=None):
+        nunique = self._get_df_uniques(X)
+        const_cols = [i for i, v in nunique.items() if v <= 1 and (excludes is None or i not in excludes)]
+        if len(const_cols) > 0:
+            columns = [c for c in X.columns.to_list() if c not in const_cols]
+            X = X[columns]
+        return X, const_cols
+
+    def drop_idness_columns(self, X, excludes=None):
+        cols = cs.column_object_category_bool_int(X)
+        if len(cols) <= 0:
+            return X, []
+
+        X_ = X[cols]
+        nunique = self._get_df_uniques(X_)
+        rows = len(X)
+        threshold = cfg.idness_threshold
+        dropped = [c for c, n in nunique.items() if n / rows > threshold and (excludes is None or c not in excludes)]
+        if len(dropped) > 0:
+            columns = [c for c in X.columns.to_list() if c not in dropped]
+            X = X[columns]
+        return X, dropped
+
+    @staticmethod
+    def _get_df_uniques(df):
+        return df.nunique(dropna=True)
+
+    @staticmethod
+    def _get_duplicated_columns(df):
+        return df.T.duplicated()
 
 
-def _correct_object_dtype(X, df_meta=None, excludes=None):
-    if df_meta is None:
-        Xt = X[[c for c in X.columns.to_list() if c not in excludes]] if excludes else X
-        cat_exponent = cfg.auto_categorize_shape_exponent
-        cats = AutoCategoryColumnSelector(cat_exponent=cat_exponent)(Xt) if cfg.auto_categorize else []
-        if logger.is_info_enabled() and len(cats) > 0:
-            auto_cats = list(filter(lambda _: str(X[_].dtype) != 'object', cats))
-            if auto_cats:
-                logger.info(f'auto categorize columns: {auto_cats}')
+class _DaskCleanerHelper(_CleanerHelper):
+    @staticmethod
+    def reduce_mem_usage(df, excludes=None):
+        raise NotImplementedError('"reduce_mem_usage" is not supported for Dask DataFrame.')
 
-        cons = [c for c in column_object(Xt) if c not in cats]
-        df_meta = {'object': cats, 'float': cons}
-    X = _correct_object_dtype_as(X, df_meta)
+    @staticmethod
+    def _get_duplicated_columns(df):
+        duplicates = df.reduction(chunk=lambda c: pd.DataFrame(c.T.duplicated()).T,
+                                  aggregate=lambda a: np.all(a, axis=0)).compute()
+        return duplicates
 
-    return X
+    @staticmethod
+    def _detect_dtype(dtype, df):
+        result = {}
+        df = df.copy()
+        for col in df.columns.to_list():
+            try:
+                df[col] = df[col].astype(dtype)
+                result[col] = [True]  # as-able
+            except:
+                result[col] = [False]
+        return pd.DataFrame(result)
+
+    def _correct_object_dtype_as(self, X, df_meta):
+        for dtype, columns in df_meta.items():
+            columns = [c for c in columns if str(X[c].dtype) != dtype]
+            if len(columns) == 0:
+                continue
+
+            correctable = X[columns].reduction(chunk=partial(self._detect_dtype, dtype),
+                                               aggregate=lambda a: np.all(a, axis=0),
+                                               meta={c: 'bool' for c in columns}).compute()
+            correctable = [i for i, v in correctable.items() if v]
+            # for col in correctable:
+            #     X[col] = X[col].astype(dtype)
+            if correctable:
+                X[correctable] = X[correctable].astype(dtype)
+            logger.info(f'Correct columns [{",".join(correctable)}] to {dtype}.')
+
+        return X
+
+    @staticmethod
+    def _get_df_uniques(df):
+        columns = df.columns.to_list()
+        uniques = [df[c].nunique() for c in columns]
+        return {c: v for c, v in zip(columns, dask.compute(*uniques))}
 
 
-def _drop_constant_columns(X, excludes=None):
-    if isinstance(X, dd.DataFrame):
-        nunique = X.reduction(chunk=lambda c: pd.DataFrame(c.nunique(dropna=True)).T,
-                              aggregate=np.max).compute()
-    else:
-        nunique = X.nunique(dropna=True)
-
-    const_cols = [i for i, v in nunique.items() if v <= 1 and (excludes is None or i not in excludes)]
-    columns = [c for c in X.columns.to_list() if c not in const_cols]
-    X = X[columns]
-    return X, const_cols
+def _qname(cls):
+    return f'{cls.__module__}.{cls.__name__}'
 
 
-def _drop_idness_columns(X, excludes=None):
-    cols = column_object_category_bool_int(X)
-    if len(cols) <= 0:
-        return X, []
-    X_ = X[cols]
-    if isinstance(X_, dd.DataFrame):
-        nunique = X_.reduction(chunk=lambda c: pd.DataFrame(c.nunique(dropna=True)).T,
-                               aggregate=np.max)
-        rows = X_.reduction(lambda df: df.shape[0], np.sum)
-        nunique, rows = dask.compute(nunique, rows)
-    else:
-        nunique = X_.nunique(dropna=True)
-        rows = X_.shape[0]
+_helpers = {
+    _qname(pd.DataFrame): _CleanerHelper,
+    _qname(dd.DataFrame): _DaskCleanerHelper,
+}
 
-    threshold = cfg.idness_threshold
-    dropped = [i for i, v in nunique.items() if v / rows > threshold and (excludes is None or i not in excludes)]
-    columns = [c for c in X.columns.to_list() if c not in dropped]
-    X = X[columns]
-    return X, dropped
+
+def make_helper(X, y):
+    qn = _qname(type(X))
+    if qn not in _helpers.keys():
+        raise ValueError(f'Unsupported data type: {qn}')
+
+    cls = _helpers[qn]
+    return cls()
 
 
 class DataCleaner:
@@ -209,7 +244,7 @@ class DataCleaner:
         X = X[[c for c in X.columns.to_list() if c not in cols]]
         return X
 
-    def clean_data(self, X, y, df_meta=None):
+    def clean_data(self, X, y, *, df_meta=None, reduce_mem_usage):
         assert isinstance(X, (pd.DataFrame, dd.DataFrame))
         y_name = '__tabular-toolbox__Y__'
 
@@ -230,26 +265,28 @@ class DataCleaner:
             logger.debug(f'drop columns:{self.drop_columns}')
             X = self._drop_columns(X, self.drop_columns)
 
+        helper = make_helper(X, y)
+
         if self.drop_duplicated_columns:
             logger.debug('drop duplicated columns')
             if self.dropped_duplicated_columns_ is not None:
                 X = self._drop_columns(X, self.dropped_duplicated_columns_)
             else:
-                X, self.dropped_duplicated_columns_ = _drop_duplicated_columns(X, self.reserve_columns)
+                X, self.dropped_duplicated_columns_ = helper.drop_duplicated_columns(X, self.reserve_columns)
 
         if self.drop_idness_columns:
             logger.debug('drop idness columns')
             if self.dropped_idness_columns_ is not None:
                 X = self._drop_columns(X, self.dropped_idness_columns_)
             else:
-                X, self.dropped_idness_columns_ = _drop_idness_columns(X, self.reserve_columns)
+                X, self.dropped_idness_columns_ = helper.drop_idness_columns(X, self.reserve_columns)
 
         if self.drop_constant_columns:
             logger.debug('drop constant columns')
             if self.dropped_constant_columns_ is not None:
                 X = self._drop_columns(X, self.dropped_constant_columns_)
             else:
-                X, self.dropped_constant_columns_ = _drop_constant_columns(X, self.reserve_columns)
+                X, self.dropped_constant_columns_ = helper.drop_constant_columns(X, self.reserve_columns)
 
         if self.correct_object_dtype:
             logger.debug('correct data type for object columns.')
@@ -258,11 +295,11 @@ class DataCleaner:
             #         X[col] = X[col].astype('float')
             #     except Exception as e:
             #         logger.error(f'Correct object column [{col}] failed. {e}')
-            X = _correct_object_dtype(X, df_meta, excludes=self.reserve_columns)
+            X = helper.correct_object_dtype(X, df_meta, excludes=self.reserve_columns)
 
         if self.int_convert_to is not None:
             logger.debug(f'convert int type to {self.int_convert_to}')
-            int_cols = column_int(X)
+            int_cols = cs.column_int(X)
             if self.reserve_columns:
                 int_cols = list(filter(lambda _: _ not in self.reserve_columns, int_cols))
             X[int_cols] = X[int_cols].astype(self.int_convert_to)
@@ -271,11 +308,15 @@ class DataCleaner:
             logger.debug(f'replace [inf,-inf] to {self.replace_inf_values}')
             X = X.replace([np.inf, -np.inf], self.replace_inf_values)
 
-        o_cols = column_object(X)
+        o_cols = cs.column_object(X)
         if self.reserve_columns:
             o_cols = list(filter(lambda _: _ not in self.reserve_columns, o_cols))
         if o_cols:
             X[o_cols] = X[o_cols].astype('str')
+
+        if reduce_mem_usage:
+            logger.debug('reduce memory usage')
+            helper.reduce_mem_usage(X, excludes=self.reserve_columns)
 
         return X, y
 
@@ -285,10 +326,7 @@ class DataCleaner:
             if y is not None:
                 y = copy.deepcopy(y)
 
-        X, y = self.clean_data(X, y)
-        if self.reduce_mem_usage:
-            logger.debug('reduce memory usage')
-            _reduce_mem_usage(X, excludes=self.reserve_columns)
+        X, y = self.clean_data(X, y, reduce_mem_usage=self.reduce_mem_usage)
 
         logger.debug('collect meta info from data')
         df_meta = {}
@@ -310,7 +348,7 @@ class DataCleaner:
             if y is not None:
                 y = copy.deepcopy(y)
         orig_columns = X.columns.to_list()
-        X, y = self.clean_data(X, y, df_meta=self.df_meta_)
+        X, y = self.clean_data(X, y, df_meta=self.df_meta_, reduce_mem_usage=False)
         # if self.df_meta_ is not None:
         #     logger.debug('processing with meta info')
         #     all_cols = []
