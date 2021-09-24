@@ -40,7 +40,7 @@ class ExperimentCfg(Configurable):
             help=''
             )
     experiment_discriminator = \
-        String('percentile',
+        String('once_percentile',
                allow_none=True, config=True,
                help='discriminator identity, "percentile" or "progressive"',
                )
