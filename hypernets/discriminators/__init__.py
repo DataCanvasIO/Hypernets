@@ -5,12 +5,12 @@ __author__ = 'yangjian'
 """
 
 from ._base import get_previous_trials_scores, get_percentile_score, UnPromisingTrial, BaseDiscriminator
-from .percentile import PercentileDiscriminator, ProgressivePercentileDiscriminator
+from .percentile import PercentileDiscriminator, ProgressivePercentileDiscriminator, OncePercentileDiscriminator
 
 _discriminators = {
     'percentile': PercentileDiscriminator,
+    'once_percentile': OncePercentileDiscriminator,
     'percentile_discriminator': PercentileDiscriminator,
-
     'progressive': ProgressivePercentileDiscriminator,
     'progressive_percentile': ProgressivePercentileDiscriminator,
     'progressive_percentile_discriminator': ProgressivePercentileDiscriminator,
