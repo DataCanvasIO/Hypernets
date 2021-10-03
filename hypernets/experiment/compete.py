@@ -458,7 +458,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                  text_cols=None,
                  max_depth=1,
                  feature_selection_args=None):
-        transformer = get_tool_box(pd.DataFrame).transformers['FeatureGenerationTransformer']
+        # transformer = get_tool_box(pd.DataFrame).transformers['FeatureGenerationTransformer']
         drop_cols = []
         if text_cols is not None:
             drop_cols += list(text_cols)
@@ -466,7 +466,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
             drop_cols += list(latlong_cols)
 
         super(FeatureGenerationStep, self).__init__(experiment, name,
-                                                    transformer,
+                                                    self._creator,
                                                     trans_primitives=trans_primitives,
                                                     fix_input=True,
                                                     continuous_cols=continuous_cols,
@@ -479,6 +479,10 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                                                     feature_selection_args=feature_selection_args,
                                                     task=None,  # fixed by super
                                                     )
+
+    def _creator(self, **kwargs):
+        gen_cls = get_tool_box(self.experiment.X_train).transformers['FeatureGenerationTransformer']
+        return gen_cls(**kwargs)
 
     def get_fitted_params(self):
         t = self.transformer_

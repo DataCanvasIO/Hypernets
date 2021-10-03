@@ -74,7 +74,6 @@ def experiment_with_movie_lens(init_kwargs, run_kwargs, row_count=None, with_das
     y = X.pop('rating')
 
     tb = get_tool_box(X, y)
-    scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric)
 
     X_train, X_test, y_train, y_test = \
         tb.train_test_split(X, y, test_size=0.3, random_state=9527)
@@ -83,7 +82,6 @@ def experiment_with_movie_lens(init_kwargs, run_kwargs, row_count=None, with_das
 
     init_kwargs = {
         'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
-        'scorer': scorer,
         'ensemble_size': 0,
         'drift_detection': False,
         **init_kwargs
@@ -190,6 +188,11 @@ def test_with_pi():
                                    feature_reselection_threshold=0.0001), {})
 
 
+def test_with_feature_generator():
+    experiment_with_movie_lens(dict(feature_generation=True, feature_selection=True,
+                                    feature_generation_text_cols=['title']), {})
+
+
 def test_with_pl_dask():
     experiment_with_bank_data(dict(cv=False, pseudo_labeling=True), {},
                               with_dask=True)
@@ -203,3 +206,8 @@ def test_with_ensemble_dask():
 def test_with_cv_ensemble_dask():
     experiment_with_bank_data(dict(ensemble_size=5, cv=True), {},
                               row_count=6000, with_dask=True)
+
+
+def test_with_feature_generator_dask():
+    experiment_with_movie_lens(dict(feature_generation=True, feature_selection=True,
+                                    feature_generation_text_cols=['title']), {}, with_dask=True)

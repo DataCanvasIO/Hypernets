@@ -2,6 +2,7 @@ import re
 
 import featuretools as ft
 import numpy as np
+import pandas as pd
 from featuretools import variable_types
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -223,6 +224,8 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
             _mode = X[self.datetime_cols].mode()
             if hasattr(_mode, 'compute'):
                 _mode = _mode.compute()
+            if isinstance(_mode, pd.Series):
+                _mode = _mode.to_frame()
             self._merge_dict(imputed_input, _mode.iloc[0].to_dict())
         if len(self.text_cols) > 0:
             self._merge_dict(imputed_input, {c: '' for c in self.text_cols})
