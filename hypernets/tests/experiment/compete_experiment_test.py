@@ -1,19 +1,17 @@
 from datetime import datetime
 
-from sklearn.metrics import get_scorer
+import dask.dataframe as dd
 from sklearn.preprocessing import LabelEncoder
 
 from hypernets.experiment import CompeteExperiment
-from hypernets.tabular import dask_ex as dex
+from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.metrics import calc_score, metric_to_scoring
 from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
 
 def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask=False):
     hyper_model = create_plain_model(with_encoder=True, with_dask=with_dask)
-    scorer = get_scorer(metric_to_scoring(hyper_model.reward_metric))
     X = dsutils.load_bank()
     if row_count is not None:
         X = X.head(row_count)
@@ -21,14 +19,17 @@ def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask
 
     if with_dask:
         setup_dask(None)
-        X = dex.dd.from_pandas(X, npartitions=1)
+        X = dd.from_pandas(X, npartitions=1)
 
     y = X.pop('y')
 
+    tb = get_tool_box(X, y)
+    scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric)
+
     X_train, X_test, y_train, y_test = \
-        dex.train_test_split(X, y, test_size=0.3, random_state=9527)
+        tb.train_test_split(X, y, test_size=0.3, random_state=9527)
     X_train, X_eval, y_train, y_eval = \
-        dex.train_test_split(X_train, y_train, test_size=0.3, random_state=9527)
+        tb.train_test_split(X_train, y_train, test_size=0.3, random_state=9527)
 
     init_kwargs = {
         'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
@@ -50,16 +51,16 @@ def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask
     proba = estimator.predict_proba(X_test)
 
     if with_dask:
-        preds, proba = dex.compute(preds, proba)
+        preds, proba = tb.to_local(preds, proba)
 
-    score = calc_score(y_test, preds, proba, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
+    score = tb.metrics.calc_score(y_test, preds, proba, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
     print('evaluate score:', score)
     assert score
 
 
 def experiment_with_movie_lens(init_kwargs, run_kwargs, row_count=None, with_dask=False):
     hyper_model = create_plain_model(reward_metric='f1', with_encoder=True, with_dask=with_dask)
-    scorer = get_scorer(metric_to_scoring(hyper_model.reward_metric))
+
     X = dsutils.load_movielens()
     # X['genres'] = X['genres'].apply(lambda s: s.replace('|', ' '))
     X['timestamp'] = X['timestamp'].apply(datetime.fromtimestamp)
@@ -68,14 +69,17 @@ def experiment_with_movie_lens(init_kwargs, run_kwargs, row_count=None, with_das
 
     if with_dask:
         setup_dask(None)
-        X = dex.dd.from_pandas(X, npartitions=1)
+        X = dd.from_pandas(X, npartitions=1)
 
     y = X.pop('rating')
 
+    tb = get_tool_box(X, y)
+    scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric)
+
     X_train, X_test, y_train, y_test = \
-        dex.train_test_split(X, y, test_size=0.3, random_state=9527)
+        tb.train_test_split(X, y, test_size=0.3, random_state=9527)
     X_train, X_eval, y_train, y_eval = \
-        dex.train_test_split(X_train, y_train, test_size=0.3, random_state=9527)
+        tb.train_test_split(X_train, y_train, test_size=0.3, random_state=9527)
 
     init_kwargs = {
         'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
@@ -97,11 +101,11 @@ def experiment_with_movie_lens(init_kwargs, run_kwargs, row_count=None, with_das
     proba = estimator.predict_proba(X_test)
 
     if with_dask:
-        preds, proba = dex.compute(preds, proba)
+        preds, proba = tb.to_local(preds, proba)
 
-    score = calc_score(y_test, preds, proba,
-                       metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'],
-                       task=experiment.task)
+    score = tb.metrics.calc_score(y_test, preds, proba,
+                                  metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'],
+                                  task=experiment.task)
     print('evaluate score:', score)
     assert score
 

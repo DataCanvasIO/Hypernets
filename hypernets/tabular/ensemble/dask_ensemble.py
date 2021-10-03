@@ -13,7 +13,6 @@ from sklearn.metrics._scorer import _PredictScorer
 
 from hypernets.utils import logging
 from .base_ensemble import BaseEnsemble
-from .. import dask_ex as dex
 
 logger = logging.get_logger(__name__)
 
@@ -55,6 +54,7 @@ class DaskGreedyEnsemble(BaseEnsemble):
         assert any(t is not None for t in [X, predictions])
         assert predictions is None or isinstance(predictions, (tuple, list))
         assert y_true is not None
+        from ..dask_ex import DaskToolBox
 
         if predictions is None:
             predictions = [None for e in self.estimators]
@@ -64,7 +64,7 @@ class DaskGreedyEnsemble(BaseEnsemble):
         # else:
         #     predictions = list(predictions)
 
-        predictions = [pred.compute() if dex.is_dask_object(pred) else pred
+        predictions = [pred.compute() if DaskToolBox.is_dask_object(pred) else pred
                        for pred in predictions]
 
         def get_prediction(j):
@@ -74,7 +74,7 @@ class DaskGreedyEnsemble(BaseEnsemble):
                     pred = self.proba2predict(pred)
             elif X is not None:
                 pred = self.__predict(self.estimators[j], X)
-                if dex.is_dask_object(pred):
+                if DaskToolBox.is_dask_object(pred):
                     pred = pred.compute()
                 predictions[j] = pred
             else:
@@ -93,7 +93,7 @@ class DaskGreedyEnsemble(BaseEnsemble):
 
         logger.info(f'start ensemble {n_estimators} estimators')
 
-        if dex.is_dask_object(y_true):
+        if DaskToolBox.is_dask_object(y_true):
             y_true = y_true.compute()
 
         for i in range(size):
@@ -163,8 +163,10 @@ class DaskGreedyEnsemble(BaseEnsemble):
         if len(self.estimators) == 1:
             proba = self.estimators[0].predict_proba(X)
         else:
+            from ..dask_ex import DaskToolBox
+
             est_probas = [e.predict_proba(X) for e in self.estimators]
-            est_probas = dex.compute(*est_probas)
+            est_probas = DaskToolBox.compute(*est_probas)
             proba = None
             for est_proba, weight in zip(est_probas, self.weights_):
                 est_proba = est_proba * weight
@@ -173,8 +175,8 @@ class DaskGreedyEnsemble(BaseEnsemble):
                 else:
                     proba += est_proba
 
-            if dex.is_dask_object(X):
-                proba = dex.to_dask_type(proba)
+            if DaskToolBox.is_dask_object(X):
+                proba = DaskToolBox.to_dask_type(proba)
         return proba
 
     def __repr__(self) -> str:

@@ -16,8 +16,7 @@ from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
 from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, Constant, HyperNode
 from hypernets.model import Estimator, HyperModel
 from hypernets.searchers import make_searcher
-from hypernets.tabular.dask_ex import fix_binary_predict_proba_result
-from hypernets.tabular.metrics import calc_score
+from hypernets.tabular import get_tool_box
 from hypernets.utils import fs, logging, const, infer_task_type
 
 logger = logging.get_logger(__name__)
@@ -185,6 +184,7 @@ class PlainEstimator(Estimator):
         if isinstance(y, (pd.Series, pd.DataFrame)):
             y = y.values
 
+        tb = get_tool_box(X, y)
         oof_ = None
         oof_scores = []
         cv_models = []
@@ -202,7 +202,7 @@ class PlainEstimator(Estimator):
             else:
                 proba = fold_model.predict_proba(x_val_fold)
                 if self.task == const.TASK_BINARY:
-                    proba = fix_binary_predict_proba_result(proba)
+                    proba = tb.fix_binary_predict_proba_result(proba)
 
                 proba_threshold = 0.5
                 if proba.shape[-1] > 2:  # multiclass
@@ -216,7 +216,7 @@ class PlainEstimator(Estimator):
                     oof_ = np.full(y.shape, np.nan, proba.dtype)
                 else:
                     oof_ = np.full((y.shape[0], proba.shape[-1]), np.nan, proba.dtype)
-            fold_scores = calc_score(y_val_fold, preds, proba, metrics, task=self.task)
+            fold_scores = tb.metrics.calc_score(y_val_fold, preds, proba, metrics, task=self.task)
 
             # save fold result
             oof_[valid_idx] = proba
@@ -264,12 +264,13 @@ class PlainEstimator(Estimator):
         if self.transformer is not None:
             X = self.transformer.transform(X)
 
+        tb = get_tool_box(X)
         if self.cv_models_:
             proba_sum = None
             for est in self.cv_models_:
                 proba = est.predict_proba(X, **kwargs)
                 if self.task == const.TASK_BINARY:
-                    proba = fix_binary_predict_proba_result(proba)
+                    proba = tb.fix_binary_predict_proba_result(proba)
                 if proba_sum is None:
                     proba_sum = proba
                 else:
@@ -278,7 +279,7 @@ class PlainEstimator(Estimator):
         else:
             proba = self.model.predict_proba(X, **kwargs)
             if self.task == const.TASK_BINARY:
-                proba = fix_binary_predict_proba_result(proba)
+                proba = tb.fix_binary_predict_proba_result(proba)
 
         return proba
 
@@ -293,7 +294,7 @@ class PlainEstimator(Estimator):
             proba = self.predict_proba(X, **kwargs)
             preds = self.proba2predict(proba, proba_threshold=kwargs.get('proba_threshold', 0.5))
 
-        scores = calc_score(y, preds, proba, metrics, self.task)
+        scores = get_tool_box(y).metrics.calc_score(y, preds, proba, metrics, self.task)
         return scores
 
     def proba2predict(self, proba, proba_threshold=0.5):

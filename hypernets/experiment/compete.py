@@ -13,20 +13,14 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.metrics import get_scorer
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
 from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
-from hypernets.tabular import dask_ex as dex, column_selector as cs
-from hypernets.tabular import drift_detection as dd, feature_importance as fi, pseudo_labeling as pl
+from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import cache
-from hypernets.tabular.data_cleaner import DataCleaner
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
-from hypernets.tabular.feature_selection import select_by_multicollinearity
-from hypernets.tabular.general import general_estimator, general_preprocessor
 from hypernets.tabular.lifelong_learning import select_valid_oof
-from hypernets.tabular.metrics import metric_to_scoring
 from hypernets.utils import logging, const, hash_data, df_utils, infer_task_type
 
 logger = logging.get_logger(__name__)
@@ -43,9 +37,9 @@ def _set_log_level(log_level):
 
 
 def _generate_dataset_id(X_train, y_train, X_test, X_eval, y_eval):
-    if isinstance(y_train, (pd.Series, dex.dd.Series)):
+    if hasattr(y_train, 'values'):
         y_train = y_train.values
-    if isinstance(y_eval, (pd.Series, dex.dd.Series)):
+    if hasattr(y_eval, 'values'):
         y_eval = y_eval.values
 
     sign = hash_data([X_train, y_train, X_test, X_eval, y_eval])
@@ -212,7 +206,8 @@ class DataCleanStep(FeatureSelectStep):
         self.train_test_split_strategy = train_test_split_strategy
 
         # fitted
-        self.data_cleaner_ = DataCleaner(**self.data_cleaner_args)
+        # self.data_cleaner_ = DataCleaner(**self.data_cleaner_args)
+        self.data_cleaner_ = get_tool_box(pd.DataFrame).data_cleaner(**self.data_cleaner_args)  # None
         self.detector_ = None
         self.data_shapes_ = None
 
@@ -222,14 +217,16 @@ class DataCleanStep(FeatureSelectStep):
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
+        tb = get_tool_box(X_train)
+
         # 1. Clean Data
         if self.cv and X_eval is not None and y_eval is not None:
             logger.info(f'{self.name} cv enabled, so concat train data and eval data')
-            X_train = dex.concat_df([X_train, X_eval], axis=0)
-            y_train = dex.concat_df([y_train, y_eval], axis=0)
+            X_train = tb.concat_df([X_train, X_eval], axis=0)
+            y_train = tb.concat_df([y_train, y_eval], axis=0)
             X_eval = None
             y_eval = None
-        data_cleaner = self.data_cleaner_
+        data_cleaner = tb.data_cleaner(**self.data_cleaner_args)
         logger.info(f'{self.name} fit_transform with train data')
         X_train, y_train = data_cleaner.fit_transform(X_train, y_train)
         self.step_progress('fit_transform train set')
@@ -244,20 +241,20 @@ class DataCleanStep(FeatureSelectStep):
                 eval_size = self.experiment.eval_size
                 if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
                     logger.debug('DriftDetector.train_test_split')
-                    detector = dd.DriftDetector()
+                    detector = tb.drift_detector()
                     detector.fit(X_train, X_test)
                     self.detector_ = detector
                     X_train, X_eval, y_train, y_eval = \
                         detector.train_test_split(X_train, y_train, test_size=eval_size)
                 else:
-                    if self.task == const.TASK_REGRESSION or dex.is_dask_object(X_train):
+                    if self.task == const.TASK_REGRESSION:
                         X_train, X_eval, y_train, y_eval = \
-                            dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.experiment.random_state)
+                            tb.train_test_split(X_train, y_train, test_size=eval_size,
+                                                random_state=self.experiment.random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
-                            dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.experiment.random_state, stratify=y_train)
+                            tb.train_test_split(X_train, y_train, test_size=eval_size,
+                                                random_state=self.experiment.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
                     y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
@@ -269,16 +266,12 @@ class DataCleanStep(FeatureSelectStep):
                 self.step_progress('transform eval set')
 
         selected_features = X_train.columns.to_list()
-        data_shapes = {'X_train.shape': X_train.shape,
-                       'y_train.shape': y_train.shape,
-                       'X_eval.shape': None if X_eval is None else X_eval.shape,
-                       'y_eval.shape': None if y_eval is None else y_eval.shape,
-                       'X_test.shape': None if X_test is None else X_test.shape
+        data_shapes = {'X_train.shape': tb.get_shape(X_train),
+                       'y_train.shape': tb.get_shape(y_train),
+                       'X_eval.shape': None if X_eval is None else tb.get_shape(X_eval),
+                       'y_eval.shape': None if y_eval is None else tb.get_shape(y_eval),
+                       'X_test.shape': None if X_test is None else tb.get_shape(X_test)
                        }
-        if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
-            data_shapes = {k: dex.compute(v) if v is not None else None
-                           for k, v in data_shapes.items()}
-
         logger.info(f'{self.name} keep {len(selected_features)} columns')
 
         self.selected_features_ = selected_features
@@ -293,11 +286,13 @@ class DataCleanStep(FeatureSelectStep):
         return params
 
     def cache_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        tb = get_tool_box(X_train)
+
         # 1. Clean Data
         if self.cv and X_eval is not None and y_eval is not None:
             logger.info(f'{self.name} cv enabled, so concat train data and eval data')
-            X_train = dex.concat_df([X_train, X_eval], axis=0)
-            y_train = dex.concat_df([y_train, y_eval], axis=0)
+            X_train = tb.concat_df([X_train, X_eval], axis=0)
+            y_train = tb.concat_df([y_train, y_eval], axis=0)
             X_eval = None
             y_eval = None
 
@@ -321,14 +316,14 @@ class DataCleanStep(FeatureSelectStep):
                     X_train, X_eval, y_train, y_eval = \
                         detector.train_test_split(X_train, y_train, test_size=eval_size)
                 else:
-                    if self.task == const.TASK_REGRESSION or dex.is_dask_object(X_train):
+                    if self.task == const.TASK_REGRESSION:
                         X_train, X_eval, y_train, y_eval = \
-                            dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.experiment.random_state)
+                            tb.train_test_split(X_train, y_train, test_size=eval_size,
+                                                random_state=self.experiment.random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
-                            dex.train_test_split(X_train, y_train, test_size=eval_size,
-                                                 random_state=self.experiment.random_state, stratify=y_train)
+                            tb.train_test_split(X_train, y_train, test_size=eval_size,
+                                                random_state=self.experiment.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
                     y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
@@ -340,15 +335,12 @@ class DataCleanStep(FeatureSelectStep):
                 self.step_progress('transform eval set')
 
         selected_features = self.selected_features_
-        data_shapes = {'X_train.shape': X_train.shape,
-                       'y_train.shape': y_train.shape,
-                       'X_eval.shape': None if X_eval is None else X_eval.shape,
-                       'y_eval.shape': None if y_eval is None else y_eval.shape,
-                       'X_test.shape': None if X_test is None else X_test.shape
+        data_shapes = {'X_train.shape': tb.get_shape(X_train),
+                       'y_train.shape': tb.get_shape(y_train),
+                       'X_eval.shape': tb.get_shape(X_eval, allow_none=True),
+                       'y_eval.shape': tb.get_shape(y_eval, allow_none=True),
+                       'X_test.shape': tb.get_shape(X_test, allow_none=True)
                        }
-        if dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_test):
-            data_shapes = {k: dex.compute(v) if v is not None else None
-                           for k, v in data_shapes.items()}
         logger.info(f'{self.name} keep {len(selected_features)} columns')
 
         self.data_shapes_ = data_shapes
@@ -466,8 +458,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                  text_cols=None,
                  max_depth=1,
                  feature_selection_args=None):
-        from hypernets.tabular.feature_generators import FeatureGenerationTransformer
-
+        transformer = get_tool_box(pd.DataFrame).transformers['FeatureGenerationTransformer']
         drop_cols = []
         if text_cols is not None:
             drop_cols += list(text_cols)
@@ -475,7 +466,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
             drop_cols += list(latlong_cols)
 
         super(FeatureGenerationStep, self).__init__(experiment, name,
-                                                    FeatureGenerationTransformer,
+                                                    transformer,
                                                     trans_primitives=trans_primitives,
                                                     fix_input=True,
                                                     continuous_cols=continuous_cols,
@@ -515,7 +506,8 @@ class MulticollinearityDetectStep(FeatureSelectStep):
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
-        feature_clusters_, remained, dropped = select_by_multicollinearity(X_train)
+        detector = get_tool_box(X_train).collinearity_detector()
+        feature_clusters_, remained, dropped = detector.detect(X_train)
         self.step_progress('calc correlation')
 
         if dropped:
@@ -564,13 +556,15 @@ class DriftDetectStep(FeatureSelectStep):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
         if X_test is not None:
-            features, history, scores = dd.feature_selection(X_train, X_test,
-                                                             remove_shift_variable=self.remove_shift_variable,
-                                                             variable_shift_threshold=self.variable_shift_threshold,
-                                                             auc_threshold=self.threshold,
-                                                             min_features=self.min_features,
-                                                             remove_size=self.remove_size,
-                                                             cv=self.num_folds)
+            selector = get_tool_box(X_train, X_test).feature_selector_with_drift_detection(
+                remove_shift_variable=self.remove_shift_variable,
+                variable_shift_threshold=self.variable_shift_threshold,
+                auc_threshold=self.threshold,
+                min_features=self.min_features,
+                remove_size=self.remove_size,
+                cv=self.num_folds,
+                random_state=self.experiment.random_state)
+            features, history, scores = selector.select(X_train, X_test)
             dropped = set(X_train.columns.to_list()) - set(features)
             if dropped:
                 self.selected_features_ = features
@@ -599,8 +593,10 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
     def __init__(self, experiment, name, strategy, threshold, quantile, number):
         super(FeatureImportanceSelectionStep, self).__init__(experiment, name)
 
+        tb = get_tool_box(pd.DataFrame)
         strategy, threshold, quantile, number = \
-            fi.detect_strategy(strategy, threshold=threshold, quantile=quantile, number=number)
+            tb.detect_strategy_of_feature_selection_by_importance(
+                strategy, threshold=threshold, quantile=quantile, number=number)
 
         self.strategy = strategy
         self.threshold = threshold
@@ -616,14 +612,15 @@ class FeatureImportanceSelectionStep(FeatureSelectStep):
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
-        preprocessor = general_preprocessor(X_train)
-        estimator = general_estimator(X_train, task=self.task)
+        tb = get_tool_box(X_train, y_train)
+        preprocessor = tb.general_preprocessor(X_train)
+        estimator = tb.general_estimator(X_train, y_train, task=self.task)
         estimator.fit(preprocessor.fit_transform(X_train, y_train), y_train)
         importances = estimator.feature_importances_
         self.step_progress('training general estimator')
 
         selected, unselected = \
-            fi.select_by_feature_importance(importances, self.strategy,
+            tb.select_feature_by_importance(importances, strategy=self.strategy,
                                             threshold=self.threshold,
                                             quantile=self.quantile,
                                             number=self.number)
@@ -662,7 +659,11 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
 
         super().__init__(experiment, name)
 
-        strategy, threshold, quantile, number = fi.detect_strategy(strategy, threshold, quantile, number)
+        strategy, threshold, quantile, number = get_tool_box(pd.DataFrame) \
+            .detect_strategy_of_feature_selection_by_importance(strategy,
+                                                                threshold=threshold,
+                                                                quantile=quantile,
+                                                                number=number)
 
         self.scorer = scorer
         self.estimator_size = estimator_size
@@ -682,14 +683,15 @@ class PermutationImportanceSelectionStep(FeatureSelectStep):
         self.step_progress('load estimators')
 
         X, y = (X_train, y_train) if X_eval is None or y_eval is None else (X_eval, y_eval)
-        importances = fi.permutation_importance_batch(estimators, X, y, self.scorer, n_repeats=5,
+        tb = get_tool_box(X, y)
+        importances = tb.permutation_importance_batch(estimators, X, y, self.scorer, n_repeats=5,
                                                       random_state=self.experiment.random_state)
 
         # feature_index = np.argwhere(importances.importances_mean < self.threshold)
         # selected_features = [feat for i, feat in enumerate(X_train.columns.to_list()) if i not in feature_index]
         # unselected_features = list(set(X_train.columns.to_list()) - set(selected_features))
-        selected, unselected = fi.select_by_feature_importance(importances.importances_mean,
-                                                               self.strategy,
+        selected, unselected = tb.select_feature_by_importance(importances.importances_mean,
+                                                               strategy=self.strategy,
                                                                threshold=self.threshold,
                                                                quantile=self.quantile,
                                                                number=self.number)
@@ -939,10 +941,11 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
             df[name_y] = y
             uniques = set(df[name_y].unique())
             parts = {c: df[df[name_y] == c] for c in uniques}
-            dfs = [dex.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
+            tb_ = get_tool_box(X, y)
+            dfs = [tb_.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
                    if c in class_size.keys() else part
                    for c, part in parts.items()]
-            df = dex.concat_df(dfs, repartition=True)
+            df = tb_.concat_df(dfs, repartition=True)
             if isinstance(df, pd.DataFrame):
                 df = df.sample(frac=1.0)
             logger.warning(f'down_sampled: {df[name_y].value_counts().to_dict()}')
@@ -958,13 +961,14 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
         else:
             if task in {const.TASK_BINARY, const.TASK_MULTICLASS} and isinstance(X_train, pd.DataFrame):
                 options['stratify'] = y_train
+            tb = get_tool_box(X_train, y_train)
             X_train_sampled, _, y_train_sampled, _ = \
-                dex.train_test_split(X_train, y_train, train_size=size, random_state=random_state, **options)
+                tb.train_test_split(X_train, y_train, train_size=size, random_state=random_state, **options)
             if X_eval is not None:
                 if task in {const.TASK_BINARY, const.TASK_MULTICLASS} and isinstance(X_eval, pd.DataFrame):
                     options['stratify'] = y_eval
                 X_eval_sampled, _, y_eval_sampled, _ = \
-                    dex.train_test_split(X_eval, y_eval, train_size=size, random_state=random_state, **options)
+                    tb.train_test_split(X_eval, y_eval, train_size=size, random_state=random_state, **options)
             else:
                 X_eval_sampled, y_eval_sampled = None, None
 
@@ -1072,7 +1076,8 @@ class EnsembleStep(EstimatorBuilderStep):
 
 class DaskEnsembleStep(EnsembleStep):
     def get_ensemble(self, estimators, X_train, y_train):
-        if dex.exist_dask_object(X_train, y_train):
+        tb = get_tool_box(X_train, y_train)
+        if hasattr(tb, 'exist_dask_object') and tb.exist_dask_object(X_train, y_train):
             predict_kwargs = {}
             if all(['use_cache' in inspect.signature(est.predict).parameters.keys()
                     for est in estimators]):
@@ -1100,8 +1105,9 @@ class FinalTrainStep(EstimatorBuilderStep):
     def build_estimator(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         if self.retrain_on_wholedata:
             trial = hyper_model.get_best_trial()
-            X_all = dex.concat_df([X_train, X_eval], axis=0)
-            y_all = dex.concat_df([y_train, y_eval], axis=0)
+            tb = get_tool_box(X_train, X_eval)
+            X_all = tb.concat_df([X_train, X_eval], axis=0)
+            y_all = tb.concat_df([y_train, y_eval], axis=0)
             estimator = hyper_model.final_train(trial.space_sample, X_all, y_all, **kwargs)
         else:
             estimator = hyper_model.load_estimator(hyper_model.get_best_trial().model_file)
@@ -1115,6 +1121,7 @@ class PseudoLabelStep(ExperimentStep):
                  resplit=False):
         super().__init__(experiment, name)
 
+        pl = get_tool_box(pd.DataFrame).pseudo_labeling(strategy=strategy)
         strategy, proba_threshold, proba_quantile, sample_number = \
             pl.detect_strategy(strategy, threshold=proba_threshold, quantile=proba_quantile, number=sample_number)
 
@@ -1151,21 +1158,19 @@ class PseudoLabelStep(ExperimentStep):
         estimator = estimator_builder_step.estimator_
 
         # start here
+        pl = get_tool_box(X_test).pseudo_labeling(strategy=self.strategy,
+                                                  threshold=self.proba_threshold,
+                                                  quantile=self.proba_quantile,
+                                                  number=self.sample_number, )
         proba = estimator.predict_proba(X_test)
         classes = estimator.classes_
-        X_pseudo, y_pseudo = pl.sample_by_pseudo_labeling(X_test, classes, proba,
-                                                          strategy=self.strategy,
-                                                          threshold=self.proba_threshold,
-                                                          quantile=self.proba_quantile,
-                                                          number=self.sample_number,
-                                                          )
+        X_pseudo, y_pseudo = pl.select(X_test, classes, proba)
 
         pseudo_label_stat = self.stat_pseudo_label(y_pseudo, classes)
-        test_proba = dex.compute(proba)[0] if dex.is_dask_object(proba) else proba
-        if test_proba.shape[0] > self.plot_sample_size:
-            test_proba, _ = dex.train_test_split(test_proba,
-                                                 train_size=self.plot_sample_size,
-                                                 random_state=self.experiment.random_state)
+        test_proba = get_tool_box(proba).to_local(proba)[0]
+        if len(test_proba) > self.plot_sample_size:
+            test_proba, _ = get_tool_box(test_proba).train_test_split(
+                test_proba, train_size=self.plot_sample_size, random_state=self.experiment.random_state)
 
         if X_pseudo is not None:
             X_train, y_train, X_eval, y_eval = \
@@ -1179,12 +1184,9 @@ class PseudoLabelStep(ExperimentStep):
     @staticmethod
     def stat_pseudo_label(y_pseudo, classes):
         stat = OrderedDict()
-
-        if dex.is_dask_object(y_pseudo):
-            u = dex.da.unique(y_pseudo, return_counts=True)
-            u = dex.compute(u)[0]
-        else:
-            u = np.unique(y_pseudo, return_counts=True)
+        tb = get_tool_box(y_pseudo)
+        u = tb.unique_array(y_pseudo, return_counts=True)
+        u = tb.to_local(*u)
         u = {c: n for c, n in zip(*u)}
 
         for c in classes:
@@ -1193,14 +1195,15 @@ class PseudoLabelStep(ExperimentStep):
         return stat
 
     def merge_pseudo_label(self, X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs):
+        tb = get_tool_box(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)
         if self.resplit:
             x_list = [X_train, X_pseudo]
             y_list = [y_train, pd.Series(y_pseudo)]
             if X_eval is not None and y_eval is not None:
                 x_list.append(X_eval)
                 y_list.append(y_eval)
-            X_mix = pd.concat(x_list, axis=0, ignore_index=True)
-            y_mix = pd.concat(y_list, axis=0, ignore_index=True)
+            X_mix = tb.concat_df(x_list, axis=0, ignore_index=True)
+            y_mix = tb.concat_df(y_list, axis=0, ignore_index=True)
             if y_mix.dtype != y_train.dtype:
                 y_mix = y_mix.astype(y_train.dtype)
             if self.task == const.TASK_REGRESSION:
@@ -1210,11 +1213,11 @@ class PseudoLabelStep(ExperimentStep):
 
             eval_size = self.experiment.eval_size
             X_train, X_eval, y_train, y_eval = \
-                train_test_split(X_mix, y_mix, test_size=eval_size,
-                                 random_state=self.experiment.random_state, stratify=stratify)
+                tb.train_test_split(X_mix, y_mix, test_size=eval_size,
+                                    random_state=self.experiment.random_state, stratify=stratify)
         else:
-            X_train = pd.concat([X_train, X_pseudo], axis=0)
-            y_train = pd.concat([y_train, pd.Series(y_pseudo)], axis=0)
+            X_train = tb.concat_df([X_train, X_pseudo], axis=0)
+            y_train = tb.concat_df([y_train, pd.Series(y_pseudo)], axis=0)
 
         return X_train, y_train, X_eval, y_eval
 
@@ -1227,34 +1230,37 @@ class PseudoLabelStep(ExperimentStep):
 
 class DaskPseudoLabelStep(PseudoLabelStep):
     def merge_pseudo_label(self, X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs):
-        if not dex.exist_dask_object(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo):
+        tb = get_tool_box(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)
+        if not (hasattr(tb, 'exist_dask_object')
+                and tb.exist_dask_object(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)):
             return super().merge_pseudo_label(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs)
 
+        tb = get_tool_box(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)
         if self.resplit:
             x_list = [X_train, X_pseudo]
             y_list = [y_train, y_pseudo]
             if X_eval is not None and y_eval is not None:
                 x_list.append(X_eval)
                 y_list.append(y_eval)
-            X_mix = dex.concat_df(x_list, axis=0)
-            y_mix = dex.concat_df(y_list, axis=0)
+            X_mix = tb.concat_df(x_list, axis=0)
+            y_mix = tb.concat_df(y_list, axis=0)
             # if self.task == const.TASK_REGRESSION:
             #     stratify = None
             # else:
             #     stratify = y_mix
 
-            X_mix = dex.concat_df([X_mix, y_mix], axis=1).reset_index(drop=True)
+            X_mix = tb.concat_df([X_mix, y_mix], axis=1).reset_index(drop=True)
             y_mix = X_mix.pop(y_mix.name)
 
             eval_size = self.experiment.eval_size
             X_train, X_eval, y_train, y_eval = \
-                dex.train_test_split(X_mix, y_mix, test_size=eval_size, random_state=self.experiment.random_state)
+                tb.train_test_split(X_mix, y_mix, test_size=eval_size, random_state=self.experiment.random_state)
         else:
-            X_train = dex.concat_df([X_train, X_pseudo], axis=0)
-            y_train = dex.concat_df([y_train, y_pseudo], axis=0)
+            X_train = tb.concat_df([X_train, X_pseudo], axis=0)
+            y_train = tb.concat_df([y_train, y_pseudo], axis=0)
 
             # align divisions
-            X_train = dex.concat_df([X_train, y_train], axis=1)
+            X_train = tb.concat_df([X_train, y_train], axis=1)
             y_train = X_train.pop(y_train.name)
 
         return X_train, y_train, X_eval, y_eval
@@ -1293,7 +1299,7 @@ class SteppedExperiment(Experiment):
                 X_eval = X_eval[X_train.columns]
 
             X_train, y_train, X_test, X_eval, y_eval = \
-                [v.persist() if dex.is_dask_object(v) else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
+                [v.persist() if hasattr(v, 'persist') else v for v in (X_train, y_train, X_test, X_eval, y_eval)]
 
             if i >= from_step or step.status_ == ExperimentStep.STATUS_NONE:
                 logger.info(f'fit_transform {step.name} with columns: {X_train.columns.to_list()}')
@@ -1578,6 +1584,8 @@ class CompeteExperiment(SteppedExperiment):
             random_state = np.random.randint(0, 65535)
         set_random_state(random_state)
 
+        tb = get_tool_box(X_train, y_train)
+
         if task is None:
             dc_nan_chars = data_cleaner_args.get('nan_chars') if data_cleaner_args is not None else None
             if isinstance(dc_nan_chars, str):
@@ -1585,11 +1593,15 @@ class CompeteExperiment(SteppedExperiment):
             task, _ = infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
 
         if scorer is None:
-            scorer = metric_to_scoring(hyper_model.reward_metric, task=task, pos_label=kwargs.get('pos_label'))
+            scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric,
+                                                  task=task, pos_label=kwargs.get('pos_label'))
 
         steps = []
         two_stage = False
-        enable_dask = dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
+        if hasattr(tb, 'exist_dask_object'):
+            enable_dask = tb.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
+        else:
+            enable_dask = False
 
         if enable_dask:
             ensemble_cls, pseudo_cls = DaskEnsembleStep, DaskPseudoLabelStep
@@ -1599,10 +1611,11 @@ class CompeteExperiment(SteppedExperiment):
         if feature_generation:
             if data_cleaner_args is None:
                 data_cleaner_args = {}
+            cs = tb.column_selector
             reserve_columns = data_cleaner_args.get('reserve_columns')
             reserve_columns = list(reserve_columns) if reserve_columns is not None else []
             if feature_generation_datetime_cols is None:
-                feature_generation_datetime_cols = cs.column_all_datetime(X_train)
+                feature_generation_datetime_cols = tb.column_selector.column_all_datetime(X_train)
                 logger.info(f'detected datetime columns: {feature_generation_datetime_cols}')
             if feature_generation_latlong_cols is None:
                 feature_generation_latlong_cols = cs.column_latlong(X_train)

@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.tree import DecisionTreeClassifier
 
 from hypernets.tabular.datasets.dsutils import load_bank
-from hypernets.tabular.drift_detection import covariate_shift_score, DriftDetector, feature_selection
+from hypernets.tabular.drift_detection import FeatureSelectorWithDriftDetection, DriftDetector
 
 matthews_corrcoef_scorer = make_scorer(matthews_corrcoef)
 
@@ -17,17 +17,20 @@ matthews_corrcoef_scorer = make_scorer(matthews_corrcoef)
 class Test_drift_detection:
     def test_shift_score(self):
         df = load_bank().head(1000)
-        scores = covariate_shift_score(df[:700], df[700:])
+        selector = FeatureSelectorWithDriftDetection()
+        scores = selector._covariate_shift_score(df[:700], df[700:])
         assert scores['id'] == 1.0
 
     def test_shift_score_with_matthews_corrcoef(self):
         df = load_bank().head(1000)
-        scores = covariate_shift_score(df[:700], df[700:], scorer=matthews_corrcoef_scorer)
+        selector = FeatureSelectorWithDriftDetection()
+        scores = selector._covariate_shift_score(df[:700], df[700:], scorer=matthews_corrcoef_scorer)
         assert scores['id'] == 1.0
 
     def test_shift_score_cv(self):
         df = load_bank().head(1000)
-        scores = covariate_shift_score(df[:700], df[700:], cv=5)
+        selector = FeatureSelectorWithDriftDetection()
+        scores = selector._covariate_shift_score(df[:700], df[700:], cv=5)
         assert scores['id'] == 0.95
 
     def test_shufflesplit(self):
@@ -102,16 +105,17 @@ class Test_drift_detection:
         X_train = df[:p]
         X_test = df[p:]
         # = train_test_split(df, train_size=0.7,  random_state=9527)
-
-        remain_features, history, scores = feature_selection(X_train, X_test, remove_shift_variable=False,
-                                                             auc_threshold=0.55,
-                                                             min_features=15,
-                                                             remove_size=0.2, copy_data=True)
+        selector = FeatureSelectorWithDriftDetection(remove_shift_variable=False,
+                                                     auc_threshold=0.55,
+                                                     min_features=15,
+                                                     remove_size=0.2)
+        remain_features, history, scores = selector.select(X_train, X_test, copy_data=True)
         assert len(remain_features) == 15
 
-        remain_features, history, scores = feature_selection(X_train, X_test, remove_shift_variable=True,
-                                                             auc_threshold=0.55,
-                                                             min_features=15,
-                                                             remove_size=0.2, copy_data=True)
+        selector = FeatureSelectorWithDriftDetection(remove_shift_variable=True,
+                                                     auc_threshold=0.55,
+                                                     min_features=15,
+                                                     remove_size=0.2)
+        remain_features, history, scores = selector.select(X_train, X_test, copy_data=True)
 
         assert len(remain_features) == 16

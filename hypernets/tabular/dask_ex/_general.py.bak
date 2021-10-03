@@ -1,0 +1,65 @@
+# -*- coding:utf-8 -*-
+"""
+
+"""
+
+from sklearn.pipeline import Pipeline
+
+from hypernets.tabular import dask_ex as dex
+from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
+from hypernets.tabular.dataframe_mapper import DataFrameMapper
+from hypernets.utils import const
+from ..general import General
+
+try:
+    import lightgbm
+
+    lightgbm_installed = True
+except ImportError:
+    lightgbm_installed = False
+
+
+class DaskGeneral(General):
+    def preprocessor(self, X):
+        if not dex.is_dask_object(X):
+            return super().preprocessor(X)
+
+        import dask_ml.impute as dimp
+        import dask_ml.preprocessing as dpre
+        cat_steps = [('imputer_cat', dimp.SimpleImputer(strategy='constant', fill_value='')),
+                     ('encoder', dex.SafeOrdinalEncoder())]
+        num_steps = [('imputer_num', dimp.SimpleImputer(strategy='mean')),
+                     ('scaler', dpre.StandardScaler())]
+
+        cat_transformer = Pipeline(steps=cat_steps)
+        num_transformer = Pipeline(steps=num_steps)
+
+        preprocessor = DataFrameMapper(features=[(column_object_category_bool, cat_transformer),
+                                                 (column_number_exclude_timedelta, num_transformer)],
+                                       input_df=True,
+                                       df_out=True)
+        return preprocessor
+
+    def estimator(self, X, estimator=None, task=None):
+        if not dex.is_dask_object(X):
+            return super().estimator(X, estimator=estimator, task=task)
+
+        if (estimator is None or estimator == 'gbm') and lightgbm_installed and hasattr(lightgbm, 'dask'):
+            return self.default_dask_gbm(task)
+
+        estimator_ = super().estimator(X, estimator=estimator, task=task)
+        estimator_ = dex.wrap_local_estimator(estimator_)
+        return estimator_
+
+    @staticmethod
+    def default_dask_gbm(task):
+        cls = lightgbm.dask.DaskLGBMRegressor if task == const.TASK_REGRESSION else lightgbm.dask.DaskLGBMClassifier
+        return cls(n_estimators=50,
+                   num_leaves=15,
+                   max_depth=5,
+                   subsample=0.5,
+                   subsample_freq=1,
+                   colsample_bytree=0.8,
+                   reg_alpha=1,
+                   reg_lambda=1,
+                   importance_type='gain', )

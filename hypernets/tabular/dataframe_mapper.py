@@ -5,20 +5,15 @@ Adapted from: https://github.com/scikit-learn-contrib/sklearn-pandas
 2. Support `columns` is a callable object
 """
 import contextlib
-import sys
 
 import numpy as np
 import pandas as pd
-import six
-from dask import array as da
-from dask import dataframe as dd
 from scipy import sparse as _sparse
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import BaseEstimator
 from sklearn.pipeline import _name_estimators, Pipeline
 from sklearn.utils import tosequence
 
 from hypernets.utils import logging
-from . import dask_ex as dex
 
 logger = logging.get_logger(__name__)
 
@@ -79,7 +74,7 @@ class TransformerPipeline(Pipeline):
 
     def _pre_transform(self, X, y=None, **fit_params):
         fit_params_steps = dict((step, {}) for step, _ in self.steps)
-        for pname, pval in six.iteritems(fit_params):
+        for pname, pval in fit_params.items():
             step, param = pname.split('__', 1)
             fit_params_steps[step][param] = pval
         Xt = X
@@ -113,27 +108,6 @@ def make_transformer_pipeline(*steps):
     return TransformerPipeline(_name_estimators(steps))
 
 
-PY3 = sys.version_info[0] == 3
-if PY3:
-    string_types = text_type = str
-else:
-    string_types = basestring  # noqa
-    text_type = unicode  # noqa
-
-
-def _handle_feature(fea):
-    """
-    Convert 1-dimensional arrays to 2-dimensional column vectors.
-    """
-    if len(fea.shape) == 1:
-        if isinstance(fea, dd.DataFrame):
-            fea = da.stack([fea], axis=-1)
-        else:
-            fea = np.array([fea]).T
-
-    return fea
-
-
 def _build_transformer(transformers):
     if isinstance(transformers, list):
         transformers = make_transformer_pipeline(*transformers)
@@ -148,10 +122,10 @@ def _get_feature_names(estimator, columns=None):
     """
     Attempt to extract feature names based on a given estimator
     """
+    if hasattr(estimator, 'get_feature_names'):
+        return estimator.get_feature_names(columns)
     if hasattr(estimator, 'classes_'):
         return estimator.classes_
-    elif hasattr(estimator, 'get_feature_names'):
-        return estimator.get_feature_names(columns)
     return None
 
 
@@ -164,19 +138,18 @@ def add_column_names_to_exception(column_names):
         if ex.args:
             msg = u'{}: {}'.format(column_names, ex.args[0])
         else:
-            msg = text_type(column_names)
+            msg = str(column_names)
         ex.args = (msg,) + ex.args[1:]
         raise
 
 
-class DataFrameMapper(BaseEstimator, TransformerMixin):
+class DataFrameMapper(BaseEstimator):
     """
     Map Pandas data frame column subsets to their own
     sklearn transformation.
     """
 
-    def __init__(self, features, default=False, sparse=False, df_out=False,
-                 input_df=False, df_out_dtype_transforms=None):
+    def __init__(self, features, default=False, df_out=False, input_df=False, df_out_dtype_transforms=None):
         """
         Params:
 
@@ -195,26 +168,18 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                     other transformer will be applied to all the unselected
                     columns as a whole, taken as a 2d-array.
 
-        sparse      will return sparse matrix if set True and any of the
-                    extracted features is sparse. Defaults to False.
-
         df_out      return a pandas data frame, with each column named using
                     the pandas column that created it (if there's only one
                     input and output) or the input columns joined with '_'
                     if there's multiple inputs, and the name concatenated with
-                    '_1', '_2' etc if there's multiple outputs. NB: does not
-                    work if *default* or *sparse* are true
+                    '_1', '_2' etc if there's multiple outputs.
 
         input_df    If ``True`` pass the selected columns to the transformers
                     as a pandas DataFrame or Series. Otherwise pass them as a
                     numpy array. Defaults to ``False``.
         """
-        if df_out and (sparse or default):
-            raise ValueError("Can not use df_out with sparse or default")
-
         self.features = features
         self.default = default
-        self.sparse = sparse
         self.df_out = df_out
         self.input_df = input_df
         self.df_out_dtype_transforms = df_out_dtype_transforms
@@ -232,43 +197,6 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
 
         return built_features, built_default
 
-    def _get_col_subset(self, X, cols, input_df=False):
-        """
-        Get a subset of columns from the given table X.
-
-        X       a Pandas dataframe; the table to select columns from
-        cols    a string or list of strings representing the columns
-                to select
-
-        Returns a numpy array with the data from the selected columns
-        """
-        if isinstance(cols, string_types):
-            return_vector = True
-            cols = [cols]
-        else:
-            return_vector = False
-
-        # Needed when using the cross-validation compatibility
-        # layer for sklearn<0.16.0.
-        # Will be dropped on sklearn-pandas 2.0.
-        if isinstance(X, list):
-            X = [x[cols] for x in X]
-            X = pd.DataFrame(X)
-
-        # elif isinstance(X, DataWrapper):
-        #     X = X.df  # fetch underlying data
-
-        if return_vector:
-            t = X[cols[0]]
-        else:
-            t = X[cols]
-
-        # return either a DataFrame/Series or a numpy array
-        if input_df:
-            return t
-        else:
-            return t.values
-
     def fit(self, X, y=None):
         built_features, built_default = self._build(self.features, self.default)
 
@@ -279,7 +207,7 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
             logger.debug(f'columns:({columns_def}), transformers:({transformers}), options:({options})')
             if callable(columns_def):
                 columns = columns_def(X)
-            elif isinstance(columns_def, string_types):
+            elif isinstance(columns_def, str):
                 columns = [columns_def]
             else:
                 columns = columns_def
@@ -332,9 +260,8 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                     Xt = transformers.transform(Xt)
                     # print(f'after ---- {transformers}:{pd.DataFrame(Xt).dtypes}')
 
-            extracted.append(_handle_feature(Xt))
-
-            transformed_columns += self.get_names(columns, transformers, Xt, alias)
+            extracted.append(self._fix_feature(Xt))
+            transformed_columns += self._get_names(columns, transformers, Xt, alias)
 
         return self._to_transform_result(X, extracted, transformed_columns)
 
@@ -348,7 +275,7 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
         for columns_def, transformers, options in built_features:
             if callable(columns_def):
                 columns = columns_def(X)
-            elif isinstance(columns_def, string_types):
+            elif isinstance(columns_def, str):
                 columns = [columns_def]
             else:
                 columns = columns_def
@@ -375,10 +302,10 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                         _call_fit(transformers.fit, Xt, y)
                         Xt = transformers.transform(Xt)
 
-            extracted.append(_handle_feature(Xt))
+            extracted.append(self._fix_feature(Xt))
             if logger.is_debug_enabled():
                 logger.debug(f'columns:{len(columns)}')
-            transformed_columns += self.get_names(columns, transformers, Xt, alias)
+            transformed_columns += self._get_names(columns, transformers, Xt, alias)
             if logger.is_debug_enabled():
                 logger.debug(f'transformed_names_:{len(transformed_columns)}')
 
@@ -393,11 +320,11 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
                     else:
                         _call_fit(built_default.fit, Xt, y)
                         Xt = built_default.transform(Xt)
-                transformed_columns += self.get_names(unselected_columns, built_default, Xt)
+                transformed_columns += self._get_names(unselected_columns, built_default, Xt)
             else:
                 # if not applying a default transformer, keep column names unmodified
                 transformed_columns += unselected_columns
-            extracted.append(_handle_feature(Xt))
+            extracted.append(self._fix_feature(Xt))
 
             fitted_features.append((unselected_columns, built_default, {}))
 
@@ -405,7 +332,15 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
 
         return self._to_transform_result(X, extracted, transformed_columns)
 
-    def get_names(self, columns, transformer, x, alias=None):
+    @staticmethod
+    def _get_col_subset(X, cols, input_df=False):
+        t = X[cols]
+        if input_df:
+            return t
+        else:
+            return t.values
+
+    def _get_names(self, columns, transformer, x, alias=None):
         """
         Return verbose names for the transformed columns.
 
@@ -433,85 +368,83 @@ class DataFrameMapper(BaseEstimator, TransformerMixin):
             # logger.debug(f'transformer:{transformer}')
             if isinstance(transformer, (TransformerPipeline, Pipeline)):
                 inverse_steps = transformer.steps[::-1]
-                estimators = (estimator for name, estimator in inverse_steps)
-                names_steps = (_get_feature_names(e, columns) for e in estimators)
-                names = next((n for n in names_steps if n is not None), None)
-
-                if names is None and len(columns) == num_cols:
-                    names = list(columns)
-            # Otherwise use the only estimator present
-            else:
+                # estimators = (estimator for _, estimator in inverse_steps)
+                # names_steps = (_get_feature_names(e, columns) for e in estimators)
+                # names = next((n for n in names_steps if n is not None), None)
+                names = None
+                for _, estimator in inverse_steps:
+                    names = _get_feature_names(estimator, columns)
+                    if names is not None and len(names) == num_cols:
+                        break
+            else:  # Otherwise use the only estimator present
                 names = _get_feature_names(transformer, columns)
 
+            if names is None and len(columns) == num_cols:
+                names = list(columns)
             if logger.is_debug_enabled():
                 # logger.debug(f'names:{names}')
-                logger.debug(f'names:{len(names)}')
+                logger.debug(f'transformed names:{len(names)}')
             if names is not None and len(names) == num_cols:
                 return list(names)  # ['%s_%s' % (name, o) for o in names]
-            # otherwise, return name concatenated with '_1', '_2', etc.
-            else:
+            else:  # otherwise, return name concatenated with '_1', '_2', etc.
                 return [name + '_' + str(o) for o in range(num_cols)]
         else:
             return [name]
 
-    def get_dtypes(self, extracted):
-        dtypes_features = [self.get_dtype(ex) for ex in extracted]
-        return [dtype for dtype_feature in dtypes_features
-                for dtype in dtype_feature]
+    @staticmethod
+    def _fix_feature(fea):
+        if _sparse.issparse(fea):
+            fea = fea.toarray()
 
-    def get_dtype(self, ex):
-        if isinstance(ex, (np.ndarray, da.Array)) or _sparse.issparse(ex):
-            return [ex.dtype] * ex.shape[1]
-        elif isinstance(ex, (pd.DataFrame, dd.DataFrame)):
-            return list(ex.dtypes)
-        else:
-            raise TypeError(type(ex))
+        if len(fea.shape) == 1:
+            """
+            Convert 1-dimensional arrays to 2-dimensional column vectors.
+            """
+            fea = np.array([fea]).T
+
+        return fea
 
     def _to_transform_result(self, X, extracted, transformed_columns):
-        # combine the feature outputs into one array. at this point we lose track of which features
-        # were created from which input columns, so it's assumed that that doesn't matter to the model.
-
-        # no data transformed, raise a error
         if extracted is None or len(extracted) == 0:
             raise ValueError("No data output, ??? ")
 
-        # If any of the extracted features is sparse, combine sparsely.
-        # Otherwise, combine as normal arrays.
-        if isinstance(X, dd.DataFrame):
-            extracted = [a.values if isinstance(a, dd.DataFrame) else a for a in extracted]
-            stacked = dex.hstack_array(extracted)
-        elif any(_sparse.issparse(fea) for fea in extracted):
-            stacked = _sparse.hstack(extracted).tocsr()
-            # return a sparse matrix only if the mapper was initialized
-            # with sparse=True
-            if not self.sparse:
-                stacked = stacked.toarray()
-        else:
-            stacked = np.hstack(extracted)
-
         if self.df_out:
-            # if no rows were dropped preserve the original index,
-            # otherwise use a new integer one
-            if isinstance(X, dd.DataFrame):
-                df_out = dd.from_dask_array(stacked, columns=transformed_columns, index=None)
-            else:
-                no_rows_dropped = len(X) == len(stacked)
-                index = X.index if no_rows_dropped else None
-                df_out = pd.DataFrame(stacked, columns=transformed_columns, index=index)
-
-            # output different data types, if appropriate
-            dtypes = self.get_dtypes(extracted)
-
-            # preserve types
-            for col, dtype, stype in zip(transformed_columns, dtypes, df_out.dtypes.tolist()):
-                if dtype != stype:
-                    if logger.is_debug_enabled():
-                        logger.debug(f'convert {col} as {dtype} from {stype}')
-                    df_out[col] = df_out[col].astype(dtype)
-            df_out = self._dtype_transform(df_out)
-            return df_out
+            df = self._to_df(X, extracted, transformed_columns)
+            df = self._dtype_transform(df)
+            return df
         else:
-            return stacked
+            return self._hstack_array(extracted)
+
+    @staticmethod
+    def _hstack_array(extracted):
+        stacked = np.hstack(extracted)
+        return stacked
+
+    def _to_df(self, X, extracted, columns):
+        # stacked = self._hstack_array(extracted)
+        #
+        # if isinstance(X, dd.DataFrame):
+        #     df = dd.from_dask_array(stacked, columns=columns, index=None)
+        # else:
+        #     # if no rows were dropped preserve the original index, otherwise use a new integer one
+        #     no_rows_dropped = len(X) == len(stacked)
+        #     index = X.index if no_rows_dropped else None
+        #     df = pd.DataFrame(stacked, columns=columns, index=index)
+        #
+        # # output different data types, if appropriate
+        # dtypes = self._get_dtypes(extracted)
+        # for col, dtype, stype in zip(columns, dtypes, df.dtypes.tolist()):
+        #     if dtype != stype:
+        #         if logger.is_debug_enabled():
+        #             logger.debug(f'convert {col} as {dtype} from {stype}')
+        #         df[col] = df[col].astype(dtype)
+        dfs = [pd.DataFrame(arr, index=None) for arr in extracted]
+        df = pd.concat(dfs, axis=1, ignore_index=True) if len(dfs) > 1 else dfs[0]
+        df.columns = columns
+        if len(X) == len(df):
+            df.index = X.index  # reuse the original index
+
+        return df
 
     def _dtype_transform(self, df_out):
         if self.df_out_dtype_transforms is not None:

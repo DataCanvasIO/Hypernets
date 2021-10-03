@@ -7,11 +7,12 @@ from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 
 class DaskPlainModel(PlainModel):
     def _get_estimator(self, space_sample):
-        from hypernets.tabular import dask_ex as dex
+        from hypernets.tabular import get_tool_box
+        import dask.dataframe as dd
 
         estimator = super()._get_estimator(space_sample)
 
-        return dex.wrap_local_estimator(estimator)
+        return get_tool_box(dd.DataFrame).wrap_local_estimator(estimator)
 
 
 def create_plain_model(reward_metric='auc', optimize_direction='max',

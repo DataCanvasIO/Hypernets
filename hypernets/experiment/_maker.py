@@ -9,7 +9,7 @@ from hypernets.experiment import CompeteExperiment
 from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.model import HyperModel
 from hypernets.searchers import make_searcher, PlaybackSearcher
-from hypernets.tabular import dask_ex as dex
+from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
 from hypernets.utils import const, load_data, infer_task_type, hash_data, logging, isnotebook, load_module, DocLens
@@ -206,8 +206,10 @@ def make_experiment(hyper_model_cls,
     X_train, X_eval, X_test = [load_data(data) if data is not None else None
                                for data in (train_data, eval_data, test_data)]
 
-    X_train, X_eval, X_test = [dex.reset_index(x) if dex.is_dask_dataframe(x) else x
-                               for x in (X_train, X_eval, X_test)]
+    tb = get_tool_box(X_train, X_eval, X_test)
+    if hasattr(tb, 'is_dask_dataframe'):
+        X_train, X_eval, X_test = [tb.reset_index(x) if tb.is_dask_dataframe(x) else x
+                                   for x in (X_train, X_eval, X_test)]
 
     if target is None:
         target = find_target(X_train)
@@ -240,7 +242,7 @@ def make_experiment(hyper_model_cls,
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
             and 'down_sample_search' not in kwargs.keys():
-        train_data_shape = dex.compute(X_train.shape)[0] if dex.is_dask_object(X_train) else X_train.shape
+        train_data_shape = tb.get_shape(X_train)
         if train_data_shape[0] > cfg.experiment_auto_down_sample_rows_threshold:
             kwargs['down_sample_search'] = True
 
@@ -273,11 +275,9 @@ def make_experiment(hyper_model_cls,
         _clear_cache()
 
     if logger.is_info_enabled():
-        train_shape, test_shape, eval_shape = \
-            dex.compute(X_train.shape,
-                        X_test.shape if X_test is not None else None,
-                        X_eval.shape if X_eval is not None else None,
-                        traverse=True)
+        train_shape = tb.get_shape(X_train)
+        test_shape = tb.get_shape(X_test, allow_none=True)
+        eval_shape = tb.get_shape(X_eval, allow_none=True)
         logger.info(f'make_experiment with train data:{train_shape}, '
                     f'test data:{test_shape}, eval data:{eval_shape}, target:{target}')
 

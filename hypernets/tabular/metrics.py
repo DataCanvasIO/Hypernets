@@ -8,37 +8,17 @@ import pickle
 
 import numpy as np
 import psutil
-from dask import dataframe as dd
 from joblib import Parallel, delayed
 from sklearn import metrics as sk_metrics
 
 from hypernets.utils import const, infer_task_type, logging, is_os_windows
-from . import dask_ex as dex
 
 logger = logging.get_logger(__name__)
 
 _MIN_BATCH_SIZE = 100000
-_DASK_METRICS = ('accuracy', 'logloss')
 
 
-def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1,
-               classes=None, average=None):
-    data_list = (y_true, y_proba, y_preds)
-    if any(map(dex.is_dask_object, data_list)):
-        if all(map(dex.is_dask_object, data_list)) and len(set(metrics).difference(set(_DASK_METRICS))) == 0:
-            fn = _calc_score_dask
-        else:
-            y_true, y_proba, y_preds = \
-                [y.compute() if dex.is_dask_object(y) else y for y in data_list]
-            fn = _calc_score_sklean
-    else:
-        fn = _calc_score_sklean
-
-    return fn(y_true, y_preds, y_proba, metrics, task=task, pos_label=pos_label,
-              classes=classes, average=average)
-
-
-def task_to_average(task):
+def _task_to_average(task):
     if task == const.TASK_MULTICLASS:
         average = 'macro'
     else:
@@ -46,8 +26,8 @@ def task_to_average(task):
     return average
 
 
-def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1,
-                       classes=None, average=None):
+def calc_score(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1,
+               classes=None, average=None):
     score = {}
     if y_proba is None:
         y_proba = y_preds
@@ -57,7 +37,7 @@ def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), tas
         y_preds = y_preds.reshape(-1)
 
     if average is None:
-        average = task_to_average(task)
+        average = _task_to_average(task)
 
     recall_options = dict(average=average, labels=classes)
     if pos_label is not None:
@@ -103,60 +83,6 @@ def _calc_score_sklean(y_true, y_preds, y_proba=None, metrics=('accuracy',), tas
     return score
 
 
-def _calc_score_dask(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1,
-                     classes=None, average=None):
-    import dask_ml.metrics as dm_metrics
-
-    def to_array(name, value):
-        if value is None:
-            return value
-
-        if isinstance(value, (dd.DataFrame, dd.Series)):
-            value = value.values
-
-        if len(value.shape) == 2 and value.shape[-1] == 1:
-            value = value.reshape(-1)
-
-        value = dex.make_chunk_size_known(value)
-        return value
-
-    score = {}
-
-    y_true = to_array('y_true', y_true)
-    y_preds = to_array('y_preds', y_preds)
-    y_proba = to_array('y_proba', y_proba)
-
-    if y_true.chunks[0] != y_preds.chunks[0]:
-        logger.debug(f'rechunk y_preds with {y_true.chunks[0]}')
-        y_preds = y_preds.rechunk(chunks=y_true.chunks[0])
-
-    if y_proba is None:
-        y_proba = y_preds
-    elif y_true.chunks[0] != y_proba.chunks[0]:
-        if len(y_proba.chunks) > 1:
-            chunks = (y_true.chunks[0],) + y_proba.chunks[1:]
-        else:
-            chunks = y_true.chunks
-        logger.debug(f'rechunk y_proba with {chunks}')
-        y_proba = y_proba.rechunk(chunks=chunks)
-
-    for metric in metrics:
-        if callable(metric):
-            score[metric.__name__] = metric(y_true, y_preds)
-        else:
-            metric_lower = metric.lower()
-            if metric_lower == 'accuracy':
-                score[metric] = dm_metrics.accuracy_score(y_true, y_preds)
-            elif metric_lower == 'logloss':
-                ll = dm_metrics.log_loss(y_true, y_proba, labels=classes)
-                if hasattr(ll, 'compute'):
-                    ll = ll.compute()
-                score[metric] = ll
-            else:
-                logger.warning(f'unknown metric: {metric}')
-    return score
-
-
 def metric_to_scoring(metric, task=const.TASK_BINARY, pos_label=None):
     assert isinstance(metric, str)
 
@@ -185,7 +111,7 @@ def metric_to_scoring(metric, task=const.TASK_BINARY, pos_label=None):
         raise ValueError(f'Not found matching scoring for {metric}')
 
     if metric_lower in metric2fn.keys():
-        options = dict(average=task_to_average(task))
+        options = dict(average=_task_to_average(task))
         if pos_label is not None:
             options['pos_label'] = pos_label
         scoring = sk_metrics.make_scorer(metric2fn[metric_lower], **options)
@@ -266,17 +192,19 @@ def predict(estimator, X, *, task=None, classes=None, threshold=0.5, n_jobs=-1):
 def proba2predict(proba, *, task=None, threshold=0.5, classes=None):
     assert len(proba.shape) <= 2
 
+    if len(proba.shape) == 0:  # empty
+        return proba
+
+    from hypernets.tabular import get_tool_box
+
     def is_one_dim(x):
         return len(x.shape) == 1 or (len(x.shape) == 2 and x.shape[1] == 1)
 
     if logger.is_info_enabled():
         logger.info(f'proba2predict with task={task}, classes={classes}, threshold={threshold}')
 
-    if len(proba.shape) == 0:  # empty
-        return proba
-
     if task == const.TASK_BINARY and is_one_dim(proba):
-        proba = dex.fix_binary_predict_proba_result(proba)
+        proba = get_tool_box(proba).fix_binary_predict_proba_result(proba)
 
     if task == const.TASK_REGRESSION or is_one_dim(proba):  # regression
         return proba
@@ -287,10 +215,12 @@ def proba2predict(proba, *, task=None, threshold=0.5, classes=None):
         pred = (proba[:, -1] > threshold).astype(np.int32)
 
     if classes is not None:
-        if dex.is_dask_object(pred):
-            pred = dex.da.take(np.array(classes), pred, axis=0)
-        else:
-            pred = np.take(np.array(classes), pred, axis=0)
+        # if dex.is_dask_object(pred):
+        #     pred = dex.da.take(np.array(classes), pred, axis=0)
+        # else:
+        #     pred = np.take(np.array(classes), pred, axis=0)
+        tb = get_tool_box(pred)
+        pred = tb.take_array(np.array(classes), pred, axis=0)
 
     return pred
 
@@ -377,3 +307,13 @@ def _call_predict(estimator, fn_name, df, n_jobs=1):
         result = _load_and_run(estimator, fn_name, df)
 
     return result
+
+
+class Metrics:
+    calc_score = calc_score
+    metric_to_scoring = metric_to_scoring
+
+    evaluate = evaluate
+    proba2predict = proba2predict
+    predict = predict
+    predict_proba = predict_proba

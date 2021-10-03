@@ -10,30 +10,13 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from hypernets.tabular import dask_ex as dex
-from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
-from hypernets.tabular.dataframe_mapper import DataFrameMapper
+from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.feature_generators import FeatureGenerationTransformer
+# from hypernets.tabular.feature_generators import FeatureGenerationTransformer
 from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 from hypernets.utils import logging
 
 logger = logging.getLogger(__name__)
-
-
-def general_preprocessor():
-    cat_transformer = Pipeline(
-        steps=[('imputer_cat', dex.SimpleImputer(strategy='constant', fill_value='')),
-               ('encoder', dex.OrdinalEncoder())])
-    num_transformer = Pipeline(
-        steps=[('imputer_num', dex.SimpleImputer(strategy='mean')),
-               ('scaler', dex.StandardScaler())])
-
-    preprocessor = DataFrameMapper(features=[(column_object_category_bool, cat_transformer),
-                                             (column_number_exclude_timedelta, num_transformer)],
-                                   input_df=True,
-                                   df_out=True)
-    return preprocessor
 
 
 class Test_FeatureGeneratorWithDask:
@@ -44,11 +27,14 @@ class Test_FeatureGeneratorWithDask:
     def test_pipeline(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
-        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
-                                           categories_cols=column_object_category_bool(X_train))
-        preprocessor = general_preprocessor()
+        ddf = dd.from_pandas(df.head(100), npartitions=2)
+        tb = get_tool_box(ddf)
+        X_train, X_test = tb.train_test_split(ddf, test_size=0.2, random_state=42)
+
+        ftt = tb.transformers['FeatureGenerationTransformer'](
+            task='binary', trans_primitives=['cross_categorical'],
+            categories_cols=tb.column_selector.column_object_category_bool(X_train))
+        preprocessor = tb.general_preprocessor(ddf)
         pipe = Pipeline(steps=[('feature_gen', ftt), ('processor', preprocessor)])
         X_t = pipe.fit_transform(X_train)
         X_t = X_t.compute()
@@ -57,13 +43,16 @@ class Test_FeatureGeneratorWithDask:
     def test_in_dataframe_mapper(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
-        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
-                                           categories_cols=column_object_category_bool(X_train))
-        dfm = DataFrameMapper(features=[(X_train.columns.to_list(), ftt)],
-                              input_df=True,
-                              df_out=True)
+        ddf = dd.from_pandas(df.head(100), npartitions=2)
+
+        tb = get_tool_box(ddf)
+        X_train, X_test = tb.train_test_split(ddf, test_size=0.2, random_state=42)
+        ftt = tb.transformers['FeatureGenerationTransformer'](
+            task='binary', trans_primitives=['cross_categorical'],
+            categories_cols=tb.column_selector.column_object_category_bool(X_train))
+        dfm = tb.transformers['DataFrameMapper'](features=[(X_train.columns.to_list(), ftt)],
+                                                  input_df=True,
+                                                  df_out=True)
         X_t = dfm.fit_transform(X_train)
         X_t = X_t.compute()
         assert X_t.shape[1] == 62
@@ -71,11 +60,13 @@ class Test_FeatureGeneratorWithDask:
     def test_feature_tools_categorical_cross(self):
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
-        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
-        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
-        cat_cols = column_object_category_bool(X_train)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['cross_categorical'],
-                                           categories_cols=cat_cols)
+        ddf = dd.from_pandas(df.head(100), npartitions=2)
+
+        tb = get_tool_box(ddf)
+        X_train, X_test = tb.train_test_split(ddf, test_size=0.2, random_state=42)
+        cat_cols = tb.column_selector.column_object_category_bool(X_train)
+        ftt = tb.transformers['FeatureGenerationTransformer'](
+            task='binary', trans_primitives=['cross_categorical'], categories_cols=cat_cols)
         ftt.fit(X_train)
         x_t = ftt.transform(X_train)
         columns = set(x_t.columns.to_list())
@@ -88,9 +79,12 @@ class Test_FeatureGeneratorWithDask:
         df = dsutils.load_bank()
         df.drop(['id'], axis=1, inplace=True)
         y = df.pop('y')
-        ddf = dex.dd.from_pandas(df.head(100), npartitions=2)
-        X_train, X_test = dex.train_test_split(ddf, test_size=0.2, random_state=42)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['add_numeric', 'divide_numeric'])
+        ddf = dd.from_pandas(df.head(100), npartitions=2)
+
+        tb = get_tool_box(ddf)
+        X_train, X_test = tb.train_test_split(ddf, test_size=0.2, random_state=42)
+        ftt = tb.transformers['FeatureGenerationTransformer'](
+            task='binary', trans_primitives=['add_numeric', 'divide_numeric'])
         ftt.fit(X_train)
         x_t = ftt.transform(X_train)
         assert x_t is not None
@@ -117,7 +111,9 @@ class Test_FeatureGeneratorWithDask:
         df['genres'] = df['genres'].apply(lambda s: s.replace('|', ' '))
         df['timestamp'] = df['timestamp'].apply(datetime.fromtimestamp)
         ddf = dd.from_pandas(df, npartitions=2)
-        ftt = FeatureGenerationTransformer(task='binary', text_cols=['title'], categories_cols=['gender', 'genres'])
+        tb = get_tool_box(ddf)
+        ftt = tb.transformers['FeatureGenerationTransformer'](
+            task='binary', text_cols=['title'], categories_cols=['gender', 'genres'])
         x_t = ftt.fit_transform(ddf)
         xt_columns = x_t.columns.to_list()
         assert 'CROSS_CATEGORICAL_gender__genres' in xt_columns
@@ -133,7 +129,8 @@ class Test_FeatureGeneratorWithDask:
         df['longitude2'] = [-0.22, 76.22, -122.22]
         df['latlong2'] = df[['latitude2', 'longitude2']].apply(tuple, axis=1)
         df = dd.from_pandas(df, npartitions=1)
-        ftt = FeatureGenerationTransformer(latlong_cols=['latlong', 'latlong2'])
+        tb = get_tool_box(df)
+        ftt = tb.transformers['FeatureGenerationTransformer'](latlong_cols=['latlong', 'latlong2'])
         x_t = ftt.fit_transform(df)
         print(x_t.head(3))
         assert 'GEOHASH__latlong__' in x_t.columns.to_list()
@@ -156,9 +153,10 @@ class Test_FeatureGeneratorWithDask:
     @pytest.mark.parametrize('fix_input', [True, False])
     def test_fix_input(self, fix_input: bool):
         df = pd.DataFrame(data={"x1": [None, 2, 3], 'x2': [4, 5, 6]})
-        df = dex.dd.from_pandas(df, npartitions=1)
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=['add_numeric', 'divide_numeric'],
-                                           fix_input=fix_input)
+        df = dd.from_pandas(df, npartitions=1)
+        tb = get_tool_box(df)
+        ftt = tb.transformers['FeatureGenerationTransformer'](
+            task='binary', trans_primitives=['add_numeric', 'divide_numeric'], fix_input=fix_input)
         ftt.fit(df)
         x_t = ftt.transform(df)
         x_t = x_t.compute()
@@ -175,9 +173,9 @@ class Test_FeatureGeneratorWithDask:
             assert math.isnan(x_t["x1__D__x2"][0])
 
     def test_datetime_derivation(self):
-
         df = pd.DataFrame(data={"x1": [datetime.now()]})
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=["year", "month", "week"])
+        tb = get_tool_box(df)
+        ftt = tb.transformers['FeatureGenerationTransformer'](task='binary', trans_primitives=["year", "month", "week"])
         ftt.fit(df)
 
         x_t = ftt.transform(df)
@@ -190,7 +188,8 @@ class Test_FeatureGeneratorWithDask:
         tmp_path = P.join(tmp_path, 'fft.pkl')
 
         df = pd.DataFrame(data={"x1": [datetime.now()]})
-        ftt = FeatureGenerationTransformer(task='binary', trans_primitives=["year", "month", "week"])
+        tb = get_tool_box(df)
+        ftt = tb.transformers['FeatureGenerationTransformer'](task='binary', trans_primitives=["year", "month", "week"])
         ftt.fit(df)
         import pickle
 

@@ -1,6 +1,7 @@
 import math
 import os
 
+import dask
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -64,7 +65,7 @@ class Test_DaskCustomizedTransformer:
         continous = X.select_dtypes(['float', 'float64']).columns.to_list()
         X = X[cats + continous]
         n_estimators = 50
-        X_shape = dex.compute(X.shape)[0]
+        X_shape = dask.compute(X.shape)[0]
 
         # with fit_transform
         t = dex.LgbmLeavesEncoder(cat_vars=cats, cont_vars=continous, task=const.TASK_BINARY,
@@ -184,7 +185,7 @@ class Test_DaskCustomizedTransformer:
         dfw = dex.DataFrameWrapper(ct, cats + continous)
         X = dfw.fit_transform(X[cats + continous])
 
-        assert dex.is_dask_dataframe(X)
+        assert isinstance(X, dd.DataFrame)
         print(X.dtypes)
 
 

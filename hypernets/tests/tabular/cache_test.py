@@ -1,3 +1,4 @@
+import dask.dataframe as dd
 from hypernets.tabular import sklearn_ex as skex, dask_ex as dex
 from hypernets.tabular.cache import cache, CacheCallback
 from hypernets.tabular.datasets import dsutils
@@ -77,7 +78,7 @@ def test_cache():
 
 def test_cache_dask():
     cache_counter = CachedDaskMultiLabelEncoder.cache_counter
-    df = dex.dd.from_pandas(dsutils.load_bank().head(10000), npartitions=2)
+    df = dd.from_pandas(dsutils.load_bank().head(10000), npartitions=2)
 
     t = dex.MultiLabelEncoder()
     X = t.fit_transform(df.copy())

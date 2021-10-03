@@ -8,7 +8,7 @@ from collections import OrderedDict
 import pandas as pd
 from IPython.display import display, display_markdown
 
-from hypernets.tabular import dask_ex as dex
+from hypernets.tabular import get_tool_box
 from hypernets.utils import const
 from . import ExperimentCallback
 from .compete import StepNames
@@ -201,23 +201,14 @@ class SimpleNotebookCallback(ExperimentCallback):
 
         X_train, y_train, X_test, X_eval, y_eval = \
             exp.X_train, exp.y_train, exp.X_test, exp.X_eval, exp.y_eval
-
-        if dex.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval):
-            display_data = (dex.compute(X_train.shape)[0],
-                            dex.compute(y_train.shape)[0],
-                            dex.compute(X_eval.shape)[0] if X_eval is not None else None,
-                            dex.compute(y_eval.shape)[0] if y_eval is not None else None,
-                            dex.compute(X_test.shape)[0] if X_test is not None else None,
-                            exp.task if exp.task == const.TASK_REGRESSION
-                            else f'{exp.task}({dex.compute(y_train.nunique())[0]})')
-        else:
-            display_data = (X_train.shape,
-                            y_train.shape,
-                            X_eval.shape if X_eval is not None else None,
-                            y_eval.shape if y_eval is not None else None,
-                            X_test.shape if X_test is not None else None,
-                            exp.task if exp.task == const.TASK_REGRESSION
-                            else f'{exp.task}({y_train.nunique()})')
+        tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+        display_data = (tb.get_shape(X_train),
+                        tb.get_shape(y_train),
+                        tb.get_shape(X_eval, allow_none=True),
+                        tb.get_shape(y_eval, allow_none=True),
+                        tb.get_shape(X_test, allow_none=True),
+                        exp.task if exp.task == const.TASK_REGRESSION
+                        else f'{exp.task}({tb.to_local(y_train.nunique())[0]})')
         display(pd.DataFrame([display_data],
                              columns=['X_train.shape',
                                       'y_train.shape',
