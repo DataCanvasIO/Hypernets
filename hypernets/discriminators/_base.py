@@ -34,7 +34,7 @@ class BaseDiscriminator(object):
     def bind_history(self, history):
         self.history = history
 
-    def is_promising(self, iteration_trajectory, group_id):
+    def is_promising(self, iteration_trajectory, group_id, end_iteration):
         if self.history is None:
             raise ValueError('`history` is not bound')
         n_step = len(iteration_trajectory)
@@ -48,9 +48,9 @@ class BaseDiscriminator(object):
             if ((n_step - self.min_steps) % self.stride) > 0:
                 return True
 
-        return self._is_promising(iteration_trajectory, group_id)
+        return self._is_promising(iteration_trajectory, group_id, end_iteration)
 
-    def _is_promising(self, iteration_trajectory, group_id):
+    def _is_promising(self, iteration_trajectory, group_id, end_iteration):
         """
         discriminate whether continuing training a trial is promising
 
