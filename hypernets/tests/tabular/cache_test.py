@@ -1,8 +1,8 @@
 import dask.dataframe as dd
-from hypernets.tabular import sklearn_ex as skex, dask_ex as dex
+from hypernets.tabular import sklearn_ex as skex, dask_ex as dex, get_tool_box
 from hypernets.tabular.cache import cache, CacheCallback
 from hypernets.tabular.datasets import dsutils
-from hypernets.utils import hash_data, Counter
+from hypernets.utils import Counter
 
 
 class CacheCounter(CacheCallback):
@@ -57,7 +57,7 @@ class CachedDaskMultiLabelEncoder(dex.MultiLabelEncoder):
 
 
 def test_cache():
-    df = dsutils.load_bank().head(10000)
+    df = dsutils.load_bank()
     t = skex.MultiLabelEncoder()
     X = t.fit_transform(df.copy())
 
@@ -65,7 +65,9 @@ def test_cache():
     X1 = t1.fit_transform(df.copy())
     t2 = CachedMultiLabelEncoder()
     X2 = t2.fit_transform(df.copy())
-    assert hash_data(X) == hash_data(X1) == hash_data(X2)
+
+    hasher = get_tool_box(df).data_hasher()
+    assert hasher(X) == hasher(X1) == hasher(X2)
 
     t3 = CachedMultiLabelEncoder()
     X3 = t3.fit_transform_as_tuple_result(df.copy())
@@ -73,12 +75,12 @@ def test_cache():
     X4 = t4.fit_transform_as_tuple_result(df.copy())
     assert isinstance(X3, (tuple, list))
     assert isinstance(X4, (tuple, list))
-    assert hash_data(X3[1]) == hash_data(X4[1])
+    assert hasher(X3[1]) == hasher(X4[1])
 
 
 def test_cache_dask():
     cache_counter = CachedDaskMultiLabelEncoder.cache_counter
-    df = dd.from_pandas(dsutils.load_bank().head(10000), npartitions=2)
+    df = dd.from_pandas(dsutils.load_bank(), npartitions=2)
 
     t = dex.MultiLabelEncoder()
     X = t.fit_transform(df.copy())
@@ -89,7 +91,8 @@ def test_cache_dask():
     t2 = CachedDaskMultiLabelEncoder()
     X2 = t2.fit_transform(df.copy())
 
-    assert hash_data(X) == hash_data(X1) == hash_data(X2)
+    hasher = get_tool_box(df).data_hasher()
+    assert hasher(X) == hasher(X1) == hasher(X2)
     assert cache_counter.enter_counter.value == 2
     assert cache_counter.apply_counter.value <= 2
     assert cache_counter.store_counter.value <= 2
@@ -101,7 +104,7 @@ def test_cache_dask():
     t4 = CachedDaskMultiLabelEncoder()
     X4 = t4.fit_transform_as_array(df.copy())
 
-    assert hash_data(X3) == hash_data(X4)
+    assert hasher(X3) == hasher(X4)
     assert cache_counter.enter_counter.value == 2
     assert cache_counter.apply_counter.value <= 2
     assert cache_counter.store_counter.value <= 2

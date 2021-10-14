@@ -11,7 +11,7 @@ import psutil
 from joblib import Parallel, delayed
 from sklearn import metrics as sk_metrics
 
-from hypernets.utils import const, infer_task_type, logging, is_os_windows
+from hypernets.utils import const, logging, is_os_windows
 
 logger = logging.get_logger(__name__)
 
@@ -270,7 +270,8 @@ def _detect_task(estimator, y):
             task = const.TASK_BINARY if len(classes) == 2 else const.TASK_MULTICLASS
 
     if task is None and y is not None:
-        task, c2 = infer_task_type(y)
+        from hypernets.tabular import get_tool_box
+        task, c2 = get_tool_box(y).infer_task_type(y)
         if classes is None:
             classes = c2
 

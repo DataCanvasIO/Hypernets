@@ -10,7 +10,7 @@ import pandas as pd
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
 
-from hypernets.utils import logging, const, infer_task_type
+from hypernets.utils import logging, const
 from . import collinearity as collinearity_
 from . import column_selector as column_selector_
 from . import data_cleaner as data_cleaner_
@@ -20,6 +20,7 @@ from . import feature_generators as feature_generators_
 from . import metrics as metrics_
 from . import pseudo_labeling as pseudo_labeling_
 from . import sklearn_ex as sk_ex
+from . import data_hasher as data_hasher_
 from .cfg import TabularCfg as c
 
 try:
@@ -69,9 +70,21 @@ class ToolBox:
         return data
 
     @staticmethod
-    def unique_array(ar, return_index=False, return_inverse=False, return_counts=False, axis=None):
-        return np.unique(ar, return_index=return_index, return_inverse=return_inverse,
-                         return_counts=return_counts, axis=axis)
+    def unique(y):
+        if hasattr(y, 'unique'):
+            uniques = set(y.unique())
+        else:
+            uniques = set(y)
+        return uniques
+
+    # @staticmethod
+    # def unique_array(ar, return_index=False, return_inverse=False, return_counts=False, axis=None):
+    #     return np.unique(ar, return_index=return_index, return_inverse=return_inverse,
+    #                      return_counts=return_counts, axis=axis)
+
+    @staticmethod
+    def value_counts(ar):
+        return pd.Series(ar).value_counts().to_dict()
 
     @staticmethod
     def select_df(df, indices):
@@ -118,6 +131,46 @@ class ToolBox:
     @staticmethod
     def reset_index(df):
         return df.reset_index(drop=True)
+
+    @classmethod
+    def infer_task_type(cls, y, excludes=None):
+        assert excludes is None or isinstance(excludes, (list, tuple, set))
+
+        if len(y.shape) > 1 and y.shape[-1] > 1:
+            labels = list(range(y.shape[-1]))
+            task = const.TASK_MULTILABEL  # 'multilable'
+            return task, labels
+
+        uniques = cls.unique(y)
+        if uniques.__contains__(np.nan):
+            uniques.remove(np.nan)
+        if excludes is not None and len(excludes) > 0:
+            uniques -= set(excludes)
+        n_unique = len(uniques)
+        labels = []
+
+        if n_unique == 2:
+            logger.info(f'2 class detected, {uniques}, so inferred as a [binary classification] task')
+            task = const.TASK_BINARY  # TASK_BINARY
+            labels = sorted(uniques)
+        else:
+            if str(y.dtype).find('float') >= 0:
+                logger.info(f'Target column type is {y.dtype}, so inferred as a [regression] task.')
+                task = const.TASK_REGRESSION
+            else:
+                if n_unique > 1000:
+                    if str(y.dtype).find('int') >= 0:
+                        logger.info('The number of classes exceeds 1000 and column type is {y.dtype}, '
+                                    'so inferred as a [regression] task ')
+                        task = const.TASK_REGRESSION
+                    else:
+                        raise ValueError('The number of classes exceeds 1000, please confirm whether '
+                                         'your predict target is correct ')
+                else:
+                    logger.info(f'{n_unique} class detected, inferred as a [multiclass classification] task')
+                    task = const.TASK_MULTICLASS
+                    labels = sorted(uniques)
+        return task, labels
 
     @staticmethod
     def fix_binary_predict_proba_result(proba):
@@ -176,7 +229,7 @@ class ToolBox:
             estimator = 'gbm' if lightgbm_installed else 'rf'
         if task is None:
             assert y is not None, '"y" or "task" is required.'
-            task = infer_task_type(y)
+            task = cls.infer_task_type(y)
 
         if estimator == 'gbm':
             estimator_ = default_gbm(task)
@@ -350,11 +403,16 @@ class ToolBox:
     column_selector = column_selector_
     metrics = metrics_.Metrics
 
+    _data_hasher_cls = data_hasher_.DataHasher
     _data_cleaner_cls = data_cleaner_.DataCleaner
     _collinearity_detector_cls = collinearity_.MultiCollinearityDetector
     _drift_detector_cls = drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = drift_detection_.FeatureSelectorWithDriftDetection
     _pseudo_labeling_cls = pseudo_labeling_.PseudoLabeling
+
+    @classmethod
+    def data_hasher(cls, method='md5'):
+        return cls._data_hasher_cls(method=method)
 
     @classmethod
     def data_cleaner(cls, nan_chars=None, correct_object_dtype=True, drop_constant_columns=True,

@@ -1,6 +1,7 @@
 import numpy as np
 
-from hypernets.utils import infer_task_type, const
+from hypernets.tabular import get_tool_box
+from hypernets.utils import const
 
 
 def test_infer_task_type():
@@ -10,17 +11,19 @@ def test_infer_task_type():
     y4 = np.random.random(size=(1000)).astype('float')
     y5 = np.array([1, 1, 2, 2, 'na'])
 
-    task, _ = infer_task_type(y1)
+    tb = get_tool_box(y1)
+
+    task, _ = tb.infer_task_type(y1)
     assert task == const.TASK_BINARY
 
-    task, _ = infer_task_type(y2)
+    task, _ = tb.infer_task_type(y2)
     assert task == const.TASK_BINARY
 
-    task, _ = infer_task_type(y3)
+    task, _ = tb.infer_task_type(y3)
     assert task == const.TASK_MULTICLASS
 
-    task, _ = infer_task_type(y4)
+    task, _ = tb.infer_task_type(y4)
     assert task == const.TASK_REGRESSION
 
-    task, _ = infer_task_type(y5, excludes=['na'])
+    task, _ = tb.infer_task_type(y5, excludes=['na'])
     assert task == const.TASK_BINARY

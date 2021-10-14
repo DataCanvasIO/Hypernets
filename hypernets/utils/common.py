@@ -121,130 +121,6 @@ def isnotebook():
         return False
 
 
-def unique(y):
-    if hasattr(y, 'unique'):
-        uniques = set(y.unique())
-    elif isinstance(y, da.Array):
-        uniques = set(da.unique(y).compute())
-    else:
-        uniques = set(y)
-    return uniques
-
-
-def infer_task_type(y, excludes=None):
-    assert excludes is None or isinstance(excludes, (list, tuple, set))
-
-    if len(y.shape) > 1 and y.shape[-1] > 1:
-        labels = list(range(y.shape[-1]))
-        task = TASK_MULTILABEL  # 'multilable'
-        return task, labels
-
-    uniques = unique(y)
-    if uniques.__contains__(np.nan):
-        uniques.remove(np.nan)
-    if excludes is not None and len(excludes) > 0:
-        uniques -= set(excludes)
-    n_unique = len(uniques)
-    labels = []
-
-    if n_unique == 2:
-        logger.info(f'2 class detected, {uniques}, so inferred as a [binary classification] task')
-        task = TASK_BINARY  # TASK_BINARY
-        labels = sorted(uniques)
-    else:
-        if str(y.dtype).find('float') >= 0:
-            logger.info(f'Target column type is {y.dtype}, so inferred as a [regression] task.')
-            task = TASK_REGRESSION
-        else:
-            if n_unique > 1000:
-                if str(y.dtype).find('int') >= 0:
-                    logger.info('The number of classes exceeds 1000 and column type is {y.dtype}, '
-                                'so inferred as a [regression] task ')
-                    task = TASK_REGRESSION
-                else:
-                    raise ValueError('The number of classes exceeds 1000, please confirm whether '
-                                     'your predict target is correct ')
-            else:
-                logger.info(f'{n_unique} class detected, inferred as a [multiclass classification] task')
-                task = TASK_MULTICLASS
-                labels = sorted(uniques)
-    return task, labels
-
-
-def hash_dataframe(df, method='md5', index=False):
-    assert isinstance(df, (pd.DataFrame, dd.DataFrame))
-
-    m = getattr(hashlib, method)()
-
-    for col in df.columns:
-        m.update(str(col).encode())
-
-    if isinstance(df, dd.DataFrame):
-        x = df.map_partitions(lambda part: pd.util.hash_pandas_object(part, index=index),
-                              meta=(None, 'u8')).compute()
-    else:
-        x = pd.util.hash_pandas_object(df, index=index)
-
-    # np.vectorize(m.update, otypes=[None], signature='()->()')(x.values)
-    m.update(x.values)
-
-    return m.hexdigest()
-
-
-def _hash_array(arr):
-    if arr.shape[0] == 0:
-        v = np.array([], dtype='u8').reshape((-1, 1))
-    else:
-        v = pd.util.hash_pandas_object(pd.DataFrame(arr), index=False).values.reshape((-1, 1))
-
-    return v
-
-
-def hash_array(arr, method='md5'):
-    m = getattr(hashlib, method)()
-
-    if isinstance(arr, da.Array):
-        if len(arr.shape) == 1:
-            arr = arr.compute_chunk_sizes().reshape(-1, 1)
-        x = arr.map_blocks(_hash_array, dtype='u8').compute()
-    elif isinstance(arr, np.ndarray):
-        x = _hash_array(arr)
-    else:
-        x = _hash_array(np.array(arr))
-
-    # np.vectorize(m.update, otypes=[None], signature='()->()')(x)
-    m.update(x)
-
-    return m.hexdigest()
-
-
-def hash_data(data, method='md5'):
-    if isinstance(data, (pd.DataFrame, dd.DataFrame)):
-        return hash_dataframe(data, method=method)
-    elif isinstance(data, (pd.Series, dd.Series)):
-        return hash_dataframe(data.to_frame(), method=method)
-    elif isinstance(data, (np.ndarray, da.Array)):
-        return hash_array(data, method=method)
-
-    if isinstance(data, (bytes, bytearray)):
-        pass
-    elif isinstance(data, str):
-        data = data.encode('utf-8')
-    else:
-        if isinstance(data, (list, tuple)):
-            data = [hash_data(x) if x is not None else x for x in data]
-        elif isinstance(data, dict):
-            data = {hash_data(k): hash_data(v) if v is not None else v for k, v in data.items()}
-        buf = BytesIO()
-        pickle.dump(data, buf)
-        data = buf.getvalue()
-        buf.close()
-
-    m = getattr(hashlib, method)()
-    m.update(data)
-    return m.hexdigest()
-
-
 def load_module(mod_name):
     assert isinstance(mod_name, str) and mod_name.find('.') > 0
 
@@ -256,9 +132,9 @@ def load_module(mod_name):
 
 
 def load_data(data, **kwargs):
-    assert isinstance(data, (str, pd.DataFrame, dd.DataFrame))
-
-    if isinstance(data, (pd.DataFrame, dd.DataFrame)):
+    if not isinstance(data, str):
+        if type(data).__name__.find('DataFrame') < 0:
+            logger.warning(f'You data type {type(data).__name__} is not DataFrame.')
         return data
 
     import os.path as path

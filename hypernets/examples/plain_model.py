@@ -17,7 +17,7 @@ from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, 
 from hypernets.model import Estimator, HyperModel
 from hypernets.searchers import make_searcher
 from hypernets.tabular import get_tool_box
-from hypernets.utils import fs, logging, const, infer_task_type
+from hypernets.utils import fs, logging, const
 
 logger = logging.get_logger(__name__)
 
@@ -342,7 +342,7 @@ class PlainModel(HyperModel):
 
 def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optimize_direction='max', **kwargs):
     if task is None:
-        task, _ = infer_task_type(y_train)
+        task, _ = get_tool_box(y_train).infer_task_type(y_train)
     if reward_metric is None:
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
 

@@ -19,7 +19,7 @@ from sklearn.utils.multiclass import type_of_target
 from hypernets.tabular.toolbox import ToolBox
 from hypernets.utils import logging, const
 from . import _dataframe_mapper as dataframe_mapper_
-from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling
+from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher
 from . import _transformers as tfs
 from . import _feature_generators as feature_generators_
 from .. import sklearn_ex as sk_ex
@@ -157,9 +157,35 @@ class DaskToolBox(ToolBox):
         return dask.compute(*data)
 
     @staticmethod
-    def unique_array(ar, return_index=False, return_inverse=False, return_counts=False, axis=None):
-        assert axis is None or axis == 0
-        return da.unique(ar, return_index=return_index, return_inverse=return_inverse, return_counts=return_counts)
+    def unique(y):
+        if isinstance(y, da.Array):
+            uniques = da.unique(y).compute()
+            uniques = set(uniques)
+        elif isinstance(y, dd.Series):
+            uniques = y.unique().compute()
+            uniques = set(uniques)
+        else:
+            uniques = ToolBox.unique(y)
+        return uniques
+
+    # @staticmethod
+    # def unique_array(ar, return_index=False, return_inverse=False, return_counts=False, axis=None):
+    #     assert axis is None or axis == 0
+    #     return da.unique(ar, return_index=return_index, return_inverse=return_inverse, return_counts=return_counts)
+
+    @staticmethod
+    def value_counts(ar):
+        if isinstance(ar, da.Array):
+            s = dd.from_dask_array(ar)
+        elif isinstance(ar, dd.Series):
+            s = ar
+        elif isinstance(ar, dd.DataFrame):
+            assert ar.shape[1] == 1
+            s = ar.iloc[:, 0]
+        else:
+            return ToolBox.value_counts(ar)
+
+        return s.value_counts().compute().to_dict()
 
     @staticmethod
     def reset_index(X):
@@ -549,6 +575,7 @@ class DaskToolBox(ToolBox):
         return sample_weight
 
     # _data_cleaner_cls = data_cleaner_.DataCleaner
+    _data_hasher_cls = _data_hasher.DataHasher
     _collinearity_detector_cls = _collinearity.DaskMultiCollinearityDetector  # collinearity_.MultiCollinearityDetector
     _drift_detector_cls = _drift_detection.DaskDriftDetector  # drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = _drift_detection.DaskFeatureSelectionWithDriftDetector  # drift_detection_.FeatureSelectorWithDriftDetection

@@ -10,7 +10,8 @@ from ..core.meta_learner import MetaLearner
 from ..core.trial import *
 from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
-from ..utils import logging, infer_task_type as _infer_task_type, hash_data, const, to_repr
+from ..tabular import get_tool_box
+from ..utils import logging, const, to_repr
 
 logger = logging.get_logger(__name__)
 
@@ -202,7 +203,8 @@ class HyperModel:
 
     def generate_dataset_id(self, X, y):
         if hasattr(X, 'shape') and len(getattr(X, 'shape')) == 2:
-            sign = hash_data([X, y])
+            tb = get_tool_box(X, y)
+            sign = tb.data_hasher()([X, y])
         else:
             import hashlib
             repr = ''
@@ -242,7 +244,7 @@ class HyperModel:
         raise NotImplementedError
 
     def infer_task_type(self, y):
-        return _infer_task_type(y)
+        return get_tool_box(y).infer_task_type(y)
 
     def plot_hyperparams(self, destination='notebook', output='hyperparams.html'):
         return self.history.plot_hyperparams(destination, output)

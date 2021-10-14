@@ -8,7 +8,8 @@ import pandas as pd
 from sklearn.base import BaseEstimator
 
 from hypernets import __version__
-from hypernets.utils import fs, hash_data, logging
+from hypernets.tabular import get_tool_box
+from hypernets.utils import fs, logging
 from .cfg import TabularCfg as cfg
 from .persistence import to_parquet, read_parquet
 
@@ -123,6 +124,8 @@ def decorate(fn, *, cache_dir, strategy,
             for c in callbacks:
                 c.on_enter(fn, *args, **kwargs)
 
+            tb = _get_tool_box_for_cache(*args, **kwargs)
+
             # bind arguments
             bind_args = sig.bind(*args, **kwargs)
             bind_args.apply_defaults()
@@ -149,7 +152,7 @@ def decorate(fn, *, cache_dir, strategy,
             if attrs_to_restore is not None:
                 key_items['attrs_to_restore_'] = attrs_to_restore
 
-            cache_key = hash_data(key_items)
+            cache_key = tb.data_hasher()(key_items)
 
             # join cache_path
             if not fs.exists(cache_dir):
@@ -217,6 +220,18 @@ def decorate(fn, *, cache_dir, strategy,
         return result
 
     return _cache_call
+
+
+def _get_tool_box_for_cache(*args, **kwargs):
+    dtypes = []
+    for a in args:
+        stype = str(type(a))
+        if stype.find('DataFrame') >= 0 or stype.find('array') >= 0:
+            dtypes.append(type(a))
+    if len(dtypes) == 0:
+        dtypes.append(pd.DataFrame)
+
+    return get_tool_box(*dtypes)
 
 
 def _store_cache(cache_path, data, meta):

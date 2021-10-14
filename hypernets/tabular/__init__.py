@@ -30,4 +30,17 @@ except ImportError:
     # traceback.print_exc()
     is_dask_installed = False
 
+try:
+    import cupy
+    import cudf
+    import cuml
+    from .cuml_ex import CumlToolBox
+
+    TOOL_BOXES.insert(0, CumlToolBox)
+    is_cuml_installed = True
+except ImportError:
+    # import traceback
+    # traceback.print_exc()
+    is_cuml_installed = False
+
 # print(f'Registered tabular toolboxes are {[t.__name__ for t in TOOL_BOXES]}.')

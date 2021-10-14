@@ -18,7 +18,7 @@ from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular import column_selector
-from hypernets.utils import logging, infer_task_type, const
+from hypernets.utils import logging, const
 
 try:
     import jieba
@@ -358,7 +358,8 @@ class FeatureSelectionTransformer(BaseEstimator):
 
     def feature_score(self, F_train, y_train, F_test, y_test):
         if self.task is None:
-            self.task, _ = infer_task_type(y_train)
+            from . import get_tool_box
+            self.task, _ = get_tool_box(y_train).infer_task_type(y_train)
 
         if self.task == 'regression':
             model = LGBMRegressor()
@@ -387,7 +388,8 @@ class FeatureSelectionTransformer(BaseEstimator):
     def fit(self, X, y):
         start_time = time.time()
         if self.task is None:
-            self.task, _ = infer_task_type(y)
+            from . import get_tool_box
+            self.task, _ = get_tool_box(y).infer_task_type(y)
         columns = X.columns.to_list()
         logger.info(f'all columns: {columns}')
         if self.reserved_cols is not None:

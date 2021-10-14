@@ -12,7 +12,7 @@ from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import clear as _clear_cache
 from hypernets.tabular.metrics import metric_to_scoring
-from hypernets.utils import const, load_data, infer_task_type, hash_data, logging, isnotebook, load_module, DocLens
+from hypernets.utils import const, load_data, logging, isnotebook, load_module, DocLens
 
 logger = logging.get_logger(__name__)
 
@@ -221,7 +221,7 @@ def make_experiment(hyper_model_cls,
         dc_nan_chars = kwargs.get('data_cleaner_args', {}).get('nan_chars')
         if isinstance(dc_nan_chars, str):
             dc_nan_chars = [dc_nan_chars]
-        task, _ = infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
+        task, _ = tb.infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
 
     if reward_metric is None:
         reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
@@ -259,8 +259,9 @@ def make_experiment(hyper_model_cls,
                                            **(cfg.experiment_discriminator_options or {}))
 
     if id is None:
-        id = hash_data(dict(X_train=X_train, y_train=y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
-                            eval_size=kwargs.get('eval_size'), target=target, task=task))
+        hasher = tb.data_hasher()
+        id = hasher(dict(X_train=X_train, y_train=y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
+                         eval_size=kwargs.get('eval_size'), target=target, task=task))
         id = f'{hyper_model_cls.__name__}_{id}'
 
     if hyper_model_options is None:

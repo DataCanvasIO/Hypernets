@@ -21,7 +21,7 @@ from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import cache
 from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
 from hypernets.tabular.lifelong_learning import select_valid_oof
-from hypernets.utils import logging, const, hash_data, df_utils, infer_task_type
+from hypernets.utils import logging, const, df_utils
 
 logger = logging.get_logger(__name__)
 
@@ -37,12 +37,16 @@ def _set_log_level(log_level):
 
 
 def _generate_dataset_id(X_train, y_train, X_test, X_eval, y_eval):
-    if hasattr(y_train, 'values'):
-        y_train = y_train.values
-    if hasattr(y_eval, 'values'):
-        y_eval = y_eval.values
+    tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+    try:
+        if hasattr(y_train, 'values'):
+            y_train = y_train.values
+        if hasattr(y_eval, 'values'):
+            y_eval = y_eval.values
+    except:
+        pass
 
-    sign = hash_data([X_train, y_train, X_test, X_eval, y_eval])
+    sign = tb.data_hasher()([X_train, y_train, X_test, X_eval, y_eval])
     return sign
 
 
@@ -256,8 +260,8 @@ class DataCleanStep(FeatureSelectStep):
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
                                                 random_state=self.experiment.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
-                    y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
-                    y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
+                    y_train_uniques = tb.unique(y_train)
+                    y_eval_uniques = tb.unique(y_eval)
                     assert y_train_uniques == y_eval_uniques, \
                         'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
                 self.step_progress('split into train set and eval set')
@@ -1188,13 +1192,9 @@ class PseudoLabelStep(ExperimentStep):
     @staticmethod
     def stat_pseudo_label(y_pseudo, classes):
         stat = OrderedDict()
-        tb = get_tool_box(y_pseudo)
-        u = tb.unique_array(y_pseudo, return_counts=True)
-        u = tb.to_local(*u)
-        u = {c: n for c, n in zip(*u)}
-
+        value_counts = get_tool_box(y_pseudo).value_counts(y_pseudo)
         for c in classes:
-            stat[c] = u[c] if c in u.keys() else 0
+            stat[c] = value_counts.get(c, 0)
 
         return stat
 
@@ -1594,7 +1594,7 @@ class CompeteExperiment(SteppedExperiment):
             dc_nan_chars = data_cleaner_args.get('nan_chars') if data_cleaner_args is not None else None
             if isinstance(dc_nan_chars, str):
                 dc_nan_chars = [dc_nan_chars]
-            task, _ = infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
+            task, _ = tb.infer_task_type(y_train, excludes=dc_nan_chars if dc_nan_chars is not None else None)
 
         if scorer is None:
             scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric,
