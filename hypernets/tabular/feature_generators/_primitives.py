@@ -91,7 +91,7 @@ class GeoHashPrimitive(DaskCompatibleTransformPrimitive):
 
     def fn_pd(self, x1, *args):
         vfn_ = np.vectorize(partial(_geo_hash, precision=self.precision),
-                            otypes=[np.object], signature='()->()')
+                            otypes=[object], signature='()->()')
         return vfn_(x1)
 
 

@@ -93,10 +93,19 @@ class ToolBox:
         """
         return df.iloc[indices]
 
+    @staticmethod
+    def select_1d(arr, indices):
+        """
+        Select by indices from the first axis(0).
+        """
+        if hasattr(arr, 'iloc'):
+            return arr.iloc[indices]
+        else:
+            return arr[indices]
+
     @classmethod
     def hstack_array(cls, arrs):
-        if all([a.ndim == 1 for a in arrs]):
-            arrs = [a.reshape(-1, 1) if a.ndim == 1 else a for a in arrs]
+        arrs = [a.reshape(-1, 1) if a.ndim == 1 else a for a in arrs]
         return cls.stack_array(arrs, axis=1)
 
     @classmethod
@@ -121,8 +130,12 @@ class ToolBox:
         return np.take(arr, indices=indices, axis=axis)
 
     @staticmethod
-    def array_to_df(arr, columns=None, meta=None):
-        return pd.DataFrame(arr, columns=columns)
+    def array_to_df(arr, *, columns=None, index=None, meta=None):
+        return pd.DataFrame(arr, columns=columns, index=index)
+
+    @staticmethod
+    def df_to_array(df):
+        return df.values
 
     @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
@@ -131,6 +144,44 @@ class ToolBox:
     @staticmethod
     def reset_index(df):
         return df.reset_index(drop=True)
+
+    @staticmethod
+    def merge_oof(oofs):
+        """
+        :param oofs: list of tuple(idx,proba)
+        :return: merged proba
+        """
+        row_count = sum(map(lambda x: len(x[0]), oofs))
+        max_idx = max(map(lambda x: np.max(x[0]), oofs))
+        if max_idx >= row_count:
+            row_count = max_idx + 1
+
+        proba = oofs[0][1]
+        if len(proba.shape) == 1:
+            r = np.full(row_count, np.nan, proba.dtype)
+        else:
+            r = np.full((row_count, proba.shape[-1]), np.nan, proba.dtype)
+
+        for idx, proba in oofs:
+            r[idx] = proba
+
+        return r
+
+    @staticmethod
+    def select_valid_oof(y, oof):
+        if len(oof.shape) == 1:
+            idx = np.argwhere(~np.isnan(oof[:])).ravel()
+        elif len(oof.shape) == 2:
+            idx = np.argwhere(~np.isnan(oof[:, 0])).ravel()
+        elif len(oof.shape) == 3:
+            idx = np.argwhere(~np.isnan(oof[:, 0, 0])).ravel()
+        else:
+            raise ValueError(f'Unsupported shape:{oof.shape}')
+
+        if hasattr(y, 'iloc'):
+            return y.iloc[idx], oof[idx]
+        else:
+            return y[idx], oof[idx]
 
     @classmethod
     def infer_task_type(cls, y, excludes=None):
@@ -409,6 +460,8 @@ class ToolBox:
     _drift_detector_cls = drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = drift_detection_.FeatureSelectorWithDriftDetection
     _pseudo_labeling_cls = pseudo_labeling_.PseudoLabeling
+    _kfold_cls = sk_ms.KFold
+    _stratified_kfold_cls = sk_ms.StratifiedKFold
 
     @classmethod
     def data_hasher(cls, method='md5'):
@@ -451,6 +504,14 @@ class ToolBox:
     @classmethod
     def pseudo_labeling(cls, strategy, threshold=None, quantile=None, number=None):
         return cls._pseudo_labeling_cls(strategy, threshold=threshold, quantile=quantile, number=number)
+
+    @classmethod
+    def kfold(cls, n_splits=5, *, shuffle=False, random_state=None):
+        return cls._kfold_cls(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+
+    @classmethod
+    def statified_kfold(cls, n_splits=5, *, shuffle=False, random_state=None):
+        return cls._stratified_kfold_cls(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
 
     transformers = dict(
         Pipeline=pipeline.Pipeline,

@@ -224,13 +224,13 @@ class SafeOrdinalEncoder(OrdinalEncoder):
             raise TypeError("Unexpected type {}".format(type(X)))
 
         def make_decoder(categories, dtype):
-            if dtype in (np.float32, np.float64, np.float):
+            if dtype in (np.float32, np.float64, float):
                 default_value = np.nan
-            elif dtype in (np.int32, np.int64, np.int, np.uint32, np.uint64, np.uint):
+            elif dtype in (np.int32, np.int64, np.uint32, np.uint64, np.uint, int):
                 default_value = -1
             else:
                 default_value = None
-                dtype = np.object
+                dtype = object
             unseen = len(categories)
             vf = np.vectorize(lambda x: categories[x] if unseen > x >= 0 else default_value,
                               otypes=[dtype])
@@ -790,7 +790,7 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
                     X[c] = t.tolist()
         else:
             r = []
-            tolist = None if self.flatten else np.vectorize(self._to_array, otypes=[np.object], signature='(m)->()')
+            tolist = None if self.flatten else np.vectorize(self._to_array, otypes=[object], signature='(m)->()')
             for i in range(X.shape[1]):
                 Xi = X[:, i]
                 if i in self.encoders_.keys():

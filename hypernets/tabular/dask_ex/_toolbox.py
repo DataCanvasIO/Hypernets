@@ -19,7 +19,7 @@ from sklearn.utils.multiclass import type_of_target
 from hypernets.tabular.toolbox import ToolBox
 from hypernets.utils import logging, const
 from . import _dataframe_mapper as dataframe_mapper_
-from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher
+from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection
 from . import _transformers as tfs
 from . import _feature_generators as feature_generators_
 from .. import sklearn_ex as sk_ex
@@ -42,6 +42,10 @@ def _reset_part_index(df, start):
 
 def _select_df_by_index(df, idx):
     return df[df.index.isin(idx)]
+
+
+def _select_by_indices(part: pd.DataFrame, indices):
+    return part.iloc[indices]
 
 
 def _compute_chunk_sample_weight(y, classes, classes_weights):
@@ -225,6 +229,42 @@ class DaskToolBox(ToolBox):
             return df.iloc[indices]
 
     @staticmethod
+    def select_1d(arr, indices):
+        """
+        Select by indices from the first axis(0).
+        """
+        if isinstance(arr, (dd.DataFrame, dd.Series)):
+            cache_attr = '_part_rows_'
+            part_rows = None
+            if hasattr(arr, cache_attr):
+                part_rows = getattr(arr, cache_attr)
+
+            if part_rows is None or len(part_rows) != arr.npartitions:
+                part_rows = arr.map_partitions(lambda df: pd.DataFrame({'rows': [df.shape[0]]}),
+                                               meta={'rows': 'int64'},
+                                               ).compute()['rows'].values
+                assert len(part_rows) == arr.npartitions
+                setattr(arr, cache_attr, part_rows)
+
+            part_indices = []
+            indices = np.array(indices)
+            for n, nc in zip(part_rows, np.cumsum(part_rows)):
+                i_stop = nc
+                i_start = nc - n
+                idx = indices[indices >= i_start]  # filter indices
+                idx = idx[idx < i_stop]  # filter indices
+                idx = idx - i_start  # align to part internal
+                part_indices.append(idx)
+
+            delayed_reset_part_index = dask.delayed(_select_by_indices)
+            parts = [delayed_reset_part_index(part, idx) for part, idx in zip(arr.to_delayed(), part_indices)]
+            meta = arr.dtypes.to_dict() if isinstance(arr, dd.DataFrame) else (None, arr.dtype)
+            X_new = dd.from_delayed(parts, prefix='ddf', meta=meta)
+            return X_new
+        else:
+            return ToolBox.select_1d(arr, indices)
+
+    @staticmethod
     def make_chunk_size_known(a):
         assert DaskToolBox.is_dask_array(a)
 
@@ -296,8 +336,9 @@ class DaskToolBox(ToolBox):
         else:
             return np.take(arr, indices=indices, axis=axis)
 
+
     @staticmethod
-    def array_to_df(arrs, columns=None, meta=None):
+    def array_to_df(arr, *, columns=None, index=None, meta=None):
         meta_df = None
         if isinstance(meta, (dd.DataFrame, pd.DataFrame)):
             meta_df = meta
@@ -312,7 +353,16 @@ class DaskToolBox(ToolBox):
                 columns = meta_df.name
             meta = None
 
-        df = dd.from_dask_array(arrs, columns=columns, meta=meta)
+        # convert array to dask Index object
+        if isinstance(index, (np.ndarray, da.Array)):
+            arr = DaskToolBox.make_chunk_size_known(arr)
+            if isinstance(index, np.ndarray):
+                index = da.from_array(index, chunks=arr.chunks[0])
+            else:
+                index = index.rechunk(arr.chunks[0])
+            index = dd.from_dask_array(index).index
+
+        df = dd.from_dask_array(arr, columns=columns, index=index, meta=meta)
 
         if isinstance(meta_df, (dd.DataFrame, pd.DataFrame)):
             dtypes_src = meta_df.dtypes
@@ -322,6 +372,55 @@ class DaskToolBox(ToolBox):
                     df[col] = df[col].astype(dtypes_src[col])
 
         return df
+
+    @staticmethod
+    def df_to_array(df):
+        if isinstance(df, dd.DataFrame):
+            return df.to_dask_array(lengths=True)
+        else:
+            return ToolBox.df_to_array(df)
+
+    @staticmethod
+    def merge_oof(oofs):
+        stacked = []
+        for idx, proba in oofs:
+            idx = idx.reshape(-1, 1)
+            if proba.ndim == 1:
+                proba = proba.reshape(-1, 1)
+            stacked.append(DaskToolBox.hstack_array([idx, proba]))
+        df = dd.from_dask_array(DaskToolBox.vstack_array(stacked))
+        df = df.set_index(0)
+        r = df.to_dask_array(lengths=True)
+
+        return r
+
+    merge_oof.__doc__ = ToolBox.merge_oof.__doc__
+
+    @staticmethod
+    def select_valid_oof(y, oof):
+        if isinstance(oof, da.Array):
+            oof = DaskToolBox.make_chunk_size_known(oof)
+            if len(oof.shape) == 1:
+                nan_rows = da.isnan(oof[:])
+            elif len(oof.shape) == 2:
+                nan_rows = da.isnan(oof[:, 0])
+            elif len(oof.shape) == 3:
+                nan_rows = da.isnan(oof[:, 0, 0])
+            else:
+                raise ValueError(f'Unsupported shape:{oof.shape}')
+
+            if nan_rows.sum().compute() == 0:
+                return y, oof
+
+            idx = da.argwhere(~nan_rows)
+            idx = DaskToolBox.make_chunk_size_known(idx).ravel()
+            idx = DaskToolBox.make_chunk_size_known(idx)
+            if isinstance(y, da.Array):
+                return y[idx], oof[idx]
+            else:
+                return DaskToolBox.select_1d(y, idx), oof[idx]
+        else:
+            return ToolBox.select_valid_oof(y, oof)
 
     @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
@@ -580,6 +679,9 @@ class DaskToolBox(ToolBox):
     _drift_detector_cls = _drift_detection.DaskDriftDetector  # drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = _drift_detection.DaskFeatureSelectionWithDriftDetector  # drift_detection_.FeatureSelectorWithDriftDetection
     _pseudo_labeling_cls = _pseudo_labeling.DaskPseudoLabeling  # pseudo_labeling_.PseudoLabeling
+    _kfold_cls = _model_selection.FakeDaskKFold
+    _stratified_kfold_cls = _model_selection.FakeDaskStratifiedKFold
+
     metrics = _metrics.DaskMetrics
 
     transformers = dict(

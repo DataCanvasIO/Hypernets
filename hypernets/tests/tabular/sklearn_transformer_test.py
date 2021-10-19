@@ -286,7 +286,7 @@ class Test_Transformer():
         encoder = skex.TfidfEncoder(flatten=True)
         Xt = encoder.fit_transform(df[['genres']].copy().values)
         assert isinstance(Xt, np.ndarray)
-        assert isinstance(Xt[0, 0], (np.int, np.float))
+        assert isinstance(Xt[0, 0], (int, float))
         assert Xt.shape == (df.shape[0], 19)
 
     def test_datetime_encoder(self):

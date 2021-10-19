@@ -821,7 +821,7 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
     def _encode(sep, keys, max_len, y):
         unseen = len(keys) + 1
         key_values = dict(zip(keys, list(range(1, unseen + 1))))
-        result = np.empty(len(y), dtype=np.object)
+        result = np.empty(len(y), dtype=object)
 
         for yi, v in enumerate(y):
             result_yi = []

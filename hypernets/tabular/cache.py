@@ -226,7 +226,7 @@ def _get_tool_box_for_cache(*args, **kwargs):
     dtypes = []
     for a in args:
         stype = str(type(a))
-        if stype.find('DataFrame') >= 0 or stype.find('array') >= 0:
+        if stype.find('DataFrame') >= 0 or stype.find('array') >= 0 or stype.find('Array') >= 0:
             dtypes.append(type(a))
     if len(dtypes) == 0:
         dtypes.append(pd.DataFrame)
