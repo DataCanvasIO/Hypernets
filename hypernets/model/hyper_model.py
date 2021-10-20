@@ -114,12 +114,13 @@ class HyperModel:
 
         if key is None:
             key = 'reward'
+        elif callable(key) and hasattr(key, '__name__'):
+            key = key.__name__
 
         fv = cast_float(value)
         if fv is not None:
             reward = fv
-        elif (isinstance(value, dict) or isinstance(value, UserDict)) and key in value and cast_float(
-                value[key]) is not None:
+        elif isinstance(value, (dict, UserDict)) and key in value and cast_float(value[key]) is not None:
             reward = cast_float(value[key])
         else:
             raise ValueError(
