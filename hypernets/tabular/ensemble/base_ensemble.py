@@ -57,8 +57,10 @@ class BaseEnsemble():
         if est_predictions is not None:
             # print(f'est_predictions.shape:{est_predictions.shape}, estimators:{len(self.estimators)}')
             if self.task == 'regression' or self.method == 'hard':
-                assert est_predictions.shape == (len(y), len(
-                    self.estimators)), f'shape is not equal, may be a wrong task type. task:{self.task},  est_predictions.shape: {est_predictions.shape}, (len(y), len(self.estimators)):{(len(y), len(self.estimators))}'
+                assert est_predictions.shape == (len(y), len(self.estimators)), \
+                    f'shape is not equal, may be a wrong task type. task:{self.task},  ' \
+                    f'est_predictions.shape: {est_predictions.shape}, ' \
+                    f'(len(y), len(self.estimators)):{(len(y), len(self.estimators))}'
             else:
                 assert len(est_predictions.shape) == 3
                 assert est_predictions.shape[0] == len(y)
