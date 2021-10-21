@@ -44,9 +44,10 @@ class GreedyEnsemble(BaseEnsemble):
     ----------
         Caruana, Rich, et al. "Ensemble selection from libraries of models." Proceedings of the twenty-first international conference on Machine learning. 2004.
     """
-    def __init__(self, task, estimators, need_fit=False, n_folds=5, method='soft', scoring='neg_log_loss',
-                 ensemble_size=0):
-        super(GreedyEnsemble, self).__init__(task, estimators, need_fit, n_folds, method)
+
+    def __init__(self, task, estimators, need_fit=False, n_folds=5, method='soft', random_state=9527,
+                 scoring='neg_log_loss', ensemble_size=0):
+        super(GreedyEnsemble, self).__init__(task, estimators, need_fit, n_folds, method, random_state=random_state)
         self.weights_ = None
         self.scores_ = None
         self.best_stack_ = None
@@ -61,7 +62,7 @@ class GreedyEnsemble(BaseEnsemble):
         if self.weights_ is None:
             return 'not fitted'
 
-        #estimators = [getattr(e, "gbm_model", e) for e in self.estimators]
+        # estimators = [getattr(e, "gbm_model", e) for e in self.estimators]
         return f'{type(self).__name__}(weight={self.weights_}, scores={self.scores_})'
 
     def _repr_html_(self):
