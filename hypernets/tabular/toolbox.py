@@ -14,13 +14,14 @@ from hypernets.utils import logging, const
 from . import collinearity as collinearity_
 from . import column_selector as column_selector_
 from . import data_cleaner as data_cleaner_
+from . import data_hasher as data_hasher_
 from . import dataframe_mapper as dataframe_mapper_
 from . import drift_detection as drift_detection_
+from . import ensemble as ensemble_
 from . import feature_generators as feature_generators_
 from . import metrics as metrics_
 from . import pseudo_labeling as pseudo_labeling_
 from . import sklearn_ex as sk_ex
-from . import data_hasher as data_hasher_
 from .cfg import TabularCfg as c
 
 try:
@@ -462,6 +463,7 @@ class ToolBox:
     _pseudo_labeling_cls = pseudo_labeling_.PseudoLabeling
     _kfold_cls = sk_ms.KFold
     _stratified_kfold_cls = sk_ms.StratifiedKFold
+    _greedy_ensemble_cls = ensemble_.GreedyEnsemble
 
     @classmethod
     def data_hasher(cls, method='md5'):
@@ -512,6 +514,12 @@ class ToolBox:
     @classmethod
     def statified_kfold(cls, n_splits=5, *, shuffle=False, random_state=None):
         return cls._stratified_kfold_cls(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+
+    @classmethod
+    def greedy_ensemble(cls, task, estimators, need_fit=False, n_folds=5, method='soft', random_state=9527,
+                        scoring='neg_log_loss', ensemble_size=0):
+        return cls._greedy_ensemble_cls(task, estimators, need_fit=need_fit, n_folds=n_folds, method=method,
+                                        random_state=random_state, scoring=scoring, ensemble_size=ensemble_size)
 
     transformers = dict(
         Pipeline=pipeline.Pipeline,

@@ -19,7 +19,7 @@ from sklearn.utils.multiclass import type_of_target
 from hypernets.tabular.toolbox import ToolBox
 from hypernets.utils import logging, const
 from . import _dataframe_mapper as dataframe_mapper_
-from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection
+from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection, _ensemble
 from . import _transformers as tfs
 from . import _feature_generators as feature_generators_
 from .. import sklearn_ex as sk_ex
@@ -335,7 +335,6 @@ class DaskToolBox(ToolBox):
             return da.take(arr, indices=indices, axis=axis)
         else:
             return np.take(arr, indices=indices, axis=axis)
-
 
     @staticmethod
     def array_to_df(arr, *, columns=None, index=None, meta=None):
@@ -681,7 +680,7 @@ class DaskToolBox(ToolBox):
     _pseudo_labeling_cls = _pseudo_labeling.DaskPseudoLabeling  # pseudo_labeling_.PseudoLabeling
     _kfold_cls = _model_selection.FakeDaskKFold
     _stratified_kfold_cls = _model_selection.FakeDaskStratifiedKFold
-
+    _greedy_ensemble_cls = _ensemble.DaskGreedyEnsemble
     metrics = _metrics.DaskMetrics
 
     transformers = dict(

@@ -3,10 +3,9 @@ __author__ = 'yangjian'
 """
 
 """
-from .base_ensemble import BaseEnsemble
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
-import numpy as np
+from .base_ensemble import BaseEnsemble
 
 
 class StackingEnsemble(BaseEnsemble):
@@ -31,6 +30,7 @@ class StackingEnsemble(BaseEnsemble):
             if self.task == 'binary':
                 X = X[:, :, -1]
             elif self.task == 'multiclass':
+                np = self.np
                 X = np.argmax(X, axis=2)
             else:
                 raise ValueError(
@@ -42,6 +42,7 @@ class StackingEnsemble(BaseEnsemble):
         X = self.__predictions2X(predictions)
         pred = self.meta_model.predict(X)
         if self.task == 'binary':
+            np = self.np
             pred = np.clip(pred, 0, 1)
         return pred
 
@@ -54,5 +55,6 @@ class StackingEnsemble(BaseEnsemble):
             pred = self.meta_model.predict(X)
 
         if self.task == 'binary':
+            np = self.np
             pred = np.clip(pred, 0, 1)
         return pred

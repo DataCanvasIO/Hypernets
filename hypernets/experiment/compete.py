@@ -4,7 +4,6 @@ __author__ = 'yangjian'
 
 """
 import copy
-import inspect
 import math
 import time
 from collections import OrderedDict
@@ -19,8 +18,6 @@ from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import cache
-from hypernets.tabular.ensemble import GreedyEnsemble, DaskGreedyEnsemble
-from hypernets.tabular.lifelong_learning import select_valid_oof
 from hypernets.utils import logging, const, df_utils
 
 logger = logging.get_logger(__name__)
@@ -1055,7 +1052,8 @@ class EnsembleStep(EstimatorBuilderStep):
             oofs = self.get_ensemble_predictions(best_trials, ensemble)
             assert oofs is not None
             if hasattr(oofs, 'shape'):
-                y_, oofs_ = select_valid_oof(y_train, oofs)
+                tb = get_tool_box(y_train, oofs)
+                y_, oofs_ = tb.select_valid_oof(y_train, oofs)
                 ensemble.fit(None, y_, oofs_)
             else:
                 ensemble.fit(None, y_train, oofs)
@@ -1065,39 +1063,37 @@ class EnsembleStep(EstimatorBuilderStep):
         return ensemble
 
     def get_ensemble(self, estimators, X_train, y_train):
-        return GreedyEnsemble(self.task, estimators, scoring=self.scorer, ensemble_size=self.ensemble_size)
+        # return GreedyEnsemble(self.task, estimators, scoring=self.scorer, ensemble_size=self.ensemble_size)
+        tb = get_tool_box(X_train, y_train)
+        return tb.greedy_ensemble(self.task, estimators, scoring=self.scorer, ensemble_size=self.ensemble_size)
 
     def get_ensemble_predictions(self, trials, ensemble):
+        np_ = ensemble.np
         oofs = None
         for i, trial in enumerate(trials):
             if 'oof' in trial.memo.keys():
                 oof = trial.memo['oof']
                 if oofs is None:
                     if len(oof.shape) == 1:
-                        oofs = np.zeros((oof.shape[0], len(trials)), dtype=np.float64)
+                        oofs = np_.zeros((oof.shape[0], len(trials)), dtype=np_.float64)
                     else:
-                        oofs = np.zeros((oof.shape[0], len(trials), oof.shape[-1]), dtype=np.float64)
+                        oofs = np_.zeros((oof.shape[0], len(trials), oof.shape[-1]), dtype=np_.float64)
                 oofs[:, i] = oof
 
         return oofs
 
 
 class DaskEnsembleStep(EnsembleStep):
-    def get_ensemble(self, estimators, X_train, y_train):
-        tb = get_tool_box(X_train, y_train)
-        if hasattr(tb, 'exist_dask_object') and tb.exist_dask_object(X_train, y_train):
-            predict_kwargs = {}
-            if all(['use_cache' in inspect.signature(est.predict).parameters.keys()
-                    for est in estimators]):
-                predict_kwargs['use_cache'] = False
-            return DaskGreedyEnsemble(self.task, estimators, scoring=self.scorer,
-                                      ensemble_size=self.ensemble_size,
-                                      predict_kwargs=predict_kwargs)
-
-        return super().get_ensemble(estimators, X_train, y_train)
+    # def get_ensemble(self, estimators, X_train, y_train):
+    #     tb = get_tool_box(X_train, y_train)
+    #     if hasattr(tb, 'exist_dask_object') and tb.exist_dask_object(X_train, y_train):
+    #         return DaskGreedyEnsemble(self.task, estimators, scoring=self.scorer,
+    #                                   ensemble_size=self.ensemble_size)
+    #
+    #     return super().get_ensemble(estimators, X_train, y_train)
 
     def get_ensemble_predictions(self, trials, ensemble):
-        if isinstance(ensemble, DaskGreedyEnsemble):
+        if type(ensemble).__name__.lower().find('dask') >= 0:
             oofs = [trial.memo.get('oof') for trial in trials]
             return oofs if any([oof is not None for oof in oofs]) else None
 

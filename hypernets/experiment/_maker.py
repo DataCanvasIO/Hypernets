@@ -280,7 +280,7 @@ def make_experiment(hyper_model_cls,
         test_shape = tb.get_shape(X_test, allow_none=True)
         eval_shape = tb.get_shape(X_eval, allow_none=True)
         logger.info(f'make_experiment with train data:{train_shape}, '
-                    f'test data:{test_shape}, eval data:{eval_shape}, target:{target}')
+                    f'test data:{test_shape}, eval data:{eval_shape}, target:{target}, task:{task}')
 
     return experiment
 

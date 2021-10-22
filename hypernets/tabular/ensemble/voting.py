@@ -5,7 +5,6 @@ __author__ = 'yangjian'
 """
 from collections import defaultdict
 
-import numpy as np
 from sklearn.metrics import get_scorer
 from sklearn.metrics._scorer import _PredictScorer
 
@@ -22,6 +21,7 @@ class AveragingEnsemble(BaseEnsemble):
     def predictions2predict(self, predictions):
         if len(predictions.shape) == 3 and self.task == 'binary':
             predictions = predictions[:, :, -1]
+        np = self.np
         proba = np.mean(predictions, axis=1)
         pred = self.proba2predict(proba)
         return pred
@@ -29,6 +29,7 @@ class AveragingEnsemble(BaseEnsemble):
     def predictions2predict_proba(self, predictions):
         if self.task == 'multiclass' and self.method == 'hard':
             raise ValueError('Multiclass task does not support `hard` method.')
+        np = self.np
         proba = np.mean(predictions, axis=1)
         if self.task == 'regression':
             return proba
@@ -74,7 +75,11 @@ class GreedyEnsemble(BaseEnsemble):
                            ('ensemble_size', self.ensemble_size)])
         return df._repr_html_()
 
+    def _score(self, y_true, y_pred):
+        return self.scorer._score_func(y_true, y_pred, **self.scorer._kwargs) * self.scorer._sign
+
     def fit_predictions(self, predictions, y_true):
+        np = self.np
         scores = []
         best_stack = []
         if len(predictions.shape) == 1:
@@ -100,15 +105,21 @@ class GreedyEnsemble(BaseEnsemble):
                     pred = predictions[:, j, :]
                 mean_predictions = (sum_predictions + pred) / (len(best_stack) + 1)
                 if isinstance(self.scorer, _PredictScorer) and self.classes_ is not None and len(self.classes_) > 0:
-                    pred = np.array(self.classes_).take(np.argmax(mean_predictions, axis=1), axis=0)
+                    pred = np.take(self.classes_, np.argmax(mean_predictions, axis=1), axis=0)
                     mean_predictions = pred
                 elif self.task == 'binary' and len(mean_predictions.shape) == 2 and mean_predictions.shape[1] == 2:
                     mean_predictions = mean_predictions[:, 1]
-                score = self.scorer._score_func(y_true, mean_predictions, **self.scorer._kwargs) * self.scorer._sign
+                score = self._score(y_true, mean_predictions)
                 stack_scores.append(score)
 
-            best = np.argmax(stack_scores)
-            scores.append(stack_scores[best])
+            # best = np.argmax(stack_scores)
+            # scores.append(stack_scores[best])
+            best, best_score = (0, stack_scores[0])
+            for n, score in enumerate(stack_scores):
+                if score > best_score:
+                    best, best_score = (n, score)
+            scores.append(best_score)
+
             best_stack.append(best)
             if len(predictions.shape) == 2:
                 sum_predictions += predictions[:, best]
@@ -125,27 +136,32 @@ class GreedyEnsemble(BaseEnsemble):
         for i in range(val_steps):
             hits[best_stack[i]] += 1
 
-        self.weights_ = np.zeros((len(self.estimators)), dtype=np.float64)
+        weights = np.zeros((len(self.estimators)), dtype=np.float64)
         for i in range(len(self.estimators)):
             if hits.get(i) is not None:
-                self.weights_[i] = hits[i] / val_steps
+                weights[i] = hits[i] / val_steps
 
-        zero_weight_index = np.argwhere(self.weights_ == 0.).ravel()
-        for index in zero_weight_index:
-            self.estimators[index] = None
+        # zero_weight_index = np.argwhere(weights == 0.).ravel()
+        # for index in zero_weight_index:
+        #     self.estimators[index] = None
+        for index, weight in enumerate(weights):
+            if weight == 0.0:
+                self.estimators[index] = None
 
+        self.weights_ = weights.tolist()
         self.scores_ = scores
         self.hits_ = hits
         self.best_stack_ = best_stack
 
     def predictions2predict(self, predictions):
         assert len(self.weights_) == predictions.shape[1]
+        np = self.np
+        weights = np.array(self.weights_)
         if len(predictions.shape) == 3 and self.task == 'binary':
             predictions = predictions[:, :, -1]
         if len(predictions.shape) == 3:
-            weights = np.expand_dims(self.weights_, axis=1).repeat(predictions.shape[2], 1)
-        else:
-            weights = self.weights_
+            weights = np.expand_dims(weights, axis=1).repeat(predictions.shape[2], 1)
+
         proba = np.sum(predictions * weights, axis=1)
         pred = self.proba2predict(proba)
         return pred
@@ -154,10 +170,11 @@ class GreedyEnsemble(BaseEnsemble):
         assert len(self.weights_) == predictions.shape[1]
         if self.task == 'multiclass' and self.method == 'hard':
             raise ValueError('Multiclass task does not support `hard` method.')
+        np = self.np
+        weights = np.array(self.weights_)
         if len(predictions.shape) == 3:
-            weights = np.expand_dims(self.weights_, axis=1).repeat(predictions.shape[2], 1)
-        else:
-            weights = self.weights_
+            weights = np.expand_dims(weights, axis=1).repeat(predictions.shape[2], 1)
+
         proba = np.sum(predictions * weights, axis=1)
 
         if self.task == 'regression':
