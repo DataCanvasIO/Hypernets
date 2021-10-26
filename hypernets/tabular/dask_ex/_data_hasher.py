@@ -16,7 +16,7 @@ class DaskDataHasher(DataHasher):
             yield from self._iter_dask_dataframe(data)
         elif isinstance(data, dd.Series):
             yield from self._iter_dask_dataframe(data.to_frame())
-        elif isinstance(data, da.array):
+        elif isinstance(data, da.Array):
             yield from self._iter_dask_array(data)
         else:
             yield from super()._iter_data(data)
