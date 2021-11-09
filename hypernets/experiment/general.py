@@ -6,7 +6,7 @@ __author__ = 'yangjian'
 
 from sklearn.model_selection import train_test_split
 
-from hypernets.utils import logging
+from hypernets.utils import logging, const
 from . import Experiment
 
 logger = logging.get_logger(__name__)
@@ -21,16 +21,11 @@ class GeneralExperiment(Experiment):
 
     def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, **kwargs):
         """Run an experiment
-
-        Arguments
-        ---------
-        max_trials :
-
         """
         self.step_start('data split')
         if X_eval is None or y_eval is None:
             stratify = y_train
-            if self.task == 'regression':
+            if self.task == const.TASK_REGRESSION:
                 stratify = None
             X_train, X_eval, y_train, y_eval = train_test_split(X_train, y_train, test_size=self.eval_size,
                                                                 random_state=self.random_state, stratify=stratify)
@@ -46,7 +41,7 @@ class GeneralExperiment(Experiment):
         self.step_end(output={'best_trial': best_trial})
 
         self.step_start('load estimator')
-        self.estimator = hyper_model.load_estimator(best_trial.model_file)
-        self.step_end(output={'estimator': self.estimator})
+        estimator = hyper_model.load_estimator(best_trial.model_file)
+        self.step_end(output={'estimator': estimator})
 
-        return self.estimator
+        return estimator
