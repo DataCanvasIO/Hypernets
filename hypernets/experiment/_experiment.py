@@ -63,9 +63,11 @@ class Experiment(object):
         self.callbacks = callbacks if callbacks is not None else []
         self.random_state = random_state
 
+        # trained
         self.start_time = None
         self.end_time = None
-    
+        self.model_ = None
+
     def get_data_character(self):
         data_character = df_utils.get_data_character(self.hyper_model, self.X_train, self.y_train, self.X_eval,
                                                      self.y_eval, self.X_test, self.task)
@@ -85,6 +87,7 @@ class Experiment(object):
 
             model = self.train(self.hyper_model, self.X_train, self.y_train, self.X_test, X_eval=self.X_eval,
                                y_eval=self.y_eval, **kwargs)
+            self.model_ = model
 
             self.end_time = time.time()
 
@@ -93,7 +96,7 @@ class Experiment(object):
             return model
         except Exception as e:
             import traceback
-            msg = f'ExperiementID:[{self.id}] - {self.current_step}: {e}\n{traceback.format_exc()}'
+            msg = f'ExperimentID:[{self.id}] - {self.current_step}: {e}\n{traceback.format_exc()}'
             logger.error(msg)
             for callback in self.callbacks:
                 callback.experiment_break(self, msg)
