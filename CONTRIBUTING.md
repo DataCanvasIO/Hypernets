@@ -1,7 +1,7 @@
 # Contributing Guidelines
 Hypernets has been developed and used by many active community members. Everyone is more than welcomed  to make the project better and more accessible to more users. Whether it's a bug report, new feature, correction, or additional documentation, we greatly value feedback and contributions from our community.
 
-We are proud of this project and have been working to make it great since day one. We believe you will love it and we need your help and everything about HyperGBM you have in your mind pushes this project forward.
+We are proud of this project and have been working to make it great since day one. We believe you will love it and we need your help and everything about Hypernets you have in your mind pushes this project forward.
 
 Join Us!
 
