@@ -16,6 +16,7 @@ def start_broker(host, port):
 def test_grpc_broker_run():
     try:
         from paramiko import SSHClient, AutoAddPolicy
+        import grpc
         package_exists = True
     except:
         package_exists = False
