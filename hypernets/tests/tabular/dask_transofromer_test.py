@@ -22,6 +22,7 @@ def _startup_dask(overload):
         # start local cluster
         cores = psutil.cpu_count()
         workers = math.ceil(cores / 3)
+        workers = max(2, workers)
         if workers > 1:
             if overload <= 0:
                 overload = 1.0
