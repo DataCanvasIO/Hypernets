@@ -91,7 +91,7 @@ def to_parquet(df, path, filesystem=None, delayed=False, **kwargs_pass):
     if delayed:
         return parts
     else:
-        result = dask.compute(parts)
+        result = dask.compute(*parts)
         return result
 
 

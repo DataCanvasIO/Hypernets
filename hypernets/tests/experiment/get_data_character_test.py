@@ -50,9 +50,9 @@ class Test_Get_character:
 
         assert mydict_base
         assert mydict_compete
-        assert mydict_base['experimentType'] is 'base'
-        assert mydict_compete['experimentType'] is 'compete'
-        assert mydict_base['target']['taskType'] is 'multiclass'
+        assert mydict_base['experimentType'] == 'base'
+        assert mydict_compete['experimentType'] == 'compete'
+        assert mydict_base['target']['taskType'] == 'multiclass'
         assert mydict_base['target']['freq'] is None
         assert mydict_base['target']['unique']
         assert mydict_base['target']['mean'] is None
@@ -101,9 +101,9 @@ class Test_Get_character:
 
         assert mydict_base
         assert mydict_compete
-        assert mydict_base['experimentType'] is 'base'
-        assert mydict_compete['experimentType'] is 'compete'
-        assert mydict_base['target']['taskType'] is 'binary'
+        assert mydict_base['experimentType'] == 'base'
+        assert mydict_compete['experimentType'] == 'compete'
+        assert mydict_base['target']['taskType'] == 'binary'
         assert mydict_base['target']['freq'] is not None
         assert mydict_base['target']['unique'] is 2
         assert mydict_base['target']['mean'] is None
@@ -153,9 +153,9 @@ class Test_Get_character:
 
         assert mydict_base
         assert mydict_compete
-        assert mydict_base['experimentType'] is 'base'
-        assert mydict_compete['experimentType'] is 'compete'
-        assert mydict_base['target']['taskType'] is 'regression'
+        assert mydict_base['experimentType'] == 'base'
+        assert mydict_compete['experimentType'] == 'compete'
+        assert mydict_base['target']['taskType'] == 'regression'
         assert mydict_base['target']['freq'] is None
         assert mydict_base['target']['unique']
         assert mydict_base['target']['mean'] is not None

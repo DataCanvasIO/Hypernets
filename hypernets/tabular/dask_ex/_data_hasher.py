@@ -24,7 +24,10 @@ class DaskDataHasher(DataHasher):
     def _iter_dask_dataframe(df):
         yield ','.join(map(str, df.columns.tolist())).encode('utf-8')
 
-        x = df.map_partitions(DataHasher._hash_pd_dataframe, meta=(None, 'u8')).compute()
+        # x = df.map_partitions(DataHasher._hash_pd_dataframe, meta=(None, 'u8')).compute()
+        name = 'hashed'
+        x = df.map_partitions(lambda part: DataHasher._hash_pd_dataframe(part).to_frame(name),
+                              meta={name: 'u8'}).compute()
         yield x.values
 
     @staticmethod
