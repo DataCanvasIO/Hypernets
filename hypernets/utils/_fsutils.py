@@ -38,16 +38,9 @@ class FileSystemAdapter(object):
         self.remote_root = remote_root
         self.local_root = local_root
         self.remote_sep = remote_sep
-        self.remote_root_alias = remote_root.replace('\\', '/') if is_os_windows else None
 
     def _inner_to_rpath(self, rpath):
         if rpath.startswith(self.remote_root):
-            return rpath
-
-        if self.remote_root_alias and rpath.startswith(self.remote_root_alias):
-            return rpath
-
-        if is_os_windows and rpath.find(':') > 0:
             return rpath
 
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)
@@ -248,6 +241,19 @@ class FileSystemAdapter(object):
         return fs
 
 
+class WindowsFileSystemAdapter(FileSystemAdapter):
+    def __init__(self, remote_root, local_root, remote_sep):
+        remote_root = remote_root.replace('\\', '/')
+        local_root = local_root.replace('\\', '/')
+        super(WindowsFileSystemAdapter, self).__init__(remote_root, local_root, '/')
+
+    def _inner_to_rpath(self, rpath):
+        if rpath.find(':') > 0:
+            return rpath
+        else:
+            return super()._inner_to_rpath(rpath)
+
+
 class S3FileSystemAdapter(FileSystemAdapter):
     def __init__(self, remote_root, local_root, remote_sep):
         remote_root = remote_root.lstrip(remote_sep)
@@ -328,6 +334,8 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     # return fix_filesystem(fs, remote_root, local_root)
     if type(fs).__name__ == 'S3FileSystem':
         return S3FileSystemAdapter(remote_root, local_root, fs.sep)(fs)
+    elif is_os_windows:
+        return WindowsFileSystemAdapter(remote_root, local_root, os.path.sep)(fs)
     else:
         return FileSystemAdapter(remote_root, local_root, os.path.sep if is_local else fs.sep)(fs)
 
