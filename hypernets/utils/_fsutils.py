@@ -60,6 +60,9 @@ class FileSystemAdapter(object):
             return self._inner_to_rpath(rpath)
         elif isinstance(rpath, (list, tuple)):
             return [self._inner_to_rpath(p) for p in rpath]
+        elif isinstance(rpath, os.DirEntry):
+            assert rpath.path.startswith(self.remote_root)
+            return rpath
         else:
             logger.warn(f'Unexpected rpath type: {type(rpath)}, rpath: {rpath}')
             return rpath
@@ -72,7 +75,10 @@ class FileSystemAdapter(object):
         return os.path.join(self.local_root, lpath)
 
     def strip_rpath(self, rpath, align_with):
-        if align_with.startswith(self.remote_root):
+        if isinstance(align_with, os.DirEntry):
+            assert align_with.path.startswith(self.remote_root)
+            return rpath
+        elif align_with.startswith(self.remote_root):
             # if align_with.startswith(remote_sep) and rpath.startswith(align_with.lstrip(remote_sep)):
             #     rpath = remote_sep + rpath
             return rpath
