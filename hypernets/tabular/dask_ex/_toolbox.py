@@ -673,7 +673,7 @@ class DaskToolBox(ToolBox):
         return sample_weight
 
     # _data_cleaner_cls = data_cleaner_.DataCleaner
-    _data_hasher_cls = _data_hasher.DataHasher
+    _data_hasher_cls = _data_hasher.DaskDataHasher
     _collinearity_detector_cls = _collinearity.DaskMultiCollinearityDetector  # collinearity_.MultiCollinearityDetector
     _drift_detector_cls = _drift_detection.DaskDriftDetector  # drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = _drift_detection.DaskFeatureSelectionWithDriftDetector  # drift_detection_.FeatureSelectorWithDriftDetection
