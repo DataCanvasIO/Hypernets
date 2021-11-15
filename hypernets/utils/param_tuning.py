@@ -8,7 +8,7 @@ import copy
 import time
 import pandas as pd
 from hypernets.conf import configure, Configurable, String, Int as cfg_int
-from hypernets.core import TrialHistory, Trial, EarlyStoppingError
+from hypernets.core import TrialHistory, Trial, EarlyStoppingError, EarlyStoppingCallback
 from hypernets.core.ops import Identity, HyperInput
 from hypernets.core.search_space import HyperSpace, ParameterSpace
 from hypernets.searchers import EvolutionSearcher, RandomSearcher, MCTSSearcher, GridSearcher, get_searcher_cls, \
@@ -58,43 +58,31 @@ def build_searcher(cls, func, optimize_direction='min'):
     return s
 
 
-def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min', clear_logs=False, **func_kwargs):
+def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min', clear_logs=False, callbacks=None,  **func_kwargs):
+
+    if callbacks is not None:
+        assert len(callbacks) == 1, "Only accept one EarlyStoppingCallback's instance."
+        assert isinstance(callbacks[0], EarlyStoppingCallback), "Only accept EarlyStoppingCallback's instance yet."
+    else:
+        callbacks = []
+
     if not isinstance(searcher, Searcher):
         searcher = build_searcher(searcher, func, optimize_direction)
+
+    for callback in callbacks:
+        callback.on_search_start(None, None, None, None, None, None, None, max_trials, None, None)
+
     retry_limit = ParamSearchCfg.trial_retry_limit
     trial_no = 1
     retry_counter = 0
     history = TrialHistory(optimize_direction)
 
-    current_trial_display_id = None
-    trials_display_id = None
     while trial_no <= max_trials:
         try:
             space_sample = searcher.sample()
 
-            if isnotebook():
-                if clear_logs:
-                    clear_output()
-                    current_trial_display_id = None
-                    trials_display_id = None
-                    
-                if current_trial_display_id is None:
-                    display({'text/markdown': '#### Current Trial:'}, raw=True, include=['text/markdown'])
-                    handle = display(space_sample, display_id=True)
-                    if handle is not None:
-                        current_trial_display_id = handle.display_id
-                else:
-                    update_display(space_sample, display_id=current_trial_display_id)
-                df_best_trials = pd.DataFrame([
-                    (t.trial_no, t.reward, t.elapsed, t.space_sample.vectors) for t in history.get_top(100)],
-                    columns=['Trial No.', 'Reward', 'Elapsed', 'Space Vector'])
-                if trials_display_id is None:
-                    display({'text/markdown': '#### Top trials:'}, raw=True, include=['text/markdown'])
-                    handle = display(df_best_trials, display_id=True)
-                    if handle is not None:
-                        trials_display_id = handle.display_id
-                else:
-                    update_display(df_best_trials, display_id=trials_display_id)
+            for callback in callbacks:
+                callback.on_trial_begin(None, space_sample, trial_no)
 
             if history.is_existed(space_sample):
                 if retry_counter >= retry_limit:
@@ -115,6 +103,8 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
             trial = Trial(space_sample, trial_no, last_reward, elapsed)
             if last_reward != 0:  # success
                 improved = history.append(trial)
+                for callback in callbacks:
+                    callback.on_trial_end(None, space_sample, trial_no, trial.reward, improved, trial.elapsed)
             if logger.is_info_enabled():
                 best = history.get_best()
                 msg = f'Trial {trial_no} done, reward: {trial.reward}, ' \
@@ -122,7 +112,6 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
                 logger.info(msg)
         except EarlyStoppingError:
             break
-            # TODO: early stopping
         except Exception as e:
             import sys
             import traceback
