@@ -6,7 +6,9 @@
 import json
 import os
 import tempfile
+
 import fsspec
+from fsspec.implementations.local import LocalFileSystem as FsSpecLocalFileSystem
 
 from hypernets.conf import Configurable, configure, Unicode
 from . import logging, is_os_windows
@@ -213,7 +215,18 @@ class FileSystemAdapter(object):
                 (self.fn_rl, self.fix_rl)]
 
     def __call__(self, fs, *args, **kwargs):
-        assert not hasattr(fs, '_hyn_adapted_')
+        if hasattr(fs, 'hyn_adapted_'):
+            for fns, fix in self.fn_fix_pairs:
+                for fn in fns:
+                    # assert hasattr(fs, fn), f'fn:{fn}'
+                    if not hasattr(fs, fn):
+                        continue
+
+                    original_fn = f'_orig_{fn}_'
+                    assert hasattr(fs, original_fn)
+            assert hasattr(fs, 'remote_root_')
+            assert hasattr(fs, 'local_root_')
+            return fs
 
         # decorate listed functions
         post_processes = self.fn_post_process
@@ -236,7 +249,9 @@ class FileSystemAdapter(object):
         setattr(fs, '__reduce__', _fs_reduce)
 
         # mark adapted
-        setattr(fs, '_hyn_adapted_', 1)
+        setattr(fs, 'hyn_adapted_', 1)
+        setattr(fs, 'remote_root_', self.remote_root)
+        setattr(fs, 'local_root_', self.local_root)
 
         return fs
 
@@ -285,8 +300,15 @@ class S3FileSystemAdapter(FileSystemAdapter):
         return {**super().fn_post_process, '_ls': self.handle_private_ls}
 
 
+# pyarrow replace fsspec.LocalFileSystem with pyarrow.LocalFileSystem with hard coding, so we declare another
+class AdaptedLocalFileSystem(FsSpecLocalFileSystem):
+    pass
+
+
 def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
-    if fs_options is None or len(fs_options) == 0:
+    if fs_type == 'file':
+        fs = AdaptedLocalFileSystem()
+    elif fs_options is None or len(fs_options) == 0:
         fs = fsspec.filesystem(fs_type, skip_instance_cache=True)
     else:
         try:
