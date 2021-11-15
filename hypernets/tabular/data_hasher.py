@@ -24,7 +24,9 @@ class DataHasher:
     def _iter_data(self, data):
         yield self._qname(type(data)).encode('utf-8')
 
-        if isinstance(data, pd.DataFrame):
+        if data is None:
+            yield b'<None>'
+        elif isinstance(data, pd.DataFrame):
             yield from self._iter_pd_dataframe(data)
         elif isinstance(data, pd.Series):
             yield from self._iter_pd_dataframe(data.to_frame())
@@ -53,19 +55,24 @@ class DataHasher:
         return f'{cls.__module__}.{cls.__name__}'
 
     @staticmethod
-    def _iter_pd_dataframe(df):
-        # for col in df.columns:
-        #     yield str(col).encode()
-        yield ','.join(map(str, df.columns.tolist())).encode('utf-8')
-
-        x = hash_pandas_object(df, index=False)
-        yield x.values
+    def _hash_pd_dataframe(df):
+        return hash_pandas_object(df, index=False)
 
     @staticmethod
-    def _iter_ndarray(arr):
+    def _hash_ndarray(arr):
         if arr.shape[0] == 0:
             v = np.array([], dtype='u8').reshape((-1, 1))
         else:
             v = hash_pandas_object(pd.DataFrame(arr), index=False).values.reshape((-1, 1))
+        return v
 
-        yield v
+    @classmethod
+    def _iter_pd_dataframe(cls, df):
+        # for col in df.columns:
+        #     yield str(col).encode()
+        yield ','.join(map(str, df.columns.tolist())).encode('utf-8')
+        yield cls._hash_pd_dataframe(df).values
+
+    @classmethod
+    def _iter_ndarray(cls, arr):
+        yield cls._hash_ndarray(arr)

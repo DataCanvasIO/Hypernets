@@ -6,7 +6,9 @@
 import json
 import os
 import tempfile
+
 import fsspec
+from fsspec.implementations.local import LocalFileSystem as FsSpecLocalFileSystem
 
 from hypernets.conf import Configurable, configure, Unicode
 from . import logging, is_os_windows
@@ -38,16 +40,9 @@ class FileSystemAdapter(object):
         self.remote_root = remote_root
         self.local_root = local_root
         self.remote_sep = remote_sep
-        self.remote_root_alias = remote_root.replace('\\', '/') if is_os_windows else None
 
     def _inner_to_rpath(self, rpath):
         if rpath.startswith(self.remote_root):
-            return rpath
-
-        if self.remote_root_alias and rpath.startswith(self.remote_root_alias):
-            return rpath
-
-        if is_os_windows and rpath.find(':') > 0:
             return rpath
 
         return self.remote_root.rstrip(self.remote_sep) + self.remote_sep + rpath.lstrip(self.remote_sep)
@@ -60,6 +55,9 @@ class FileSystemAdapter(object):
             return self._inner_to_rpath(rpath)
         elif isinstance(rpath, (list, tuple)):
             return [self._inner_to_rpath(p) for p in rpath]
+        elif isinstance(rpath, os.DirEntry):
+            assert rpath.path.startswith(self.remote_root)
+            return rpath
         else:
             logger.warn(f'Unexpected rpath type: {type(rpath)}, rpath: {rpath}')
             return rpath
@@ -72,7 +70,10 @@ class FileSystemAdapter(object):
         return os.path.join(self.local_root, lpath)
 
     def strip_rpath(self, rpath, align_with):
-        if align_with.startswith(self.remote_root):
+        if isinstance(align_with, os.DirEntry):
+            assert align_with.path.startswith(self.remote_root)
+            return rpath
+        elif align_with.startswith(self.remote_root):
             # if align_with.startswith(remote_sep) and rpath.startswith(align_with.lstrip(remote_sep)):
             #     rpath = remote_sep + rpath
             return rpath
@@ -214,7 +215,18 @@ class FileSystemAdapter(object):
                 (self.fn_rl, self.fix_rl)]
 
     def __call__(self, fs, *args, **kwargs):
-        assert not hasattr(fs, '_hyn_adapted_')
+        if hasattr(fs, 'hyn_adapted_'):
+            for fns, fix in self.fn_fix_pairs:
+                for fn in fns:
+                    # assert hasattr(fs, fn), f'fn:{fn}'
+                    if not hasattr(fs, fn):
+                        continue
+
+                    original_fn = f'_orig_{fn}_'
+                    assert hasattr(fs, original_fn)
+            assert hasattr(fs, 'remote_root_')
+            assert hasattr(fs, 'local_root_')
+            return fs
 
         # decorate listed functions
         post_processes = self.fn_post_process
@@ -237,9 +249,24 @@ class FileSystemAdapter(object):
         setattr(fs, '__reduce__', _fs_reduce)
 
         # mark adapted
-        setattr(fs, '_hyn_adapted_', 1)
+        setattr(fs, 'hyn_adapted_', 1)
+        setattr(fs, 'remote_root_', self.remote_root)
+        setattr(fs, 'local_root_', self.local_root)
 
         return fs
+
+
+class WindowsFileSystemAdapter(FileSystemAdapter):
+    def __init__(self, remote_root, local_root, remote_sep):
+        remote_root = remote_root.replace('\\', '/')
+        local_root = local_root.replace('\\', '/')
+        super(WindowsFileSystemAdapter, self).__init__(remote_root, local_root, '/')
+
+    def _inner_to_rpath(self, rpath):
+        if rpath.find(':') > 0:
+            return rpath
+        else:
+            return super()._inner_to_rpath(rpath)
 
 
 class S3FileSystemAdapter(FileSystemAdapter):
@@ -273,8 +300,15 @@ class S3FileSystemAdapter(FileSystemAdapter):
         return {**super().fn_post_process, '_ls': self.handle_private_ls}
 
 
+# pyarrow replace fsspec.LocalFileSystem with pyarrow.LocalFileSystem with hard coding, so we declare another
+class AdaptedLocalFileSystem(FsSpecLocalFileSystem):
+    pass
+
+
 def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
-    if fs_options is None or len(fs_options) == 0:
+    if fs_type == 'file':
+        fs = AdaptedLocalFileSystem()
+    elif fs_options is None or len(fs_options) == 0:
         fs = fsspec.filesystem(fs_type, skip_instance_cache=True)
     else:
         try:
@@ -322,6 +356,8 @@ def get_filesystem(fs_type, fs_root, fs_options) -> fsspec.AbstractFileSystem:
     # return fix_filesystem(fs, remote_root, local_root)
     if type(fs).__name__ == 'S3FileSystem':
         return S3FileSystemAdapter(remote_root, local_root, fs.sep)(fs)
+    elif is_os_windows:
+        return WindowsFileSystemAdapter(remote_root, local_root, os.path.sep)(fs)
     else:
         return FileSystemAdapter(remote_root, local_root, os.path.sep if is_local else fs.sep)(fs)
 

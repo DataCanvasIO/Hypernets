@@ -17,7 +17,7 @@ from sklearn import pipeline
 from sklearn.utils.multiclass import type_of_target
 
 from hypernets.tabular.toolbox import ToolBox
-from hypernets.utils import logging, const
+from hypernets.utils import logging, const, is_os_windows
 from . import _dataframe_mapper as dataframe_mapper_
 from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection, _ensemble
 from . import _transformers as tfs
@@ -499,7 +499,9 @@ class DaskToolBox(ToolBox):
         if not cls.is_dask_object(X):
             return super().general_estimator(X, y, estimator=estimator, task=task)
 
-        if (estimator is None or estimator == 'gbm') and lightgbm_installed and hasattr(lightgbm, 'dask'):
+        if (estimator is None or estimator == 'gbm') \
+                and lightgbm_installed and hasattr(lightgbm, 'dask') \
+                and not is_os_windows:  # lightgbm.dask does not support windows
             return default_dask_gbm(task)
 
         estimator_ = super().general_estimator(X, y, estimator=estimator, task=task)
@@ -673,7 +675,7 @@ class DaskToolBox(ToolBox):
         return sample_weight
 
     # _data_cleaner_cls = data_cleaner_.DataCleaner
-    _data_hasher_cls = _data_hasher.DataHasher
+    _data_hasher_cls = _data_hasher.DaskDataHasher
     _collinearity_detector_cls = _collinearity.DaskMultiCollinearityDetector  # collinearity_.MultiCollinearityDetector
     _drift_detector_cls = _drift_detection.DaskDriftDetector  # drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = _drift_detection.DaskFeatureSelectionWithDriftDetector  # drift_detection_.FeatureSelectorWithDriftDetection

@@ -13,7 +13,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 	
 	task, _ = hyper_model.infer_task_type(y_train) #This line is just used to test
 
-	if isinstance(y_train, pd.core.series.Series):
+	if isinstance(y_train, pd.Series):
 		datatype_y = dtype2usagetype[str(y_train.dtypes)]
 
 		Missing_y = y_train.isnull().sum().tolist()
@@ -81,10 +81,12 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 			Freq_y = None
 
 		if task == 'regression':
-			max_y = y_train.max().compute().tolist()
-			min_y = y_train.min().compute().tolist()
-			mean_y = y_train.mean().compute().tolist()
-			Stdev_y = y_train.std().compute().tolist()
+			# max_y = y_train.max().compute().tolist()
+			# min_y = y_train.min().compute().tolist()
+			# mean_y = y_train.mean().compute().tolist()
+			# Stdev_y = y_train.std().compute().tolist()
+			max_y, min_y, mean_y, Stdev_y = \
+				map(float, dd.compute(y_train.max(), y_train.min(), y_train.mean(), y_train.std()))
 		else:
 			max_y = None
 			min_y = None
