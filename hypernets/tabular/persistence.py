@@ -9,48 +9,13 @@ from distutils.version import LooseVersion
 import dask
 import pandas as pd
 import pyarrow as pa
-import pyarrow.filesystem as pafs
 import pyarrow.parquet as pq
 from dask import dataframe as dd
 
-try:
-    import fsspec
-
-    _has_fsspec = True
-except:
-    _has_fsspec = False
-
 __all__ = ('to_parquet', 'read_parquet')
-
-pa_ensure_filesystem = pafs._ensure_filesystem
-
-
-def _check_pa_filesystem(filesystem):
-    if hasattr(filesystem, '_hyn_adapted_'):
-        # print('*' * 20, 'return adapted fs')
-        return filesystem
-
-    # print('-' * 20, 'call arrow _ensure_filesystem')
-    return pa_ensure_filesystem(filesystem)
-
-
-pafs._ensure_filesystem = _check_pa_filesystem
-
-
-def _check_filesystem(filesystem):
-    if _has_fsspec:
-        if isinstance(filesystem, fsspec.AbstractFileSystem):
-            try:
-                # do this line here to keep LocalFileSystem as fsspec
-                filesystem = pa.fs.PyFileSystem(pa.fs.FSSpecHandler(filesystem))
-            except:
-                pass
-
-    return filesystem
 
 
 def _arrow_write_parquet(df, target_path, filesystem=None, **pa_options):
-    filesystem = _check_filesystem(filesystem)
     tbl = pa.Table.from_pandas(df)
     pq.write_table(tbl, target_path, filesystem=filesystem, **pa_options)
 
@@ -99,7 +64,6 @@ def read_parquet(path, delayed=False, **kwargs_pass):
     if delayed:
         if 'filesystem' in kwargs_pass:
             filesystem = kwargs_pass.pop('filesystem')
-            assert _has_fsspec and isinstance(filesystem, fsspec.AbstractFileSystem)
 
             if LooseVersion(dask.__version__) >= LooseVersion('2021.5.0'):
                 return _adapted_dask_read_parquet_20210500(path, fs=filesystem, **kwargs_pass)
@@ -108,15 +72,6 @@ def read_parquet(path, delayed=False, **kwargs_pass):
         else:
             return dd.read_parquet(path, **kwargs_pass)
     else:
-        if 'filesystem' in kwargs_pass and _has_fsspec:
-            filesystem = kwargs_pass['filesystem']
-            if isinstance(filesystem, fsspec.AbstractFileSystem):
-                try:
-                    # do this line here to keep LocalFileSystem as fsspec
-                    filesystem = pa.fs.PyFileSystem(pa.fs.FSSpecHandler(filesystem))
-                    kwargs_pass['filesystem'] = filesystem
-                except:
-                    pass
         return pd.read_parquet(path, **kwargs_pass)
 
 
