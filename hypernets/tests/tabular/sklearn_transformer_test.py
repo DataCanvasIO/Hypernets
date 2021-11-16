@@ -151,6 +151,21 @@ class Test_Transformer():
         assert len(fse.scores_.items()) == 17
         assert len(fse.columns_) == 10
 
+    def test_multi_label_encoder(self):
+        df = pd.DataFrame({"A": [1, 2, 3, 4],
+                           "B": ['a', 'a', 'a', 'b']})
+        df_expect = pd.DataFrame({"A": [0, 1, 2, 3],
+                                  "B": [0, 0, 0, 1]})
+        ec = skex.MultiLabelEncoder()
+        df_t = ec.fit_transform(df.copy())
+        assert np.where(df_expect.values == df_t.values, 0, 1).sum() == 0
+        assert all(df_t.dtypes == pd.Series(dict(A=np.int64, B=np.int64)))
+
+        ec = skex.MultiLabelEncoder(dtype=np.int32)
+        df_t = ec.fit_transform(df.copy())
+        assert np.where(df_expect.values == df_t.values, 0, 1).sum() == 0
+        assert all(df_t.dtypes == pd.Series(dict(A=np.int32, B=np.int32)))
+
     def test_ordinal_encoder(self):
         df1 = pd.DataFrame({"A": [1, 2, 3, 4],
                             "B": ['a', 'a', 'a', 'b']})

@@ -116,10 +116,13 @@ class SafeLabelEncoder(LabelEncoder):
 
 
 class MultiLabelEncoder(BaseEstimator):
-    def __init__(self, columns=None):
+    def __init__(self, columns=None, dtype=None):
         super(MultiLabelEncoder, self).__init__()
 
         self.columns = columns
+        self.dtype = dtype
+
+        # fitted
         self.encoders = {}
 
     def fit(self, X, y=None):
@@ -156,12 +159,17 @@ class MultiLabelEncoder(BaseEstimator):
                 data = X.loc[:, col]
                 if data.dtype == 'object':
                     data = data.astype('str')
-                X.loc[:, col] = self.encoders[col].transform(data)
+                data_t = self.encoders[col].transform(data)
+                if self.dtype:
+                    data_t = data_t.astype(self.dtype)
+                X.loc[:, col] = data_t
         else:
             n_features = X.shape[1]
             assert n_features == len(self.encoders.items())
             for n in range(n_features):
                 X[:, n] = self.encoders[n].transform(X[:, n])
+            if self.dtype:
+                X = X.astype(self.dtype)
 
         return X
 
@@ -178,7 +186,10 @@ class MultiLabelEncoder(BaseEstimator):
                     data = data.astype('str')
                     # print(f'Column "{col}" has been convert to "str" type.')
                 le = SafeLabelEncoder()
-                X.loc[:, col] = le.fit_transform(data)
+                data_t = le.fit_transform(data)
+                if self.dtype:
+                    data_t = data_t.astype(self.dtype)
+                X.loc[:, col] = data_t
                 self.encoders[col] = le
         else:
             n_features = X.shape[1]
@@ -187,6 +198,8 @@ class MultiLabelEncoder(BaseEstimator):
                 le = SafeLabelEncoder()
                 X[:, n] = le.fit_transform(data)
                 self.encoders[n] = le
+            if self.dtype:
+                X = X.astype(self.dtype)
 
         return X
 
