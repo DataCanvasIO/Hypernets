@@ -12,6 +12,10 @@ from hypernets.tabular.datasets import dsutils
 from . import if_cuml_ready, is_cuml_installed
 from ... import test_output_dir
 
+if is_cuml_installed:
+    import cudf
+    from hypernets.tabular.cuml_ex import CumlToolBox
+
 
 def check_dataframe(df1, df2, *, shape=True, columns=True, dtypes=True, values=True, delta=1e-5):
     from hypernets.tabular import get_tool_box
@@ -54,10 +58,6 @@ def check_dataframe(df1, df2, *, shape=True, columns=True, dtypes=True, values=T
 
 @if_cuml_ready
 class TestCumlTransformer:
-    if is_cuml_installed:
-        import cudf
-        from hypernets.tabular.cuml_ex import CumlToolBox
-
     work_dir = f'{test_output_dir}/Test_CumlTransformer'
 
     @classmethod
@@ -75,8 +75,6 @@ class TestCumlTransformer:
         shutil.rmtree(cls.work_dir, ignore_errors=True)
 
     def fit_reload_transform(self, tf, *, column_selector=None, dtype=None, check_options=None):
-        tb = self.CumlToolBox
-
         df = self.bank_data.copy()
         y = df.pop('y')
         if column_selector:
@@ -85,8 +83,8 @@ class TestCumlTransformer:
         if dtype is not None:
             df = df.astype(dtype)
 
-        cf = self.cudf.from_pandas(df)
-        y_cf = self.cudf.from_pandas(y)
+        cf = cudf.from_pandas(df)
+        y_cf = cudf.from_pandas(y)
 
         tf.fit_transform(cf.copy(), y_cf)
         file_path = f'{self.work_dir}/fitted_{type(tf).__name__}.pkl'
@@ -100,7 +98,7 @@ class TestCumlTransformer:
         # transform cudf.DataFrame
         t = tf_loaded.transform(cf)
         assert t is not None
-        assert tb.is_cuml_object(t)
+        assert CumlToolBox.is_cuml_object(t)
 
         # convert to local transformer
         assert hasattr(tf_loaded, 'as_local')
@@ -113,68 +111,68 @@ class TestCumlTransformer:
         check_dataframe(t, t2, **check_options)
 
     def test_standard_scaling(self):
-        tf = self.CumlToolBox.transformers['StandardScaler']()
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['StandardScaler']()
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_maxabs_scaling(self):
-        tf = self.CumlToolBox.transformers['MaxAbsScaler']()
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['MaxAbsScaler']()
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_minmax_scaling(self):
-        tf = self.CumlToolBox.transformers['MinMaxScaler']()
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['MinMaxScaler']()
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_truncated_svd(self):
-        tf = self.CumlToolBox.transformers['TruncatedSVD'](n_components=3)
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number,
+        tf = CumlToolBox.transformers['TruncatedSVD'](n_components=3)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number,
                                   dtype='float64', check_options=dict(columns=False), )
 
     def test_robust_scaling(self):
-        tf = self.CumlToolBox.transformers['RobustScaler']()
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['RobustScaler']()
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_impute_number_mean(self):
-        tf = self.CumlToolBox.transformers['SimpleImputer'](strategy='mean')
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['SimpleImputer'](strategy='mean')
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_impute_number_median(self):
-        tf = self.CumlToolBox.transformers['SimpleImputer'](strategy='median')
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['SimpleImputer'](strategy='median')
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_impute_number_most_frequent(self):
-        tf = self.CumlToolBox.transformers['SimpleImputer'](strategy='most_frequent')
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['SimpleImputer'](strategy='most_frequent')
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_impute_number_constant(self):
-        tf = self.CumlToolBox.transformers['SimpleImputer'](strategy='constant', fill_value=99.99)
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_number)
+        tf = CumlToolBox.transformers['SimpleImputer'](strategy='constant', fill_value=99.99)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
 
     def test_impute_object_constant(self):
-        tf = self.CumlToolBox.transformers['ConstantImputer'](fill_value='<filled>')
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_object)
+        tf = CumlToolBox.transformers['ConstantImputer'](fill_value='<filled>')
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
     def test_multi_labelencoder(self):
-        tf = self.CumlToolBox.transformers['MultiLabelEncoder'](dtype=np.int32)
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_object)
+        tf = CumlToolBox.transformers['MultiLabelEncoder'](dtype=np.int32)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
     def test_onehot_encoder(self):
-        tf = self.CumlToolBox.transformers['OneHotEncoder'](sparse=False)
-        self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_object)
+        tf = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
     def test_onehot_svd_pipeline(self):
-        ohe = self.CumlToolBox.transformers['OneHotEncoder'](sparse=False)
-        svd = self.CumlToolBox.transformers['TruncatedSVD'](n_components=3)
-        pipeline = self.CumlToolBox.transformers['Pipeline']([('onehot_encoder', ohe), ('svd', svd)])
+        ohe = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
+        svd = CumlToolBox.transformers['TruncatedSVD'](n_components=3)
+        pipeline = CumlToolBox.transformers['Pipeline']([('onehot_encoder', ohe), ('svd', svd)])
 
-        self.fit_reload_transform(pipeline, column_selector=self.CumlToolBox.column_selector.column_object)
+        self.fit_reload_transform(pipeline, column_selector=CumlToolBox.column_selector.column_object)
 
     #
     # def test_target_lencoder(self):
-    #     tf = self.CumlToolBox.transformers['TargetEncoder']()
-    #     self.fit_reload_transform(tf, column_selector=self.CumlToolBox.column_selector.column_object)
+    #     tf = CumlToolBox.transformers['TargetEncoder']()
+    #     self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
     def test_general_preprocessor(self):
-        X_foo = self.cudf.from_pandas(self.bank_data.head())
-        pp = self.CumlToolBox.general_preprocessor(X_foo)
-        self.fit_reload_transform(pp, column_selector=self.CumlToolBox.column_selector.column_all,
+        X_foo = cudf.from_pandas(self.bank_data.head())
+        pp = CumlToolBox.general_preprocessor(X_foo)
+        self.fit_reload_transform(pp, column_selector=CumlToolBox.column_selector.column_all,
                                   check_options=dict(dtypes=False))
