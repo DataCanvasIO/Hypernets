@@ -42,7 +42,7 @@ class DaskPseudoLabeling(PseudoLabeling):
                 number = int(self.number)
             if proba.numblocks[0] > 1:
                 proba = proba.rechunk(proba.shape)
-            selected = proba.map_blocks(_select_top, number, meta=np.array((), np.bool))
+            selected = proba.map_blocks(_select_top, number, meta=np.array((), 'bool'))
         elif self.strategy == DaskToolBox.STRATEGY_QUANTILE:
             qs = []
             for i in range(proba.shape[-1]):
