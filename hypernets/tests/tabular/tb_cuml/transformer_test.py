@@ -9,7 +9,7 @@ import shutil
 import pandas as pd
 import numpy as np
 from hypernets.tabular.datasets import dsutils
-from . import if_cuml_ready
+from . import if_cuml_ready, is_cuml_installed
 from ... import test_output_dir
 
 
@@ -54,8 +54,9 @@ def check_dataframe(df1, df2, *, shape=True, columns=True, dtypes=True, values=T
 
 @if_cuml_ready
 class TestCumlTransformer:
-    import cudf
-    from hypernets.tabular.cuml_ex import CumlToolBox
+    if is_cuml_installed:
+        import cudf
+        from hypernets.tabular.cuml_ex import CumlToolBox
 
     work_dir = f'{test_output_dir}/Test_CumlTransformer'
 
