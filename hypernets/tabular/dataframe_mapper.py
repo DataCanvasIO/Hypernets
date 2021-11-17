@@ -145,39 +145,41 @@ def add_column_names_to_exception(column_names):
 
 class DataFrameMapper(BaseEstimator):
     """
-    Map Pandas data frame column subsets to their own
-    sklearn transformation.
+    Map Pandas data frame column subsets to their own sklearn transformation.
+
+    Parameters:
+    ----------
+    features :  a list of tuples with features definitions.
+                The first element is the pandas column selector. This can
+                be a string (for one column) or a list of strings.
+                The second element is an object that supports
+                sklearn's transform interface, or a list of such objects.
+                The third element is optional and, if present, must be
+                a dictionary with the options to apply to the
+                transformation. Example: {'alias': 'day_of_week'}
+
+    default :   default transformer to apply to the columns not
+                explicitly selected in the mapper. If False (default),
+                discard them. If None, pass them through untouched. Any
+                other transformer will be applied to all the unselected
+                columns as a whole, taken as a 2d-array.
+
+    df_out :    return a pandas data frame, with each column named using
+                the pandas column that created it (if there's only one
+                input and output) or the input columns joined with '_'
+                if there's multiple inputs, and the name concatenated with
+                '_1', '_2' etc if there's multiple outputs.
+
+    input_df :  If ``True`` pass the selected columns to the transformers
+                as a pandas DataFrame or Series. Otherwise pass them as a
+                numpy array. Defaults to ``False``.
+
+    Attributes
+    ----------
+    fitted_features_ : list of tuple(column_name list, fitted transformer, options).
     """
 
     def __init__(self, features, default=False, df_out=False, input_df=False, df_out_dtype_transforms=None):
-        """
-        Params:
-
-        features    a list of tuples with features definitions.
-                    The first element is the pandas column selector. This can
-                    be a string (for one column) or a list of strings.
-                    The second element is an object that supports
-                    sklearn's transform interface, or a list of such objects.
-                    The third element is optional and, if present, must be
-                    a dictionary with the options to apply to the
-                    transformation. Example: {'alias': 'day_of_week'}
-
-        default     default transformer to apply to the columns not
-                    explicitly selected in the mapper. If False (default),
-                    discard them. If None, pass them through untouched. Any
-                    other transformer will be applied to all the unselected
-                    columns as a whole, taken as a 2d-array.
-
-        df_out      return a pandas data frame, with each column named using
-                    the pandas column that created it (if there's only one
-                    input and output) or the input columns joined with '_'
-                    if there's multiple inputs, and the name concatenated with
-                    '_1', '_2' etc if there's multiple outputs.
-
-        input_df    If ``True`` pass the selected columns to the transformers
-                    as a pandas DataFrame or Series. Otherwise pass them as a
-                    numpy array. Defaults to ``False``.
-        """
         self.features = features
         self.default = default
         self.df_out = df_out
