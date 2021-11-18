@@ -26,6 +26,18 @@ def test_experiment_with_blood_down_sample():
     assert estimator is not None
 
 
+def test_experiment_with_blood_down_sample_by_class():
+    df = dsutils.load_blood()
+    experiment = make_experiment(PlainModel, df, target='Class', search_space=PlainSearchSpace(),
+                                 down_sample_search=True, down_sample_search_size={0: 0.2, 1: 0.5},
+                                 down_sample_search_time_limit=300, down_sample_search_max_trials=10,
+                                 # log_level='info',
+                                 )
+    estimator = experiment.run(max_trials=3)
+    print(estimator)
+    assert estimator is not None
+
+
 def test_experiment_with_blood_full_features():
     df = dsutils.load_blood()
     target = 'Class'

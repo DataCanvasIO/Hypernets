@@ -326,8 +326,8 @@ class DataCleanStep(FeatureSelectStep):
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
                                                 random_state=self.experiment.random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
-                    y_train_uniques = set(y_train.unique()) if hasattr(y_train, 'unique') else set(y_train)
-                    y_eval_uniques = set(y_eval.unique()) if hasattr(y_eval, 'unique') else set(y_eval)
+                    y_train_uniques = tb.unique(y_train)
+                    y_eval_uniques = tb.unique(y_eval)
                     assert y_train_uniques == y_eval_uniques, \
                         'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
                 self.step_progress('split into train set and eval set')
@@ -941,19 +941,20 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
             if X is None or y is None:
                 return None, None
 
+            tb_ = get_tool_box(X, y)
+
             name_y = '__experiment_y_tmp__'
             df = X.copy()
             df[name_y] = y
-            uniques = set(df[name_y].unique())
+            uniques = set(tb_.unique(y))
             parts = {c: df[df[name_y] == c] for c in uniques}
-            tb_ = get_tool_box(X, y)
             dfs = [tb_.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
                    if c in class_size.keys() else part
                    for c, part in parts.items()]
             df = tb_.concat_df(dfs, repartition=True)
             if isinstance(df, pd.DataFrame):
                 df = df.sample(frac=1.0)
-            logger.warning(f'down_sampled: {df[name_y].value_counts().to_dict()}')
+            logger.info(f'down_sampled: {df[name_y].value_counts().to_dict()}')
             y = df.pop(name_y)
             return df, y
 
