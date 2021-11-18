@@ -6,16 +6,13 @@ from functools import partial
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 
-from hypernets.core import set_random_state, get_random_state
-from hypernets.core.callbacks import SummaryCallback
+from hypernets.core import set_random_state, randint
 from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
 from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, Constant, HyperNode
 from hypernets.model import Estimator, HyperModel
-from hypernets.searchers import make_searcher
 from hypernets.tabular import get_tool_box
 from hypernets.utils import fs, logging, const
 
@@ -40,7 +37,7 @@ class PlainSearchSpace(object):
             criterion=Choice(["gini", "entropy"]),
             splitter=Choice(["best", "random"]),
             max_depth=Choice([None, 3, 5, 10, 20, 50]),
-            random_state=get_random_state(),
+            random_state=randint(),
         )
 
     # NN
@@ -54,7 +51,7 @@ class PlainSearchSpace(object):
             solver=solver,
             learning_rate=Choice(['constant', 'invscaling', 'adaptive']),
             learning_rate_init_stub=Cascade(partial(self._cascade, self._nn_learning_rate_init, 'slvr'), slvr=solver),
-            random_state=get_random_state(),
+            random_state=randint(),
         )
 
     @staticmethod
@@ -81,7 +78,7 @@ class PlainSearchSpace(object):
             solver=solver,
             penalty_stub=penalty,
             l1_ratio_stub=l1_ratio,
-            random_state=get_random_state(),
+            random_state=randint(),
         )
 
     @staticmethod
@@ -158,8 +155,13 @@ class PlainEstimator(Estimator):
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
         if self.transformer is not None:
+            logger.info('fit_transform data')
             X = self.transformer.fit_transform(X, y)
 
+        logger.info('bring X,y to local')
+        X, y = get_tool_box(X, y).to_local(X, y)
+
+        logger.info('fit model')
         self.model.fit(X, y, **kwargs)
         self.classes_ = getattr(self.model, 'classes_', None)
         self.cv_models_ = []
@@ -174,28 +176,36 @@ class PlainEstimator(Estimator):
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
         if self.transformer is not None:
+            logger.info('fit_transform data')
             X = self.transformer.fit_transform(X, y)
 
+        logger.info('bring X,y to local')
+        tb_original = get_tool_box(X, y)
+        X, y = tb_original.to_local(X, y)
+
+        tb = get_tool_box(X, y)
         if stratified and self.task == const.TASK_BINARY:
-            iterators = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=random_state)
+            iterators = tb.statified_kfold(n_splits=num_folds, shuffle=True, random_state=random_state)
         else:
-            iterators = KFold(n_splits=num_folds, shuffle=True, random_state=random_state)
+            iterators = tb.kfold(n_splits=num_folds, shuffle=True, random_state=random_state)
 
         if isinstance(y, (pd.Series, pd.DataFrame)):
             y = y.values
 
-        tb = get_tool_box(X, y)
         oof_ = None
         oof_scores = []
         cv_models = []
+        logger.info('start training')
         for n_fold, (train_idx, valid_idx) in enumerate(iterators.split(X, y)):
             x_train_fold, y_train_fold = X.iloc[train_idx], y[train_idx]
             x_val_fold, y_val_fold = X.iloc[valid_idx], y[valid_idx]
 
+            logger.info(f'fit fold {n_fold}')
             fold_model = copy.deepcopy(self.model)
             fold_model.fit(x_train_fold, y_train_fold, **kwargs)
 
             # calc fold oof and score
+            logger.info(f'calc fold {n_fold} score')
             if self.task == const.TASK_REGRESSION:
                 proba = fold_model.predict(x_val_fold)
                 preds = proba
@@ -231,18 +241,25 @@ class PlainEstimator(Estimator):
         logger.info(f'fit_cross_validation score:{scores}, folds score:{oof_scores}')
 
         # return
+        oof_, = tb_original.from_local(oof_)
         return scores, oof_, oof_scores
 
     def predict(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
         if self.transformer is not None:
+            logger.info('transform local')
             X = self.transformer.transform(X)
+
+        logger.info('bring X,y to local')
+        tb_original = get_tool_box(X)
+        X, = tb_original.to_local(X)
 
         if self.cv_models_:
             if self.task == const.TASK_REGRESSION:
                 pred_sum = None
-                for est in self.cv_models_:
+                for n, est in enumerate(self.cv_models_):
+                    logger.info(f'predict estimator {n}')
                     pred = est.predict(X, **kwargs)
                     if pred_sum is None:
                         pred_sum = pred
@@ -250,24 +267,34 @@ class PlainEstimator(Estimator):
                         pred_sum += pred
                 preds = pred_sum / len(self.cv_models_)
             else:
-                proba = self.predict_proba(X, **kwargs)
+                logger.info('predict_proba')
+                proba = self.predict_proba(X, ingore_transformer=True, **kwargs)
+
+                logger.info('proba2predict')
                 preds = self.proba2predict(proba)
                 preds = np.array(self.classes_).take(preds, axis=0)
         else:
+            logger.info('predict')
             preds = self.model.predict(X, **kwargs)
 
+        preds, = tb_original.from_local(preds)
         return preds
 
-    def predict_proba(self, X, **kwargs):
+    def predict_proba(self, X, *, ingore_transformer=False, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore
 
-        if self.transformer is not None:
+        if not ingore_transformer and self.transformer is not None:
+            logger.info('transform data')
             X = self.transformer.transform(X)
+
+        tb_original = get_tool_box(X)
+        X, = tb_original.to_local(X)
 
         tb = get_tool_box(X)
         if self.cv_models_:
             proba_sum = None
-            for est in self.cv_models_:
+            for n, est in enumerate(self.cv_models_):
+                logger.info(f'predict_proba estimator {n}')
                 proba = est.predict_proba(X, **kwargs)
                 if self.task == const.TASK_BINARY:
                     proba = tb.fix_binary_predict_proba_result(proba)
@@ -277,10 +304,12 @@ class PlainEstimator(Estimator):
                     proba_sum += proba
             proba = proba_sum / len(self.cv_models_)
         else:
+            logger.info('predict_proba')
             proba = self.model.predict_proba(X, **kwargs)
             if self.task == const.TASK_BINARY:
                 proba = tb.fix_binary_predict_proba_result(proba)
 
+        proba, = tb_original.from_local(proba)
         return proba
 
     def evaluate(self, X, y, metrics=None, **kwargs):
@@ -300,6 +329,8 @@ class PlainEstimator(Estimator):
     def proba2predict(self, proba, proba_threshold=0.5):
         if self.task == const.TASK_REGRESSION:
             return proba
+
+        logger.info('proba2predict')
         if proba.shape[-1] > 2:
             predict = proba.argmax(axis=-1)
         elif proba.shape[-1] == 2:
@@ -319,6 +350,12 @@ class PlainEstimator(Estimator):
 
     def get_iteration_scores(self):
         return []
+
+    def __repr__(self):
+        if self.cv_models_:
+            return f'{self.__class__.__name__}:{self.cv_models_}'
+        else:
+            return f'{self.__class__.__name__}:{self.model}'
 
 
 class PlainModel(HyperModel):
@@ -341,6 +378,9 @@ class PlainModel(HyperModel):
 
 
 def train(X_train, y_train, X_eval, y_eval, task=None, reward_metric=None, optimize_direction='max', **kwargs):
+    from hypernets.core.callbacks import SummaryCallback
+    from hypernets.searchers import make_searcher
+
     if task is None:
         task, _ = get_tool_box(y_train).infer_task_type(y_train)
     if reward_metric is None:
@@ -364,9 +404,9 @@ def train_heart_disease(**kwargs):
     y = X.pop('target')
 
     X_train, X_test, y_train, y_test = \
-        train_test_split(X, y, test_size=0.3, random_state=get_random_state())
+        train_test_split(X, y, test_size=0.3, random_state=randint())
     X_train, X_eval, y_train, y_eval = \
-        train_test_split(X_train, y_train, test_size=0.3, random_state=get_random_state())
+        train_test_split(X_train, y_train, test_size=0.3, random_state=randint())
 
     kwargs = {'reward_metric': 'auc', 'max_trials': 10, **kwargs}
     hm, model = train(X_train, y_train, X_eval, y_eval, const.TASK_BINARY, **kwargs)
