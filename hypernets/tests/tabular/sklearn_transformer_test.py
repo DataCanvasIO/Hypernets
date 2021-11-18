@@ -15,13 +15,6 @@ from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
 from hypernets.utils import const
 
-try:
-    from tensorflow.python.keras.preprocessing.sequence import pad_sequences
-
-    tf_installed = True
-except:
-    tf_installed = False
-
 
 def get_df():
     X = pd.DataFrame(
@@ -234,41 +227,39 @@ class Test_Transformer():
         assert len(Xt.columns) == len(X.columns) + len(t.new_columns)
 
     def test_varlen_encoder_with_movie_lens(self):
-        if tf_installed:
-            df = self.movie_lens.copy()
-            df['genres_copy'] = df['genres']
+        df = self.movie_lens.copy()
+        df['genres_copy'] = df['genres']
 
-            multi_encoder = skex.MultiVarLenFeatureEncoder([('genres', '|'), ('genres_copy', '|'), ])
-            result_df = multi_encoder.fit_transform(df)
+        multi_encoder = skex.MultiVarLenFeatureEncoder([('genres', '|'), ('genres_copy', '|'), ])
+        result_df = multi_encoder.fit_transform(df)
 
-            assert multi_encoder.max_length_['genres'] > 0
-            assert multi_encoder.max_length_['genres_copy'] > 0
+        assert multi_encoder.max_length_['genres'] > 0
+        assert multi_encoder.max_length_['genres_copy'] > 0
 
-            shape = np.array(result_df['genres'].tolist()).shape
-            assert shape[1] == multi_encoder.max_length_['genres']
+        shape = np.array(result_df['genres'].tolist()).shape
+        assert shape[1] == multi_encoder.max_length_['genres']
 
     def test_varlen_encoder_with_customized_data(self):
-        if tf_installed:
-            from io import StringIO
-            data = '''
+        from io import StringIO
+        data = '''
             col_foo
             a|b|c|x
             a|b
             b|b|x
             '''.replace(' ', '')
 
-            result = pd.DataFrame({'col_foo': [
-                [1, 2, 3, 4],
-                [1, 2, 0, 0],
-                [2, 2, 4, 0]
-            ]})
-            df = pd.read_csv(StringIO(data))
+        result = pd.DataFrame({'col_foo': [
+            [1, 2, 3, 4],
+            [1, 2, 0, 0],
+            [2, 2, 4, 0]
+        ]})
+        df = pd.read_csv(StringIO(data))
 
-            multi_encoder = skex.MultiVarLenFeatureEncoder([('col_foo', '|')])
-            result_df = multi_encoder.fit_transform(df)
-            print(result_df)
+        multi_encoder = skex.MultiVarLenFeatureEncoder([('col_foo', '|')])
+        result_df = multi_encoder.fit_transform(df)
+        print(result_df)
 
-            assert all(result_df.values == result.values)
+        assert all(result_df.values == result.values)
 
     def test_tfidf_encoder(self):
         df = self.movie_lens.copy()

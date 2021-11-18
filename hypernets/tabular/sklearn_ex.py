@@ -680,15 +680,13 @@ class VarLenFeatureEncoder:
         if self.encoder is None:
             raise RuntimeError("Not fit yet .")
 
-        from tensorflow.python.keras.preprocessing.sequence import pad_sequences
-
         if not isinstance(X, pd.Series):
             X = pd.Series(X)
         # Notice : input value 0 is a special "padding",so we do not use 0 to encode valid feature for sequence input
         data = X.map(lambda _: (self.encoder.transform(_.split(self.sep)) + 1).tolist())
 
-        transformed = pad_sequences(data, maxlen=self._max_element_length, padding='post',
-                                    truncating='post').tolist()  # cut last elements
+        transformed = self.pad_sequences(data, maxlen=self._max_element_length, padding='post',
+                                         truncating='post').tolist()  # cut last elements
         return transformed
 
     @property
@@ -698,6 +696,67 @@ class VarLenFeatureEncoder:
     @property
     def max_element_length(self):
         return self._max_element_length
+
+    @staticmethod
+    def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.):
+        """Adapted from tensorflow.python.keras.preprocessing.sequence.pad_sequences
+        """
+        if not hasattr(sequences, '__len__'):
+            raise ValueError('`sequences` must be iterable.')
+        num_samples = len(sequences)
+
+        lengths = []
+        sample_shape = ()
+        flag = True
+
+        # take the sample shape from the first non empty sequence
+        # checking for consistency in the main loop below.
+
+        for x in sequences:
+            try:
+                lengths.append(len(x))
+                if flag and len(x):
+                    sample_shape = np.asarray(x).shape[1:]
+                    flag = False
+            except TypeError:
+                raise ValueError('`sequences` must be a list of iterables. '
+                                 'Found non-iterable: ' + str(x))
+
+        if maxlen is None:
+            maxlen = np.max(lengths)
+
+        is_dtype_str = np.issubdtype(dtype, np.str_) or np.issubdtype(dtype, np.unicode_)
+        if isinstance(value, (str, bytes)) and dtype != object and not is_dtype_str:
+            raise ValueError("`dtype` {} is not compatible with `value`'s type: {}\n"
+                             "You should set `dtype=object` for variable length strings."
+                             .format(dtype, type(value)))
+
+        x = np.full((num_samples, maxlen) + sample_shape, value, dtype=dtype)
+        for idx, s in enumerate(sequences):
+            if not len(s):
+                continue  # empty list/array was found
+            if truncating == 'pre':
+                trunc = s[-maxlen:]
+            elif truncating == 'post':
+                trunc = s[:maxlen]
+            else:
+                raise ValueError('Truncating type "%s" '
+                                 'not understood' % truncating)
+
+            # check `trunc` has expected shape
+            trunc = np.asarray(trunc, dtype=dtype)
+            if trunc.shape[1:] != sample_shape:
+                raise ValueError('Shape of sample %s of sequence at position %s '
+                                 'is different from expected shape %s' %
+                                 (trunc.shape[1:], idx, sample_shape))
+
+            if padding == 'post':
+                x[idx, :len(trunc)] = trunc
+            elif padding == 'pre':
+                x[idx, -len(trunc):] = trunc
+            else:
+                raise ValueError('Padding type "%s" not understood' % padding)
+        return x
 
 
 class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
