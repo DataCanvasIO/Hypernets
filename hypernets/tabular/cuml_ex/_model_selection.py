@@ -5,12 +5,23 @@
 import cudf
 import cupy
 import numpy as np
-from sklearn import model_selection as sk_sel
 from cuml import model_selection as cm_sel
+from sklearn import model_selection as sk_sel
+
+from hypernets.utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 def train_test_split(*data, shuffle=True, random_state=None, stratify=None, **kwargs):
-    return cm_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, stratify=stratify, **kwargs)
+    try:
+        return cm_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, stratify=stratify, **kwargs)
+    except Exception as e:
+        if stratify is not None and str(e).find('cudaErrorInvalidValue') >= 0:
+            logger.warning('train_test_split failed, retry without stratify')
+            return cm_sel.train_test_split(*data, shuffle=shuffle, random_state=random_state, **kwargs)
+        else:
+            raise e
 
 
 class FakeKFold(sk_sel.KFold):

@@ -160,6 +160,10 @@ class DaskToolBox(ToolBox):
     def to_local(*data):
         return dask.compute(*data)
 
+    @classmethod
+    def from_local(cls, *data):
+        return [cls.to_dask_type(t) for t in data]
+
     @staticmethod
     def unique(y):
         if isinstance(y, da.Array):

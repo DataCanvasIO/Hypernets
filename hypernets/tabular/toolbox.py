@@ -71,6 +71,10 @@ class ToolBox:
         return data
 
     @staticmethod
+    def from_local(*data):
+        return data
+
+    @staticmethod
     def unique(y):
         if hasattr(y, 'unique'):
             uniques = set(y.unique())

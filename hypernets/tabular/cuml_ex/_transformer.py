@@ -166,7 +166,7 @@ class SafeLabelEncoder(LabelEncoder):
 
     def transform(self, y: cudf.Series) -> cudf.Series:
         t = super().transform(y)
-        t.fillna(len(self.classes_))
+        t.fillna(len(self.classes_), inplace=True)
         return t
 
     def as_local(self):
