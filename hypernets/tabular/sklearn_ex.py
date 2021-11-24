@@ -19,6 +19,7 @@ from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular import column_selector
 from hypernets.utils import logging, const
+from . import tb_transformer, get_tool_box
 
 try:
     import jieba
@@ -61,6 +62,7 @@ def subsample(X, y, max_samples, train_samples, task, random_state=9527):
     return X_train, X_test, y_train, y_test
 
 
+@tb_transformer(pd.DataFrame)
 class PassThroughEstimator(BaseEstimator):
 
     def fit(self, X, y=None):
@@ -73,6 +75,7 @@ class PassThroughEstimator(BaseEstimator):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class AsTypeTransformer(BaseEstimator):
     def __init__(self, *, dtype):
         assert dtype is not None
@@ -99,6 +102,7 @@ class AsTypeTransformer(BaseEstimator):
 #         y = np.array([np.searchsorted(self.classes_, x) if x in self.classes_ else unseen for x in y])
 #         return y
 
+@tb_transformer(pd.DataFrame)
 class SafeLabelEncoder(LabelEncoder):
     def transform(self, y):
         check_is_fitted(self, 'classes_')
@@ -115,6 +119,7 @@ class SafeLabelEncoder(LabelEncoder):
         return out
 
 
+@tb_transformer(pd.DataFrame)
 class MultiLabelEncoder(BaseEstimator):
     def __init__(self, columns=None, dtype=None):
         super(MultiLabelEncoder, self).__init__()
@@ -204,6 +209,7 @@ class MultiLabelEncoder(BaseEstimator):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class SafeOrdinalEncoder(OrdinalEncoder):
     __doc__ = r'Adapted from sklearn OrdinalEncoder\n' + OrdinalEncoder.__doc__
 
@@ -263,6 +269,7 @@ class SafeOrdinalEncoder(OrdinalEncoder):
         return result
 
 
+@tb_transformer(pd.DataFrame)
 class SafeOneHotEncoder(OneHotEncoder):
     def get_feature_names(self, input_features=None):
         """
@@ -290,6 +297,7 @@ class SafeOneHotEncoder(OneHotEncoder):
         return np.array(feature_names, dtype=object)
 
 
+@tb_transformer(pd.DataFrame)
 class LogStandardScaler(BaseEstimator):
     def __init__(self, copy=True, with_mean=True, with_std=True):
         super(LogStandardScaler, self).__init__()
@@ -311,6 +319,7 @@ class LogStandardScaler(BaseEstimator):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class SkewnessKurtosisTransformer(BaseEstimator):
     def __init__(self, transform_fn=None, skew_threshold=0.5, kurtosis_threshold=0.5):
         self.columns_ = []
@@ -337,6 +346,7 @@ class SkewnessKurtosisTransformer(BaseEstimator):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class FeatureSelectionTransformer(BaseEstimator):
     def __init__(self, task=None, max_train_samples=10000, max_test_samples=10000, max_cols=10000,
                  ratio_select_cols=0.1,
@@ -371,7 +381,6 @@ class FeatureSelectionTransformer(BaseEstimator):
 
     def feature_score(self, F_train, y_train, F_test, y_test):
         if self.task is None:
-            from . import get_tool_box
             self.task, _ = get_tool_box(y_train).infer_task_type(y_train)
 
         if self.task == 'regression':
@@ -401,7 +410,6 @@ class FeatureSelectionTransformer(BaseEstimator):
     def fit(self, X, y):
         start_time = time.time()
         if self.task is None:
-            from . import get_tool_box
             self.task, _ = get_tool_box(y).infer_task_type(y)
         columns = X.columns.to_list()
         logger.info(f'all columns: {columns}')
@@ -473,12 +481,14 @@ class FeatureSelectionTransformer(BaseEstimator):
         return X[self.columns_]
 
 
+@tb_transformer(pd.DataFrame)
 class FloatOutputImputer(SimpleImputer):
 
     def transform(self, X):
         return super().transform(X).astype(np.float64)
 
 
+@tb_transformer(pd.DataFrame)
 class LgbmLeavesEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, cat_vars, cont_vars, task, **params):
         super(LgbmLeavesEncoder, self).__init__()
@@ -532,6 +542,7 @@ class LgbmLeavesEncoder(BaseEstimator, TransformerMixin):
         return result
 
 
+@tb_transformer(pd.DataFrame)
 class CategorizeEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, columns=None, remain_numeric=True):
         super(CategorizeEncoder, self).__init__()
@@ -566,6 +577,7 @@ class CategorizeEncoder(BaseEstimator, TransformerMixin):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class MultiKBinsDiscretizer(BaseEstimator, TransformerMixin):
     def __init__(self, columns=None, bins=None, strategy='quantile'):
         super(MultiKBinsDiscretizer, self).__init__()
@@ -603,6 +615,7 @@ class MultiKBinsDiscretizer(BaseEstimator, TransformerMixin):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class DataFrameWrapper(BaseEstimator, TransformerMixin):
     def __init__(self, transform, columns=None):
         super(DataFrameWrapper, self).__init__()
@@ -622,6 +635,7 @@ class DataFrameWrapper(BaseEstimator, TransformerMixin):
         return df
 
 
+@tb_transformer(pd.DataFrame)
 class GaussRankScaler(BaseEstimator):
     def __init__(self):
         super(GaussRankScaler, self).__init__()
@@ -650,6 +664,7 @@ class GaussRankScaler(BaseEstimator):
         return transformed
 
 
+@tb_transformer(pd.DataFrame)
 class VarLenFeatureEncoder:
     def __init__(self, sep='|'):
         super(VarLenFeatureEncoder, self).__init__()
@@ -759,6 +774,7 @@ class VarLenFeatureEncoder:
         return x
 
 
+@tb_transformer(pd.DataFrame)
 class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, features):
         super(MultiVarLenFeatureEncoder, self).__init__()
@@ -788,6 +804,7 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
         return X
 
 
+@tb_transformer(pd.DataFrame)
 class LocalizedTfidfVectorizer(TfidfVectorizer):
     def decode(self, doc):
         doc = super().decode(doc)
@@ -807,6 +824,7 @@ class LocalizedTfidfVectorizer(TfidfVectorizer):
         return False
 
 
+@tb_transformer(pd.DataFrame)
 class TfidfEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, columns=None, flatten=False, **kwargs):
         assert columns is None or isinstance(columns, (str, list, tuple))
@@ -886,6 +904,7 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
         return x
 
 
+@tb_transformer(pd.DataFrame)
 class DatetimeEncoder(BaseEstimator, TransformerMixin):
     all_items = ['year', 'month', 'day', 'hour', 'minute', 'second',
                  'week', 'weekday', 'dayofyear',

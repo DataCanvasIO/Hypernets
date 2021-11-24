@@ -5,7 +5,7 @@
 import cupy as cp
 import numpy as np
 from cuml import metrics as cu_metrics
-
+from cuml.common.array import CumlArray
 from hypernets.utils import const, logging
 from ..metrics import Metrics
 
@@ -17,6 +17,19 @@ _CUML_METRICS = {'accuracy', 'logloss', 'log_loss',
                  'r2'}
 
 
+def _to_dtype(y, dtype):
+    if y is not None:
+        if hasattr(y, 'dtype') and not y.dtype == dtype:
+            if isinstance(y, CumlArray):
+                y = cp.asarray(y, dtype=dtype)
+            else:
+                y = y.astype(dtype)
+        elif hasattr(y, 'dtypes') and not all(y.dtypes == dtype):
+            y = y.astype(dtype)
+
+    return y
+
+
 def _calc_score_cuml(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=const.TASK_BINARY, pos_label=1,
                      classes=None, average=None):
     if y_proba is None:
@@ -26,12 +39,9 @@ def _calc_score_cuml(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=
     if len(y_preds.shape) == 2 and y_preds.shape[-1] == 1:
         y_preds = y_preds.reshape(-1)
 
-    if y_true.dtype == 'float32':
-        y_true = y_true.astype('float64')
-    if y_preds is not None and y_preds.dtype == 'float32':
-        y_preds = y_preds.astype('float64')
-    if y_proba is not None and y_proba.dtype == 'float32':
-        y_proba = y_proba.astype('float64')
+    y_true = _to_dtype(y_true, 'float64')
+    y_preds = _to_dtype(y_preds, 'float64')
+    y_proba = _to_dtype(y_proba, 'float64')
 
     scores = {}
     for metric in metrics:

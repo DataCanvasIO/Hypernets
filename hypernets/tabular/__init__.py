@@ -2,20 +2,10 @@
 """
 
 """
-
+from ._base import get_tool_box, register_toolbox, register_transformer, tb_transformer
 from .toolbox import ToolBox
 
-TOOL_BOXES = [ToolBox]
-
-
-def get_tool_box(*data):
-    for tb in TOOL_BOXES:
-        if tb.accept(*data):
-            return tb
-
-    raise ValueError(f'No toolbox found for your data with types: {[type(x) for x in data]}. '
-                     f'Registered tabular toolboxes are {[t.__name__ for t in TOOL_BOXES]}.')
-
+register_toolbox(ToolBox)
 
 try:
     import dask.dataframe as dd
@@ -23,7 +13,7 @@ try:
     import dask_ml
     from .dask_ex import DaskToolBox
 
-    TOOL_BOXES.insert(0, DaskToolBox)
+    register_toolbox(DaskToolBox, 0)
     is_dask_installed = True
 except ImportError:
     # import traceback
@@ -36,11 +26,10 @@ try:
     import cuml
     from .cuml_ex import CumlToolBox
 
-    TOOL_BOXES.insert(0, CumlToolBox)
+    register_toolbox(CumlToolBox, 0)
     is_cuml_installed = True
 except ImportError:
     # import traceback
+    #
     # traceback.print_exc()
     is_cuml_installed = False
-
-# print(f'Registered tabular toolboxes are {[t.__name__ for t in TOOL_BOXES]}.')

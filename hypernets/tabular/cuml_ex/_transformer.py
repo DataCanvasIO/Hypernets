@@ -11,17 +11,16 @@ from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, Label
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
 from hypernets.tabular import sklearn_ex as sk_ex
-from hypernets.tabular.sklearn_ex import AsTypeTransformer, PassThroughEstimator
 from cuml.decomposition import TruncatedSVD
+from .. import tb_transformer
 
 
 class Localizable:
     def as_local(self):
         """
-        convert the fitted transformer to accept pandas/numpy data,
-        and remove cuml dependencies
+        convert the fitted transformer to accept pandas/numpy data, and remove cuml dependencies.
         """
-        return self
+        return self  # default: do nothing
 
 
 def copy_attrs(tf, target, *props):
@@ -33,6 +32,7 @@ def copy_attrs(tf, target, *props):
     return target
 
 
+@tb_transformer(cudf.DataFrame, name='Pipeline')
 class LocalizablePipeline(Pipeline, Localizable):
     def as_local(self):
         from sklearn.pipeline import Pipeline as SkPipeline
@@ -41,6 +41,7 @@ class LocalizablePipeline(Pipeline, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='StandardScaler')
 class LocalizableStandardScaler(StandardScaler, Localizable):
     def as_local(self):
         target = sk_pre.StandardScaler(copy=self.copy, with_mean=self.with_mean, with_std=self.with_std)
@@ -48,6 +49,7 @@ class LocalizableStandardScaler(StandardScaler, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='MinMaxScaler')
 class LocalizableMinMaxScaler(MinMaxScaler, Localizable):
     def as_local(self):
         target = sk_pre.MinMaxScaler(self.feature_range, copy=self.copy)
@@ -55,6 +57,7 @@ class LocalizableMinMaxScaler(MinMaxScaler, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='MaxAbsScaler')
 class LocalizableMaxAbsScaler(MaxAbsScaler, Localizable):
     def as_local(self):
         target = sk_pre.MaxAbsScaler(copy=self.copy)
@@ -62,6 +65,7 @@ class LocalizableMaxAbsScaler(MaxAbsScaler, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='RobustScaler')
 class LocalizableRobustScaler(RobustScaler, Localizable):
     def as_local(self):
         target = sk_pre.RobustScaler(with_centering=self.with_centering, with_scaling=self.with_scaling,
@@ -70,6 +74,7 @@ class LocalizableRobustScaler(RobustScaler, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='TruncatedSVD')
 class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
     def as_local(self):
         target = sk_dec.TruncatedSVD(self.n_components, algorithm=self.algorithm, n_iter=self.n_iter,
@@ -78,6 +83,7 @@ class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='SimpleImputer')
 class LocalizableSimpleImputer(SimpleImputer, Localizable):
     def as_local(self):
         target = sk_imp.SimpleImputer(missing_values=self.missing_values, strategy=self.strategy,
@@ -120,6 +126,7 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
                 )
 
 
+@tb_transformer(cudf.DataFrame)
 class ConstantImputer(BaseEstimator, TransformerMixin, Localizable):
     def __init__(self, missing_values=np.nan, fill_value=None, copy=True) -> None:
         super().__init__()
@@ -139,6 +146,7 @@ class ConstantImputer(BaseEstimator, TransformerMixin, Localizable):
         return X
 
 
+@tb_transformer(cudf.DataFrame, name='OneHotEncoder')
 class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
     def as_local(self):
         from .. import CumlToolBox
@@ -149,6 +157,7 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame, name='LabelEncoder')
 class LocalizableLabelEncoder(LabelEncoder, Localizable):
     def as_local(self):
         target = sk_pre.LabelEncoder()
@@ -156,6 +165,7 @@ class LocalizableLabelEncoder(LabelEncoder, Localizable):
         return target
 
 
+@tb_transformer(cudf.DataFrame)
 class SafeLabelEncoder(LabelEncoder):
     def __init__(self, *, verbose=False, output_type=None):
         super().__init__(handle_unknown='ignore', verbose=verbose, output_type=output_type)
@@ -175,6 +185,7 @@ class SafeLabelEncoder(LabelEncoder):
         return target
 
 
+@tb_transformer(cudf.DataFrame)
 class MultiLabelEncoder(BaseEstimator, Localizable):
     def __init__(self, columns=None, dtype=None):
         super().__init__()

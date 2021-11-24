@@ -12,6 +12,7 @@ from sklearn import preprocessing as sk_pre
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from hypernets.tabular import sklearn_ex as skex
+from hypernets.tabular import tb_transformer
 from hypernets.utils import logging, const
 
 logger = logging.get_logger(__name__)
@@ -80,7 +81,7 @@ logger = logging.get_logger(__name__)
 #     # def fit_transform(self, X, y=None):
 #     #     return self.fit(X, y).transform(X)
 
-
+@tb_transformer(dd.DataFrame)
 class SafeOneHotEncoder(dm_pre.OneHotEncoder):
     def fit(self, X, y=None):
         if isinstance(X, (dd.DataFrame, pd.DataFrame)) and self.categories == "auto" \
@@ -132,6 +133,7 @@ class SafeOneHotEncoder(dm_pre.OneHotEncoder):
         return np.array(feature_names, dtype=object)
 
 
+@tb_transformer(dd.DataFrame)
 class TruncatedSVD(dm_dec.TruncatedSVD):
     def fit_transform(self, X, y=None):
         X_orignal = X
@@ -161,6 +163,7 @@ class TruncatedSVD(dm_dec.TruncatedSVD):
         return super(TruncatedSVD, self).inverse_transform(X)
 
 
+@tb_transformer(dd.DataFrame)
 class MaxAbsScaler(sk_pre.MaxAbsScaler):
     __doc__ = sk_pre.MaxAbsScaler.__doc__
 
@@ -269,6 +272,7 @@ def _safe_ordinal_decoder(categories, dtypes, pdf):
     return pdf
 
 
+@tb_transformer(dd.DataFrame)
 class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
     __doc__ = r'Adapted from dask_ml OrdinalEncoder\n' + dm_pre.OrdinalEncoder.__doc__
 
@@ -349,10 +353,6 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
         return partial(_safe_ordinal_decoder, categories, dtypes)
 
 
-# alias
-MultiLabelEncoder = SafeOrdinalEncoder
-
-
 class DataInterceptEncoder(BaseEstimator, TransformerMixin):
 
     def __init__(self, fit=False, fit_transform=False, transform=False, inverse_transform=False):
@@ -403,6 +403,7 @@ class CallableAdapterEncoder(DataInterceptEncoder):
         return self.fn(X, *args, **kwargs)
 
 
+@tb_transformer(dd.DataFrame)
 class DataCacher(DataInterceptEncoder):
     """
     persist and cache dask dataframe and array
@@ -444,6 +445,7 @@ class DataCacher(DataInterceptEncoder):
         return list(self._cache_dict.keys())
 
 
+@tb_transformer(dd.DataFrame)
 class CacheCleaner(DataInterceptEncoder):
 
     def __init__(self, cache_dict, **kwargs):
@@ -471,6 +473,7 @@ class CacheCleaner(DataInterceptEncoder):
     #     return [p for p in params if p != 'cache_dict']
 
 
+@tb_transformer(dd.DataFrame)
 class DataFrameWrapper(skex.DataFrameWrapper):
 
     def transform(self, X):
@@ -568,6 +571,7 @@ class AdaptedTransformer(BaseEstimator):
         return super().__dir__()
 
 
+@tb_transformer(dd.DataFrame)
 class LgbmLeavesEncoder(AdaptedTransformer, TransformerMixin):
 
     def __init__(self, cat_vars, cont_vars, task, **params):
@@ -576,6 +580,7 @@ class LgbmLeavesEncoder(AdaptedTransformer, TransformerMixin):
                                                 cat_vars, cont_vars, task, **params)
 
 
+@tb_transformer(dd.DataFrame)
 class CategorizeEncoder(skex.CategorizeEncoder):
 
     def fit(self, X, y=None):
@@ -592,6 +597,7 @@ class CategorizeEncoder(skex.CategorizeEncoder):
         return self
 
 
+@tb_transformer(dd.DataFrame)
 class MultiKBinsDiscretizer(BaseEstimator, TransformerMixin):
     def __init__(self, columns=None, bins=None, strategy='quantile', dtype='float64'):
         assert strategy in {'uniform', 'quantile'}
@@ -702,6 +708,7 @@ class MultiKBinsDiscretizer(BaseEstimator, TransformerMixin):
         return X
 
 
+@tb_transformer(dd.DataFrame)
 class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
     """
     Example:
@@ -837,6 +844,7 @@ class MultiVarLenFeatureEncoder(BaseEstimator, TransformerMixin):
         return result
 
 
+@tb_transformer(dd.DataFrame)
 class LocalizedTfidfVectorizer(BaseEstimator, TransformerMixin):
     def __init__(self, max_features=None, max_df=1.0, min_df=1):
         super(LocalizedTfidfVectorizer, self).__init__()

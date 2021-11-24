@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
 
+from hypernets.core import randint
 from hypernets.utils import logging, const
 from . import collinearity as collinearity_
 from . import column_selector as column_selector_
@@ -21,7 +22,8 @@ from . import ensemble as ensemble_
 from . import feature_generators as feature_generators_
 from . import metrics as metrics_
 from . import pseudo_labeling as pseudo_labeling_
-from . import sklearn_ex as sk_ex
+from . import sklearn_ex as sk_ex  # register customized transformer
+from ._base import ToolboxMeta, register_transformer
 from .cfg import TabularCfg as c
 
 try:
@@ -33,8 +35,10 @@ except ImportError:
 
 logger = logging.get_logger(__name__)
 
+type(sk_ex)  # disable: optimize import
 
-class ToolBox:
+
+class ToolBox(metaclass=ToolboxMeta):
     STRATEGY_THRESHOLD = 'threshold'
     STRATEGY_QUANTILE = 'quantile'
     STRATEGY_NUMBER = 'number'
@@ -54,10 +58,6 @@ class ToolBox:
             return False
 
         return all(map(is_acceptable, args))
-
-    @staticmethod
-    def qname(cls):
-        return f'{cls.__module__}.{cls.__name__}'
 
     @staticmethod
     def get_shape(X, allow_none=False):
@@ -269,17 +269,18 @@ class ToolBox:
                            colsample_bytree=0.8,
                            reg_alpha=1,
                            reg_lambda=1,
-                           importance_type='gain', )
+                           importance_type='gain',
+                           random_state=randint())
 
         def default_dt(task_):
             from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
             est_cls = DecisionTreeRegressor if task_ == const.TASK_REGRESSION else DecisionTreeClassifier
-            return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01)
+            return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=randint())
 
         def default_rf(task_):
             from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
             est_cls = RandomForestRegressor if task_ == const.TASK_REGRESSION else RandomForestClassifier
-            return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01)
+            return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=randint())
 
         if estimator is None:
             estimator = 'gbm' if lightgbm_installed else 'rf'
@@ -525,47 +526,52 @@ class ToolBox:
         return cls._greedy_ensemble_cls(task, estimators, need_fit=need_fit, n_folds=n_folds, method=method,
                                         random_state=random_state, scoring=scoring, ensemble_size=ensemble_size)
 
-    transformers = dict(
-        Pipeline=pipeline.Pipeline,
-        SimpleImputer=sk_imp.SimpleImputer,
-        StandardScaler=sk_pre.StandardScaler,
-        MinMaxScaler=sk_pre.MinMaxScaler,
-        MaxAbsScaler=sk_pre.MaxAbsScaler,
-        RobustScaler=sk_pre.RobustScaler,
-        Normalizer=sk_pre.Normalizer,
-        KBinsDiscretizer=sk_pre.KBinsDiscretizer,
-        LabelEncoder=sk_pre.LabelEncoder,
-        OrdinalEncoder=sk_pre.OrdinalEncoder,
-        OneHotEncoder=sk_pre.OneHotEncoder,
-        PolynomialFeatures=sk_pre.PolynomialFeatures,
-        QuantileTransformer=sk_pre.QuantileTransformer,
-        PowerTransformer=sk_pre.PowerTransformer,
-        PCA=sk_dec.PCA,
-        TruncatedSVD=sk_dec.TruncatedSVD,
-        DataFrameMapper=dataframe_mapper_.DataFrameMapper,
-        PassThroughEstimator=sk_ex.PassThroughEstimator,
-        MultiLabelEncoder=sk_ex.MultiLabelEncoder,
-        SafeOrdinalEncoder=sk_ex.SafeOrdinalEncoder,
-        SafeOneHotEncoder=sk_ex.SafeOneHotEncoder,
-        AsTypeTransformer=sk_ex.AsTypeTransformer,
-        SafeLabelEncoder=sk_ex.SafeLabelEncoder,
-        LogStandardScaler=sk_ex.LogStandardScaler,
-        SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
-        FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
-        FloatOutputImputer=sk_ex.FloatOutputImputer,
-        LgbmLeavesEncoder=sk_ex.LgbmLeavesEncoder,
-        CategorizeEncoder=sk_ex.CategorizeEncoder,
-        MultiKBinsDiscretizer=sk_ex.MultiKBinsDiscretizer,
-        DataFrameWrapper=sk_ex.DataFrameWrapper,
-        GaussRankScaler=sk_ex.GaussRankScaler,
-        VarLenFeatureEncoder=sk_ex.VarLenFeatureEncoder,
-        MultiVarLenFeatureEncoder=sk_ex.MultiVarLenFeatureEncoder,
-        LocalizedTfidfVectorizer=sk_ex.LocalizedTfidfVectorizer,
-        TfidfEncoder=sk_ex.TfidfEncoder,
-        DatetimeEncoder=sk_ex.DatetimeEncoder,
-        FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
-    )
 
+_predefined_transformers = dict(
+    Pipeline=pipeline.Pipeline,
+    SimpleImputer=sk_imp.SimpleImputer,
+    StandardScaler=sk_pre.StandardScaler,
+    MinMaxScaler=sk_pre.MinMaxScaler,
+    MaxAbsScaler=sk_pre.MaxAbsScaler,
+    RobustScaler=sk_pre.RobustScaler,
+    Normalizer=sk_pre.Normalizer,
+    KBinsDiscretizer=sk_pre.KBinsDiscretizer,
+    LabelEncoder=sk_pre.LabelEncoder,
+    OrdinalEncoder=sk_pre.OrdinalEncoder,
+    OneHotEncoder=sk_pre.OneHotEncoder,
+    PolynomialFeatures=sk_pre.PolynomialFeatures,
+    QuantileTransformer=sk_pre.QuantileTransformer,
+    PowerTransformer=sk_pre.PowerTransformer,
+    PCA=sk_dec.PCA,
+    TruncatedSVD=sk_dec.TruncatedSVD,
+    DataFrameMapper=dataframe_mapper_.DataFrameMapper,
+
+    # PassThroughEstimator=sk_ex.PassThroughEstimator,
+    # MultiLabelEncoder=sk_ex.MultiLabelEncoder,
+    # SafeOrdinalEncoder=sk_ex.SafeOrdinalEncoder,
+    # SafeOneHotEncoder=sk_ex.SafeOneHotEncoder,
+    # AsTypeTransformer=sk_ex.AsTypeTransformer,
+    # SafeLabelEncoder=sk_ex.SafeLabelEncoder,
+    # LogStandardScaler=sk_ex.LogStandardScaler,
+    # SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
+    # FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
+    # FloatOutputImputer=sk_ex.FloatOutputImputer,
+    # LgbmLeavesEncoder=sk_ex.LgbmLeavesEncoder,
+    # CategorizeEncoder=sk_ex.CategorizeEncoder,
+    # MultiKBinsDiscretizer=sk_ex.MultiKBinsDiscretizer,
+    # DataFrameWrapper=sk_ex.DataFrameWrapper,
+    # GaussRankScaler=sk_ex.GaussRankScaler,
+    # VarLenFeatureEncoder=sk_ex.VarLenFeatureEncoder,
+    # MultiVarLenFeatureEncoder=sk_ex.MultiVarLenFeatureEncoder,
+    # LocalizedTfidfVectorizer=sk_ex.LocalizedTfidfVectorizer,
+    # TfidfEncoder=sk_ex.TfidfEncoder,
+    # DatetimeEncoder=sk_ex.DatetimeEncoder,
+
+    FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
+)
+
+for name, tf in _predefined_transformers.items():
+    register_transformer(tf, name=name, dtypes=pd.DataFrame)
 
 __all__ = [
     ToolBox.__name__,

@@ -1,4 +1,11 @@
-from hypernets.conf import configure, Configurable, Int, String, Bool, Float, Enum
+import sys as sys_
+
+from hypernets.conf import configure, Configurable, Int, String, Bool, Float, Enum, Dict
+
+if sys_.platform.find('win') == 0:
+    _joblib_default_options = dict(backend='multiprocessing')
+else:
+    _joblib_default_options = dict(prefer='processes')
 
 
 @configure()
@@ -7,6 +14,13 @@ class TabularCfg(Configurable):
         Int(-1, allow_none=True,
             help='"n_jobs" setting for joblib task.'
             ).tag(config=True)
+
+    joblib_options = \
+        Dict(default_value=_joblib_default_options,
+             allow_none=False,
+             key_trait=String(),
+             help='parallel settings except "n_jobs" setting for joblib task.'
+             ).tag(config=True)
 
     multi_collinearity_sample_limit = \
         Int(10000, min=100,

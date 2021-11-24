@@ -16,12 +16,12 @@ from sklearn import model_selection as sk_sel, utils as sk_utils
 from sklearn import pipeline
 from sklearn.utils.multiclass import type_of_target
 
-from hypernets.tabular.toolbox import ToolBox
+from hypernets.tabular import ToolBox, register_transformer
 from hypernets.utils import logging, const, is_os_windows
 from . import _dataframe_mapper as dataframe_mapper_
-from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection, _ensemble
 from . import _transformers as tfs
 from . import _feature_generators as feature_generators_
+from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection, _ensemble
 from .. import sklearn_ex as sk_ex
 
 try:
@@ -689,43 +689,50 @@ class DaskToolBox(ToolBox):
     _greedy_ensemble_cls = _ensemble.DaskGreedyEnsemble
     metrics = _metrics.DaskMetrics
 
-    transformers = dict(
-        Pipeline=pipeline.Pipeline,
-        SimpleImputer=dm_imp.SimpleImputer,
-        StandardScaler=dm_pre.StandardScaler,
-        MinMaxScaler=dm_pre.MinMaxScaler,
-        MaxAbsScaler=tfs.MaxAbsScaler,
-        RobustScaler=dm_pre.RobustScaler,
-        # Normalizer=sk_pre.Normalizer,
-        # KBinsDiscretizer=sk_pre.KBinsDiscretizer,
-        LabelEncoder=dm_pre.LabelEncoder,
-        OrdinalEncoder=dm_pre.OrdinalEncoder,
-        OneHotEncoder=dm_pre.OneHotEncoder,
-        PolynomialFeatures=dm_pre.PolynomialFeatures,
-        QuantileTransformer=dm_pre.QuantileTransformer,
-        # PowerTransformer=sk_pre.PowerTransformer,
-        PCA=dm_dec.PCA,
-        TruncatedSVD=tfs.TruncatedSVD,
-        DataFrameMapper=dataframe_mapper_.DaskDataFrameMapper,
-        PassThroughEstimator=sk_ex.PassThroughEstimator,
-        MultiLabelEncoder=tfs.MultiLabelEncoder,
-        SafeOrdinalEncoder=tfs.SafeOrdinalEncoder,
-        SafeOneHotEncoder=tfs.SafeOneHotEncoder,
-        AsTypeTransformer=sk_ex.AsTypeTransformer,
-        # SafeLabelEncoder=sk_ex.SafeLabelEncoder,
-        # LogStandardScaler=sk_ex.LogStandardScaler,
-        # SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
-        # FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
-        # FloatOutputImputer=tfs.FloatOutputImputer,
-        LgbmLeavesEncoder=tfs.LgbmLeavesEncoder,
-        CategorizeEncoder=tfs.CategorizeEncoder,
-        MultiKBinsDiscretizer=tfs.MultiKBinsDiscretizer,
-        DataFrameWrapper=dataframe_mapper_.DaskDataFrameMapper,
-        # GaussRankScaler=sk_ex.GaussRankScaler,
-        # VarLenFeatureEncoder=tfs.VarLenFeatureEncoder,
-        MultiVarLenFeatureEncoder=tfs.MultiVarLenFeatureEncoder,
-        LocalizedTfidfVectorizer=tfs.LocalizedTfidfVectorizer,
-        TfidfEncoder=sk_ex.TfidfEncoder,
-        DatetimeEncoder=sk_ex.DatetimeEncoder,
-        FeatureGenerationTransformer=feature_generators_.DaskFeatureGenerationTransformer,
-    )
+
+_predefined_transformers = dict(
+    Pipeline=pipeline.Pipeline,
+    SimpleImputer=dm_imp.SimpleImputer,
+    StandardScaler=dm_pre.StandardScaler,
+    MinMaxScaler=dm_pre.MinMaxScaler,
+    RobustScaler=dm_pre.RobustScaler,
+    # Normalizer=sk_pre.Normalizer,
+    # KBinsDiscretizer=sk_pre.KBinsDiscretizer,
+    LabelEncoder=dm_pre.LabelEncoder,
+    OrdinalEncoder=dm_pre.OrdinalEncoder,
+    OneHotEncoder=dm_pre.OneHotEncoder,
+    PolynomialFeatures=dm_pre.PolynomialFeatures,
+    QuantileTransformer=dm_pre.QuantileTransformer,
+    # PowerTransformer=sk_pre.PowerTransformer,
+    PCA=dm_dec.PCA,
+    DataFrameMapper=dataframe_mapper_.DaskDataFrameMapper,
+    PassThroughEstimator=sk_ex.PassThroughEstimator,
+
+    AsTypeTransformer=sk_ex.AsTypeTransformer,
+    # SafeLabelEncoder=sk_ex.SafeLabelEncoder,
+    # LogStandardScaler=sk_ex.LogStandardScaler,
+    # SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
+    # FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
+    # FloatOutputImputer=tfs.FloatOutputImputer,
+    DataFrameWrapper=dataframe_mapper_.DaskDataFrameMapper,
+    # GaussRankScaler=sk_ex.GaussRankScaler,
+    # VarLenFeatureEncoder=tfs.VarLenFeatureEncoder,
+
+    # MaxAbsScaler=tfs.MaxAbsScaler,
+    # TruncatedSVD=tfs.TruncatedSVD,
+    MultiLabelEncoder=tfs.SafeOrdinalEncoder,  # alias
+    # SafeOrdinalEncoder=tfs.SafeOrdinalEncoder,
+    # SafeOneHotEncoder=tfs.SafeOneHotEncoder,
+    # LgbmLeavesEncoder=tfs.LgbmLeavesEncoder,
+    # CategorizeEncoder=tfs.CategorizeEncoder,
+    # MultiKBinsDiscretizer=tfs.MultiKBinsDiscretizer,
+    # MultiVarLenFeatureEncoder=tfs.MultiVarLenFeatureEncoder,
+    # LocalizedTfidfVectorizer=tfs.LocalizedTfidfVectorizer,
+
+    # TfidfEncoder=sk_ex.TfidfEncoder,
+    # DatetimeEncoder=sk_ex.DatetimeEncoder,
+    FeatureGenerationTransformer=feature_generators_.DaskFeatureGenerationTransformer,
+)
+
+for name, tf in _predefined_transformers.items():
+    register_transformer(tf, name=name, dtypes=dd.DataFrame)

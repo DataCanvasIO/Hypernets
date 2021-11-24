@@ -9,9 +9,19 @@ import cupy
 import numpy as np
 import pandas as pd
 from cuml.common.array import CumlArray
+from hypernets.utils import const
+from .. import sklearn_ex as sk_ex
+from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble
+from ..toolbox import ToolBox, register_transformer, randint
 
-from . import _dataframe_mapper, _transformer as tfs, _metrics, _data_hasher, _model_selection, _ensemble
-from ..toolbox import ToolBox
+try:
+    import xgboost
+
+    is_xgboost_installed = True
+except ImportError:
+    is_xgboost_installed = False
+
+type(_transformer)  # disable: optimize import
 
 
 class CumlToolBox(ToolBox):
@@ -327,11 +337,46 @@ class CumlToolBox(ToolBox):
         else:
             return ToolBox.general_preprocessor(X, y)
 
+    # @classmethod
+    # def general_estimator(cls, X, y=None, estimator=None, task=None):
+    #     est = ToolBox.general_estimator(X, y, estimator=estimator, task=task)
+    #
+    #     return cls.wrap_local_estimator(est)
+
     @classmethod
     def general_estimator(cls, X, y=None, estimator=None, task=None):
-        est = ToolBox.general_estimator(X, y, estimator=estimator, task=task)
+        def default_xgb(task_):
+            est_cls = xgboost.XGBRegressor if task_ == const.TASK_REGRESSION else xgboost.XGBClassifier
+            return est_cls(n_estimators=100,
+                           num_leaves=15,
+                           max_depth=5,
+                           min_child_weight=5,
+                           learning_rate=0.01,
+                           gamma=1,
+                           reg_alpha=1,
+                           reg_lambda=1,
+                           random_state=randint())
 
-        return cls.wrap_local_estimator(est)
+        def default_rf(task_):
+            from cuml.ensemble import RandomForestClassifier, RandomForestRegressor
+            est_cls = RandomForestRegressor if task_ == const.TASK_REGRESSION else RandomForestClassifier
+            return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=randint())
+
+        if estimator is None:
+            estimator = 'xgb' if is_xgboost_installed else 'rf'
+        if task is None:
+            assert y is not None, '"y" or "task" is required.'
+            task = cls.infer_task_type(y)
+
+        if estimator == 'xgb':
+            estimator_ = default_xgb(task)
+        elif estimator == 'rf':
+            estimator_ = default_rf(task)
+        else:
+            estimator_ = ToolBox.general_estimator(X, y=y, estimator=estimator, task=task)
+            estimator_ = cls.wrap_local_estimator(estimator_)
+
+        return estimator_
 
     train_test_split = _model_selection.train_test_split
     metrics = _metrics.CumlMetrics
@@ -342,45 +387,49 @@ class CumlToolBox(ToolBox):
 
     _greedy_ensemble_cls = _ensemble.CumlGreedyEnsemble
 
-    transformers = dict(
-        Pipeline=tfs.LocalizablePipeline,
-        SimpleImputer=tfs.LocalizableSimpleImputer,
-        ConstantImputer=tfs.ConstantImputer,
-        StandardScaler=tfs.LocalizableStandardScaler,
-        MinMaxScaler=tfs.LocalizableMinMaxScaler,
-        MaxAbsScaler=tfs.LocalizableMaxAbsScaler,
-        RobustScaler=tfs.LocalizableRobustScaler,
-        # Normalizer=tfs.Normalizer,
-        # KBinsDiscretizer=tfs.KBinsDiscretizer,
-        LabelEncoder=tfs.LocalizableLabelEncoder,
-        # OrdinalEncoder=tfs.OrdinalEncoder,
-        OneHotEncoder=tfs.LocalizableOneHotEncoder,
-        TargetEncoder=tfs.TargetEncoder,
-        # PolynomialFeatures=sk_pre.PolynomialFeatures,
-        # QuantileTransformer=sk_pre.QuantileTransformer,
-        # PowerTransformer=sk_pre.PowerTransformer,
-        # PCA=sk_dec.PCA,
-        TruncatedSVD=tfs.LocalizableTruncatedSVD,
-        DataFrameMapper=_dataframe_mapper.CumlDataFrameMapper,
-        PassThroughEstimator=tfs.PassThroughEstimator,
-        MultiLabelEncoder=tfs.MultiLabelEncoder,
-        # SafeOrdinalEncoder=tfs.SafeOrdinalEncoder,
-        # SafeOneHotEncoder=sk_ex.SafeOneHotEncoder,
-        AsTypeTransformer=tfs.AsTypeTransformer,
-        SafeLabelEncoder=tfs.SafeLabelEncoder,
-        # LogStandardScaler=tfs.LogStandardScaler,
-        # SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
-        # FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
-        # FloatOutputImputer=tfs.FloatOutputImputer,
-        # LgbmLeavesEncoder=sk_ex.LgbmLeavesEncoder,
-        # CategorizeEncoder=tfs.CategorizeEncoder,
-        # MultiKBinsDiscretizer=sk_ex.MultiKBinsDiscretizer,
-        # DataFrameWrapper=tfs.DataFrameWrapper,
-        # GaussRankScaler=sk_ex.GaussRankScaler,
-        # VarLenFeatureEncoder=sk_ex.VarLenFeatureEncoder,
-        # MultiVarLenFeatureEncoder=sk_ex.MultiVarLenFeatureEncoder,
-        # LocalizedTfidfVectorizer=sk_ex.LocalizedTfidfVectorizer,
-        # TfidfEncoder=sk_ex.TfidfEncoder,
-        # DatetimeEncoder=sk_ex.DatetimeEncoder,
-        # FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
-    )
+
+_predefined_transformers = dict(
+    PassThroughEstimator=sk_ex.PassThroughEstimator,
+    AsTypeTransformer=sk_ex.AsTypeTransformer,
+
+    # Pipeline=tfs.LocalizablePipeline,
+    # SimpleImputer=tfs.LocalizableSimpleImputer,
+    # ConstantImputer=tfs.ConstantImputer,
+    # StandardScaler=tfs.LocalizableStandardScaler,
+    # MinMaxScaler=tfs.LocalizableMinMaxScaler,
+    # MaxAbsScaler=tfs.LocalizableMaxAbsScaler,
+    # RobustScaler=tfs.LocalizableRobustScaler,
+    # # Normalizer=tfs.Normalizer,
+    # # KBinsDiscretizer=tfs.KBinsDiscretizer,
+    # LabelEncoder=tfs.LocalizableLabelEncoder,
+    # # OrdinalEncoder=tfs.OrdinalEncoder,
+    # OneHotEncoder=tfs.LocalizableOneHotEncoder,
+    # TargetEncoder=tfs.TargetEncoder,
+    # # PolynomialFeatures=sk_pre.PolynomialFeatures,
+    # # QuantileTransformer=sk_pre.QuantileTransformer,
+    # # PowerTransformer=sk_pre.PowerTransformer,
+    # # PCA=sk_dec.PCA,
+    # TruncatedSVD=tfs.LocalizableTruncatedSVD,
+    DataFrameMapper=_dataframe_mapper.CumlDataFrameMapper,
+    # MultiLabelEncoder=tfs.MultiLabelEncoder,
+    # # SafeOrdinalEncoder=tfs.SafeOrdinalEncoder,
+    # # SafeOneHotEncoder=sk_ex.SafeOneHotEncoder,
+    # SafeLabelEncoder=tfs.SafeLabelEncoder,
+    # # LogStandardScaler=tfs.LogStandardScaler,
+    # # SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
+    # # FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
+    # # FloatOutputImputer=tfs.FloatOutputImputer,
+    # # LgbmLeavesEncoder=sk_ex.LgbmLeavesEncoder,
+    # # CategorizeEncoder=tfs.CategorizeEncoder,
+    # # MultiKBinsDiscretizer=sk_ex.MultiKBinsDiscretizer,
+    # # DataFrameWrapper=tfs.DataFrameWrapper,
+    # # GaussRankScaler=sk_ex.GaussRankScaler,
+    # # VarLenFeatureEncoder=sk_ex.VarLenFeatureEncoder,
+    # # MultiVarLenFeatureEncoder=sk_ex.MultiVarLenFeatureEncoder,
+    # # LocalizedTfidfVectorizer=sk_ex.LocalizedTfidfVectorizer,
+    # # TfidfEncoder=sk_ex.TfidfEncoder,
+    # # DatetimeEncoder=sk_ex.DatetimeEncoder,
+    # # FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
+)
+for name, tf in _predefined_transformers.items():
+    register_transformer(tf, name=name, dtypes=cudf.DataFrame)

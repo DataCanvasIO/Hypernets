@@ -39,7 +39,7 @@ class CachedMultiLabelEncoder(skex.MultiLabelEncoder):
         return X, Xt
 
 
-class CachedDaskMultiLabelEncoder(dex.MultiLabelEncoder):
+class CachedDaskMultiLabelEncoder(dex.SafeOrdinalEncoder):
     cache_counter = CacheCounter()
 
     @cache(attr_keys='columns',
@@ -82,7 +82,7 @@ def test_cache_dask():
     cache_counter = CachedDaskMultiLabelEncoder.cache_counter
     df = dd.from_pandas(dsutils.load_bank(), npartitions=2)
 
-    t = dex.MultiLabelEncoder()
+    t = dex.SafeOrdinalEncoder()
     X = t.fit_transform(df.copy())
 
     cache_counter.reset()

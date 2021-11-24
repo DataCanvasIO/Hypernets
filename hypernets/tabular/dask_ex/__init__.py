@@ -15,7 +15,7 @@ try:
         StandardScaler, MinMaxScaler, RobustScaler
 
     from ._transformers import \
-        MultiLabelEncoder, SafeOneHotEncoder, TruncatedSVD, \
+        SafeOneHotEncoder, TruncatedSVD, \
         MaxAbsScaler, SafeOrdinalEncoder, DataInterceptEncoder, \
         CallableAdapterEncoder, DataCacher, CacheCleaner, \
         LgbmLeavesEncoder, CategorizeEncoder, MultiKBinsDiscretizer, \
