@@ -128,9 +128,7 @@ class ToolboxMeta(type):
             tfs = get_transformers(dtypes) if dtypes is not None else {}
             setattr(cls, attr_tfs, tfs)
             setattr(cls, attr_tfs_update_at, time.time())
-            print(">" * 10, tfs.keys())
-        else:
-            print(">" * 30)
+
         return tfs
 
 
