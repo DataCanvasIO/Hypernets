@@ -1,6 +1,7 @@
 import pickle
 import time
 import sys
+import numpy as np
 
 from IPython.display import display
 
@@ -68,8 +69,24 @@ def extract_importances(gbm_model):
         importances_pairs = []
 
     importances = {}
+    numpy_num_types = [np.int, np.int32,np.int64, np.float, np.float32, np.float64]
+
+    def is_numpy_num_type(v):
+        for t in numpy_num_types:
+            if isinstance(v, t) is True:
+                return True
+            else:
+                continue
+        return False
+
     for name, imp in importances_pairs:
-        importances[name] = imp
+        if is_numpy_num_type(imp):
+            imp_value = imp.tolist()  # int64, float32, float64 has tolist
+        elif isinstance(imp, float) or isinstance(imp, int):
+            imp_value = imp
+        else:
+            imp_value = float(imp)  # force convert to float
+        importances[name] = imp_value
 
     return importances
 
