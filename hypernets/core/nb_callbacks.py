@@ -19,7 +19,7 @@ from hn_widget.experiment_util import EarlyStoppingStatus
 from hn_widget.experiment_util import get_step_index
 from hn_widget.experiment_util import StepStatus
 
-MAX_IMPORTANCE_NUM = 10
+MAX_IMPORTANCE_NUM = 10  # TOP N important features
 
 
 def _is_light_gbm_model(m):
