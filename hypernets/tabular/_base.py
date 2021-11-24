@@ -24,7 +24,7 @@ def register_toolbox(tb, pos=None):
         _tool_boxes.insert(pos, tb)
 
     global _tool_boxes_update_at
-    _tool_boxes_update_at = time.time_ns()
+    _tool_boxes_update_at = time.time()
 
 
 def register_transformer(transformer_cls, *, name=None, dtypes=None):
@@ -40,7 +40,7 @@ def register_transformer(transformer_cls, *, name=None, dtypes=None):
     _tb_transformers.append(TbNamedEntity(entity=transformer_cls, name=name, dtypes=dtypes))
 
     global _tb_transformers_update_at
-    _tb_transformers_update_at = time.time_ns()
+    _tb_transformers_update_at = time.time()
 
 
 def register_extension(extension, *, name=None, dtypes=None):
@@ -57,7 +57,7 @@ def register_extension(extension, *, name=None, dtypes=None):
     _tb_extensions.append(TbNamedEntity(entity=extension, name=name, dtypes=dtypes))
 
     global _tb_extensions_update_at
-    _tb_extensions_update_at = time.time_ns()
+    _tb_extensions_update_at = time.time()
 
 
 def get_tool_box(*data):
