@@ -82,7 +82,7 @@ class CumlToolBox(ToolBox):
         return [to_np_or_pd(x) for x in data]
 
     @staticmethod
-    def from_local(*data):
+    def from_local(*data, enable_cuml_array=False):
         def from_np_or_pd(x):
             if isinstance(x, (pd.DataFrame, pd.Series)):
                 return cudf.from_pandas(x)
@@ -91,7 +91,10 @@ class CumlToolBox(ToolBox):
                 # return cupy.array(x)
                 sdtype = str(x.dtype)
                 if sdtype.find('int') >= 0 or sdtype.find('float') >= 0:  # cupy does not support object
-                    return cupy.array(x)
+                    if enable_cuml_array:
+                        return CumlArray(x)
+                    else:
+                        return cupy.array(x)
                 elif x.ndim > 1 and x.shape[1] > 1:
                     return cudf.DataFrame(x)
                 else:
@@ -346,8 +349,8 @@ class CumlToolBox(ToolBox):
     @classmethod
     def general_estimator(cls, X, y=None, estimator=None, task=None):
         def default_xgb(task_):
-            est_cls = xgboost.XGBRegressor if task_ == const.TASK_REGRESSION else xgboost.XGBClassifier
-            return est_cls(n_estimators=100,
+            from ._estimator import AdaptedXGBClassifier, AdaptedXGBRegressor
+            options = dict(n_estimators=100,
                            num_leaves=15,
                            max_depth=5,
                            min_child_weight=5,
@@ -356,10 +359,16 @@ class CumlToolBox(ToolBox):
                            reg_alpha=1,
                            reg_lambda=1,
                            random_state=randint())
+            if task_ == const.TASK_REGRESSION:
+                est_cls = AdaptedXGBRegressor
+            else:
+                options['use_label_encoder'] = False
+                est_cls = AdaptedXGBClassifier
+            return est_cls(**options)
 
         def default_rf(task_):
-            from cuml.ensemble import RandomForestClassifier, RandomForestRegressor
-            est_cls = RandomForestRegressor if task_ == const.TASK_REGRESSION else RandomForestClassifier
+            from ._estimator import AdaptedRandomForestClassifier, AdaptedRandomForestRegressor
+            est_cls = AdaptedRandomForestRegressor if task_ == const.TASK_REGRESSION else AdaptedRandomForestClassifier
             return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=randint())
 
         if estimator is None:

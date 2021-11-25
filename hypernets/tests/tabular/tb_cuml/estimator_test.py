@@ -133,3 +133,18 @@ class TestCumlEstimator:
         import xgboost
         lr = xgboost.XGBRegressor()
         fit_evaluate(lr, self.bank_data_cudf.copy(), target='duration')
+
+    def test_adapted_xgb_regression(self):
+        from hypernets.tabular.cuml_ex._estimator import AdaptedXGBRegressor
+        lr = AdaptedXGBRegressor()
+        fit_evaluate(lr, self.bank_data_cudf.copy(), target='duration')
+
+    def test_adapted_xgb_binary(self):
+        from hypernets.tabular.cuml_ex._estimator import AdaptedXGBClassifier
+        lr = AdaptedXGBClassifier(use_label_encoder=False)
+        fit_evaluate(lr, self.bank_data_cudf.copy(), target='y')
+
+    def test_adapted_xgb_multiclass(self):
+        from hypernets.tabular.cuml_ex._estimator import AdaptedXGBClassifier
+        lr = AdaptedXGBClassifier(use_label_encoder=False)
+        fit_evaluate(lr, self.bank_data_cudf.copy(), target='education')
