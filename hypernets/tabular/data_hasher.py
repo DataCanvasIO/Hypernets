@@ -28,6 +28,7 @@ class DataHasher:
             yield b'<None>'
         elif isinstance(data, pd.DataFrame):
             # Fix: TypeError: unhashable type: 'Series' in case of pd.Series in pd.Series
+            hashable = []
             for column in data.columns:
                 data_series = data[column]
                 first_item = data_series[:1].tolist()[0]
@@ -36,8 +37,9 @@ class DataHasher:
                         if isinstance(item, pd.Series):
                             yield from self._iter_data(item)
                 else:
-                    yield from self._iter_pd_dataframe(data_series.to_frame())
-            # yield from self._iter_pd_dataframe(data)
+                    hashable.append(column)
+            if len(hashable) > 0:
+                yield from self._iter_pd_dataframe(data[hashable])
         elif isinstance(data, pd.Series):
             yield from self._iter_pd_dataframe(data.to_frame())
         elif isinstance(data, np.ndarray):
