@@ -52,12 +52,7 @@ def _shift_score(X, y, scorer, cv):
     else:
         X_train, X_test, y_train, y_test = \
             tb.train_test_split(X, y, test_size=0.3, random_state=9527, stratify=y)
-        model.fit(X_train, y_train,
-                  # eval_set=[(X_test, y_test)],
-                  # early_stopping_rounds=20,
-                  # verbose=False,
-                  **_get_fit_kwargs(model, X_eval=X_test, y_eval=y_test),
-                  )
+        model.fit(X_train, y_train, **_get_fit_kwargs(model, X_eval=X_test, y_eval=y_test))
         if scorer:
             score = scorer(model, X_test, y_test)
         else:
@@ -74,7 +69,9 @@ def _get_fit_kwargs(estimator, *, X_eval, y_eval, early_stopping_rounds=20, verb
     fit_params = inspect.signature(estimator.fit).parameters.keys()
     if 'eval_set' in fit_params and X_eval is not None and y_eval is not None:
         kwargs['eval_set'] = [(X_eval, y_eval)]
-        kwargs['early_stopping_rounds'] = early_stopping_rounds
+    if 'early_stopping_rounds' in fit_params and early_stopping_rounds is not None:
+        if type(estimator).__name__.find('DaskLGBM') < 0:  # DaskLGBMXxx dose not support early_stopping_rounds now
+            kwargs['early_stopping_rounds'] = early_stopping_rounds
     if 'verbose' in fit_params:
         kwargs['verbose'] = verbose
     return kwargs
@@ -146,13 +143,13 @@ class DriftDetector:
             x_val_fold, y_val_fold = sel(X_merged, valid_idx), sel(y_merged, valid_idx)
 
             estimator = tb.general_estimator(X_merged, y_merged, self.estimator_, task=const.TASK_BINARY)
-            kwargs = _get_fit_kwargs(estimator, X_eval=x_val_fold, y_eval=y_val_fold)
             # kwargs = {}
             # estimator_type = type(estimator).__name__
             # if estimator_type.find('LGBMClassifier') >= 0:
             #     kwargs['eval_set'] = [(x_val_fold, y_val_fold)]
             #     kwargs['early_stopping_rounds'] = 10
             #     kwargs['verbose'] = 0
+            kwargs = _get_fit_kwargs(estimator, X_eval=x_val_fold, y_eval=y_val_fold)
             estimator.fit(x_train_fold, y_train_fold, **kwargs)
             proba = estimator.predict_proba(x_val_fold)[:, 1]
             y_val_fold, proba = tb.to_local(y_val_fold, proba)
