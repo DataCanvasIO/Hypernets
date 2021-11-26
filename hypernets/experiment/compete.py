@@ -459,7 +459,7 @@ class FeatureGenerationStep(TransformerAdaptorStep):
                  text_cols=None,
                  max_depth=1,
                  feature_selection_args=None):
-        # transformer = get_tool_box(pd.DataFrame).transformers['FeatureGenerationTransformer']
+        # transformer = get_tool_box(X).transformers['FeatureGenerationTransformer']
         drop_cols = []
         if text_cols is not None:
             drop_cols += list(text_cols)

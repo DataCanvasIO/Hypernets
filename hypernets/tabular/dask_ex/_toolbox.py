@@ -21,6 +21,7 @@ from hypernets.utils import logging, const, is_os_windows
 from . import _dataframe_mapper as dataframe_mapper_
 from . import _transformers as tfs
 from . import _feature_generators as feature_generators_
+from . import _data_cleaner
 from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection, _ensemble
 from .. import sklearn_ex as sk_ex
 
@@ -693,6 +694,7 @@ class DaskToolBox(ToolBox):
 
     # _data_cleaner_cls = data_cleaner_.DataCleaner
     _data_hasher_cls = _data_hasher.DaskDataHasher
+    _data_cleaner_cls = _data_cleaner.DaskDataCleaner
     _collinearity_detector_cls = _collinearity.DaskMultiCollinearityDetector  # collinearity_.MultiCollinearityDetector
     _drift_detector_cls = _drift_detection.DaskDriftDetector  # drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = _drift_detection.DaskFeatureSelectionWithDriftDetector  # drift_detection_.FeatureSelectorWithDriftDetection

@@ -11,6 +11,7 @@ import pandas as pd
 from cuml.common.array import CumlArray
 from hypernets.utils import const
 from .. import sklearn_ex as sk_ex
+from . import _data_cleaner
 from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
 from ..toolbox import ToolBox, register_transformer, randint
 
@@ -399,7 +400,7 @@ class CumlToolBox(ToolBox):
     train_test_split = _model_selection.train_test_split
     metrics = _metrics.CumlMetrics
     _data_hasher_cls = _data_hasher.CumlDataHasher
-
+    _data_cleaner_cls = _data_cleaner.CumlDataCleaner
     _kfold_cls = _model_selection.FakeKFold
     _stratified_kfold_cls = _model_selection.FakeStratifiedKFold
     _feature_selector_with_drift_detection_cls = _drift_detection.CumlFeatureSelectorWithDriftDetection

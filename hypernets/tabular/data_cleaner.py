@@ -3,33 +3,15 @@
 
 """
 import copy
-from functools import partial
 
-import dask
 import numpy as np
 import pandas as pd
-from dask import dataframe as dd
 
 from hypernets.tabular import column_selector as cs
 from hypernets.tabular.cfg import TabularCfg as cfg
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
-
-HELPERS = {}
-
-
-def _qname(cls):
-    return f'{cls.__module__}.{cls.__name__}'
-
-
-def make_helper(X, y):
-    qn = _qname(type(X))
-    if qn not in HELPERS.keys():
-        raise ValueError(f'Unsupported data type: {qn}')
-
-    cls = HELPERS[qn]
-    return cls()
 
 
 class _CleanerHelper:
@@ -65,6 +47,10 @@ class _CleanerHelper:
         if logger.is_info_enabled():
             logger.info('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'
                         .format(end_mem, 100 * (start_mem - end_mem) / start_mem))
+
+    @staticmethod
+    def replace_nan_chars(X, nan_chars):
+        return X.replace(nan_chars, np.nan)
 
     def correct_object_dtype(self, X, df_meta=None, excludes=None):
         if df_meta is None:
@@ -146,88 +132,6 @@ class _CleanerHelper:
         return df.T.duplicated()
 
 
-class _DaskCleanerHelper(_CleanerHelper):
-    @staticmethod
-    def reduce_mem_usage(df, excludes=None):
-        raise NotImplementedError('"reduce_mem_usage" is not supported for Dask DataFrame.')
-
-    @staticmethod
-    def _get_duplicated_columns(df):
-        duplicates = df.reduction(chunk=lambda c: pd.DataFrame(c.T.duplicated()).T,
-                                  aggregate=lambda a: np.all(a, axis=0)).compute()
-        return duplicates
-
-    @staticmethod
-    def _detect_dtype(dtype, df):
-        result = {}
-        df = df.copy()
-        for col in df.columns.to_list():
-            try:
-                df[col] = df[col].astype(dtype)
-                result[col] = [True]  # as-able
-            except:
-                result[col] = [False]
-        return pd.DataFrame(result)
-
-    def _correct_object_dtype_as(self, X, df_meta):
-        for dtype, columns in df_meta.items():
-            columns = [c for c in columns if str(X[c].dtype) != dtype]
-            if len(columns) == 0:
-                continue
-
-            correctable = X[columns].reduction(chunk=partial(self._detect_dtype, dtype),
-                                               aggregate=lambda a: np.all(a, axis=0),
-                                               meta={c: 'bool' for c in columns}).compute()
-            correctable = [i for i, v in correctable.items() if v]
-            # for col in correctable:
-            #     X[col] = X[col].astype(dtype)
-            if correctable:
-                X[correctable] = X[correctable].astype(dtype)
-            logger.info(f'Correct columns [{",".join(correctable)}] to {dtype}.')
-
-        return X
-
-    @staticmethod
-    def _get_df_uniques(df):
-        columns = df.columns.to_list()
-        uniques = [df[c].nunique() for c in columns]
-        return {c: v for c, v in zip(columns, dask.compute(*uniques))}
-
-
-HELPERS[_qname(pd.DataFrame)] = _CleanerHelper
-HELPERS[_qname(dd.DataFrame)] = _DaskCleanerHelper
-
-try:
-    import cudf
-
-
-    class _CudfCleanerHelper(_CleanerHelper):
-        @staticmethod
-        def _get_duplicated_columns(df):
-            columns = df.columns.to_list()
-            duplicates = set()
-
-            for i, c in enumerate(columns[:-1]):
-                if c in duplicates:
-                    continue
-                for nc in columns[i + 1:]:
-                    if df[c].equals(df[nc]):
-                        duplicates.add(nc)
-
-            return {c: c in duplicates for c in columns}
-
-        @staticmethod
-        def _get_df_uniques(df):
-            columns = df.columns.to_list()
-            uniques = [df[c].nunique() for c in columns]
-            return {c: v for c, v in zip(columns, uniques)}
-
-
-    HELPERS[_qname(cudf.DataFrame)] = _CudfCleanerHelper
-except ImportError:
-    pass
-
-
 class DataCleaner:
     def __init__(self, nan_chars=None, correct_object_dtype=True, drop_constant_columns=True,
                  drop_duplicated_columns=False, drop_label_nan_rows=True, drop_idness_columns=True,
@@ -268,6 +172,10 @@ class DataCleaner:
         }
 
     @staticmethod
+    def get_helper(X, y):
+        return _CleanerHelper()
+
+    @staticmethod
     def _drop_columns(X, cols):
         if cols is None or len(cols) <= 0:
             return X
@@ -280,9 +188,12 @@ class DataCleaner:
         if y is not None:
             X[y_name] = y
 
+        helper = self.get_helper(X, y)
+
         if self.nan_chars is not None:
             logger.debug(f'replace chars{self.nan_chars} to NaN')
-            X = X.replace(self.nan_chars, np.nan)
+            # X = X.replace(self.nan_chars, np.nan)
+            X = helper.replace_nan_chars(X, self.nan_chars)
 
         if y is not None:
             if self.drop_label_nan_rows:
@@ -293,8 +204,6 @@ class DataCleaner:
         if self.drop_columns is not None:
             logger.debug(f'drop columns:{self.drop_columns}')
             X = self._drop_columns(X, self.drop_columns)
-
-        helper = make_helper(X, y)
 
         if self.drop_duplicated_columns:
             if self.dropped_duplicated_columns_ is not None:
@@ -418,23 +327,24 @@ class DataCleaner:
         self.columns_ = [c for c in self.columns_ if c not in columns]
 
     def _repr_html_(self):
-        cleaner_info = []
-        cleaner_info.append(('Meta', self.df_meta_))
-        cleaner_info.append(('Dropped constant columns', self.dropped_constant_columns_))
-        cleaner_info.append(('Dropped idness columns', self.dropped_idness_columns_))
-        cleaner_info.append(('Dropped duplicated columns', self.dropped_duplicated_columns_))
-        cleaner_info.append(('-------------params-------------', '-------------values-------------'))
-        cleaner_info.append(('nan_chars', self.nan_chars))
-        cleaner_info.append(('correct_object_dtype', self.correct_object_dtype))
-        cleaner_info.append(('drop_constant_columns', self.drop_constant_columns))
-        cleaner_info.append(('drop_label_nan_rows', self.drop_label_nan_rows))
-        cleaner_info.append(('drop_idness_columns', self.drop_idness_columns))
-        cleaner_info.append(('replace_inf_values', self.replace_inf_values))
-        cleaner_info.append(('drop_columns', self.drop_columns))
-        cleaner_info.append(('reserve_columns', self.reserve_columns))
-        cleaner_info.append(('drop_duplicated_columns', self.drop_duplicated_columns))
-        cleaner_info.append(('reduce_mem_usage', self.reduce_mem_usage))
-        cleaner_info.append(('int_convert_to', self.int_convert_to))
+        cleaner_info = [
+            ('Meta', self.df_meta_),
+            ('Dropped constant columns', self.dropped_constant_columns_),
+            ('Dropped idness columns', self.dropped_idness_columns_),
+            ('Dropped duplicated columns', self.dropped_duplicated_columns_),
+            ('-------------params-------------', '-------------values-------------'),
+            ('nan_chars', self.nan_chars),
+            ('correct_object_dtype', self.correct_object_dtype),
+            ('drop_constant_columns', self.drop_constant_columns),
+            ('drop_label_nan_rows', self.drop_label_nan_rows),
+            ('drop_idness_columns', self.drop_idness_columns),
+            ('replace_inf_values', self.replace_inf_values),
+            ('drop_columns', self.drop_columns),
+            ('reserve_columns', self.reserve_columns),
+            ('drop_duplicated_columns', self.drop_duplicated_columns),
+            ('reduce_mem_usage', self.reduce_mem_usage),
+            ('int_convert_to', self.int_convert_to),
+        ]
 
         html = pd.DataFrame(cleaner_info, columns=['key', 'value'])._repr_html_()
         return html
