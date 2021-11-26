@@ -4,16 +4,16 @@ __author__ = 'yangjian'
 
 """
 import copy
+import inspect
 import time
 
 import numpy as np
-import pandas as pd
 from joblib import Parallel, delayed
 from sklearn import model_selection as sksel
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, make_scorer
 
 from hypernets.core import randint
-from hypernets.utils import logging, is_os_windows, const
+from hypernets.utils import logging, const
 from .cfg import TabularCfg as cfg
 
 logger = logging.getLogger(__name__)
@@ -39,26 +39,45 @@ class FeatureSelectionCallback:
         pass
 
 
-def _shift_score(x, y, scorer, cv):
+def _shift_score(X, y, scorer, cv):
     from . import get_tool_box
 
-    if scorer is None:
-        scorer = roc_auc_scorer
-
-    model = get_tool_box(x).general_estimator(x, y, task=const.TASK_BINARY)
+    tb = get_tool_box(X, y)
+    model = tb.general_estimator(X, y, task=const.TASK_BINARY)
     if cv:
-        score_ = sksel.cross_val_score(model, X=x, y=y, verbose=0, scoring=scorer, cv=cv)
+        if scorer is None:
+            scorer = roc_auc_scorer
+        score_ = sksel.cross_val_score(model, X=X, y=y, verbose=0, scoring=scorer, cv=cv)
         score = np.mean(score_)
     else:
-        mixed_x_train, mixed_x_test, mixed_y_train, mixed_y_test = \
-            sksel.train_test_split(x, y, test_size=0.3, random_state=9527, stratify=y)
-        model.fit(mixed_x_train, mixed_y_train,
-                  eval_set=(mixed_x_test, mixed_y_test),
-                  early_stopping_rounds=20,
-                  verbose=False)
-        score = scorer(model, mixed_x_test, mixed_y_test)
+        X_train, X_test, y_train, y_test = \
+            tb.train_test_split(X, y, test_size=0.3, random_state=9527, stratify=y)
+        model.fit(X_train, y_train,
+                  # eval_set=[(X_test, y_test)],
+                  # early_stopping_rounds=20,
+                  # verbose=False,
+                  **_get_fit_kwargs(model, X_eval=X_test, y_eval=y_test),
+                  )
+        if scorer:
+            score = scorer(model, X_test, y_test)
+        else:
+            y_proba = model.predict_proba(X_test)
+            score = tb.metrics.calc_score(y_test, y_proba, y_proba, metrics=['auc'])
+            assert 'auc' in score.keys()
+            score = score['auc']
 
     return score
+
+
+def _get_fit_kwargs(estimator, *, X_eval, y_eval, early_stopping_rounds=20, verbose=False):
+    kwargs = {}
+    fit_params = inspect.signature(estimator.fit).parameters.keys()
+    if 'eval_set' in fit_params and X_eval is not None and y_eval is not None:
+        kwargs['eval_set'] = [(X_eval, y_eval)]
+        kwargs['early_stopping_rounds'] = early_stopping_rounds
+    if 'verbose' in fit_params:
+        kwargs['verbose'] = verbose
+    return kwargs
 
 
 class DriftDetector:
@@ -119,18 +138,21 @@ class DriftDetector:
         estimators = []
 
         tb = get_tool_box(X_merged, y_merged)
-        iterators = sksel.StratifiedKFold(n_splits=cv, shuffle=True, random_state=self.random_state)
+        sel = tb.select_1d
+        iterators = tb.statified_kfold(n_splits=cv, shuffle=True, random_state=self.random_state)
         for n_fold, (train_idx, valid_idx) in enumerate(iterators.split(X_merged, y_merged)):
             logger.info(f'Fold:{n_fold + 1}')
-            x_train_fold, y_train_fold = X_merged.iloc[train_idx], y_merged.iloc[train_idx]
-            x_val_fold, y_val_fold = X_merged.iloc[valid_idx], y_merged.iloc[valid_idx]
+            x_train_fold, y_train_fold = sel(X_merged, train_idx), sel(y_merged, train_idx)
+            x_val_fold, y_val_fold = sel(X_merged, valid_idx), sel(y_merged, valid_idx)
 
             estimator = tb.general_estimator(X_merged, y_merged, self.estimator_, task=const.TASK_BINARY)
-            kwargs = {}
-            if type(estimator).__name__.find('LGBMClassifier') >= 0:
-                kwargs['eval_set'] = (x_val_fold, y_val_fold)
-                kwargs['early_stopping_rounds'] = 10
-                kwargs['verbose'] = 0
+            kwargs = _get_fit_kwargs(estimator, X_eval=x_val_fold, y_eval=y_val_fold)
+            # kwargs = {}
+            # estimator_type = type(estimator).__name__
+            # if estimator_type.find('LGBMClassifier') >= 0:
+            #     kwargs['eval_set'] = [(x_val_fold, y_val_fold)]
+            #     kwargs['early_stopping_rounds'] = 10
+            #     kwargs['verbose'] = 0
             estimator.fit(x_train_fold, y_train_fold, **kwargs)
             proba = estimator.predict_proba(x_val_fold)[:, 1]
             y_val_fold, proba = tb.to_local(y_val_fold, proba)
@@ -157,7 +179,7 @@ class DriftDetector:
         diff_cols = set(X.columns.tolist()) - set(cat_cols + num_cols)
         if diff_cols:
             # X.loc[:, cat_cols + num_cols] = Xt
-            X = pd.concat([X[diff_cols], Xt[cat_cols + num_cols]], axis=1)
+            X = tb.concat_df([X[diff_cols], Xt[cat_cols + num_cols]], axis=1)
         else:
             X = Xt
 
@@ -165,7 +187,8 @@ class DriftDetector:
         for i, estimator in enumerate(self.estimator_):
             proba = estimator.predict_proba(X)[:, 1]
             oof_proba.append(proba)
-        proba = np.mean(oof_proba, axis=0)
+        # proba = np.mean(oof_proba, axis=0)
+        proba = tb.mean_oof(oof_proba)
 
         return proba
 
@@ -173,34 +196,40 @@ class DriftDetector:
         assert 0 <= remain_for_train < 1.0, '`remain_for_train` must be < 1.0 and >= 0.'
         if isinstance(test_size, float):
             assert 0 < test_size < 1.0, '`test_size` must be < 1.0 and > 0.'
-            test_size = int(X.shape[0] * test_size)
+            test_size = int(len(X) * test_size)
         assert isinstance(test_size, int), '`test_size` can only be int or float'
         split_size = int(test_size + test_size * remain_for_train)
-        assert split_size < X.shape[0], \
+        assert split_size < len(X), \
             'test_size+test_size*remain_for_train must be less than the number of samples in X.'
 
         from . import get_tool_box
+        tb = get_tool_box(X, y)
+        sel = tb.select_1d
 
         proba = self.predict_proba(X)
+        proba, = tb.to_local(proba)
         sorted_indices = np.argsort(proba)
-        target = '__train_test_split_y__'
-        X.insert(0, target, y)
+
+        target_col = '__train_test_split_y__'
+        if hasattr(X, 'insert'):
+            X.insert(0, target_col, y)
+        else:
+            X[target_col] = y
 
         if remain_for_train == 0:
-            X_train = X.iloc[sorted_indices[:-test_size]]
-            X_test = X.iloc[sorted_indices[-test_size:]]
-            y_train = X_train.pop(target)
-            y_test = X_test.pop(target)
-            return X_train, X_test, y_train, y_test
+            X_train = sel(X, sorted_indices[:-test_size])
+            X_test = sel(X, sorted_indices[-test_size:])
         else:
-            X_train_1 = X.iloc[sorted_indices[:-split_size]]
-            X_mixed = X.iloc[sorted_indices[-split_size:]]
-            X_train_2, X_test = get_tool_box(X_mixed).train_test_split(
+            X_train_1 = sel(X, sorted_indices[:-split_size])
+            X_mixed = sel(X, sorted_indices[-split_size:])
+            X_train_2, X_test = tb.train_test_split(
                 X_mixed, test_size=test_size, shuffle=True, random_state=self.random_state)
-            X_train = pd.concat([X_train_1, X_train_2], axis=0)
-            y_train = X_train.pop(target)
-            y_test = X_test.pop(target)
-            return X_train, X_test, y_train, y_test
+            X_train = tb.concat_df([X_train_1, X_train_2], axis=0)
+
+        y_train = X_train.pop(target_col)
+        y_test = X_test.pop(target_col)
+        X.pop(target_col)
+        return X_train, X_test, y_train, y_test
 
     @staticmethod
     def _copy_data(X):
@@ -208,6 +237,8 @@ class DriftDetector:
 
     @staticmethod
     def _train_test_merge(X_train, X_test):
+        from . import get_tool_box
+
         target_col = '__hypernets_tmp__target__'
         if hasattr(X_train, 'insert'):
             X_train.insert(0, target_col, 0)
@@ -218,7 +249,8 @@ class DriftDetector:
         else:
             X_test[target_col] = 1
 
-        X_merge = pd.concat([X_train, X_test], axis=0)
+        tb = get_tool_box(X_train, X_test)
+        X_merge = tb.concat_df([X_train, X_test], axis=0, repartition=True)
         y = X_merge.pop(target_col)
 
         X_train.pop(target_col)
@@ -228,6 +260,8 @@ class DriftDetector:
 
 
 class FeatureSelectorWithDriftDetection:
+    parallelizable = True
+
     def __init__(self, remove_shift_variable=True, variable_shift_threshold=0.7, variable_shift_scorer=None,
                  auc_threshold=0.55, min_features=10, remove_size=0.1,
                  sample_balance=True, max_test_samples=None, cv=5, random_state=None,
@@ -341,8 +375,8 @@ class FeatureSelectorWithDriftDetection:
                                preprocessor=None, estimator=None, scorer=None, cv=None, copy_data=True):
         # assert all(isinstance(x, (pd.DataFrame, dd.DataFrame)) for x in (X_train, X_test)), \
         #     'X_train and X_test must be a pandas or dask DataFrame.'
-        assert len(set(X_train.columns.to_list()) - set(
-            X_test.columns.to_list())) == 0, 'The columns in X_train and X_test must be the same.'
+        assert set(X_train.columns.to_list()) == set(X_test.columns.to_list()), \
+            'The columns in X_train and X_test must be the same.'
 
         detector = self.get_detector(preprocessor, estimator, self.random_state)
 
@@ -351,6 +385,7 @@ class FeatureSelectorWithDriftDetection:
             X_test = detector._copy_data(X_test)
 
         # Set target value
+        logger.info('Set target value...')
         X_merged, y = detector._train_test_merge(X_train, X_test)
 
         logger.info('Preprocessing...')
@@ -366,9 +401,8 @@ class FeatureSelectorWithDriftDetection:
 
         return scores
 
-    @staticmethod
-    def _score_features(X_merged, y, scorer, cv):
-        if cfg.joblib_njobs in {0, 1}:
+    def _score_features(self, X_merged, y, scorer, cv):
+        if not self.parallelizable or cfg.joblib_njobs in {0, 1}:
             scores = {}
             for c in X_merged.columns:
                 x = X_merged[[c]]
@@ -377,14 +411,14 @@ class FeatureSelectorWithDriftDetection:
                 scores[c] = score
         else:
             col_parts = [X_merged[[c]] for c in X_merged.columns]
-            options = dict(backend='multiprocessing') if is_os_windows else dict(prefer='processes')
-            pss = Parallel(n_jobs=cfg.joblib_njobs, **options)(
-                delayed(_shift_score)(x, y, scorer, cv) for x in col_parts)
+            pss = Parallel(n_jobs=cfg.joblib_njobs, **cfg.joblib_options)(
+                delayed(_shift_score)(x, y, scorer, cv) for x in col_parts
+            )
             scores = {k: v for k, v in zip(X_merged.columns.to_list(), pss)}
             logger.info(f'scores: {scores}')
 
         return scores
 
     @staticmethod
-    def get_detector(preprocessor=None, estimator=None, random_state=9527):
+    def get_detector(preprocessor=None, estimator=None, random_state=None):
         return DriftDetector(preprocessor=preprocessor, estimator=estimator, random_state=random_state)

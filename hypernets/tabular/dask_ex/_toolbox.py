@@ -426,6 +426,18 @@ class DaskToolBox(ToolBox):
             return ToolBox.select_valid_oof(y, oof)
 
     @staticmethod
+    def mean_oof(probas):
+        if DaskToolBox.exist_dask_object(probas):
+            probas = [DaskToolBox.df_to_array(p) if DaskToolBox.is_dask_dataframe_or_series(p) else p for p in probas]
+            proba = probas[0]
+            for i in range(1, len(probas)):
+                proba += probas[i]
+            proba = proba / len(probas)
+        else:
+            proba = ToolBox.mean_oof(probas)
+        return proba
+
+    @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
         if DaskToolBox.exist_dask_object(*dfs):
             dfs = [dd.from_dask_array(v) if DaskToolBox.is_dask_array(v) else v for v in dfs]
@@ -446,7 +458,7 @@ class DaskToolBox(ToolBox):
             if DaskToolBox.is_dask_series(dfs[0]) and df.name is None and dfs[0].name is not None:
                 df.name = dfs[0].name
             if repartition:
-                df = df.repartition(npartitions=dfs[0].npartitions)
+                df = df.shuffle(df.index, npartitions=dfs[0].npartitions)
         else:
             df = pd.concat(dfs, axis=axis, **kwargs)
 
@@ -498,7 +510,8 @@ class DaskToolBox(ToolBox):
                            colsample_bytree=0.8,
                            reg_alpha=1,
                            reg_lambda=1,
-                           importance_type='gain', )
+                           importance_type='gain',
+                           verbose=-1)
 
         if not cls.is_dask_object(X):
             return super().general_estimator(X, y, estimator=estimator, task=task)

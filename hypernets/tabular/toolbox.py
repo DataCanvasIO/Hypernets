@@ -229,6 +229,10 @@ class ToolBox(metaclass=ToolboxMeta):
         return task, labels
 
     @staticmethod
+    def mean_oof(probas):
+        return np.mean(probas, axis=0)
+
+    @staticmethod
     def fix_binary_predict_proba_result(proba):
         if proba.ndim == 1:
             proba = np.vstack([1 - proba, proba]).T
@@ -270,7 +274,8 @@ class ToolBox(metaclass=ToolboxMeta):
                            reg_alpha=1,
                            reg_lambda=1,
                            importance_type='gain',
-                           random_state=randint())
+                           random_state=randint(),
+                           verbose=-1)
 
         def default_dt(task_):
             from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor

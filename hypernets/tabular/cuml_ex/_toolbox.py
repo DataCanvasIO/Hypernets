@@ -11,7 +11,7 @@ import pandas as pd
 from cuml.common.array import CumlArray
 from hypernets.utils import const
 from .. import sklearn_ex as sk_ex
-from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble
+from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
 from ..toolbox import ToolBox, register_transformer, randint
 
 try:
@@ -200,6 +200,15 @@ class CumlToolBox(ToolBox):
             return y.iloc[idx] if hasattr(y, 'iloc') else y[idx], oof[idx]
         else:
             return ToolBox.select_valid_oof(y, oof)
+
+    @staticmethod
+    def mean_oof(probas):
+        if any(map(CumlToolBox.is_cuml_object, probas)):
+            probas = cupy.array([cupy.array(p) for p in probas])
+            proba = cupy.mean(probas, axis=0)
+        else:
+            proba = ToolBox.mean_oof(probas)
+        return proba
 
     @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
@@ -393,7 +402,7 @@ class CumlToolBox(ToolBox):
 
     _kfold_cls = _model_selection.FakeKFold
     _stratified_kfold_cls = _model_selection.FakeStratifiedKFold
-
+    _feature_selector_with_drift_detection_cls = _drift_detection.CumlFeatureSelectorWithDriftDetection
     _greedy_ensemble_cls = _ensemble.CumlGreedyEnsemble
 
 

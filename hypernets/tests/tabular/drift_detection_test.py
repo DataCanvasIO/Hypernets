@@ -3,6 +3,8 @@ __author__ = 'yangjian'
 """
 
 """
+import pandas as pd
+from pandas.util import hash_pandas_object
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import matthews_corrcoef, make_scorer
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
@@ -67,6 +69,14 @@ class Test_drift_detection:
         assert y_train.shape == (df.shape[0] - p,)
         assert X_test.shape == (p, df.shape[1])
         assert y_test.shape == (p,)
+
+        df['y'] = y
+        X_train['y'] = y_train
+        X_test['y'] = y_test
+        df_split = pd.concat([X_train, X_test])
+        df_hash = hash_pandas_object(df).sort_values()
+        splitted_hash = hash_pandas_object(df_split).sort_values()
+        assert (df_hash == splitted_hash).all()
 
     def test_drift_detector_fit_decisiontree(self):
         df = load_bank().head(10000)
