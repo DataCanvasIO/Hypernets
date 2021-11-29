@@ -29,7 +29,7 @@ class TestPseudoLabeling:
         options = dict(threshold=0.8, number=10, quantile=0.8)
         for strategy in ['threshold', 'number', 'quantile', ]:
             pl = tb.pseudo_labeling(strategy=strategy, **options)
-            X_pseudo, y_pseudo = pl.select(X_test.copy(), model.classes_, proba)  # .copy())
+            X_pseudo, y_pseudo = pl.select(X_test.copy(), model.classes_, proba.copy())
 
             y_pseudo, = tb.to_local(y_pseudo)
 
