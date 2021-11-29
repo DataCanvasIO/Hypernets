@@ -13,6 +13,7 @@ from hypernets.utils import const
 from .. import sklearn_ex as sk_ex
 from . import _data_cleaner
 from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
+from . import _pseudo_labeling
 from ..toolbox import ToolBox, register_transformer, randint
 
 try:
@@ -404,6 +405,7 @@ class CumlToolBox(ToolBox):
     _kfold_cls = _model_selection.FakeKFold
     _stratified_kfold_cls = _model_selection.FakeStratifiedKFold
     _feature_selector_with_drift_detection_cls = _drift_detection.CumlFeatureSelectorWithDriftDetection
+    _pseudo_labeling_cls = _pseudo_labeling.CumlPseudoLabeling
     _greedy_ensemble_cls = _ensemble.CumlGreedyEnsemble
 
 
