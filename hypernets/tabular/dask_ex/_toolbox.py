@@ -185,7 +185,9 @@ class DaskToolBox(ToolBox):
     @staticmethod
     def value_counts(ar):
         if isinstance(ar, da.Array):
-            s = dd.from_dask_array(ar)
+            v_n = da.unique(ar, return_counts=True)
+            v_n = dask.compute(*v_n)
+            return {v: n for v, n in zip(*v_n)}
         elif isinstance(ar, dd.Series):
             s = ar
         elif isinstance(ar, dd.DataFrame):
