@@ -25,10 +25,14 @@ csv_str = '''x1_int_nanchar,x2_all_nan,x3_const_str,x4_const_int,x5_dup_1,x6_dup
 class TestDataCleaner:
     @classmethod
     def setup_class(cls):
-        cls.df = pd.read_csv(io.StringIO(csv_str))
+        cls.df = cls.load_data()
+
+    @staticmethod
+    def load_data():
+        return pd.read_csv(io.StringIO(csv_str))
 
     def test_basic(self):
-        df = self.df
+        df = self.df.copy()
         tb = get_tool_box(df)
         print('clean', type(df), 'with', tb)
         # assert df.shape == (6, 11)

@@ -8,12 +8,11 @@ if is_dask_installed:
 
 @if_dask_ready
 class TestDaskPseudoLabeling(TestPseudoLabeling):
-    @classmethod
-    def setup_class(cls):
-        TestPseudoLabeling.setup_class()
-        cls.df = dd.from_pandas(TestPseudoLabeling.df, npartitions=2)
-
-        setup_dask(cls)
+    @staticmethod
+    def load_data():
+        setup_dask(None)
+        df = TestPseudoLabeling.load_data()
+        return dd.from_pandas(df, npartitions=2)
 
     @staticmethod
     def is_quantile_exact():

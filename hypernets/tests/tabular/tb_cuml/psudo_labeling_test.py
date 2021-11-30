@@ -7,10 +7,11 @@ if is_cuml_installed:
 
 @if_cuml_ready
 class TestCumlPseudoLabeling(TestPseudoLabeling):
-    @classmethod
-    def setup_class(cls):
-        TestPseudoLabeling.setup_class()
-        cls.df = cudf.from_pandas(TestPseudoLabeling.df)
+
+    @staticmethod
+    def load_data():
+        df = TestPseudoLabeling.load_data()
+        return cudf.from_pandas(df)
 
     @staticmethod
     def is_quantile_exact():

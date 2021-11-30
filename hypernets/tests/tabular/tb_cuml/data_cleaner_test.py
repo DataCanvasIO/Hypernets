@@ -11,7 +11,6 @@ if is_cuml_installed:
 
 @if_cuml_ready
 class TestDaskDataCleaner(TestDataCleaner):
-    @classmethod
-    def setup_class(cls):
-        TestDataCleaner.setup_class()
-        cls.df = cudf.from_pandas(TestDataCleaner.df)
+    @staticmethod
+    def load_data():
+        return cudf.from_pandas(TestDataCleaner.load_data())

@@ -9,8 +9,12 @@ from hypernets.tabular.datasets import dsutils
 class TestPseudoLabeling:
     @classmethod
     def setup_class(cls):
+        cls.df = cls.load_data()
+
+    @staticmethod
+    def load_data():
         df = dsutils.load_bank()
-        cls.df = skex.MultiLabelEncoder().fit_transform(df)
+        return skex.MultiLabelEncoder().fit_transform(df)
 
     def run_sample(self, X, y):
         tb = get_tool_box(X, y)

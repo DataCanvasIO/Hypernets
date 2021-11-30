@@ -11,7 +11,7 @@ if is_dask_installed:
 
 @if_dask_ready
 class TestDaskDataCleaner(TestDataCleaner):
-    @classmethod
-    def setup_class(cls):
-        TestDataCleaner.setup_class()
-        cls.df = dd.from_pandas(TestDataCleaner.df, npartitions=2)
+    @staticmethod
+    def load_data():
+        df = TestDataCleaner.load_data()
+        return dd.from_pandas(df, npartitions=2)
