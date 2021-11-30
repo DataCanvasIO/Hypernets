@@ -54,7 +54,8 @@ class PseudoLabeling:
         pred = (selected * np.arange(1, len(classes) + 1)).max(axis=1) - 1
         idx = np.argwhere(pred >= 0).ravel()
 
-        X_pseudo = X_test.iloc[idx] if hasattr(X_test, 'iloc') else X_test[idx]
+        # X_pseudo = X_test.iloc[idx] if hasattr(X_test, 'iloc') else X_test[idx]
+        X_pseudo = get_tool_box(X_test).select_1d(X_test, idx)
         y_pseudo = np.take(np.array(classes), pred[idx], axis=0)
 
         if logger.is_info_enabled():

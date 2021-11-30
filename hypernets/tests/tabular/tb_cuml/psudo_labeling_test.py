@@ -1,16 +1,16 @@
 from . import if_cuml_ready, is_cuml_installed
-from ..psudo_labeling_test import TestPseudoLabeling
+from ..psudo_labeling_test import TestPseudoLabeling as _TestPseudoLabeling
 
 if is_cuml_installed:
     import cudf
 
 
 @if_cuml_ready
-class TestCumlPseudoLabeling(TestPseudoLabeling):
+class TestCumlPseudoLabeling(_TestPseudoLabeling):
 
     @staticmethod
     def load_data():
-        df = TestPseudoLabeling.load_data()
+        df = _TestPseudoLabeling.load_data()
         return cudf.from_pandas(df)
 
     @staticmethod

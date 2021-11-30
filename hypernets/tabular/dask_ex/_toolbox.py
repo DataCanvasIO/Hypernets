@@ -17,7 +17,7 @@ from sklearn import pipeline
 from sklearn.utils.multiclass import type_of_target
 
 from hypernets.tabular import ToolBox, register_transformer
-from hypernets.utils import logging, const, is_os_windows
+from hypernets.utils import logging, const, is_os_linux
 from . import _dataframe_mapper as dataframe_mapper_
 from . import _transformers as tfs
 from . import _feature_generators as feature_generators_
@@ -519,7 +519,7 @@ class DaskToolBox(ToolBox):
 
         if (estimator is None or estimator == 'gbm') \
                 and lightgbm_installed and hasattr(lightgbm, 'dask') \
-                and not is_os_windows:  # lightgbm.dask does not support windows
+                and is_os_linux:  # lightgbm.dask does not support windows
             return default_dask_gbm(task)
 
         estimator_ = super().general_estimator(X, y, estimator=estimator, task=task)
