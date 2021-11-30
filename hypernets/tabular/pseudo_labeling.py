@@ -43,22 +43,10 @@ class PseudoLabeling:
         proba = np.where(proba < mx, 0, proba)
 
         if self.strategy is None or self.strategy == ToolBox.STRATEGY_THRESHOLD:
-            # selected = (proba >= self.threshold)
             selected = self._filter_by_threshold(proba)
         elif self.strategy == ToolBox.STRATEGY_NUMBER:
-            # if isinstance(self.number, float) and 0 < self.number < 1:
-            #     number = int(proba.shape[0] / proba.shape[1] * self.number)
-            #     if number < 10:
-            #         number = 10
-            # else:
-            #     number = int(self.number)
-            #
-            # pos = proba.shape[0] - number
-            # i = np.argsort(np.argsort(proba, axis=0), axis=0)
-            # selected = np.logical_and(i >= pos, proba > 0)
             selected = self._filter_by_number(proba)
         elif self.strategy == ToolBox.STRATEGY_QUANTILE:
-            # qs = np.nanquantile(np.where(proba > 0, proba, np.nan), self.quantile, axis=0)
             selected = self._filter_by_quantile(proba)
         else:
             raise ValueError(f'Unsupported strategy: {self.strategy}')

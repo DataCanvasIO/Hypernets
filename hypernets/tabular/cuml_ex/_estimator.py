@@ -41,13 +41,13 @@ try:
         def predict(self, X, **kwargs):
             from .. import CumlToolBox
             pred = super().predict(X, **kwargs)
-            pred, = CumlToolBox.from_local(pred, enable_cuml_array=True)
+            pred, = CumlToolBox.from_local(pred, enable_cuml_array=False)
             return pred
 
         def predict_proba(self, X, **kwargs):
             from .. import CumlToolBox
             proba = super().predict_proba(X, **kwargs)
-            proba, = CumlToolBox.from_local(proba, enable_cuml_array=True)
+            proba, = CumlToolBox.from_local(proba, enable_cuml_array=False)
             return proba
 
 
@@ -55,7 +55,7 @@ try:
         def predict(self, X, **kwargs):
             from .. import CumlToolBox
             pred = super().predict(X, **kwargs)
-            pred, = CumlToolBox.from_local(pred, enable_cuml_array=True)
+            pred, = CumlToolBox.from_local(pred, enable_cuml_array=False)
             return pred
 
 except ImportError:
