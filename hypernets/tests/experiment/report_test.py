@@ -2,6 +2,7 @@ import os
 import datetime
 import pandas as pd
 import pytest
+import tempfile
 
 from hypernets.experiment.report import ExperimentReport, ExcelReportRender
 
@@ -95,13 +96,8 @@ class Test_Excel_Report():
 
     @staticmethod
     def _get_file_path():
-        def cast_int(v):
-            try:
-                return int(v.split(".")[0])
-            except Exception as e:
-                return 0
-        max_num = max([cast_int(name) for name in os.listdir("Z:/excel")])
-        file_path = f"Z:/excel/{max_num+1}.xlsx"
+        # file_path = tempfile.TemporaryFile()
+        file_path = tempfile.mkstemp(prefix="report_excel", suffix=".xlsx")[1]
         return file_path
 
     def test_render(self):
@@ -135,3 +131,5 @@ class Test_Excel_Report():
             p = self._get_file_path()
             print('excel write to: ' + p)
             ExcelReportRender(p).render(er)
+
+
