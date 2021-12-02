@@ -9,11 +9,12 @@ import cupy
 import numpy as np
 import pandas as pd
 from cuml.common.array import CumlArray
-from hypernets.utils import const
-from .. import sklearn_ex as sk_ex
+
+from hypernets.utils import const, logging
 from . import _data_cleaner
 from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
 from . import _pseudo_labeling
+from .. import sklearn_ex as sk_ex
 from ..toolbox import ToolBox, register_transformer, randint
 
 try:
@@ -24,6 +25,8 @@ except ImportError:
     is_xgboost_installed = False
 
 type(_transformer)  # disable: optimize import
+
+logger = logging.get_logger(__name__)
 
 
 class CumlToolBox(ToolBox):
@@ -232,7 +235,35 @@ class CumlToolBox(ToolBox):
     @staticmethod
     def permutation_importance(estimator, X, y, *args, scoring=None, n_repeats=5,
                                n_jobs=None, random_state=None):
-        raise NotImplementedError()  # fixme
+        if not CumlToolBox.is_cuml_object(X):
+            return ToolBox.permutation_importance(estimator, X, y, *args,
+                                                  scoring=scoring,
+                                                  n_repeats=n_repeats,
+                                                  n_jobs=n_jobs,
+                                                  random_state=random_state)
+        from sklearn import utils as sk_utils
+        from sklearn.metrics import check_scoring
+        scorer = check_scoring(CumlToolBox.wrap_for_local_scorer(estimator, CumlToolBox.infer_task_type(y)), scoring)
+        y, = CumlToolBox.to_local(y)
+        baseline_score = scorer(estimator, X, y)
+        scores = []
+
+        X = X.reset_index(drop=True)
+        for c in X.columns:
+            col_scores = []
+            X_permuted = X.copy()
+            for i in range(n_repeats):
+                rnd = random_state.randint(1, 65535) if hasattr(random_state, 'randint') else randint()
+                X_permuted[c] = X[c].sample(n=X.shape[0], random_state=rnd).reset_index(drop=True)
+                col_scores.append(scorer(estimator, X_permuted, y))
+            if logger.is_debug_enabled():
+                logger.debug(f'permuted scores [{c}]: {col_scores}')
+            scores.append(col_scores)
+
+        importances = baseline_score - np.array(scores)
+        return sk_utils.Bunch(importances_mean=np.mean(importances, axis=1),
+                              importances_std=np.std(importances, axis=1),
+                              importances=importances)
 
     @staticmethod
     def compute_class_weight(class_weight, *, classes, y):
@@ -313,6 +344,29 @@ class CumlToolBox(ToolBox):
             r = CumlToolBox.from_local(r)[0]
 
         return r
+
+    @staticmethod
+    def wrap_for_local_scorer(estimator, target_type):
+        def _call_with_local(fn_call, fn_fix, *args, **kwargs):
+            r = fn_call(*args, **kwargs)
+            if CumlToolBox.is_cuml_object(r):
+                r, = CumlToolBox.to_local(r)
+                if callable(fn_fix):
+                    r = fn_fix(r)
+            return r
+
+        if hasattr(estimator, 'predict_proba'):
+            orig_predict_proba = estimator.predict_proba
+            fix = CumlToolBox.fix_binary_predict_proba_result if target_type == const.TASK_BINARY else None
+            setattr(estimator, '_orig_predict_proba', orig_predict_proba)
+            setattr(estimator, 'predict_proba', partial(_call_with_local, orig_predict_proba, fix))
+
+        if hasattr(estimator, 'predict'):
+            orig_predict = estimator.predict
+            setattr(estimator, '_orig_predict', orig_predict)
+            setattr(estimator, 'predict', partial(_call_with_local, orig_predict, None))
+
+        return estimator
 
     @staticmethod
     def wrap_local_estimator(estimator):
