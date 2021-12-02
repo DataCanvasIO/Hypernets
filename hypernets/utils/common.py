@@ -192,3 +192,15 @@ def load_data(data, **kwargs):
         df = df.repartition(npartitions=worker_count)
 
     return df
+
+
+def human_data_size(value):
+    def r(v, unit):
+        return "%s%s" % (round(v, 2), unit)
+
+    if value < 1024 * 1024:
+        return r(value / 1024, "KB")
+    elif 1024 * 1024 < value <= 1024 * 1024 * 1024:
+        return r(value / 1024 / 1024, "MB")
+    else:
+        return r(value / 1024 / 1024 / 1024, "GB")
