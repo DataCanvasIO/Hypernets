@@ -23,9 +23,9 @@ class Localizable:
         return self  # default: do nothing
 
 
-def copy_attrs(tf, target, *props):
+def copy_attrs(tf, target, *attrs):
     from .. import CumlToolBox
-    for p in props:
+    for p in attrs:
         v = getattr(tf, p)
         v, = CumlToolBox.to_local(v)
         setattr(target, p, v)
@@ -154,6 +154,14 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
                                       drop=self.drop, sparse=self.sparse,
                                       dtype=self.dtype, handle_unknown=self.handle_unknown)
         copy_attrs(self, target, 'categories_', 'drop_idx_')
+        return target
+
+
+@tb_transformer(cudf.DataFrame, name='TargetEncoder')
+class LocalizableTargetEncoder(TargetEncoder, Localizable):
+    def as_local(self):
+        target = sk_ex.TargetEncoder(n_folds=self.n_folds, smooth=self.smooth, seed=self.seed, split_method=self.split)
+        copy_attrs(self, target, '_fitted', 'train', 'train_encode', 'encode_all', 'mean')
         return target
 
 

@@ -159,6 +159,10 @@ class TestCumlTransformer:
         tf = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
         self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
+    def test_target_encoder(self):
+        tf = CumlToolBox.transformers['TargetEncoder']()
+        self.fit_reload_transform(tf, column_selector=lambda _: ['age', 'job', 'education'])
+
     def test_onehot_svd_pipeline(self):
         ohe = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
         svd = CumlToolBox.transformers['TruncatedSVD'](n_components=3)

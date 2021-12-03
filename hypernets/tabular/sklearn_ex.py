@@ -1001,3 +1001,254 @@ class DatetimeEncoder(BaseEstimator, TransformerMixin):
             dfs = [t for t in dfs if t.nunique() > 1]
 
         return dfs
+
+
+class TargetEncoder(BaseEstimator):
+    """
+    Adapted from cuml.preprocessing.TargetEncoder
+    """
+
+    def __init__(self, n_folds=4, smooth=0, seed=42, split_method='interleaved'):
+        if smooth < 0:
+            raise ValueError(f'smooth {smooth} is not zero or positive')
+        if n_folds < 0 or not isinstance(n_folds, int):
+            raise ValueError(
+                'n_folds {} is not a postive integer'.format(n_folds))
+
+        if not isinstance(seed, int):
+            raise ValueError('seed {} is not an integer'.format(seed))
+
+        if split_method not in {'random', 'continuous', 'interleaved'}:
+            msg = ("split_method should be either 'random'"
+                   " or 'continuous' or 'interleaved', "
+                   "got {0}.".format(self.split))
+            raise ValueError(msg)
+
+        self.n_folds = n_folds
+        self.seed = seed
+        self.smooth = smooth
+        self.split = split_method
+        self.y_col = '__TARGET__'
+        self.x_col = '__FEA__'
+        self.out_col = '__TARGET_ENCODE__'
+        self.fold_col = '__FOLD__'
+        self.id_col = '__INDEX__'
+
+        # fitted
+        self._fitted = False
+        self.train = None
+        self.train_encode = None
+        self.mean = None
+        self.encode_all = None
+
+    def fit(self, x, y):
+        """
+        Fit a TargetEncoder instance to a set of categories
+
+        Parameters
+        ----------
+        x: cudf.Series or cudf.DataFrame or cupy.ndarray
+           categories to be encoded. It's elements may or may
+           not be unique
+        y : cudf.Series or cupy.ndarray
+            Series containing the target variable.
+
+        Returns
+        -------
+        self : TargetEncoder
+            A fitted instance of itself to allow method chaining
+        """
+        res, train = self._fit_transform(x, y)
+        self.train_encode = res
+        self.train = train
+        self._fitted = True
+        return self
+
+    def fit_transform(self, x, y):
+        """
+        Simultaneously fit and transform an input
+
+        This is functionally equivalent to (but faster than)
+        `TargetEncoder().fit(y).transform(y)`
+        """
+        self.fit(x, y)
+        return self.train_encode
+
+    def transform(self, x):
+        """
+        Transform an input into its categorical keys.
+
+        This is intended for test data. For fitting and transforming
+        the training data, prefer `fit_transform`.
+
+        Parameters
+        ----------
+        x : cudf.Series
+            Input keys to be transformed. Its values doesn't have to
+            match the categories given to `fit`
+
+        Returns
+        -------
+        encoded : cupy.ndarray
+            The ordinally encoded input series
+
+        """
+        self._check_is_fitted()
+        test = self._to_dataframe(x)
+        if self._is_train_df(test):
+            return self.train_encode
+        x_cols = [i for i in test.columns.tolist() if i != self.id_col]
+        test = test.merge(self.encode_all, on=x_cols, how='left')
+        return self._impute_and_sort(test)
+
+    def _fit_transform(self, x, y):
+        """
+        Core function of target encoding
+        """
+        np.random.seed(self.seed)
+        train = self._to_dataframe(x)
+        x_cols = [i for i in train.columns.tolist() if i != self.id_col]
+        train[self.y_col] = self._make_y_column(y)
+
+        self.n_folds = min(self.n_folds, len(train))
+        train[self.fold_col] = self._make_fold_column(len(train))
+
+        self.mean = train[self.y_col].mean()
+
+        y_count_each_fold, y_count_all = self._groupby_agg(train,
+                                                           x_cols,
+                                                           op='count')
+
+        y_sum_each_fold, y_sum_all = self._groupby_agg(train,
+                                                       x_cols,
+                                                       op='sum')
+        """
+        Note:
+            encode_each_fold is used to encode train data.
+            encode_all is used to encode test data.
+        """
+        cols = [self.fold_col] + x_cols
+        encode_each_fold = self._compute_output(y_sum_each_fold,
+                                                y_count_each_fold,
+                                                cols,
+                                                f'{self.y_col}_x')
+        encode_all = self._compute_output(y_sum_all,
+                                          y_count_all,
+                                          x_cols,
+                                          self.y_col)
+        self.encode_all = encode_all
+
+        train = train.merge(encode_each_fold, on=cols, how='left')
+        del encode_each_fold
+        return self._impute_and_sort(train), train
+
+    def _make_y_column(self, y):
+        """
+        Create a target column given y
+        """
+        if isinstance(y, pd.Series):
+            return y.values
+        elif isinstance(y, np.ndarray):
+            if len(y.shape) == 1:
+                return y
+            elif y.shape[1] == 1:
+                return y[:, 0]
+            else:
+                raise ValueError(f"Input of shape {y.shape} "
+                                 "is not a 1-D array.")
+        else:
+            raise TypeError(f"Input of type {type(y)} is not pandas.Series or numpy.ndarray")
+
+    def _make_fold_column(self, len_train):
+        """
+        Create a fold id column for each split_method
+        """
+        if self.split == 'random':
+            return np.random.randint(0, self.n_folds, len_train)
+        elif self.split == 'continuous':
+            return (np.arange(len_train) /
+                    (len_train / self.n_folds)) % self.n_folds
+        elif self.split == 'interleaved':
+            return np.arange(len_train) % self.n_folds
+        else:
+            msg = ("split should be either 'random'"
+                   " or 'continuous' or 'interleaved', "
+                   "got {0}.".format(self.split))
+            raise ValueError(msg)
+
+    def _compute_output(self, df_sum, df_count, cols, y_col):
+        """
+        Compute the output encoding based on aggregated sum and count
+        """
+        df_sum = df_sum.merge(df_count, on=cols, how='left')
+        smooth = self.smooth
+        df_sum[self.out_col] = (df_sum[f'{y_col}_x'] +
+                                smooth * self.mean) / \
+                               (df_sum[f'{y_col}_y'] +
+                                smooth)
+        return df_sum
+
+    def _groupby_agg(self, train, x_cols, op):
+        """
+        Compute aggregated value of each fold and overall dataframe
+        grouped by `x_cols` and agg by `op`
+        """
+        cols = [self.fold_col] + x_cols
+        df_each_fold = train.groupby(cols, as_index=False) \
+            .agg({self.y_col: op})
+        df_all = df_each_fold.groupby(x_cols, as_index=False) \
+            .agg({self.y_col: 'sum'})
+
+        df_each_fold = df_each_fold.merge(df_all, on=x_cols, how='left')
+        df_each_fold[f'{self.y_col}_x'] = df_each_fold[f'{self.y_col}_y'] - \
+                                          df_each_fold[f'{self.y_col}_x']
+        return df_each_fold, df_all
+
+    def _check_is_fitted(self):
+        if not self._fitted or self.train is None:
+            msg = ("This LabelEncoder instance is not fitted yet. Call 'fit' "
+                   "with appropriate arguments before using this estimator.")
+            raise ValueError(msg)
+
+    def _is_train_df(self, df):
+        """
+        Return True if the dataframe `df` is the training dataframe, which
+        is used in `fit_transform`
+        """
+        if len(df) != len(self.train):
+            return False
+        self.train = self.train.sort_values(self.id_col).reset_index(drop=True)
+        for col in df.columns:
+            if col not in self.train.columns:
+                raise ValueError(f"Input column {col} "
+                                 "is not in train data.")
+            if not (df[col] == self.train[col]).all():
+                return False
+        return True
+
+    def _impute_and_sort(self, df):
+        """
+        Impute and sort the result encoding in the same row order as input
+        """
+        # df[self.out_col] = df[self.out_col].nans_to_nulls()
+        df[self.out_col] = df[self.out_col].fillna(self.mean)
+        df = df.sort_values(self.id_col)
+        res = df[self.out_col].values.copy()
+
+        return res
+
+    def _to_dataframe(self, x):
+        if isinstance(x, pd.DataFrame):
+            df = x.copy()
+        elif isinstance(x, pd.Series):
+            df = x.to_frame().copy()
+        elif isinstance(x, np.ndarray):
+            if len(x.shape) == 1:
+                df = pd.DataFrame({self.x_col: x})
+            else:
+                df = pd.DataFrame(x, columns=[f'{self.x_col}_{i}' for i in range(x.shape[1])])
+        else:
+            raise TypeError(f"Input of type {type(x)} is pandas.Series or pandas.DataFrame or numpy.ndarray")
+
+        df[self.id_col] = np.arange(len(x))
+        return df
