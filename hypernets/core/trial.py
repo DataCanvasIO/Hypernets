@@ -190,7 +190,7 @@ class TrialHistory():
             for trial in self.trials:
                 if trial.succeeded:
                     data = f'{trial.trial_no}|{trial.space_sample.vectors}|{trial.reward}|{trial.elapsed}' + \
-                        f'|{trial.model_file if trial.model_file else ""}\r\n'
+                           f'|{trial.model_file if trial.model_file else ""}\r\n'
                     output.write(data)
 
     @staticmethod
