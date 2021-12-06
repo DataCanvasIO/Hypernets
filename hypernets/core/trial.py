@@ -188,9 +188,10 @@ class TrialHistory():
         with open(filepath, 'w') as output:
             output.write(f'{self.optimize_direction}\r\n')
             for trial in self.trials:
-                data = f'{trial.trial_no}|{trial.space_sample.vectors}|{trial.reward}|{trial.elapsed}' + \
-                       f'|{trial.model_file if trial.model_file else ""}\r\n'
-                output.write(data)
+                if trial.succeeded:
+                    data = f'{trial.trial_no}|{trial.space_sample.vectors}|{trial.reward}|{trial.elapsed}' + \
+                        f'|{trial.model_file if trial.model_file else ""}\r\n'
+                    output.write(data)
 
     @staticmethod
     def load_history(space_fn, filepath):
