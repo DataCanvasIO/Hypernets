@@ -12,6 +12,7 @@ from cuml.common.array import CumlArray
 
 from hypernets.utils import const, logging
 from . import _data_cleaner
+from . import _estimator_detector
 from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
 from . import _pseudo_labeling
 from .. import sklearn_ex as sk_ex
@@ -456,6 +457,7 @@ class CumlToolBox(ToolBox):
     metrics = _metrics.CumlMetrics
     _data_hasher_cls = _data_hasher.CumlDataHasher
     _data_cleaner_cls = _data_cleaner.CumlDataCleaner
+    _estimator_detector_cls = _estimator_detector.CumlEstimatorDetector
     _kfold_cls = _model_selection.FakeKFold
     _stratified_kfold_cls = _model_selection.FakeStratifiedKFold
     _feature_selector_with_drift_detection_cls = _drift_detection.CumlFeatureSelectorWithDriftDetection

@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
-
 from hypernets.core import randint
 from hypernets.utils import logging, const
 from . import collinearity as collinearity_
@@ -19,6 +18,7 @@ from . import data_hasher as data_hasher_
 from . import dataframe_mapper as dataframe_mapper_
 from . import drift_detection as drift_detection_
 from . import ensemble as ensemble_
+from . import estimator_detector as estimator_detector_
 from . import feature_generators as feature_generators_
 from . import metrics as metrics_
 from . import pseudo_labeling as pseudo_labeling_
@@ -467,6 +467,7 @@ class ToolBox(metaclass=ToolboxMeta):
 
     _data_hasher_cls = data_hasher_.DataHasher
     _data_cleaner_cls = data_cleaner_.DataCleaner
+    _estimator_detector_cls = estimator_detector_.EstimatorDetector
     _collinearity_detector_cls = collinearity_.MultiCollinearityDetector
     _drift_detector_cls = drift_detection_.DriftDetector
     _feature_selector_with_drift_detection_cls = drift_detection_.FeatureSelectorWithDriftDetection
@@ -491,6 +492,13 @@ class ToolBox(metaclass=ToolboxMeta):
             replace_inf_values=replace_inf_values, drop_columns=drop_columns,
             reserve_columns=reserve_columns, reduce_mem_usage=reduce_mem_usage,
             int_convert_to=int_convert_to)
+
+    @classmethod
+    def estimator_detector(cls, name_or_cls, task, *,
+                           init_kwargs=None, fit_kwargs=None, n_samples=100, n_features=5):
+        return cls._estimator_detector_cls(
+            name_or_cls, task,
+            init_kwargs=init_kwargs, fit_kwargs=fit_kwargs, n_samples=n_samples, n_features=n_features)
 
     @classmethod
     def collinearity_detector(cls):

@@ -2,6 +2,7 @@
 """
 
 """
+import pytest
 
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
@@ -13,7 +14,7 @@ if is_cuml_installed:
 
 
 @if_cuml_ready
-class TestCumlTransformer:
+class TestCumlToolBox:
 
     @classmethod
     def setup_class(cls):
@@ -57,3 +58,25 @@ class TestCumlTransformer:
 
             proba = est.predict_proba(Xt)
             assert CumlToolBox.is_cuml_object(proba)
+
+    def test_detect_estimator_cuml_rf(self):
+        tb = get_tool_box(cudf.DataFrame)
+        detector = tb.estimator_detector('cuml.RandomForestClassifier', 'binary')
+        r = detector()
+        assert r == {'installed', 'initialized', 'fitted', 'fitted_with_cuml'}
+
+    def test_detect_estimator_lightgbm(self):
+        tb = get_tool_box(cudf.DataFrame)
+        detector = tb.estimator_detector('lightgbm.LGBMClassifier', 'binary',
+                                         init_kwargs={'device': 'GPU'}, )
+        r = detector()
+        assert r == {'installed', 'initialized', 'fitted'}  # lightgbm dose not support cudf.DataFrame
+
+    def test_detect_estimator_xgboost(self):
+        pytest.importorskip('xgboost')
+
+        tb = get_tool_box(cudf.DataFrame)
+        detector = tb.estimator_detector('xgboost.XGBClassifier', 'binary',
+                                         init_kwargs={'tree_method': 'gpu_hist', 'use_label_encoder': False}, )
+        r = detector()
+        assert r == {'installed', 'initialized', 'fitted', 'fitted_with_cuml'}
