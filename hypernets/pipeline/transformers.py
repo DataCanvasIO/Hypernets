@@ -16,6 +16,11 @@ class AsTypeTransformer(HyperTransformer):
         HyperTransformer.__init__(self, sklearn_ex.AsTypeTransformer, space, name, dtype=dtype, **kwargs)
 
 
+class PassThroughEstimator(HyperTransformer):
+    def __init__(self, dtype, space=None, name=None, **kwargs):
+        HyperTransformer.__init__(self, sklearn_ex.PassThroughEstimator, space, name, dtype=dtype, **kwargs)
+
+
 class LogStandardScaler(HyperTransformer):
     def __init__(self, copy=True, with_mean=True, with_std=True, space=None, name=None, **kwargs):
         if copy is not None and copy is not True:
