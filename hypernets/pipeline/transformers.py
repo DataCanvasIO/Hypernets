@@ -17,8 +17,8 @@ class AsTypeTransformer(HyperTransformer):
 
 
 class PassThroughEstimator(HyperTransformer):
-    def __init__(self, dtype, space=None, name=None, **kwargs):
-        HyperTransformer.__init__(self, sklearn_ex.PassThroughEstimator, space, name, dtype=dtype, **kwargs)
+    def __init__(self, space=None, name=None, **kwargs):
+        HyperTransformer.__init__(self, sklearn_ex.PassThroughEstimator, space, name, **kwargs)
 
 
 class LogStandardScaler(HyperTransformer):
