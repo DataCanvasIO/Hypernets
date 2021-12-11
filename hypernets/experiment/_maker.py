@@ -37,6 +37,10 @@ def make_experiment(hyper_model_cls,
                     hyper_model_options=None,
                     clear_cache=None,
                     discriminator=None,
+                    evaluate_metrics='auto',
+                    evaluate_prediction_dir=None,
+                    report_render=None,
+                    report_render_options=None,
                     log_level=None,
                     **kwargs):
     """
@@ -119,6 +123,19 @@ def make_experiment(hyper_model_cls,
             -logging.INFO
             -logging.DEBUG
             -logging.NOTSET
+    evaluate_metrics: str, list, or None (default='auto'),
+        If *eval_data* is not None, it used to evaluate model with the metrics.
+        For str should be 'auto', it will selected metrics accord to machine learning task type.
+        For list should be metrics name.
+    evaluate_prediction_dir: str or None (default=None)
+        The dir to persist prediction.
+    report_render: str, obj, optional, default is None
+        The experiment report render.
+        For str should be one of 'excel'
+        for obj should be instance ReportRender
+    report_render_options: dict, optional
+        The options to create render, is used if render is str.
+
     kwargs:
         Parameters to initialize experiment instance, refrence CompeteExperiment for more details.
     Returns
@@ -177,6 +194,16 @@ def make_experiment(hyper_model_cls,
             logger.warning(f'Unrecognized searcher "{sch}".')
 
         return sch
+
+    def to_report_render_object(render, options):
+        from hypernets.experiment.report import ReportRender, get_render
+        options = {} if options is None else options
+        if isinstance(render, ReportRender):
+            return render
+        elif isinstance(render, str):
+            return get_render(render)(**options)
+        else:
+            raise ValueError(f"Unknown report render '{render}' ")
 
     def default_experiment_callbacks():
         cbs = cfg.experiment_callbacks_notebook if isnotebook() else cfg.experiment_callbacks_console
@@ -252,6 +279,16 @@ def make_experiment(hyper_model_cls,
 
     if callbacks is None:
         callbacks = default_experiment_callbacks()
+
+    if eval_data is not None:
+        from hypernets.experiment import MLEvaluateCallback
+        if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS]:
+            callbacks.append(MLEvaluateCallback(evaluate_metrics, evaluate_prediction_dir))
+
+    if report_render is not None:
+        from hypernets.experiment import MLReportCallback
+        report_render = to_report_render_object(report_render, report_render_options)
+        callbacks.append(MLReportCallback(report_render))
 
     if discriminator is None and cfg.experiment_discriminator is not None and len(cfg.experiment_discriminator) > 0:
         discriminator = make_discriminator(cfg.experiment_discriminator,

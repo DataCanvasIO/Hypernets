@@ -3,15 +3,26 @@ __author__ = 'yangjian'
 """
 
 """
+import time
+import os
+from datetime import datetime
 from collections import OrderedDict
+from threading import Thread, RLock
+import math
 
 import pandas as pd
+import joblib
+import psutil
+from sklearn import metrics as sk_metrics
+from sklearn.metrics import classification_report, confusion_matrix
 from IPython.display import display, display_markdown
 
 from hypernets.tabular import get_tool_box
 from hypernets.utils import const
+from hypernets.utils.experiment import ExperimentExtractor
 from . import ExperimentCallback
 from .compete import StepNames
+from .report import ReportRender
 
 
 class ConsoleCallback(ExperimentCallback):
@@ -264,3 +275,160 @@ class SimpleNotebookCallback(ExperimentCallback):
         assert self.steps is not None and step in self.steps.keys()
         cb = self.steps[step]
         cb.step_break(exp, step, error)
+
+
+class MLEvaluateCallback(ExperimentCallback):
+
+    def __init__(self, evaluate_metrics='auto', evaluate_prediction_dir=None):
+        self.evaluate_prediction_dir = evaluate_prediction_dir
+
+        self._eval_df_shape = None
+        self._eval_elapse = None
+
+    @staticmethod
+    def to_prediction(y_score):
+        pass
+
+    @staticmethod
+    def _persist(obj, obj_name, path):
+        if path is not None:
+            print(f"Persist '{obj_name}' result to '{path}' ")
+            with open(path, 'wb') as f:
+                joblib.dump(obj, f)
+
+    def experiment_end(self, exp, elapsed):
+        # Attach prediction
+        exp.y_eval_proba = None  # define attr
+        exp.y_eval_pred = None
+        if exp.y_eval is not None and exp.X_eval is not None:
+            _t = time.time()
+            exp.y_eval_pred = exp.model_.predict(exp.X_eval)  # TODO: try to use proba
+            if hasattr(exp.model_, 'predict_proba'):
+                try:
+                    exp.y_eval_proba = exp.model_.predict_proba(exp.X_eval)
+                except Exception as e:
+                    print("predict_proba failed", e)
+            exp._eval_elapsed = time.time() - _t
+        if self.evaluate_prediction_dir is not None:
+            persist_pred_path = os.path.join(self.evaluate_prediction_dir, 'predict.pkl')
+            persist_proba_path = os.path.join(self.evaluate_prediction_dir, 'predict_proba.pkl')
+            self._persist(exp.y_eval_proba, 'y_eval_proba', persist_pred_path)
+            self._persist(exp.y_eval_pred, 'y_eval_pred', persist_proba_path)
+        # TODO: add evaluation
+
+
+class ResourceUsageMonitor(Thread):
+
+    STATUS_READY = 0
+    STATUS_RUNNING = 1
+    STATUS_STOP = 2
+
+    def __init__(self, interval=30):
+        # auto exit if all work thread finished
+        super(ResourceUsageMonitor, self).__init__(name=self.__class__.__name__, daemon=True)
+        self.interval = interval
+
+        self._timer_status_lock = RLock()
+        self._timer_status = 0  # 0->ready, 1->running, 2->stop
+        self._process = psutil.Process(os.getpid())
+        self._data = []
+
+    def _change_status(self, status):
+        self._timer_status_lock.acquire(blocking=True, timeout=30)
+        try:
+            self._timer_status = status  # state machine: check status
+        except Exception as e:
+            pass
+        finally:
+            self._timer_status_lock.release()
+
+    def start_watch(self):
+        if self._timer_status != ResourceUsageMonitor.STATUS_READY:
+            raise Exception(f"Illegal status: {self._timer_status}, "
+                            f"only at '{ResourceUsageMonitor.STATUS_READY}' is available")
+        self.start()
+
+    def stop_watch(self):
+        self._change_status(ResourceUsageMonitor.STATUS_STOP)
+
+    def run(self) -> None:
+        while self._timer_status != ResourceUsageMonitor.STATUS_STOP:
+            cpu_percent = self._process.cpu_percent()
+            mem_percent = self._process.memory_percent()
+            self._data.append((datetime.now(), cpu_percent, mem_percent))
+            time.sleep(self.interval)
+
+    @property
+    def data(self):
+        return self._data  # [(datetime, cpu, mem)]
+
+
+class MLReportCallback(ExperimentCallback):
+
+    def __init__(self, render: ReportRender, sample_interval=30):
+        self.render = render
+        self._rum = ResourceUsageMonitor(interval=sample_interval)
+        # self.render_options = render_options if not None else {}
+        self._experiment_meta = None
+
+    def experiment_start(self, exp):
+        self._rum.start_watch()
+
+    def experiment_end(self, exp, elapsed):
+        # 1. Mock full experiment: Add evaluation
+        confusion_matrix_result = None
+        DIGITS = 4
+        if exp.y_eval_pred is not None:
+            y_test = exp.y_eval
+            y_pred = exp.y_eval_pred
+            if exp.task in [const.TASK_MULTICLASS, const.TASK_BINARY]:
+                evaluation_result = classification_report(y_test, y_pred, output_dict=True, digits=DIGITS)
+                confusion_matrix_result = confusion_matrix(y_test, y_pred)
+            elif exp.task in [const.TASK_REGRESSION]:
+                explained_variance = round(sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred), DIGITS)
+                neg_mean_absolute_error = round(sk_metrics.mean_absolute_error(y_true=y_test, y_pred=y_pred), DIGITS)
+                neg_mean_squared_error = round(sk_metrics.mean_squared_error(y_true=y_test, y_pred=y_pred), DIGITS)
+                rmse = round(math.sqrt(neg_mean_squared_error), DIGITS)
+                neg_median_absolute_error = round(sk_metrics.median_absolute_error(y_true=y_test, y_pred=y_pred),
+                                                  DIGITS)
+                r2 = round(sk_metrics.r2_score(y_true=y_test, y_pred=y_pred), DIGITS)
+                if (y_test >= 0).all() and (y_pred >= 0).all():
+                    neg_mean_squared_log_error = round(sk_metrics.mean_squared_log_error(y_true=y_test, y_pred=y_pred),
+                                                       DIGITS)
+                else:
+                    neg_mean_squared_log_error = None
+                evaluation_result = {
+                    "explained_variance": explained_variance,
+                    "neg_mean_absolute_error": neg_mean_absolute_error,
+                    "neg_mean_squared_error": neg_mean_squared_error,
+                    "rmse": rmse,
+                    "neg_mean_squared_log_error": neg_mean_squared_log_error,
+                    "r2": r2,
+                    "neg_median_absolute_error": neg_median_absolute_error
+                }
+            else:
+                evaluation_result = None
+        else:
+            evaluation_result = {}
+
+        # 2. get experiment meta and render to excel
+        # TODO: add others
+        self._experiment_meta = ExperimentExtractor(exp, evaluation_result,
+                                                    confusion_matrix_result, self._rum.data).extract()
+        self.render.render(self._experiment_meta)
+
+    def experiment_break(self, exp, error):
+        pass  # TODO
+
+    def step_start(self, exp, step):
+        pass
+
+    def step_progress(self, exp, step, progress, elapsed, eta=None):
+        pass
+
+    def step_end(self, exp, step, output, elapsed):
+        pass
+
+    def step_break(self, exp, step, error):
+        pass
+
