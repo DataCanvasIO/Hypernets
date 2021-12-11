@@ -1,6 +1,8 @@
 from ._version import __version__
 
 from .widget import *
+from ._hyper_model_callback import JupyterHyperModelCallback
+from ._experiment_callback import JupyterWidgetExperimentCallback
 
 
 def _jupyter_labextension_paths():

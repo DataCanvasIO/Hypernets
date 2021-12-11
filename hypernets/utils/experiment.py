@@ -1,4 +1,5 @@
 import json
+import abc
 import copy
 from collections import OrderedDict, namedtuple
 from typing import List, Set, Dict, Tuple, Optional
@@ -12,152 +13,11 @@ from hypernets.utils import logging
 logger = logging.get_logger(__name__)
 
 
-class StepType:
-    DataCleaning = 'DataCleanStep'
-    CollinearityDetection = 'MulticollinearityDetectStep'
-    DriftDetection = 'DriftDetectStep'
-    SpaceSearch = 'SpaceSearchStep'
-    FeatureSelection = 'FeatureImportanceSelectionStep'
-    PseudoLabeling = 'PseudoLabelStep'
-    DaskPseudoLabelStep = 'DaskPseudoLabelStep'
-    FeatureGeneration = 'FeatureGenerationStep'
-    PermutationImportanceSelection = 'PermutationImportanceSelectionStep'
-    ReSpaceSearch = 'ReSpaceSearch'
-    Ensemble = 'EnsembleStep'
-    DaskEnsembleStep = 'DaskEnsembleStep'
-    FinalTrain = 'FinalTrainStep'
-
-
-class StepStatus:
-    Wait = 'wait'
-    Process = 'process'
-    Finish = 'finish'
-    Skip = 'skip'
-    Error = 'error'
-
-
-class EarlyStoppingConfig(object):
-
-    def __init__(self, enable, excepted_reward, max_no_improved_trials, time_limit, mode):
-        self.enable = enable
-        self.excepted_reward = excepted_reward
-        self.max_no_improved_trials = max_no_improved_trials
-        self.time_limit = time_limit
-        self.mode = mode
-
-    def to_dict(self):
-        return {
-            "enable": self.enable,
-            "exceptedReward": self.excepted_reward,
-            "maxNoImprovedTrials": self.max_no_improved_trials,
-            "timeLimit": self.time_limit,
-            "mode": self.mode,
-        }
-
-
-class EarlyStoppingStatus(object):
-
-    def __init__(self, best_reward, best_trial_no, counter_no_improvement_trials, triggered, triggered_reason, elapsed_time):
-        self.best_reward = best_reward
-        self.best_trial_no = best_trial_no
-        self.counter_no_improvement_trials = counter_no_improvement_trials
-        self.triggered = triggered
-        self.triggered_reason = triggered_reason
-        self.elapsed_time = elapsed_time
-
-    def to_dict(self):
-        return {
-             "bestReward": self.best_reward,
-             "bestTrialNo": self.best_trial_no,
-             "counterNoImprovementTrials": self.counter_no_improvement_trials,
-             "triggered": self.triggered,
-             "triggeredReason": self.triggered_reason,
-             "elapsedTime": self.elapsed_time
-        }
-
-
-class DatasetMeta(namedtuple('DatasetMeta', ['kind', 'task', 'shape', 'memory'])):
-    pass
-
-
-class StepMeta(namedtuple('StepMeta', ['index', 'name',  'type', 'status',
-                                       'configuration', 'extension', 'start_datetime', 'end_datetime'])):
-
-    def to_dict(self):
-        return self._asdict()
-
-    def to_json(self):
-        return json.dumps(self.to_dict())
-
-
-class ExperimentMeta:
-    def __init__(self, task, datasets_meta, steps_meta, evaluation_metric=None, confusion_matrix=None,
-                 resource_usage=None, prediction_stats=None):
-        self.task = task
-        self.datasets_meta = datasets_meta
-        self.steps_data = steps_meta
-        self.evaluation_metric = evaluation_metric
-        self.confusion_matrix = confusion_matrix
-        self.resource_usage = resource_usage
-        self.prediction_stats = prediction_stats
-
-
 def get_extra_attr(obj, name, default=None):
     if hasattr(obj, name):
         return getattr(obj, name)
     else:
         return None
-
-
-def get_step_status(step):
-    # STATUS_NONE = -1
-    # STATUS_SUCCESS = 0
-    # STATUS_FAILED = 1
-    # STATUS_SKIPPED = 2
-    # STATUS_RUNNING = 10
-
-    status_mapping = {
-        -1: StepStatus.Wait,
-        0: StepStatus.Finish,
-        1:  StepStatus.Error,
-        2:  StepStatus.Skip,
-        10:  StepStatus.Skip,
-    }
-    s = step.status_
-    if s not in status_mapping:
-        raise Exception("Unseen status: " + str(s));
-    return status_mapping[s]
-
-
-def get_step_index(experiment, step_name):
-    for i, step in enumerate(experiment.steps):
-        if step.name == step_name:
-            return i
-    return -1
-
-
-import pickle
-import time
-import sys
-import numpy as np
-
-from IPython.display import display
-
-from hypernets.core.callbacks import Callback
-from hypernets.core.callbacks import EarlyStoppingCallback
-from hypernets.experiment import ExperimentCallback
-from hypernets.utils import fs
-
-try:
-    import hn_widget
-except Exception as e:
-    sys.stderr.write("Please install the hypernets widget with command: pip install hypernets-jupyter-widget ")
-
-from hn_widget.experiment_util import EarlyStoppingStatus
-from hn_widget.experiment_util import get_step_index
-from hn_widget.experiment_util import StepStatus
-
-MAX_IMPORTANCE_NUM = 10  # TOP N important features
 
 
 def get_tree_importances(tree_model):
@@ -234,31 +94,127 @@ def get_tree_importances(tree_model):
     return importances
 
 
-def sort_imp(imp_dict, sort_imp_dict):
-    sort_imps = []
-    for k in sort_imp_dict:
-        sort_imps.append({
-            'name': k,
-            'imp': sort_imp_dict[k]
-        })
-
-    top_features = list(map(lambda x: x['name'], sorted(sort_imps, key=lambda v: v['imp'], reverse=True)[: MAX_IMPORTANCE_NUM]))
-
-    imps = []
-    for f in top_features:
-        imps.append({
-            'name': f,
-            'imp': imp_dict[f]
-        })
-    return imps
+class StepType:
+    DataCleaning = 'DataCleanStep'
+    CollinearityDetection = 'MulticollinearityDetectStep'
+    DriftDetection = 'DriftDetectStep'
+    SpaceSearch = 'SpaceSearchStep'
+    FeatureSelection = 'FeatureImportanceSelectionStep'
+    PseudoLabeling = 'PseudoLabelStep'
+    DaskPseudoLabelStep = 'DaskPseudoLabelStep'
+    FeatureGeneration = 'FeatureGenerationStep'
+    PermutationImportanceSelection = 'PermutationImportanceSelectionStep'
+    ReSpaceSearch = 'ReSpaceSearch'
+    Ensemble = 'EnsembleStep'
+    DaskEnsembleStep = 'DaskEnsembleStep'
+    FinalTrain = 'FinalTrainStep'
 
 
-def get_step_kind(self, step):
-    class_name = step.__class__.__name__
-    return class_name
+class BaseMeta(metaclass=abc.ABCMeta):
+
+    def to_dict(self):
+        return self.__dict__
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    @staticmethod
+    def _to_dict_list(meta_list: List):
+        if meta_list is not None:
+            return [meta_data.to_dict() for meta_data in meta_list]
+        else:
+            return None
 
 
-class Extractor:
+class EarlyStoppingConfigMeta(BaseMeta):
+
+    def __init__(self, enable, excepted_reward,max_no_improved_trials, time_limit, mode):
+        self.enable = enable
+        self.excepted_reward = excepted_reward
+        self.max_no_improved_trials = max_no_improved_trials
+        self.time_limit = time_limit
+        self.mode = mode
+
+    def to_dict(self):
+        return {
+            "enable": self.enable,
+            "exceptedReward": self.excepted_reward,
+            "maxNoImprovedTrials": self.max_no_improved_trials,
+            "timeLimit": self.time_limit,
+            "mode": self.mode,
+        }
+
+
+class EarlyStoppingStatusMeta(BaseMeta):
+
+    def __init__(self, best_reward, best_trial_no, counter_no_improvement_trials,
+                 triggered, triggered_reason, elapsed_time):
+        self.best_reward = best_reward
+        self.best_trial_no = best_trial_no
+        self.counter_no_improvement_trials = counter_no_improvement_trials
+        self.triggered = triggered
+        self.triggered_reason = triggered_reason
+        self.elapsed_time = elapsed_time
+
+    def to_dict(self):
+        return {
+             "bestReward": self.best_reward,
+             "bestTrialNo": self.best_trial_no,
+             "counterNoImprovementTrials": self.counter_no_improvement_trials,
+             "triggered": self.triggered,
+             "triggeredReason": self.triggered_reason,
+             "elapsedTime": self.elapsed_time
+        }
+
+
+class DatasetMeta(BaseMeta):
+    def __init__(self, kind, task, shape, memory):
+        self.kind = kind
+        self.task = task
+        self.shape = shape
+        self.memory = memory
+
+
+class StepMeta(BaseMeta):
+
+    STATUS_WAIT = 'wait'
+    STATUS_PROCESS = 'process'
+    STATUS_FINISH = 'finish'
+    STATUS_SKIP = 'skip'
+    STATUS_ERROR = 'error'
+
+    def __init__(self, index, name, type, status, configuration, extension, start_datetime, end_datetime):
+        self.index = index
+        self.name = name
+        self.type = type
+        self.status = status
+        self.configuration = configuration
+        self.extension = extension
+        self.start_datetime = start_datetime
+        self.end_datetime = end_datetime
+
+
+class ExperimentMeta(BaseMeta):
+
+    def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta],
+                 evaluation_metric=None, confusion_matrix=None, resource_usage=None, prediction_stats=None):
+
+        self.task = task
+        self.datasets = datasets
+        self.steps = steps
+        self.evaluation_metric = evaluation_metric
+        self.confusion_matrix = confusion_matrix
+        self.resource_usage = resource_usage
+        self.prediction_stats = prediction_stats
+
+    def to_dict(self):
+        dict_data = self.__dict__
+        dict_data['datasets'] = self._to_dict_list(self.datasets)
+        dict_data['steps'] = self._to_dict_list(self.steps)
+        return dict_data
+
+
+class Extractor(metaclass=abc.ABCMeta):
 
     def __init__(self, step):
         self.step = step
@@ -269,43 +225,66 @@ class Extractor:
             configuration['scorer'] = str(configuration['scorer'])
         return configuration
 
+    @abc.abstractmethod
     def get_output_features(self):
-        return None
+        raise NotImplemented
 
-    def get_extension(self, copy_ext=True):
-        if get_step_status(self.step) != StepStatus.Finish:
+    def get_status(self):
+        status_mapping = {
+            -1: StepMeta.STATUS_WAIT, 0: StepMeta.STATUS_FINISH, 1: StepMeta.STATUS_ERROR,
+            2: StepMeta.STATUS_SKIP, 10: StepMeta.STATUS_SKIP,
+        }
+        s = self.step.status_
+        if s not in status_mapping:
+            raise ValueError("Unseen status: " + str(s))
+        return status_mapping[s]
+
+    def get_step_cls_name(self):
+        class_name = self.step.__class__.__name__
+        return class_name
+
+    def _get_features(self):
+        if isinstance(self.step.input_features_, np.ndarray):
+            inputs_list = self.step.input_features_.tolist()
+        else:
+            inputs_list = self.step.input_features_
+
+        outputs_list = self.get_output_features()
+
+        if outputs_list is not None:
+            increased = list(set(outputs_list) - set(inputs_list))
+            reduced = list(set(inputs_list) - set(outputs_list))
+        else:  # has no output
+            increased = None
+            reduced = None
+
+        features_data = {
+            'inputs': inputs_list,
+            'outputs': outputs_list,
+            'increased': increased,
+            'reduced': reduced
+        }
+        return features_data
+
+    def get_extension(self):
+        if self.get_status() != StepMeta.STATUS_FINISH:
             return {}
         else:
-            extension = self.step.get_fitted_params()
-            if copy_ext:
-                extension = copy.deepcopy(extension)
-            if isinstance(self.step.input_features_, np.ndarray):
-                _inputs_list = self.step.input_features_.tolist()
-            else:
-                _inputs_list = self.step.input_features_
+            ret_extension = self._get_extension()
+            ret_extension['features'] = self._get_features()
+            return ret_extension
 
-            _outputs_list = self.get_output_features()
-            if _outputs_list is not None:
-                increased = list(set(_outputs_list) - set(_inputs_list))
-                reduced = list(set(_inputs_list) - set(_outputs_list))
-            else:  # has no output
-                increased = None
-                reduced = None
-
-            features_data = {
-                'inputs': _inputs_list,
-                'outputs': _outputs_list,
-                'increased': increased,
-                'reduced': reduced
-            }
-            extension['features'] = features_data
-            return self.handle_extension(extension)
-
-    def handle_extension(self, extension):
-        return extension
+    @abc.abstractmethod
+    def _get_extension(self):
+        raise NotImplemented
 
 
-class ABSFeatureSelectionStepExtractor(Extractor):
+class ABSFeatureSelectionStepExtractor(Extractor, metaclass=abc.ABCMeta):
+
+    def _get_extension(self):
+        selected_features = self.step.selected_features_  #
+        if selected_features is None or  len(self.step.selected_features_) == 0:
+            raise ValueError(f"'selected_features_' is empty for step {self.step}")
 
     def get_output_features(self):
         selected_features = self.step.selected_features_  #
@@ -316,7 +295,10 @@ class ABSFeatureSelectionStepExtractor(Extractor):
 
 
 class DataCleanStepExtractor(ABSFeatureSelectionStepExtractor):
-    pass
+
+    def _get_extension(self):
+        super(DataCleanStepExtractor, self)._get_extension()
+        return {'unselected_reason': self.step.get_fitted_params()['unselected_reason']}
 
 
 class FeatureGenerationStepExtractor(Extractor):
@@ -327,12 +309,10 @@ class FeatureGenerationStepExtractor(Extractor):
         else:
             return output_features
 
-    def handle_extension(self, extension):
+    def _get_extension(self):
         """
-
         Parameters
         ----------
-        extension
 
         Returns
         -------
@@ -376,13 +356,15 @@ class FeatureGenerationStepExtractor(Extractor):
             }
         feature_defs = self.step.transformer_.feature_defs_
         output_features = list(map(lambda f: get_feature_detail(f), feature_defs))
-        extension = {"outputFeatures": output_features , 'features': extension['features']}
+        extension = {"outputFeatures": output_features}
         return extension
 
 
 class DriftStepExtractor(ABSFeatureSelectionStepExtractor):
 
-    def handle_extension(self, extension):
+    def _get_extension(self):
+        super(DriftStepExtractor, self)._get_extension()
+        extension = self.step.get_fitted_params()
         config = super(DriftStepExtractor, self).get_configuration()
         extension['drifted_features_auc'] = []
         over_variable_threshold_features = []
@@ -434,9 +416,9 @@ class DriftStepExtractor(ABSFeatureSelectionStepExtractor):
         }
 
 
-class ABSFeatureImportancesSelectionStepExtractor(ABSFeatureSelectionStepExtractor):
+class ABSFeatureImportancesSelectionStepExtractor(ABSFeatureSelectionStepExtractor, metaclass=abc.ABCMeta):
 
-    def build_importances_result_(self, columns, importances_data, selected_features):
+    def _build_importances(self, columns, importances_data, selected_features):
         features = []
         for col, imp in zip(columns, importances_data):
             features.append({
@@ -444,19 +426,15 @@ class ABSFeatureImportancesSelectionStepExtractor(ABSFeatureSelectionStepExtract
                 'importance': imp,
                 'dropped': col not in selected_features
             })
-        extension = {
-            'importances': sorted(features, key=lambda v: v['importance'], reverse=True)
-        }
-        return extension  # TODO: ret not dict
+
+        return sorted(features, key=lambda v: v['importance'], reverse=True)
 
 
 class FeatureSelectionStepExtractor(ABSFeatureImportancesSelectionStepExtractor):
-    def handle_extension(self, extension):
+    def _get_extension(self):
         """
         Parameters
         ----------
-        extension
-
         Returns
         -------
         {
@@ -469,16 +447,18 @@ class FeatureSelectionStepExtractor(ABSFeatureImportancesSelectionStepExtractor)
             ]
         }
         """
-        imps = extension['importances']
-        extension['importances'] = imps.tolist() if imps is not None else []
-        output_extension = self.build_importances_result_(self.step.input_features_, imps, self.step.selected_features_)
-        output_extension['features'] = extension['features']
+        super(FeatureSelectionStepExtractor, self)._get_extension()
+        imps = self.step.get_fitted_params()['importances']
+        # extension['importances'] = imps.tolist() if imps is not None else []
+        output_extension = {
+            "importances":  self._build_importances(self.step.input_features_, imps, self.step.selected_features_)
+        }
         return output_extension
 
 
 class MultiLinearityStepExtractor(ABSFeatureSelectionStepExtractor):
 
-    def handle_extension(self, extension):
+    def _get_extension(self):
         """
         Parameters
         ----------
@@ -495,7 +475,8 @@ class MultiLinearityStepExtractor(ABSFeatureSelectionStepExtractor):
             'features': extension['features']
         }
         """
-        feature_clusters = extension['feature_clusters']
+        super(MultiLinearityStepExtractor, self)._get_extension()
+        feature_clusters = self.step.get_fitted_params()['feature_clusters']
         unselected_features = OrderedDict()
         for fc in feature_clusters:
             if len(fc) > 1:
@@ -503,23 +484,8 @@ class MultiLinearityStepExtractor(ABSFeatureSelectionStepExtractor):
                 for f_i, remove in enumerate(fc):
                     if f_i > 0:  # drop first element
                         unselected_features[remove] = {'reserved': reserved}
-        output_extension = {'unselected_features': unselected_features, 'features': extension['features']}
-        return output_extension
+        return {'unselected_features': unselected_features}
 
-
-# class extract_psedudo_step(Extractor):
-#     def get_configuration(self):
-#         configuration = super(extract_psedudo_step, self).get_configuration()
-#         del configuration['estimator_builder']
-#         del configuration['estimator_builder__scorer']
-#         del configuration['name']
-#         return configuration
-#
-#     def handle_extenion(self, extension):
-#         # step.estimator_builder.estimator_.classes_
-#         # step.test_proba_
-#         # step.pseudo_label_stat_
-#         return extension
 
 class PermutationImportanceStepExtractor(ABSFeatureImportancesSelectionStepExtractor):
     def get_configuration(self):
@@ -527,30 +493,38 @@ class PermutationImportanceStepExtractor(ABSFeatureImportancesSelectionStepExtra
         configuration['scorer'] = str(configuration['scorer'])
         return configuration
 
-    def handle_extension(self, extension):
-        selected_features = self.step.selected_features_ if self.step.selected_features_  is not None else []
+    def _get_extension(self):
+        super(PermutationImportanceStepExtractor, self)._get_extension()
+
+        selected_features = self.step.selected_features_ if self.step.selected_features_ is not None else []
         importances = self.step.importances_
         columns = importances.columns if importances.columns is not None else []
         importances_data = importances.importances_mean.tolist() if importances.importances_mean is not None else []
 
-        output_extension = self.build_importances_result_(columns, importances_data, selected_features)
-        output_extension['features'] = extension['features']
+        output_extension = {
+            "importances": self._build_importances(columns, importances_data, selected_features)
+        }
         return output_extension
 
 
 class SpaceSearchStepExtractor(Extractor):
-    def handle_extension(self, extension):
-        extension['history'] = None
-        return extension
+    def _get_extension(self):
+        ret_ext = self.step.get_fitted_params()
+        ret_ext_copy = copy.deepcopy(ret_ext)
+        ret_ext_copy['history'] = None
+        return ret_ext_copy
+
+    def get_output_features(self):
+        return ['y']
 
     def get_configuration(self):
         configs = super(SpaceSearchStepExtractor, self).get_configuration()
         callbacks = self.step.experiment.hyper_model.callbacks
-        earlyStoppingConfig = EarlyStoppingConfig(False, None, None, None, None)
+        earlyStoppingConfig = EarlyStoppingConfigMeta(False, None, None, None, None)
         if callbacks is not None and len(callbacks) > 0:
             for c in callbacks:
                 if c.__class__.__name__ == 'EarlyStoppingCallback':
-                    earlyStoppingConfig = EarlyStoppingConfig(True, c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode)
+                    earlyStoppingConfig = EarlyStoppingConfigMeta(True, c.expected_reward, c.max_no_improvement_trials , c.time_limit, c.mode)
                     break
         configs['earlyStopping'] = earlyStoppingConfig.to_dict()
         return configs
@@ -560,38 +534,51 @@ class FinalTrainStepExtractor(Extractor):
 
     def get_extension(self):
 
-        if get_step_status(self.step) != StepStatus.Finish:
+        if self.get_status() != StepMeta.STATUS_FINISH:
             return {}
         else:
             extension = super(FinalTrainStepExtractor, self).get_extension()
             extension["estimator"] = self.step.estimator_.gbm_model.__class__.__name__
             return extension
 
+    def get_output_features(self):
+        return ['y']
+
+    def _get_extension(self):
+        pass
+
 
 class EnsembleStepExtractor(Extractor):
+
+    def get_output_features(self):
+        return ['y']
 
     def get_configuration(self):
         configuration = super(EnsembleStepExtractor, self).get_configuration()
         return configuration
 
-    def get_extension(self, copy_ext=False):
+    def _get_extension(self):
         # TODO: adapt for notebook
-        if get_step_status(self.step) != StepStatus.Finish:
-            return {}
-        else:
-            ensemble = self.step.estimator_
+        ensemble = self.step.estimator_
 
-            estimators = []
-            for i, estimator in enumerate(ensemble.estimators):
-                if estimator is not None:
-                    _e_mate = {
-                        'index': i,
-                        'weight': ensemble.weights_[i],
-                        'lift': ensemble.scores_[i],
-                        'models': [get_tree_importances(m) for m in estimator.cv_models_]  # FIXME: no cv
-                    }
-                    estimators.append(_e_mate)
-            return {'estimators': estimators}
+        def get_models(estimator_):    # FIXME: no cv
+            if hasattr(estimator_, 'cv_gbm_models_'):
+                return estimator_.cv_gbm_models_
+            if hasattr(estimator_, 'cv_models_'):
+                return estimator_.cv_models_
+            return []
+
+        estimators = []
+        for i, estimator in enumerate(ensemble.estimators):
+            if estimator is not None:
+                _e_mate = {
+                    'index': i,
+                    'weight': ensemble.weights_[i],
+                    'lift': ensemble.scores_[i],
+                    'models': [get_tree_importances(m) for m in get_models(estimator)]
+                }
+                estimators.append(_e_mate)
+        return {'estimators': estimators}
 
 
 class PseudoStepExtractor(Extractor):
@@ -605,7 +592,7 @@ class PseudoStepExtractor(Extractor):
         # del configuration['name']
         return configuration
 
-    def handle_extension(self, extension):
+    def _get_extension(self):
         pseudo_label_stat = self.step.pseudo_label_stat_
         classes_ = list(pseudo_label_stat.keys()) if pseudo_label_stat is not None else None
 
@@ -629,46 +616,8 @@ class PseudoStepExtractor(Extractor):
                 "probabilityDensity": probability_density,
                 "samples": pseudo_label_stat,
                 "selectedLabel": classes_[0],
-                'features': extension['features'],
             }
         return result_extension
-
-    #@staticmethod
-    # def get_proba_density_estimation(y_proba_on_test, classes):
-    #     from sklearn.neighbors import KernelDensity
-    #     total_class = len(classes)
-    #     total_proba = np.size(y_proba_on_test, 0)
-    #
-    #     true_density = [[0] * 501 for _ in range(total_class)]
-    #     X_plot_true_density = np.linspace(0, 1, 501)[:, np.newaxis]
-    #     X_plot = np.linspace(0, 1, 1000)[:, np.newaxis]
-    #
-    #     probability_density = {}
-    #     for i in range(total_class):
-    #         aclass = classes[i]
-    #         probability_density[str(aclass)] = {}
-    #
-    #         # calculate the true density
-    #         proba_list = y_proba_on_test[:, i]
-    #         probability_density[str(aclass)]['nSamples'] = len(proba_list)
-    #         for proba in proba_list:
-    #             true_density[i][int(proba * 500)] += 1
-    #         probability_density[str(aclass)]['trueDensity'] = {}
-    #         probability_density[str(aclass)]['trueDensity']['X'] = X_plot_true_density
-    #         probability_density[str(aclass)]['trueDensity']['probaDensity'] = list(
-    #             map(lambda x: x / total_proba, true_density[i]))
-    #
-    #         # calculate the gaussian/tophat/epanechnikov density estimation
-    #         proba_list_2d = y_proba_on_test[:, i][:, np.newaxis]
-    #         kernels = ['gaussian', 'tophat', 'epanechnikov']
-    #         for kernel in kernels:
-    #             kde = KernelDensity(kernel=kernel, bandwidth=0.5).fit(proba_list_2d)
-    #             log_dens = kde.score_samples(X_plot)
-    #             probability_density[str(aclass)][str(kernel)] = {}
-    #             probability_density[str(aclass)][str(kernel)]['X'] = X_plot
-    #             probability_density[str(aclass)][str(kernel)]['probaDensity'] = np.exp(log_dens)
-    #     return probability_density
-
 
     @staticmethod
     def get_proba_density_estimation(scores, classes, n_partitions=1000):
@@ -690,22 +639,6 @@ class PseudoStepExtractor(Extractor):
         return probability_density
 
 
-extractors = {
-    StepType.DataCleaning: DataCleanStepExtractor,
-    StepType.FeatureGeneration: FeatureGenerationStepExtractor,
-    StepType.DriftDetection: DriftStepExtractor,
-    StepType.FeatureSelection: FeatureSelectionStepExtractor,
-    StepType.CollinearityDetection: MultiLinearityStepExtractor,
-    StepType.PseudoLabeling: PseudoStepExtractor,
-    StepType.DaskPseudoLabelStep: PseudoStepExtractor,
-    StepType.PermutationImportanceSelection: PermutationImportanceStepExtractor,
-    StepType.SpaceSearch: SpaceSearchStepExtractor,
-    StepType.FinalTrain: FinalTrainStepExtractor,
-    StepType.Ensemble: EnsembleStepExtractor,
-    StepType.DaskEnsembleStep: EnsembleStepExtractor
-}
-
-
 class ExperimentExtractor:
 
     def __init__(self, exp, evaluation_result=None, confusion_matrix_result=None,
@@ -715,11 +648,26 @@ class ExperimentExtractor:
         self.confusion_matrix_result = confusion_matrix_result
         self.resource_usage = resource_usage
 
+    extractors = {
+        StepType.DataCleaning: DataCleanStepExtractor,
+        StepType.FeatureGeneration: FeatureGenerationStepExtractor,
+        StepType.DriftDetection: DriftStepExtractor,
+        StepType.FeatureSelection: FeatureSelectionStepExtractor,
+        StepType.CollinearityDetection: MultiLinearityStepExtractor,
+        StepType.PseudoLabeling: PseudoStepExtractor,
+        StepType.DaskPseudoLabelStep: PseudoStepExtractor,
+        StepType.PermutationImportanceSelection: PermutationImportanceStepExtractor,
+        StepType.SpaceSearch: SpaceSearchStepExtractor,
+        StepType.FinalTrain: FinalTrainStepExtractor,
+        StepType.Ensemble: EnsembleStepExtractor,
+        StepType.DaskEnsembleStep: EnsembleStepExtractor
+    }
+
     @staticmethod
-    def _extract_step(index, step):
+    def extract_step(index, step):
         step_type = step.__class__.__name__
 
-        extractor_cls = extractors.get(step_type)
+        extractor_cls = ExperimentExtractor.extractors.get(step_type)
         if extractor_cls is None:
             raise Exception(f"Unseen Step class {step_type} ")
         extractor = extractor_cls(step)
@@ -730,7 +678,7 @@ class ExperimentExtractor:
             StepMeta(index=index,
                      name=step.name,
                      type=step.__class__.__name__,
-                     status=get_step_status(step),
+                     status=extractor.get_status(),
                      configuration=configuration,
                      extension=extension,
                      start_datetime=step.start_time,
@@ -744,15 +692,20 @@ class ExperimentExtractor:
         else:
             return None
 
+    def _append_dataset_meta(self, meta_list, df, type_name, task):
+        if df is not None:
+            # self._get_dataset_meta(exp.X_train, 'Train', exp.task)
+            meta_list.append(self._get_dataset_meta(df, type_name, task))
+
     def extract(self):
         exp = self.exp
-        # FIXME: No eval or test
-        datasets_meta: List[DatasetMeta] = [self._get_dataset_meta(exp.X_train, 'Train', exp.task),
-                                            self._get_dataset_meta(exp.X_eval, 'Eval', exp.task),
-                                            self._get_dataset_meta(exp.X_test, 'Test', exp.task)]
+        datasets_meta: List[DatasetMeta] = []
+        self._append_dataset_meta(datasets_meta, exp.X_train, 'Train',  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_test, 'Test',  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_eval, 'Eval',  exp.task)
 
-        steps_meta = [self._extract_step(i, step) for i, step in enumerate(exp.steps)]
+        steps_meta = [self.extract_step(i, step) for i, step in enumerate(exp.steps)]
 
-        return ExperimentMeta(task=exp.task, datasets_meta=datasets_meta, steps_meta=steps_meta,
+        return ExperimentMeta(task=exp.task, datasets=datasets_meta, steps=steps_meta,
                               evaluation_metric=self.evaluation_result, confusion_matrix=self.confusion_matrix_result,
-                              resource_usage=self.resource_usage,)
+                              resource_usage=self.resource_usage)

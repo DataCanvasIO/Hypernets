@@ -98,9 +98,9 @@ def test_experiment_export_excel_report():
     assert mlr_callback is not None
     _experiment_meta: ExperimentMeta = mlr_callback._experiment_meta
     assert _experiment_meta.confusion_matrix.shape == (2, 2)  # binary classification
-    assert len(_experiment_meta.datasets_meta) == 3
+    assert len(_experiment_meta.datasets) == 3
     assert _experiment_meta.evaluation_metric is not None
     assert len(_experiment_meta.resource_usage) > 0
-    assert len(_experiment_meta.steps_data) == 4
+    assert len(_experiment_meta.steps) == 4
 
     assert os.path.exists(file_path)

@@ -778,10 +778,10 @@ class ExcelReportRender(ReportRender):
 
         """
 
-        if experiment_meta.datasets_meta is not None:
-            self._write_dataset_sheet(experiment_meta.datasets_meta)
+        if experiment_meta.datasets is not None:
+            self._write_dataset_sheet(experiment_meta.datasets)
 
-        self._write_feature_transformation(experiment_meta.steps_data)
+        self._write_feature_transformation(experiment_meta.steps)
 
         if experiment_meta.evaluation_metric is not None:
             self._write_evaluation(experiment_meta.task, experiment_meta.evaluation_metric)
@@ -793,7 +793,7 @@ class ExcelReportRender(ReportRender):
             self._write_resource_usage(experiment_meta.resource_usage)
 
         # write sheet by step
-        for step in experiment_meta.steps_data:
+        for step in experiment_meta.steps:
             if step.type == StepType.Ensemble:
                 self._write_ensemble(step)
             elif step.type == StepType.PseudoLabeling:

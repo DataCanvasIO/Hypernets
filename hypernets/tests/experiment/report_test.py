@@ -8,7 +8,7 @@ import pandas as pd
 from hypernets.experiment.compete import StepNames
 from hypernets.experiment.report import ExcelReportRender
 from hypernets.utils import const
-from hypernets.utils.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType, StepStatus
+from hypernets.utils.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
 from hypernets.experiment import ResourceUsageMonitor
 
 
@@ -63,7 +63,7 @@ class TestExcelReport:
         s_meta = StepMeta(index=0,
                           name=StepNames.ENSEMBLE,
                           type=StepType.Ensemble,
-                          status=StepStatus.Finish,
+                          status=StepMeta.STATUS_FINISH,
                           configuration={},
                           extension=extension,
                           start_datetime=datetime.datetime.now(),
@@ -91,7 +91,7 @@ class TestExcelReport:
         s_meta = StepMeta(index=0,
                           name=StepNames.DATA_CLEAN,
                           type=StepType.DataCleaning,
-                          status=StepStatus.Finish,
+                          status=StepMeta.STATUS_FINISH,
                           configuration={},
                           extension=extension,
                           start_datetime=datetime.datetime.now(),
@@ -106,8 +106,8 @@ class TestExcelReport:
     def test_render(self):
         steps_meta = [self.create_data_clean_step_meta(), self.create_ensemble_step_meta()]
         experiment_meta = ExperimentMeta(task=const.TASK_BINARY,
-                                         datasets_meta=self.create_dataset_meta(),
-                                         steps_meta=steps_meta,
+                                         datasets=self.create_dataset_meta(),
+                                         steps=steps_meta,
                                          evaluation_metric=self.create_binary_metric_data(),
                                          confusion_matrix=self.create_confusion_matrix_data(),
                                          resource_usage=self.create_resource_monitor_df(),
