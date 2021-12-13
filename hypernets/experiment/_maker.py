@@ -128,7 +128,7 @@ def make_experiment(hyper_model_cls,
         For str should be 'auto', it will selected metrics accord to machine learning task type.
         For list should be metrics name.
     evaluate_prediction_dir: str or None (default=None)
-        The dir to persist prediction.
+        The dir to persist prediction, if exists will be overwritten
     report_render: str, obj, optional, default is None
         The experiment report render.
         For str should be one of 'excel'

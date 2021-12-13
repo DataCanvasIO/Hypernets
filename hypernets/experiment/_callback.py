@@ -19,7 +19,7 @@ from IPython.display import display, display_markdown
 
 from hypernets.tabular import get_tool_box
 from hypernets.utils import const
-from hypernets.utils.experiment import ExperimentExtractor
+from hypernets.experiment import ExperimentExtractor
 from . import ExperimentCallback
 from .compete import StepNames
 from .report import ReportRender
@@ -292,6 +292,8 @@ class MLEvaluateCallback(ExperimentCallback):
     @staticmethod
     def _persist(obj, obj_name, path):
         if path is not None:
+            if os.path.exists(path):
+                print(f"[WARNING] persist path is already exists: {path} ")
             print(f"Persist '{obj_name}' result to '{path}' ")
             with open(path, 'wb') as f:
                 joblib.dump(obj, f)

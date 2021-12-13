@@ -7,7 +7,7 @@ from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback
 from hypernets.experiment.compete import StepNames
 from hypernets.tabular.datasets import dsutils
-from hypernets.utils.experiment import ExperimentMeta
+from hypernets.experiment import ExperimentMeta
 
 
 def test_experiment_with_blood_simple():

@@ -7,91 +7,10 @@ from typing import List, Set, Dict, Tuple, Optional
 import numpy as np
 import pandas as pd
 
-from hypernets.utils import logging
+from hypernets.utils import logging, get_tree_importances
 
 
 logger = logging.get_logger(__name__)
-
-
-def get_extra_attr(obj, name, default=None):
-    if hasattr(obj, name):
-        return getattr(obj, name)
-    else:
-        return None
-
-
-def get_tree_importances(tree_model):
-    # TODO: refactor
-    def _is_light_gbm_model(m):
-        try:
-            from lightgbm.sklearn import LGBMModel
-            return isinstance(m, LGBMModel)
-        except Exception as e:
-            return False
-
-    def _is_xgboost_model(m):
-        try:
-            from xgboost.sklearn import XGBModel
-            return isinstance(m, XGBModel)
-        except Exception as e:
-            return False
-
-    def _is_catboost_model(m):
-        try:
-            from catboost.core import CatBoost
-            return isinstance(m, CatBoost)
-        except Exception as e:
-            return False
-
-    def _is_decision_tree(m):
-        try:
-            from sklearn.tree import BaseDecisionTree
-            return isinstance(m, BaseDecisionTree)
-        except Exception as e:
-            return False
-
-    def get_imp(n_features):
-        try:
-            return tree_model.feature_importances_
-        except Exception as e:
-            return [0 for i in range(n_features)]
-
-    if _is_xgboost_model(tree_model):
-        importances_pairs = list(zip(tree_model._Booster.feature_names, get_imp(len(tree_model._Booster.feature_names))))
-    elif _is_light_gbm_model(tree_model):
-        if hasattr(tree_model, 'feature_name_'):
-            names = tree_model.feature_name_
-        else:
-            names = [f'col_{i}' for i in range(tree_model.feature_importances_.shape[0])]
-        importances_pairs = list(zip(names, get_imp(len(names))))
-    elif _is_catboost_model(tree_model):
-        importances_pairs = list(zip(tree_model.feature_names_, get_imp(len(tree_model.feature_names_))))
-    elif _is_decision_tree(tree_model):
-        importances_pairs = [(f'col_{i}', tree_model.feature_importances_[i]) for i in range(tree_model.feature_importances_.shape[0])]
-    else:
-        importances_pairs = []
-
-    importances = {}
-    numpy_num_types = [np.int, np.int32,np.int64, np.float, np.float32, np.float64]
-
-    def is_numpy_num_type(v):
-        for t in numpy_num_types:
-            if isinstance(v, t) is True:
-                return True
-            else:
-                continue
-        return False
-
-    for name, imp in importances_pairs:
-        if is_numpy_num_type(imp):
-            imp_value = imp.tolist()  # int64, float32, float64 has tolist
-        elif isinstance(imp, float) or isinstance(imp, int):
-            imp_value = imp
-        else:
-            imp_value = float(imp)  # force convert to float
-        importances[name] = imp_value
-
-    return importances
 
 
 class StepType:

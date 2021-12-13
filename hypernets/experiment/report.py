@@ -10,7 +10,7 @@ import xlsxwriter
 from hypernets.experiment.compete import DataCleanStep,DriftDetectStep, FeatureImportanceSelectionStep,\
     FeatureGenerationStep, MulticollinearityDetectStep, PermutationImportanceSelectionStep
 from hypernets.utils import logging, const
-from hypernets.utils.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
+from hypernets.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
 from hypernets.utils.common import human_data_size
 
 logger = logging.get_logger(__name__)
