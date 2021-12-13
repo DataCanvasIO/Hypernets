@@ -8,9 +8,9 @@ Installation
 
 To install use pip:
 
-    $ pip install hn_widget
+    $ pip install hypernets-jupyter-widget
 
-For a development installation (requires [Node.js](https://nodejs.org) and [Yarn version 1](https://classic.yarnpkg.com/)),
+For a development installation (requires [Node.js](https://nodejs.org) and [Yarn version](https://classic.yarnpkg.com/)),
 
     $ git clone https://github.com/DataCanvas/hn_widget.git
     $ cd hn_widget

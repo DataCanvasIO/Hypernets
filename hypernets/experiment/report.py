@@ -1,23 +1,19 @@
+import copy
+import json
+from collections import namedtuple
+from typing import List
+
+import numpy as np
 import pandas as pd
 import xlsxwriter
-import copy
 
-from hypernets.utils import logging
+from hypernets.experiment.compete import DataCleanStep,DriftDetectStep, FeatureImportanceSelectionStep,\
+    FeatureGenerationStep, MulticollinearityDetectStep, PermutationImportanceSelectionStep
+from hypernets.utils import logging, const
+from hypernets.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
 from hypernets.utils.common import human_data_size
 
 logger = logging.get_logger(__name__)
-
-
-class ExperimentReport:
-    def __init__(self, datasets=None, feature_trans=None, evaluation_metric=None,
-                 confusion_matrix=None, resource_usage=None, feature_importances=None, prediction_stats=None):
-        self.datasets = datasets
-        self.feature_trans = feature_trans
-        self.evaluation_metric = evaluation_metric
-        self.confusion_matrix = confusion_matrix
-        self.resource_usage = resource_usage
-        self.feature_importances = feature_importances
-        self.prediction_stats = prediction_stats
 
 
 class Theme:
@@ -68,20 +64,143 @@ class Theme:
         return self.theme_config['common']['row_diff']
 
 
-class ExcelReportRender:
+FeatureTrans = namedtuple('FeatureTrans', ('feature', 'method', 'stage', 'reason', 'remark'))
 
-    def __init__(self, file_path):
+
+class FeatureTransCollector:
+
+    METHOD_DROP = "drop"
+    METHOD_ADD = "add"
+
+    def __init__(self, steps: List[StepMeta]):
+        self.steps = steps
+
+    @staticmethod
+    def _collect_feature_trans_of_data_clean_step(step: StepMeta):
+        fts = []
+        if step is not None:
+            for feature, reason in step.extension['unselected_reason'].items():
+                fts.append(FeatureTrans(feature=feature, method=FeatureTransCollector.METHOD_DROP,
+                                        stage=step.type, reason=reason, remark=None))
+        return fts
+
+    @staticmethod
+    def _collect_feature_trans_of_drift_detect_step(step: StepMeta):
+        fts = []
+        unselected_features_drift = step.extension['unselected_features']
+        over_variable_threshold_features = unselected_features_drift['over_variable_threshold']
+        if over_variable_threshold_features is not None:
+            for col, score in over_variable_threshold_features:
+                remark = {'score': score}
+                fts.append(FeatureTrans(feature=col, method='drop',
+                                        stage=step.type,
+                                        reason='over_variable_threshold', remark=json.dumps(remark)))
+        over_threshold_features = unselected_features_drift['over_threshold']
+        if over_threshold_features is not None:
+            for epoch in over_threshold_features:
+                for col, imp in epoch['removed_features']:
+                    remark = {
+                        'imp': imp,
+                        'epoch': epoch['epoch'],
+                        'elapsed': epoch['elapsed']
+                    }
+                    fts.append(FeatureTrans(feature=col, method=FeatureTransCollector.METHOD_DROP,
+                                            stage=step.type,
+                                            reason='over_threshold', remark=json.dumps(remark)))
+        return fts
+
+    @staticmethod
+    def _collect_feature_trans_of_multicollinearity_detect_step(step: StepMeta):
+        reason = 'multicollinearity_feature'
+        unselected_features = step.extension['unselected_features']
+        fts = []
+        for k, v in unselected_features.item():
+            fts.append(FeatureTrans(feature=k, method=FeatureTransCollector.METHOD_DROP,
+                                    stage=step.type,
+                                    reason=reason, remark=json.dumps(v)))
+        return fts
+
+    @staticmethod
+    def _collect_feature_trans_of_feature_importance_selection_step(step: StepMeta):
+        reason = 'low_importance'
+        importances = step.extension['importances']
+        fts = []
+        for item in importances:
+            if item['dropped']:
+                _item = copy.deepcopy(item)
+                del _item['name']
+                fts.append(FeatureTrans(feature=item['name'], method=FeatureTransCollector.METHOD_DROP,
+                                        stage=step.type,
+                                        reason=reason, remark=json.dumps(_item)))
+        return fts
+
+    @staticmethod
+    def _collect_feature_trans_of_feature_generation_step(step: StepMeta):
+        reason = 'generated'
+        importances = step.extension['outputFeatures']
+        fts = []
+        for item in importances:
+            _item = copy.deepcopy(item)
+            del _item['name']
+            fts.append(FeatureTrans(feature=item['name'], method=FeatureTransCollector.METHOD_ADD,
+                                    stage=step.type,
+                                    reason=reason, remark=json.dumps(_item)))
+        return fts
+
+    def _get_handler(self, step):
+        return self._collect_feature_trans_of_data_clean_step
+
+    def get_handler(self, step_class_name):
+        _mapping = {
+            DataCleanStep: self._collect_feature_trans_of_data_clean_step,
+            DriftDetectStep: self._collect_feature_trans_of_drift_detect_step,
+            FeatureImportanceSelectionStep: self._collect_feature_trans_of_feature_importance_selection_step,
+            FeatureGenerationStep: self._collect_feature_trans_of_feature_generation_step,
+            MulticollinearityDetectStep: self._collect_feature_trans_of_multicollinearity_detect_step,
+            PermutationImportanceSelectionStep: self._collect_feature_trans_of_feature_importance_selection_step,
+        }
+
+        _name_handler_mapping = {k.__name__: v for k, v in _mapping.items()}
+
+        return _name_handler_mapping.get(step_class_name)
+
+    def collect(self):
+        fts = []
+        for step in self.steps:
+            handler = self.get_handler(step.type)
+            if handler is not None:
+                logger.info(f"Collect feature transformation of step {step.name}")
+                fts.extend(handler(step))
+        return fts
+
+
+class ReportRender:
+    def __init__(self, **kwargs):
+        pass
+
+    def render(self, experiment_meta: ExperimentMeta, **kwargs):
+        pass
+
+
+class ExcelReportRender(ReportRender):
+
+    def __init__(self, file_path: str):
+        """
+        Parameters
+        ----------
+        file_path:
+        """
+        super(ExcelReportRender, self).__init__(file_path=file_path)
         self.theme = Theme()
-        self.workbook = xlsxwriter.Workbook(file_path)
+        self.workbook = xlsxwriter.Workbook(file_path)  # {workbook}: {experiment_report} = 1:1
 
     def _render_2d_table(self, df, table_config, sheet, start_position=(0, 0)):
         """ Render entities to excel table
 
         Parameters
         ----------
-        df
+        df:
         table_config:
-
             {
                 "columns": [
                     {'name': "Feature name", 'key': 'type', 'render': lambda index, value, row: (display_value, style)}
@@ -191,7 +310,20 @@ class ExcelReportRender:
     def _get_keys_in_table_config(table_config):
         return [c['key'] for c in table_config['columns']]
 
-    def _write_dataset_sheet(self, df: pd.DataFrame):
+    @staticmethod
+    def _data_list_to_df(data_list: List, columns_name: List):
+        def _get_value(obj, name):
+            if hasattr(obj, name):
+                return getattr(obj, name)
+            else:
+                logger.warning(f"Obj {obj} has no filed '{name}'")
+                return None
+
+        df = pd.DataFrame(data=[[_get_value(item, c) for c in columns_name]
+                                for item in data_list], columns=columns_name)
+        return df
+
+    def _write_dataset_sheet(self, dataset_metas: List[DatasetMeta]):
         sheet_name = "Datasets"
 
         def get_dataset_style(index):
@@ -206,7 +338,7 @@ class ExcelReportRender:
 
         table_config = {
             "columns": [
-                {'name': "Feature name", 'key': 'type', 'render': dataset_default_render},
+                {'name': "Kind", 'key': 'kind', 'render': dataset_default_render},
                 {'name': "Task", 'key': 'task', 'render': dataset_default_render},
                 {
                     'name': "Shape",
@@ -216,23 +348,29 @@ class ExcelReportRender:
                     'name': "Memory",
                     'key': 'memory',
                     'render': lambda index, value, entity: (human_data_size(value), get_dataset_style(index))
-                }, {
-                    'name': "Size",
-                    'key': 'size',
-                    'render': lambda index, value, entity: (human_data_size(value), get_dataset_style(index))
-                },
-                {'name': "File type", 'key': 'file_type', 'render': dataset_default_render},
-                {'name': "Has label", 'key': 'has_label', 'render': dataset_default_render},
-                {'name': "Remark",   'key': 'remark', 'render': dataset_default_render}
+                }
+                # }, {
+                #     'name': "Size",
+                #     'key': 'size',
+                #     'render': lambda index, value, entity: (human_data_size(value), get_dataset_style(index))
+                # },
+                # {'name': "File type", 'key': 'file_type', 'render': dataset_default_render},
+                # {'name': "Has label", 'key': 'has_label', 'render': dataset_default_render},
+                # {'name': "Remark",   'key': 'remark', 'render': dataset_default_render}
             ],
             "header": self._default_header_render_config()
         }
+        columns_name = self._get_keys_in_table_config(table_config)
+        df = self._data_list_to_df(dataset_metas, columns_name)
+
         if not self._check_input_df(df, sheet_name, self._get_keys_in_table_config(table_config)):
             return
 
         self._render_2d_table(df, table_config, sheet_name)
 
-    def _write_feature_transformation(self, df: pd.DataFrame):
+    def _write_feature_transformation(self, steps: List[StepMeta]):
+        fts = FeatureTransCollector(steps).collect()
+
         sheet_name = "Features"
         bg_colors = self.theme.theme_config['feature_trans']['bg_colors']
 
@@ -244,8 +382,7 @@ class ExcelReportRender:
 
         table_config = {
             "columns": [
-                {'name': "Feature", 'key': 'name', 'render': default_render},
-                {'name': "Column", 'key': 'col', 'render': default_render},
+                {'name': "Feature", 'key': 'feature', 'render': default_render},
                 {'name': "Method", 'key': 'method', 'render': default_render},
                 {'name': "Stage ", 'key': 'stage', 'render': default_render},
                 {'name': "Reason ", 'key': 'reason', 'render': default_render},
@@ -253,13 +390,20 @@ class ExcelReportRender:
             ],
             "header": self._default_header_render_config()
         }
+        columns_name = self._get_keys_in_table_config(table_config)
+        # df_feature_trans = pd.DataFrame(data=[ft._asdict().values() for ft in fts], columns=fts[0]._asdict().keys())
+        df = self._data_list_to_df(fts, columns_name)
 
-        if not self._check_input_df(df, sheet_name, keys=self._get_keys_in_table_config(table_config)):
+        if not self._check_input_df(df, sheet_name, keys=columns_name):
             return
 
         self._render_2d_table(df, table_config, sheet_name)
 
-    def _write_confusion_matrix(self, df: pd.DataFrame):
+    def _write_confusion_matrix(self, confusion_matrix_data: np.ndarray):
+        # TODO: classes name
+        df = pd.DataFrame(data=confusion_matrix_data)
+        df.columns = [str(c) for c in df.columns]
+
         sheet_name = "Confusion matrix"
         confusion_matrix_style = self.theme.theme_config['confusion_matrix']
         if not self._check_input_df(df, sheet_name):
@@ -296,11 +440,11 @@ class ExcelReportRender:
         sheet.write(legend_row_start+2, legend_col, "Predict",
                     self.workbook.add_format(confusion_matrix_style['prediction']))
 
-    def _write_resource_usage(self, df: pd.DataFrame):
+    def _write_resource_usage(self, samples):
         """ Recommend sampled every min or 30 seconds
         Parameters
         ----------
-        df
+        samples: ['datetime', 'cpu', 'ram'] => [(2020-10-10 22:22:22, 0.1, 0.2,)]
 
         Returns
         -------
@@ -327,6 +471,7 @@ class ExcelReportRender:
                 'render': lambda index, value, row: (value, self.theme.get_header_style())
             }
         }
+        df = pd.DataFrame(samples, columns=['datetime', 'cpu', 'ram'])
 
         if not self._check_input_df(df, sheet_name, keys=self._get_keys_in_table_config(table_config)):
             return
@@ -364,43 +509,37 @@ class ExcelReportRender:
 
         return sheet
 
-    def _write_feature_importance(self, estimators):
+    def _write_ensemble(self, step: StepMeta):
         """
         Parameters
         ----------
-        estimators:
+        step:
             {
                 'weight': 0.2,
                 'lift': 0.2,
-                'models': [{imps_df}]
+                'models': [ [('Age', 0.3)] ]
             }
-            imps_df:
-                col_name, feature, importances
-                age     , 年龄    , 0.3
         Returns
         -------
 
         """
-        sheet_name = "Feature importance"
-        required_imps_keys = ['feature', 'col_name', 'importances']
+        sheet_name = "Ensemble"
 
+        estimators = step.extension['estimators']
         if estimators is None or len(estimators) < 1:
             logger.warning(f"Empty estimators, skipped create '{sheet_name}' sheet.")
             return
 
-        def _check_imps_df(df, model_index, cv_fold):
-            for c in required_imps_keys:
-                assert c in df.columns, f'For model_index={model_index} cv_fold={cv_fold}, ' \
-                                                f'column {c} not exists .'
         sheet = self.workbook.add_worksheet(sheet_name)
 
         # flat importances to a df
         flat_df_imps = []
-        for _model_index, estimator in enumerate(estimators):
+        for estimator in estimators:
+            _model_index = estimator['index']
             _weight = estimator['weight']
             _lift = estimator['lift']
-            for _cv_fold, df_imps in enumerate(estimator['models']):
-                _check_imps_df(df_imps, _model_index, _cv_fold)
+            for _cv_fold, imps in enumerate(estimator['models']):
+                df_imps = pd.DataFrame(data=imps.items(), columns=['feature', 'importances'])
                 df_imps['model_index'] = [_model_index for k in range(df_imps.shape[0])]
                 df_imps['weight'] = [_weight for k in range(df_imps.shape[0])]
                 df_imps['lift'] = [_lift for k in range(df_imps.shape[0])]
@@ -427,10 +566,6 @@ class ExcelReportRender:
                     'key': 'cv_fold',
                     'render': self._default_cell_render
                 }, {
-                    'name': 'Column',
-                    'key': 'col_name',
-                    'render': self._default_cell_render
-                }, {
                     'name': 'Feature',
                     'key': 'feature',
                     'render': self._default_cell_render
@@ -450,14 +585,14 @@ class ExcelReportRender:
         for i, estimator in enumerate(estimators):
             models = estimator['models']
             merged_cf = self.workbook.add_format({'align': 'center', 'valign': 'vcenter', })
-            model_end_position = model_start_position + sum(m.shape[0] for m in models) - 1
+            model_end_position = model_start_position + sum(len(m) for m in models) - 1
             sheet.merge_range(model_start_position, 0, model_end_position, 0, i, cell_format=merged_cf)  # write index
             sheet.merge_range(model_start_position, 1, model_end_position, 1, estimator['weight'], cell_format=merged_cf)
             sheet.merge_range(model_start_position, 2, model_end_position, 2, estimator['lift'], cell_format=merged_cf)
             model_start_position = model_end_position + 1
             for _cv_fold, df_imps in enumerate(estimator['models']):
                 # cv_start_position
-                cv_end_position = df_imps.shape[0] + cv_start_position - 1
+                cv_end_position = len(df_imps) + cv_start_position - 1
                 sheet.merge_range(cv_start_position, 3, cv_end_position, 3, _cv_fold,
                                   cell_format=merged_cf)  # write index
                 cv_start_position = cv_end_position + 1
@@ -469,8 +604,8 @@ class ExcelReportRender:
 
         chart.add_series({
             # Note: if sheet name contains space should use quotes
-            'values':  f"='{sheet_name}'!$G$2:$G${first_imp_df.shape[0]+1}",  # importance
-            "categories": f"='{sheet_name}'!$F$2:$F${first_imp_df.shape[0]+1}",  # feature
+            'values':  f"='{sheet_name}'!$F$2:$F${len(first_imp_df)+1}",  # importance
+            "categories": f"='{sheet_name}'!$E$2:$E${len(first_imp_df)+1}",  # feature
             "name": "Feature importances of first model",
         })
 
@@ -478,7 +613,7 @@ class ExcelReportRender:
         chart.set_y_axis({'name': 'Feature'})
         chart.set_x_axis({'name': 'Importance'})
 
-        sheet.insert_chart('H1', chart)
+        sheet.insert_chart('G1', chart)
 
         # write weights chart
         chart_model = self.workbook.add_chart({'type': 'column'})
@@ -501,15 +636,36 @@ class ExcelReportRender:
         # chart_weight.set_y2_axis({'name': 'Lift'})
         chart_model.set_x_axis({'name': 'Model index'})
 
-        sheet.insert_chart('P1', chart_model)
+        sheet.insert_chart('O1', chart_model)
 
-    def _write_prediction_stats(self, df):
+    def _write_pseudo_labeling(self, label_stats):
+        sheet_name = "pseduo_labeling"
+        df = pd.DataFrame(data=label_stats)
+
+        if not self._check_input_df(df, sheet_name):
+            return
+
+        table_config = {
+            "columns": [
+                {
+                    'name': 'Label',
+                    'key': 'label',
+                    'render': self._default_cell_render
+                }, {
+                    'name': 'Samples',
+                    'key': 'samples',
+                    'render': self._default_cell_render
+                }
+            ],
+            "header": self._default_header_render_config()
+        }
+        self._render_2d_table(df, table_config, sheet_name)
+
+    def _write_prediction_stats(self, data):
         """
         Parameters
         ----------
-        df:
-            dataset, elapsed,   rows
-               Test,    1000, 100000
+        data: [ ({dataset}, {elapsed}, {rows}) ]  => [('Test', '1000', '100000')]
         Returns
         -------
         """
@@ -539,13 +695,22 @@ class ExcelReportRender:
                 'render': lambda index, value, row: (value, self.theme.get_header_style())
             }
         }
-        if not self._check_input_df(df, sheet_name, keys=self._get_keys_in_table_config(table_config)):
-            return
+        df = pd.DataFrame(data=data, columns=['dataset', 'elapsed', 'rows'])
 
         self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
 
-    def _write_evaluation_metric(self, df: pd.DataFrame):
-        sheet_name = "Evaluation"
+    def _write_classification_evaluation(self, report_dict, sheet_name):
+        metrics_keys = ['precision', 'recall', 'f1-score', 'support']
+        scores_list = []
+        for label, metrics in report_dict.items():
+            if isinstance(metrics, dict):  # value of 'accuracy' is float
+                row = [metrics[k] for k in metrics_keys]
+                row.insert(0, label)
+                scores_list.append(row)
+        eval_keys_with_label = metrics_keys.copy()
+        eval_keys_with_label.insert(0, '')
+        df = pd.DataFrame(data=scores_list, columns=eval_keys_with_label)
+
         if not self._check_input_df(df, sheet_name):
             return
 
@@ -561,36 +726,87 @@ class ExcelReportRender:
         }
         self._render_2d_table(df, table_config, sheet_name)
 
-    def render(self, experiment_report: ExperimentReport):
-        """Render report data into a excel file.
+    def _write_regression_evaluation(self, report_dict, sheet_name):
+        df = pd.DataFrame(data=report_dict)
+
+        if not self._check_input_df(df, sheet_name):
+            return
+
+        table_config = {
+            "columns": [
+                {
+                    'name': 'Metric',
+                    'key': 'metric',
+                    'render': self._default_cell_render
+                }, {
+                    'name': 'Score',
+                    'key': 'score',
+                    'render': self._default_cell_render
+                }
+            ],
+            "header": self._default_header_render_config()
+        }
+        self._render_2d_table(df, table_config, sheet_name)
+
+    def _write_evaluation(self, task, report_dict):
+        sheet_name = "Evaluation"
+        if task in [const.TASK_BINARY, const.TASK_MULTICLASS]:
+            self._write_classification_evaluation(report_dict, sheet_name)
+        elif task in [const.TASK_REGRESSION]:
+            self._write_regression_evaluation(report_dict, sheet_name)
+        else:
+            logger.warning(f'Unknown task type {task}')
+
+    @staticmethod
+    def _get_step_by_type(exp, step_cls):
+        for s in exp.steps:
+            if isinstance(s, step_cls):
+                return s
+        return None
+
+    def render(self, experiment_meta: ExperimentMeta, **kwargs):
+        """Render report data into a excel file
 
         Parameters
         ----------
-        experiment_report:
-            if data(usually is a pd.DataFrame) is empty will skip to create sheet.
+        experiment_meta:
+            if part of {experiment_report} is empty maybe skip to create sheet.
+        kwargs
 
         Returns
         -------
+
         """
-        if experiment_report.datasets is not None:
-            self._write_dataset_sheet(experiment_report.datasets)
 
-        if experiment_report.feature_trans is not None:
-            self._write_feature_transformation(experiment_report.feature_trans)
+        if experiment_meta.datasets is not None:
+            self._write_dataset_sheet(experiment_meta.datasets)
 
-        if experiment_report.evaluation_metric is not None:
-            self._write_evaluation_metric(experiment_report.evaluation_metric)
+        self._write_feature_transformation(experiment_meta.steps)
 
-        if experiment_report.confusion_matrix is not None:  # Regression has no CM
-            self._write_confusion_matrix(experiment_report.confusion_matrix)
+        if experiment_meta.evaluation_metric is not None:
+            self._write_evaluation(experiment_meta.task, experiment_meta.evaluation_metric)
 
-        if experiment_report.resource_usage is not None:
-            self._write_resource_usage(experiment_report.resource_usage)
+        if experiment_meta.confusion_matrix is not None:  # Regression has no CM
+            self._write_confusion_matrix(experiment_meta.confusion_matrix)
 
-        if experiment_report.feature_importances is not None:
-            self._write_feature_importance(experiment_report.feature_importances)
+        if experiment_meta.resource_usage is not None:
+            self._write_resource_usage(experiment_meta.resource_usage)
 
-        if experiment_report.prediction_stats is not None:
-            self._write_prediction_stats(experiment_report.prediction_stats)
+        # write sheet by step
+        for step in experiment_meta.steps:
+            if step.type == StepType.Ensemble:
+                self._write_ensemble(step)
+            elif step.type == StepType.PseudoLabeling:
+                self._write_pseudo_labeling(step)
+
+        if experiment_meta.prediction_stats is not None:
+            self._write_prediction_stats(experiment_meta.prediction_stats)
 
         self.workbook.close()
+
+
+def get_render(name):  # instance factory
+    if name == 'excel':
+        return ExcelReportRender
+    raise ValueError(f"Unknown render '{name}' .")
+

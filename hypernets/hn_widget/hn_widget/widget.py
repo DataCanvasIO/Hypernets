@@ -5,8 +5,8 @@ from traitlets import Unicode
 from traitlets import Unicode, Dict
 # See js/lib/example.js for the frontend counterpart to this file.
 from ipywidgets import widget_serialization
-from hn_widget import experiment_util
 
+from hypernets.utils.experiment import ExperimentExtractor
 # See js/lib/example.js for the frontend counterpart to this file.
 
 VIEW_MODULE = "hn_widget"
@@ -31,7 +31,8 @@ class ExperimentSummary(widgets.DOMWidget):
 
     def __init__(self, compete_experiment, **kwargs):
         super(ExperimentSummary, self).__init__(**kwargs)
-        self.value = experiment_util.extract_experiment(compete_experiment)
+        # self.value = experiment_util.extract_experiment(compete_experiment)
+        self.value = ExperimentExtractor(compete_experiment).extract().to_dict()
 
 
 @widgets.register
@@ -77,5 +78,6 @@ class ExperimentProcessWidget(widgets.DOMWidget):
 
     def __init__(self, compete_experiment, **kwargs):
         super(ExperimentProcessWidget, self).__init__(**kwargs)
-        d = json.dumps(experiment_util.extract_experiment(compete_experiment))
+        # d = json.dumps(experiment_util.extract_experiment(compete_experiment))
+        d = ExperimentExtractor(compete_experiment).extract().to_json()
         self.initData = d

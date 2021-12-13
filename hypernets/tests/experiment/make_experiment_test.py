@@ -1,9 +1,13 @@
+import os.path
+import tempfile
+import numpy as np
 from sklearn.model_selection import train_test_split
 
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
-from hypernets.experiment import make_experiment
+from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback
 from hypernets.experiment.compete import StepNames
 from hypernets.tabular.datasets import dsutils
+from hypernets.experiment import ExperimentMeta
 
 
 def test_experiment_with_blood_simple():
@@ -63,3 +67,40 @@ def test_experiment_with_blood_full_features():
 
     step_names = [step[0] for step in estimator.steps]
     assert step_names == [StepNames.DATA_CLEAN, StepNames.MULITICOLLINEARITY_DETECTION, 'estimator']
+
+
+def test_experiment_export_excel_report():
+    df = dsutils.load_blood()
+    df['Constant'] = [0 for i in range(df.shape[0])]
+    df['Id'] = [i for i in range(df.shape[0])]
+
+    target = 'Class'
+    df_train, df_eval = train_test_split(df, test_size=0.2)
+
+    df_train['Drifted'] = np.random.random(df_train.shape[0])
+    df_eval['Drifted'] = np.random.random(df_eval.shape[0]) * 100
+
+    file_path = tempfile.mkstemp(prefix="report_excel_", suffix=".xlsx")[1]
+    print(file_path)
+    from hypernets.experiment.report import get_render
+    mlr_callback = MLReportCallback(render=get_render('excel')(file_path=file_path))
+    experiment = make_experiment(PlainModel, df_train,
+                                 target=target,
+                                 eval_data=df_eval,
+                                 test_data=df_eval.copy(),
+                                 drift_detection_threshold=0.4,
+                                 drift_detection_min_features=3,
+                                 drift_detection_remove_size=0.5,
+                                 search_space=PlainSearchSpace(enable_lr=False, enable_nn=False),
+                                 callbacks=[MLEvaluateCallback(), mlr_callback])
+    estimator = experiment.run(max_trials=3)
+    assert estimator is not None
+    assert mlr_callback is not None
+    _experiment_meta: ExperimentMeta = mlr_callback._experiment_meta
+    assert _experiment_meta.confusion_matrix.shape == (2, 2)  # binary classification
+    assert len(_experiment_meta.datasets) == 3
+    assert _experiment_meta.evaluation_metric is not None
+    assert len(_experiment_meta.resource_usage) > 0
+    assert len(_experiment_meta.steps) == 4
+
+    assert os.path.exists(file_path)
