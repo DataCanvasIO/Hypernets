@@ -12,8 +12,8 @@ from cuml.common.array import CumlArray
 
 from hypernets.utils import const, logging
 from . import _data_cleaner
-from . import _estimator_detector
 from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
+from . import _estimator_detector
 from . import _pseudo_labeling
 from .. import sklearn_ex as sk_ex
 from ..toolbox import ToolBox, register_transformer, randint
@@ -163,10 +163,17 @@ class CumlToolBox(ToolBox):
 
     @staticmethod
     def take_array(arr, indices, axis=None):
-        if all(map(CumlToolBox.is_cudf_series, [arr, indices])):
+        assert len(arr) > 0
+
+        if CumlToolBox.is_cudf_series(arr):
             return arr.take(indices, keep_index=False)
 
-        return cupy.take(cupy.array(arr), indices=cupy.array(indices), axis=axis)
+        atype = type(arr[0]).__name__
+        if atype.find('int') >= 0 or atype.find('float') >= 0:
+            return cupy.take(cupy.array(arr), indices=cupy.array(indices), axis=axis)
+        else:
+            arr = cudf.from_pandas(pd.Series(arr))
+            return arr.take(indices, keep_index=False)
 
     @staticmethod
     def array_to_df(arr, *, columns=None, index=None, meta=None):
@@ -218,6 +225,25 @@ class CumlToolBox(ToolBox):
 
     @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
+        if not any(map(CumlToolBox.is_cuml_object, dfs)):
+            return ToolBox.concat_df(dfs, axis=axis, repartition=repartition, **kwargs)
+
+        header = dfs[0]
+        assert isinstance(header, (cudf.DataFrame, cudf.Series))
+
+        def to_cudf_type(t):
+            if isinstance(t, (cudf.DataFrame, cudf.Series)):
+                return t
+            else:
+                if not CumlToolBox.is_cuml_object(t):
+                    t, = CumlToolBox.from_local(t)
+                if isinstance(header, cudf.Series):
+                    return cudf.Series(t, name=header.name)
+                else:
+                    return cudf.DataFrame(t, columns=header.columns)
+
+        dfs = [header] + [to_cudf_type(df) for df in dfs[1:]]
+
         return cudf.concat(dfs, axis=axis, **kwargs)
 
     @staticmethod
@@ -315,12 +341,15 @@ class CumlToolBox(ToolBox):
 
         sample_weight = cupy.ones(y.shape[0])
         for i, c in enumerate(classes):
-            sample_weight[y == c] *= classes_weights[i]
+            indices = (y == c)
+            if isinstance(indices, (pd.Series, cudf.Series)):
+                indices = indices.values
+            sample_weight[indices] *= classes_weights[i]
 
         return sample_weight
 
     @staticmethod
-    def call_local(fn, *args, **kwargs):
+    def call_local(fn, *args, input_to_local=None, output_to_cuml=None, **kwargs):
         def _exist_cu_type(*args_):
             for x in args_:
                 found = False
@@ -336,12 +365,12 @@ class CumlToolBox(ToolBox):
             return False
 
         found_cu_type = _exist_cu_type(*args) or _exist_cu_type(*kwargs.values())
-        if found_cu_type:
+        if found_cu_type and input_to_local is not False:
             args = CumlToolBox.to_local(*args)
             kwargs = CumlToolBox.to_local(kwargs)[0]
 
         r = fn(*args, **kwargs)
-        if found_cu_type and r is not None:
+        if found_cu_type and r is not None and output_to_cuml is not False:
             r = CumlToolBox.from_local(r)[0]
 
         return r

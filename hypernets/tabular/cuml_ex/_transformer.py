@@ -2,16 +2,19 @@
 """
 
 """
-import numpy as np
 import cudf
-from cuml.pipeline import Pipeline
-from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, LabelBinarizer, TargetEncoder, \
-    StandardScaler, MaxAbsScaler, MinMaxScaler, RobustScaler
-
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
-from hypernets.tabular import sklearn_ex as sk_ex
+import cupy
+import numpy as np
+import pandas as pd
+from cuml.common.array import CumlArray
 from cuml.decomposition import TruncatedSVD
+from cuml.pipeline import Pipeline
+from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, TargetEncoder, \
+    StandardScaler, MaxAbsScaler, MinMaxScaler, RobustScaler
+from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
+from sklearn.base import BaseEstimator, TransformerMixin
+
+from hypernets.tabular import sklearn_ex as sk_ex
 from .. import tb_transformer
 
 
@@ -125,6 +128,14 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
                                        self.n_features_in_)
                 )
 
+    def transform(self, X):
+        Xt = super().transform(X)
+        if isinstance(Xt, cudf.Series):
+            Xt = Xt.to_frame()
+        elif isinstance(Xt, CumlArray):
+            Xt = cupy.array(Xt)
+        return Xt
+
 
 @tb_transformer(cudf.DataFrame)
 class ConstantImputer(BaseEstimator, TransformerMixin, Localizable):
@@ -171,6 +182,17 @@ class LocalizableLabelEncoder(LabelEncoder, Localizable):
         target = sk_pre.LabelEncoder()
         copy_attrs(self, target, 'classes_', )
         return target
+
+    # override to accept pd.Series and ndarray
+    def inverse_transform(self, y) -> cudf.Series:
+        if isinstance(y, pd.Series):
+            y = cudf.from_pandas(y)
+        elif isinstance(y, np.ndarray):
+            y = cudf.from_pandas(pd.Series(y))
+        elif isinstance(y, cupy.ndarray):
+            y = cudf.Series(y)
+
+        return super().inverse_transform(y)
 
 
 @tb_transformer(cudf.DataFrame)

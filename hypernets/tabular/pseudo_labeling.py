@@ -55,8 +55,10 @@ class PseudoLabeling:
         idx = np.argwhere(pred >= 0).ravel()
 
         # X_pseudo = X_test.iloc[idx] if hasattr(X_test, 'iloc') else X_test[idx]
-        X_pseudo = get_tool_box(X_test).select_1d(X_test, idx)
-        y_pseudo = np.take(np.array(classes), pred[idx], axis=0)
+        # y_pseudo = np.take(np.array(classes), pred[idx], axis=0)
+        tb = get_tool_box(X_test)
+        X_pseudo = tb.select_1d(X_test, idx)
+        y_pseudo = tb.take_array(classes, pred[idx], axis=0)
 
         if logger.is_info_enabled():
             msg_prefix = f'{type(self).__name__} extract pseudo labeling samples (strategy={self.strategy})'
