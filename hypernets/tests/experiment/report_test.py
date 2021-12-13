@@ -8,7 +8,7 @@ import pandas as pd
 from hypernets.experiment.compete import StepNames
 from hypernets.experiment.report import ExcelReportRender
 from hypernets.utils import const
-from hypernets.utils.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
+from hypernets.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
 from hypernets.experiment import ResourceUsageMonitor
 
 
