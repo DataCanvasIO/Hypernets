@@ -61,11 +61,9 @@ class PseudoLabeling:
         y_pseudo = tb.take_array(classes, pred[idx], axis=0)
 
         if logger.is_info_enabled():
-            msg_prefix = f'{type(self).__name__} extract pseudo labeling samples (strategy={self.strategy})'
+            msg_prefix = f'[{type(self).__name__}] extract pseudo labeling samples (strategy={self.strategy})'
             if len(y_pseudo) > 0:
-                uniques = np.unique(y_pseudo, return_counts=True)
-                uniques, = get_tool_box(y_pseudo).to_local(uniques)
-                value_counts = {k: n for k, n in zip(uniques[0], uniques[1])}
+                value_counts = tb.value_counts(y_pseudo)
                 logger.info(f'{msg_prefix}: {value_counts}')
             else:
                 logger.info(f'{msg_prefix}: nothing')
