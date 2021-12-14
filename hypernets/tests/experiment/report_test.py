@@ -32,7 +32,7 @@ class TestExcelReport:
     @staticmethod
     def create_confusion_matrix_data():
         data = [[1, 4, 6], [1, 4, 6], [1, 4, 6]]
-        labels = [0, 1]
+        labels = [0, 1, 2]
         return ConfusionMatrixMeta(data, labels)
 
     @staticmethod
