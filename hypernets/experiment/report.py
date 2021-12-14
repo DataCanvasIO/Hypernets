@@ -774,7 +774,7 @@ class ExcelReportRender(ReportRender):
         self._render_2d_table(df, table_config, sheet_name)
 
     def _write_regression_evaluation(self, report_dict, sheet_name):
-        df = pd.DataFrame(data=report_dict)
+        df = pd.DataFrame(data=report_dict.items(), columns=['metric', 'score'])
 
         if not self._check_input_df(df, sheet_name):
             return

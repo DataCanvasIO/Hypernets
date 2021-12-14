@@ -304,8 +304,9 @@ class DriftStepExtractor(ABSFeatureSelectionStepExtractor):
                         if score > variable_shift_threshold:
                             over_variable_threshold_features.append((col, score))  # removed
                         else:
-                            logger.warning(f"Score of feature '{col}' is "
-                                           f"{score} < threshold = {variable_shift_threshold} but not removed.")
+                            pass
+                            # logger.warning(f"Score of feature '{col}' is "
+                            #                f"{score} < threshold = {variable_shift_threshold} but not removed.")
                 over_variable_threshold_features = sorted(over_variable_threshold_features, key=lambda item: item[1], reverse=True)
                 extension['drifted_features_auc'] = over_variable_threshold_features
 

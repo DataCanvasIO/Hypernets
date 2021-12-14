@@ -5,6 +5,7 @@ import time
 
 import pandas as pd
 
+from hypernets.experiment._extractor import ConfusionMatrixMeta
 from hypernets.experiment.compete import StepNames
 from hypernets.experiment.report import ExcelReportRender
 from hypernets.utils import const
@@ -30,7 +31,9 @@ class TestExcelReport:
 
     @staticmethod
     def create_confusion_matrix_data():
-        return [[1, 4, 6], [1, 4, 6], [1, 4, 6]]
+        data = [[1, 4, 6], [1, 4, 6], [1, 4, 6]]
+        labels = [0, 1]
+        return ConfusionMatrixMeta(data, labels)
 
     @staticmethod
     def create_resource_monitor_df():
