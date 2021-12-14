@@ -48,34 +48,43 @@ def load_estimator(model_path):
 
 
 def get_tree_importances(tree_model):
-    # TODO: refactor
-    def _is_light_gbm_model(m):
-        try:
-            from lightgbm.sklearn import LGBMModel
-            return isinstance(m, LGBMModel)
-        except Exception as e:
-            return False
 
-    def _is_xgboost_model(m):
-        try:
-            from xgboost.sklearn import XGBModel
-            return isinstance(m, XGBModel)
-        except Exception as e:
-            return False
+    def catch_exception(func):
+        def _wrapper(model):
+            try:
+                return func(model)
+            except Exception as e:
+                return False
 
-    def _is_catboost_model(m):
-        try:
-            from catboost.core import CatBoost
-            return isinstance(m, CatBoost)
-        except Exception as e:
-            return False
+        return _wrapper
 
-    def _is_decision_tree(m):
-        try:
-            from sklearn.tree import BaseDecisionTree
-            return isinstance(m, BaseDecisionTree)
-        except Exception as e:
-            return False
+    @catch_exception
+    def is_light_gbm_model(m):
+        from lightgbm.sklearn import LGBMModel
+        return isinstance(m, LGBMModel)
+
+    @catch_exception
+    def is_xgboost_model(m):
+        from xgboost.sklearn import XGBModel
+        return isinstance(m, XGBModel)
+
+    @catch_exception
+    def is_catboost_model(m):
+        from catboost.core import CatBoost
+        return isinstance(m, CatBoost)
+
+    @catch_exception
+    def is_decision_tree_model(m):
+        from sklearn.tree import BaseDecisionTree
+        return isinstance(m, BaseDecisionTree)
+
+    def is_numpy_num_type(v):
+        for t in [np.int, np.int32, np.int64, np.float, np.float32, np.float64]:
+            if isinstance(v, t) is True:
+                return True
+            else:
+                continue
+        return False
 
     def get_imp(n_features):
         try:
@@ -83,31 +92,24 @@ def get_tree_importances(tree_model):
         except Exception as e:
             return [0 for i in range(n_features)]
 
-    if _is_xgboost_model(tree_model):
-        importances_pairs = list(zip(tree_model._Booster.feature_names, get_imp(len(tree_model._Booster.feature_names))))
-    elif _is_light_gbm_model(tree_model):
+    if is_xgboost_model(tree_model):
+        importances_pairs = list(zip(tree_model._Booster.feature_names,
+                                     get_imp(len(tree_model._Booster.feature_names))))
+    elif is_light_gbm_model(tree_model):
         if hasattr(tree_model, 'feature_name_'):
             names = tree_model.feature_name_
         else:
             names = [f'col_{i}' for i in range(tree_model.feature_importances_.shape[0])]
         importances_pairs = list(zip(names, get_imp(len(names))))
-    elif _is_catboost_model(tree_model):
+    elif is_catboost_model(tree_model):
         importances_pairs = list(zip(tree_model.feature_names_, get_imp(len(tree_model.feature_names_))))
-    elif _is_decision_tree(tree_model):
-        importances_pairs = [(f'col_{i}', tree_model.feature_importances_[i]) for i in range(tree_model.feature_importances_.shape[0])]
+    elif is_decision_tree_model(tree_model):
+        importances_pairs = [(f'col_{i}', tree_model.feature_importances_[i])
+                             for i in range(tree_model.feature_importances_.shape[0])]
     else:
         importances_pairs = []
 
     importances = {}
-    numpy_num_types = [np.int, np.int32,np.int64, np.float, np.float32, np.float64]
-
-    def is_numpy_num_type(v):
-        for t in numpy_num_types:
-            if isinstance(v, t) is True:
-                return True
-            else:
-                continue
-        return False
 
     for name, imp in importances_pairs:
         if is_numpy_num_type(imp):

@@ -194,6 +194,25 @@ class ExcelReportRender(ReportRender):
         self.theme = Theme()
         self.workbook = xlsxwriter.Workbook(file_path)  # {workbook}: {experiment_report} = 1:1
 
+    def _write_cell(self, sheet, row_index, column_index, value, max_length_dict, cell_format_dict=None):
+        MAX_CELL_LENGTH = 50
+
+        if cell_format_dict is not None:
+            cell_format = self.workbook.add_format(cell_format_dict)
+        else:
+            cell_format = None
+        sheet.write(row_index, column_index, value, cell_format)
+
+        value_width = len(str(value))
+        max_len = max_length_dict.get(column_index, 0)
+        if max_len < value_width:
+            max_length_dict[column_index] = value_width
+            if value_width > MAX_CELL_LENGTH:
+                value_width_ = MAX_CELL_LENGTH
+            else:
+                value_width_ = value_width
+            sheet.set_column(column_index, column_index, value_width_+2)
+
     def _render_2d_table(self, df, table_config, sheet, start_position=(0, 0)):
         """ Render entities to excel table
 
@@ -221,6 +240,21 @@ class ExcelReportRender(ReportRender):
         -------
 
         """
+
+        MAX_CELL_LENGTH = 50
+
+        def calc_cell_length(header, max_content_length):
+            header_len = len(header) + 4  # 2 space around header
+            if max_content_length > header_len:
+                if max_content_length <= MAX_CELL_LENGTH:
+                    return max_content_length
+                else:
+                    return MAX_CELL_LENGTH
+            else:
+                return header_len
+
+        max_len_dict = {}
+
         assert len(start_position) == 2, "start_position should be Tuple[int, int]"
 
         index_config = table_config.get('index')
@@ -246,11 +280,13 @@ class ExcelReportRender(ReportRender):
                     cell_row_i = start_position[0] + 1 + i
                 else:
                     cell_row_i = start_position[0] + i
-                sheet.write(cell_row_i, start_position[1], formatted_index_value,
-                            self.workbook.add_format(index_style))
+                self._write_cell(sheet, cell_row_i, start_position[1],
+                                 formatted_index_value, max_len_dict, index_style)
 
         # render header
         if write_header:
+            df_len = df.applymap(lambda v: len(str(v)))
+            max_len_dict = df_len.max().to_dict()
             header_render = header_config['render']
             for i, column_config in enumerate(table_config['columns']):
                 formatted_column_value, column_style = header_render(i, column_config['name'], df.columns)
@@ -258,16 +294,19 @@ class ExcelReportRender(ReportRender):
                     y_index = start_position[1] + 1 + i
                 else:
                     y_index = start_position[1] + i
-                sheet.write(start_position[0], y_index,
-                            formatted_column_value, self.workbook.add_format(column_style))
+
+                self._write_cell(sheet, start_position[0], y_index,
+                                 formatted_column_value, max_len_dict, column_style)
                 #  set header width automatically
-                sheet.set_column(i, i, len(formatted_column_value) + 4)
+                # cell_len = calc_cell_length(formatted_column_value, max_len_dict[column_config['key']])
+                # sheet.set_column(i, i, cell_len)
 
         # render corner
         if write_corner:
             corner_render = corner_config['render']
             corner_value, corner_style = corner_render(start_position)
-            sheet.write(start_position[0], start_position[0], corner_value, self.workbook.add_format(corner_style))
+            self._write_cell(sheet, start_position[0], start_position[0], corner_value,
+                             max_len_dict, corner_style)
 
         for i, (series_i, series_row) in enumerate(df.iterrows()):
             for j, column in enumerate(table_config['columns']):
@@ -284,7 +323,8 @@ class ExcelReportRender(ReportRender):
                     cell_col_i = j + 1 + start_position[1]
                 else:
                     cell_col_i = j + start_position[1]
-                sheet.write(cell_row_i, cell_col_i, formatted_value, self.workbook.add_format(style))
+
+                self._write_cell(sheet, cell_row_i, cell_col_i, formatted_value, max_len_dict, style)
         return sheet
 
     def _default_header_render_config(self):
@@ -380,13 +420,18 @@ class ExcelReportRender(ReportRender):
                      'align': 'center', 'border': 1, 'border_color': '#c4c7cf'}
             return value, style
 
+        def remark_render(index, value, entity):
+            if value is None:
+                value = ""
+            return default_render(index, value, entity)
+
         table_config = {
             "columns": [
                 {'name': "Feature", 'key': 'feature', 'render': default_render},
                 {'name': "Method", 'key': 'method', 'render': default_render},
                 {'name': "Stage ", 'key': 'stage', 'render': default_render},
                 {'name': "Reason ", 'key': 'reason', 'render': default_render},
-                {'name': "Remark", 'key': 'remark', 'render': default_render}
+                {'name': "Remark", 'key': 'remark', 'render': remark_render}
             ],
             "header": self._default_header_render_config()
         }
