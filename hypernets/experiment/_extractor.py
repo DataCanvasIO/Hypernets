@@ -113,10 +113,18 @@ class StepMeta(BaseMeta):
         self.end_datetime = end_datetime
 
 
+class ConfusionMatrixMeta(BaseMeta):
+
+    def __init__(self, data, labels=None):
+        self.data = data
+        self.labels = labels
+
+
 class ExperimentMeta(BaseMeta):
 
     def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta],
-                 evaluation_metric=None, confusion_matrix=None, resource_usage=None, prediction_stats=None):
+                 evaluation_metric=None, confusion_matrix: ConfusionMatrixMeta = None,
+                 resource_usage=None, prediction_stats=None):
 
         self.task = task
         self.datasets = datasets

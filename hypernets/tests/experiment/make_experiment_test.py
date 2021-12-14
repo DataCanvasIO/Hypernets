@@ -75,6 +75,9 @@ def run_export_excel_report(maker, has_eval_data=True):
     df['Id'] = [i for i in range(df.shape[0])]
 
     target = 'Class'
+    labels = ["no", "yes"]
+    df[target] = df[target].map(lambda v: labels[v])
+
     df_train, df_eval = train_test_split(df, test_size=0.2)
 
     df_train['Drifted'] = np.random.random(df_train.shape[0])
@@ -104,7 +107,7 @@ def run_export_excel_report(maker, has_eval_data=True):
         assert mle_callback is not None
         assert _experiment_meta.evaluation_metric is not None
         assert len(_experiment_meta.prediction_stats) == 1
-        assert _experiment_meta.confusion_matrix.shape == (2, 2)  # binary classification
+        assert _experiment_meta.confusion_matrix.data.shape == (2, 2)  # binary classification
         assert len(_experiment_meta.datasets) == 3
     else:
         assert len(_experiment_meta.datasets) == 2
@@ -155,3 +158,4 @@ def test_no_eval_data_render():
                                      report_render_options={'file_path': file_path})
         return experiment
     run_export_excel_report(maker, has_eval_data=False)
+

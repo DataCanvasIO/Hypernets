@@ -1,5 +1,8 @@
 # -*- coding:utf-8 -*-
 __author__ = 'yangjian'
+
+from ._extractor import ConfusionMatrixMeta
+
 """
 
 """
@@ -15,6 +18,7 @@ import joblib
 import psutil
 from sklearn import metrics as sk_metrics
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.utils.multiclass import unique_labels
 from IPython.display import display, display_markdown
 
 from hypernets.tabular import get_tool_box
@@ -418,7 +422,9 @@ class MLReportCallback(ExperimentCallback):
             y_pred = exp.y_eval_pred
             if exp.task in [const.TASK_MULTICLASS, const.TASK_BINARY]:
                 evaluation_result = classification_report(y_test, y_pred, output_dict=True, digits=DIGITS)
-                confusion_matrix_result = confusion_matrix(y_test, y_pred)
+                labels = unique_labels(y_test, y_pred)
+                confusion_matrix_data = confusion_matrix(y_test, y_pred, labels=labels)
+                confusion_matrix_result = ConfusionMatrixMeta(confusion_matrix_data, labels)
             elif exp.task in [const.TASK_REGRESSION]:
                 explained_variance = round(sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred), DIGITS)
                 neg_mean_absolute_error = round(sk_metrics.mean_absolute_error(y_true=y_test, y_pred=y_pred), DIGITS)

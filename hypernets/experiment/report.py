@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xlsxwriter
 
+from hypernets.experiment._extractor import ConfusionMatrixMeta
 from hypernets.experiment.compete import DataCleanStep,DriftDetectStep, FeatureImportanceSelectionStep,\
     FeatureGenerationStep, MulticollinearityDetectStep, PermutationImportanceSelectionStep
 from hypernets.utils import logging, const
@@ -444,10 +445,11 @@ class ExcelReportRender(ReportRender):
 
         self._render_2d_table(df, table_config, sheet_name)
 
-    def _write_confusion_matrix(self, confusion_matrix_data: np.ndarray):
-        # TODO: classes name
-        df = pd.DataFrame(data=confusion_matrix_data)
-        df.columns = [str(c) for c in df.columns]
+    def _write_confusion_matrix(self, confusion_matrix_data: ConfusionMatrixMeta):
+        df = pd.DataFrame(data=confusion_matrix_data.data)
+
+        df.columns = [str(c) for c in confusion_matrix_data.labels]
+        df.index = df.columns
 
         sheet_name = "Confusion matrix"
         confusion_matrix_style = self.theme.theme_config['confusion_matrix']
