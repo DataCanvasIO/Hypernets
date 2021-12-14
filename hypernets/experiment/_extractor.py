@@ -616,15 +616,31 @@ class ExperimentExtractor:
             # self._get_dataset_meta(exp.X_train, 'Train', exp.task)
             meta_list.append(self._get_dataset_meta(df, type_name, task))
 
+    def is_evaluated(self):
+        return self.exp.X_eval is not None and self.exp.y_eval is not None and self.exp.y_eval_pred is not None
+
     def extract(self):
         exp = self.exp
+        # datasets
         datasets_meta: List[DatasetMeta] = []
         self._append_dataset_meta(datasets_meta, exp.X_train, 'Train',  exp.task)
         self._append_dataset_meta(datasets_meta, exp.X_test, 'Test',  exp.task)
         self._append_dataset_meta(datasets_meta, exp.X_eval, 'Eval',  exp.task)
 
+        # steps
         steps_meta = [self.extract_step(i, step) for i, step in enumerate(exp.steps)]
 
+        # prediction stats
+        if self.is_evaluated():
+            evaluation = exp.evaluation
+            elapsed = evaluation['timing']['predict']
+            rows = exp.X_eval.shape[0]
+            prediction_stats = [('Eval', elapsed, rows)]
+        else:
+            prediction_stats = None
+
         return ExperimentMeta(task=exp.task, datasets=datasets_meta, steps=steps_meta,
-                              evaluation_metric=self.evaluation_result, confusion_matrix=self.confusion_matrix_result,
-                              resource_usage=self.resource_usage)
+                              evaluation_metric=self.evaluation_result,
+                              confusion_matrix=self.confusion_matrix_result,
+                              resource_usage=self.resource_usage,
+                              prediction_stats=prediction_stats)

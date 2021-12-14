@@ -822,20 +822,34 @@ class ExcelReportRender(ReportRender):
         -------
 
         """
-
+        def log_skip_sheet(name):
+            logger.info("Skip create datasets sheet because of empty data. ")
         if experiment_meta.datasets is not None:
             self._write_dataset_sheet(experiment_meta.datasets)
+        else:
+            log_skip_sheet('datasets')
 
         self._write_feature_transformation(experiment_meta.steps)
 
         if experiment_meta.evaluation_metric is not None:
             self._write_evaluation(experiment_meta.task, experiment_meta.evaluation_metric)
+        else:
+            log_skip_sheet('evaluation')
 
         if experiment_meta.confusion_matrix is not None:  # Regression has no CM
             self._write_confusion_matrix(experiment_meta.confusion_matrix)
+        else:
+            log_skip_sheet('confusion_matrix')
+
+        if experiment_meta.prediction_stats is not None:  # Regression has no CM
+            self._write_prediction_stats(experiment_meta.prediction_stats)
+        else:
+            log_skip_sheet('prediction_stats')
 
         if experiment_meta.resource_usage is not None:
             self._write_resource_usage(experiment_meta.resource_usage)
+        else:
+            log_skip_sheet('resource_usage')
 
         # write sheet by step
         for step in experiment_meta.steps:
@@ -843,9 +857,6 @@ class ExcelReportRender(ReportRender):
                 self._write_ensemble(step)
             elif step.type == StepType.PseudoLabeling:
                 self._write_pseudo_labeling(step)
-
-        if experiment_meta.prediction_stats is not None:
-            self._write_prediction_stats(experiment_meta.prediction_stats)
 
         self.workbook.close()
 

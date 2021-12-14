@@ -285,6 +285,37 @@ class MLEvaluateCallback(ExperimentCallback):
         self._eval_df_shape = None
         self._eval_elapse = None
 
+    def experiment_start(self, exp):
+        """
+            exp.evaluation:
+                {
+                    'metrics': {
+                        'f1': 0.1,
+                    },
+                    "classification_report": {
+                        "0": {
+                            'f1': 0.1,
+                        }
+                    },
+                    "confusion_matrix": [[1,2], [3,4]],
+                    "timing": {
+                        'predict': 100,
+                        'predict_proba': 100
+                    }
+                }
+        Parameters
+        ----------
+        exp
+
+        Returns
+        -------
+
+        """
+        # define attrs
+        exp.y_eval_proba = None
+        exp.y_eval_pred = None
+        exp.evaluation = {}
+
     @staticmethod
     def to_prediction(y_score):
         pass
@@ -300,8 +331,6 @@ class MLEvaluateCallback(ExperimentCallback):
 
     def experiment_end(self, exp, elapsed):
         # Attach prediction
-        exp.y_eval_proba = None  # define attr
-        exp.y_eval_pred = None
         if exp.y_eval is not None and exp.X_eval is not None:
             _t = time.time()
             exp.y_eval_pred = exp.model_.predict(exp.X_eval)  # TODO: try to use proba
@@ -310,7 +339,7 @@ class MLEvaluateCallback(ExperimentCallback):
                     exp.y_eval_proba = exp.model_.predict_proba(exp.X_eval)
                 except Exception as e:
                     print("predict_proba failed", e)
-            exp._eval_elapsed = time.time() - _t
+            exp.evaluation['timing'] = {'predict': time.time() - _t, 'predict_proba': 0}
         if self.evaluate_prediction_dir is not None:
             persist_pred_path = os.path.join(self.evaluate_prediction_dir, 'predict.pkl')
             persist_proba_path = os.path.join(self.evaluate_prediction_dir, 'predict_proba.pkl')
@@ -375,6 +404,10 @@ class MLReportCallback(ExperimentCallback):
 
     def experiment_start(self, exp):
         self._rum.start_watch()
+        # define attrs
+        exp.y_eval_proba = None
+        exp.y_eval_pred = None
+        exp.evaluation = {}
 
     def experiment_end(self, exp, elapsed):
         # 1. Mock full experiment: Add evaluation
@@ -414,7 +447,6 @@ class MLReportCallback(ExperimentCallback):
             evaluation_result = {}
 
         # 2. get experiment meta and render to excel
-        # TODO: add others
         self._experiment_meta = ExperimentExtractor(exp, evaluation_result,
                                                     confusion_matrix_result, self._rum.data).extract()
         self.render.render(self._experiment_meta)
