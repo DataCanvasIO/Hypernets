@@ -120,12 +120,20 @@ class BaseEnsemble:
                 est_predictions[:, n] = pred
         return est_predictions
 
+    def _indices2predict(self, indices):
+        assert self.classes_ is not None
+
+        from .. import get_tool_box
+        tb = get_tool_box(indices)
+        return tb.take_array(self.classes_, indices, axis=0)
+
     def predict(self, X):
         est_predictions = self._X2predictions(X)
         pred = self.predictions2predict(est_predictions)
         if self.task != 'regression' and self.classes_ is not None:
-            np = self.np
-            pred = np.take(np.array(self.classes_), pred, axis=0)
+            # np = self.np
+            # pred = np.take(np.array(self.classes_), pred, axis=0)
+            pred = self._indices2predict(pred)
         return pred
 
     def predict_proba(self, X):

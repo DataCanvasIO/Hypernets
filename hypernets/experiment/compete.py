@@ -1218,7 +1218,7 @@ class PseudoLabelStep(ExperimentStep):
                                     random_state=self.experiment.random_state, stratify=stratify)
         else:
             X_train = tb.concat_df([X_train, X_pseudo], axis=0)
-            y_train = tb.concat_df([y_train, pd.Series(y_pseudo)], axis=0)
+            y_train = tb.concat_df([y_train, y_pseudo], axis=0)
 
         return X_train, y_train, X_eval, y_eval
 

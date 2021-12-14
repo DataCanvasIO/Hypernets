@@ -80,3 +80,30 @@ class TestCumlToolBox:
                                          init_kwargs={'tree_method': 'gpu_hist', 'use_label_encoder': False}, )
         r = detector()
         assert r == {'installed', 'initialized', 'fitted', 'fitted_with_cuml'}
+
+    def test_concat_df(self):
+        df = cudf.DataFrame(dict(
+            x1=['a', 'b', 'c'],
+            x2=[1, 2, 3],
+            x3=[4., 5, 6],
+        ))
+        tb = get_tool_box(cudf.DataFrame)
+
+        # DataFrame + DataFrame
+        df1 = tb.concat_df([df, df], axis=0)
+        df2 = cudf.concat([df, df], axis=0)
+        assert (df1 == df2).all().all()
+
+        # DataFrame + ndarray
+        df_num = df[['x2', 'x3']]
+        df1 = tb.concat_df([df_num, df_num.values], axis=0)
+        df2 = cudf.concat([df_num, df_num], axis=0)
+        assert isinstance(df1, cudf.DataFrame)
+        assert (df1 == df2).all().all()
+
+        # Series + ndarray
+        s = df['x2']
+        df1 = tb.concat_df([s, s.values], axis=0)
+        df2 = cudf.concat([s, s], axis=0)
+        assert isinstance(df1, cudf.Series)
+        assert (df1 == df2).all()

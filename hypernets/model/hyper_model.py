@@ -198,7 +198,7 @@ class HyperModel:
         except Exception as e:
             for callback in self.callbacks:
                 callback.on_search_error(self)
-            raise e
+            raise
 
         self._after_search(trial_no)
 

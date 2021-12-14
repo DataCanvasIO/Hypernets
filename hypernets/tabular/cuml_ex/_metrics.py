@@ -100,7 +100,8 @@ class CumlMetrics(Metrics):
         data_list = (y_true, y_proba, y_preds)
         if any(map(CumlToolBox.is_cuml_object, data_list)):
             diff_metrics = set(metrics).difference(_CUML_METRICS)
-            if all(map(lambda _: _ is None or CumlToolBox.is_cuml_object(_), data_list)) and \
+            if str(y_true.dtype) != 'object' and \
+                    all(map(lambda _: _ is None or CumlToolBox.is_cuml_object(_), data_list)) and \
                     len(diff_metrics) == 0:
                 # failed to get auc in Rapids v21.10
                 # (len(diff_metrics) == 0 or (diff_metrics == {'auc'} and task == const.TASK_BINARY)):

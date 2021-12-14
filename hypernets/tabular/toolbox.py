@@ -144,6 +144,18 @@ class ToolBox(metaclass=ToolboxMeta):
 
     @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
+        header = dfs[0]
+        assert isinstance(header, (pd.DataFrame, pd.Series))
+
+        def to_pd_type(t):
+            if isinstance(t, (pd.DataFrame, pd.Series)):
+                return t
+            elif isinstance(header, pd.Series):
+                return pd.Series(t, name=header.name)
+            else:
+                return pd.DataFrame(t, columns=header.columns)
+
+        dfs = [header] + [to_pd_type(df) for df in dfs[1:]]
         return pd.concat(dfs, axis=axis, **kwargs)
 
     @staticmethod
