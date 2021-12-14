@@ -100,7 +100,7 @@ class TestExcelReport:
 
     @staticmethod
     def _get_file_path():
-        file_path = tempfile.mkstemp(prefix="report_excel", suffix=".xlsx")[1]
+        file_path = tempfile.mkstemp(prefix="report_excel_", suffix=".xlsx")[1]
         return file_path
 
     def test_render(self):
