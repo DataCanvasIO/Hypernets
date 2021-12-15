@@ -321,3 +321,30 @@ class Test_Transformer():
         columns = X.columns.to_list()
         assert 'date' not in columns
         assert all([c in columns for c in ['date_holiday', 'date_timestamp']])
+
+    def test_target_encoder(self):
+        df = self.bank_data.head(1000)
+        X_fit = df.head(300)
+        y_fit = X_fit.pop('y')
+
+        te = skex.TargetEncoder(smooth=2, seed=123)
+        yt = skex.LabelEncoder().fit_transform(y_fit)
+        Xt1 = te.fit_transform(X_fit['age'].to_frame(), yt)
+        assert Xt1.shape == (len(X_fit),)
+
+        mte = skex.MultiTargetEncoder(smooth=2, seed=123)
+        Xtm = mte.fit_transform(X_fit, y_fit)
+        assert Xtm.shape == X_fit.shape
+
+        # compare fit_transform result
+        assert (Xtm['age'].values == Xt1).all()
+
+        df.pop('y')
+        Xt1 = te.transform(df['age'].to_frame())
+        assert Xt1.shape == (len(df),)
+
+        Xtm = mte.transform(df)
+        assert Xtm.shape == df.shape
+
+        # compare transform result
+        assert (Xtm['age'].values == Xt1).all()

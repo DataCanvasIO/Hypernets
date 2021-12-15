@@ -159,9 +159,13 @@ class TestCumlTransformer:
         tf = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
         self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
-    def test_target_encoder(self):
-        tf = CumlToolBox.transformers['TargetEncoder']()
+    def test_slim_ttarget_encoder(self):
+        tf = CumlToolBox.transformers['SlimTargetEncoder']()
         self.fit_reload_transform(tf, column_selector=lambda _: ['age', 'job', 'education'])
+
+    def test_multi_target_encoder(self):
+        tf = CumlToolBox.transformers['MultiTargetEncoder']()
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
     def test_onehot_svd_pipeline(self):
         ohe = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
@@ -169,11 +173,6 @@ class TestCumlTransformer:
         pipeline = CumlToolBox.transformers['Pipeline']([('onehot_encoder', ohe), ('svd', svd)])
 
         self.fit_reload_transform(pipeline, column_selector=CumlToolBox.column_selector.column_object)
-
-    #
-    # def test_target_lencoder(self):
-    #     tf = CumlToolBox.transformers['TargetEncoder']()
-    #     self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
     def test_general_preprocessor(self):
         X_foo = cudf.from_pandas(self.bank_data.head())
