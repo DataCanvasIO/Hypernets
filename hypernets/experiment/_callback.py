@@ -345,6 +345,9 @@ class MLEvaluateCallback(ExperimentCallback):
                     print("predict_proba failed", e)
             exp.evaluation['timing'] = {'predict': time.time() - _t, 'predict_proba': 0}
         if self.evaluate_prediction_dir is not None:
+            write_dir = self.evaluate_prediction_dir
+            if not os.path.exists(write_dir):
+                os.makedirs(write_dir)  # TODO: logger.info(f"Create prediction persist directory: {write_dir}")
             persist_pred_path = os.path.join(self.evaluate_prediction_dir, 'predict.pkl')
             persist_proba_path = os.path.join(self.evaluate_prediction_dir, 'predict_proba.pkl')
             self._persist(exp.y_eval_proba, 'y_eval_proba', persist_pred_path)

@@ -1,46 +1,43 @@
 # -*- coding: utf-8 -*-
 import abc
 import os.path
+import pkg_resources
+import argparse
+from typing import Type, List
+import json
+
 import pandas as pd
 import yaml
-import pkg_resources
-from typing import Type
-from hypernets.utils import common as common_util
 
+from hypernets.utils import common as common_util
 from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
 
 
 class DatasetConf:
-    def __init__(self, task, target, train_file, eval_file=None, test_file=None):
-        self.task = task
-        self.target = target
+    def __init__(self, train_file, target, task=None, eval_file=None, test_file=None):
         self.train_file = train_file
+        self.target = target
+        self.task = task
         self.eval_file = eval_file
         self.test_file = test_file
 
 
-class WebUIConf:
-    def __init__(self, ip="0.0.0.0", port=8866):
-        self.ip = ip
-        self.port = port
-
-    @staticmethod
-    def load_from_dict(d):
-        return WebUIConf(**d)
-
-
 class JobConf:
-    def __init__(self, name, dataset, experiment=None, run_options=None, webui=None):
+    def __init__(self, name, engine, dataset, working_dir, experiment=None, run_options=None, webui=None):
+        assert name is not None, "name can not be None"
+        assert dataset is not None, "dataset can not be None"
         self.name = name
+        self.engine = engine
         self.dataset = dataset
+        self.working_dir = working_dir
         self.experiment = experiment
         self.run_options = run_options
         self.webui = webui
 
 
-class JobApp(metaclass=abc.ABCMeta):
+class JobEngine(metaclass=abc.ABCMeta):
 
     def __init__(self, job_conf: JobConf):
         self.job_conf = job_conf
@@ -51,7 +48,7 @@ class JobApp(metaclass=abc.ABCMeta):
 
     @staticmethod
     @abc.abstractmethod
-    def module_name():
+    def name():
         raise NotImplemented
 
     @staticmethod
@@ -93,7 +90,6 @@ class JobApp(metaclass=abc.ABCMeta):
 
         Returns
         -------
-
         """
         enable_key = 'enable'
 
@@ -116,16 +112,31 @@ class JobApp(metaclass=abc.ABCMeta):
 
 
 class Job:
-    def __init__(self, conf):
-        self.conf = conf
+    STATUS_INIT = 'INIT'
+    STATUS_RUNNING = 'RUNNING'
+    STATUS_SUCCEED = 'SUCCEED'
+    STATUS_FAILED = 'FAILED'
 
-        self._status = None
+    def __init__(self, conf: JobConf):
+        self.conf = conf
+        self.status_ = Job.STATUS_INIT
 
 
 class JobGroup:
-    def __init__(self, dataset_conf: DatasetConf, jobs_conf):
+    def __init__(self, dataset_conf: DatasetConf, jobs_conf: List[JobConf], working_dir: str):
         self.dataset_conf = dataset_conf
+        # validate name is unique in jobs
+        counter = {}
+        for job_conf in jobs_conf:
+            counter[job_conf.name] = counter.get(job_conf.name, 0) + 1
+        for k, v in counter.items():
+            duplicate = []
+            if v > 1:
+                duplicate.append(k)
+            if len(duplicate) > 0:
+                raise ValueError(f"Jobs name is duplicate: { ','.join(duplicate)} ")
         self.jobs_conf = jobs_conf
+        self.working_dir = working_dir
 
 
 class ConfigLoader:
@@ -137,48 +148,58 @@ class ConfigLoader:
             content = f.read()
         return yaml.load(content, Loader=yaml.CLoader)
 
-    def load(self, ) -> JobGroup:
+    def load(self) -> JobGroup:
         config_dict = self._load_as_yaml()
         config_dict_snake_case = common_util.camel_keys_to_snake(config_dict)
 
         dataset_conf = DatasetConf(**config_dict_snake_case['dataset'])
         job_dict_list = config_dict_snake_case['jobs']
 
+        working_dir = config_dict_snake_case.get('working_dir', '.')
+        working_dir = os.path.abspath(working_dir)
+        logger.info(f"Working dir at: {working_dir}")
+        if not os.path.exists(working_dir):
+            logger.info("Create working dir")
+            os.makedirs(working_dir, exist_ok=True)
+
         job_conf_list = []
         for job_dict in job_dict_list:
-            job_init_kwargs = {'dataset': dataset_conf, **job_dict}
+            job_init_kwargs = {'dataset': dataset_conf, 'working_dir': working_dir, **job_dict}
             job_conf_list.append(JobConf(**job_init_kwargs))
 
-        return JobGroup(dataset_conf=dataset_conf,
-                        jobs_conf=job_conf_list)
+        return JobGroup(dataset_conf=dataset_conf, jobs_conf=job_conf_list, working_dir=working_dir)
 
 
 class JobGroupControl:
-    def __init__(self, job_group: JobGroup, job_plugin_cls: Type[JobApp]):
+    def __init__(self, job_group: JobGroup, engines_cls: List[Type[JobEngine]]):
         self.job_group = job_group
-        self.job_plugin_cls = job_plugin_cls
+        self.engines_cls_dict = {engine_cls.name(): engine_cls for engine_cls in engines_cls}
+
+        self.jobs_: List[Job] = [Job(_) for _ in self.job_group.jobs_conf]
 
     def run(self):
-        for i, job_conf in enumerate(self.job_group.jobs_conf):
+        for i, job in enumerate(self.jobs_):
             try:
                 logger.info(f"Start to run job {i+1}/{len(self.job_group.jobs_conf)}.")
-                job_conf: JobConf = job_conf
-                job = Job(job_conf)
-                exp = self.job_plugin_cls(job_conf).create_experiment()
+                job_conf: JobConf = job.conf
+                engine_cls = self.engines_cls_dict.get(job_conf.engine)
+                if engine_cls is None:
+                    logger.error(f"Engine '{job_conf.engine}' specified "
+                                 f"in job '{job_conf.name}' not found, skipped this job.")
+                    continue
+                exp = engine_cls(job_conf).create_experiment()
                 exp.run(**job_conf.run_options)
+                job.status_ = Job.STATUS_SUCCEED
             except Exception as e:
+                job.status_ = Job.STATUS_FAILED
                 logger.exception(e)
-
-    def list(self):
-        pass
-
-    def stop(self, ):
-        pass
+        summary = {job.conf.name: job.status_ for job in self.jobs_}
+        logger.info("Jobs summary:\n" + json.dumps(summary))
 
 
 class JobGroupControlCLI:
 
-    def main(self, sub_module, config_path):
+    def run(self, config_path):
         dev_mode = True
         entry_point_name = 'hypernets_experiment'
 
@@ -187,19 +208,30 @@ class JobGroupControlCLI:
         if not dev_mode:
             for entrypoint in pkg_resources.iter_entry_points(group=entry_point_name):
                 plugin = entrypoint.load()
+                # TODO: info plugin
                 plugins[plugin.get_module_name()] = plugin
         else:
-            from hypergbm.job import HyperGBMJobApp
-            plugins = [HyperGBMJobApp]
-
-        plugins_dict = {p.module_name(): p for p in plugins}
-        assert sub_module in plugins_dict, f"App '{sub_module}' not exits "
-
-        plugin_cls = plugins_dict[sub_module]
+            from hypergbm.job import HyperGBMJobEngine
+            plugins = [HyperGBMJobEngine]
 
         # read config
         job_group = ConfigLoader(config_path).load()
 
         # run the jobs
-        jgc = JobGroupControl(job_group, plugin_cls)
+        jgc = JobGroupControl(job_group, plugins)
         jgc.run()
+
+    def main(self):
+        parser = argparse.ArgumentParser(description='hyperctl command is used to manage experiments', add_help=True)
+        subparsers = parser.add_subparsers(dest="operation")
+
+        exec_parser = subparsers.add_parser("run", help="run experiments job")
+        exec_parser.add_argument("-c", "--config", help="yaml config file path", default=None, required=True)
+        args_namespace = parser.parse_args()
+        print(args_namespace)
+        operation = args_namespace.operation
+        if operation == 'run':
+            config_file = args_namespace.config
+            self.run(config_path=config_file)
+        else:
+            parser.print_help()

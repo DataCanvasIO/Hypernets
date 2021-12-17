@@ -38,7 +38,8 @@ def make_experiment(hyper_model_cls,
                     clear_cache=None,
                     discriminator=None,
                     evaluation_metrics='auto',
-                    evaluation_prediction_dir=None,
+                    evaluation_persist_prediction=False,
+                    evaluation_persist_prediction_dir=None,
                     report_render=None,
                     report_render_options=None,
                     log_level=None,
@@ -127,7 +128,8 @@ def make_experiment(hyper_model_cls,
         If *eval_data* is not None, it used to evaluate model with the metrics.
         For str should be 'auto', it will selected metrics accord to machine learning task type.
         For list should be metrics name.
-    evaluation_prediction_dir: str or None (default=None)
+    evaluation_persist_prediction: bool (default=False)
+    evaluation_persist_prediction_dir: str or None (default='predction')
         The dir to persist prediction, if exists will be overwritten
     report_render: str, obj, optional, default is None
         The experiment report render.
@@ -283,7 +285,11 @@ def make_experiment(hyper_model_cls,
     if eval_data is not None:
         from hypernets.experiment import MLEvaluateCallback
         if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS]:
-            callbacks.append(MLEvaluateCallback(evaluation_metrics, evaluation_prediction_dir))
+            if evaluation_persist_prediction is True:
+                persist_dir = evaluation_persist_prediction_dir
+            else:
+                persist_dir = None
+            callbacks.append(MLEvaluateCallback(evaluation_metrics, persist_dir))
 
     if report_render is not None:
         from hypernets.experiment import MLReportCallback

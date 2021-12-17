@@ -1,5 +1,6 @@
 import copy
 import json
+import os.path
 from collections import namedtuple
 from typing import List
 
@@ -170,7 +171,7 @@ class FeatureTransCollector:
         for step in self.steps:
             handler = self.get_handler(step.type)
             if handler is not None:
-                logger.info(f"Collect feature transformation of step {step.name}")
+                logger.debug(f"Collect feature transformation of step {step.name}")
                 fts.extend(handler(step))
         return fts
 
@@ -184,20 +185,32 @@ class ReportRender:
 
 
 class ExcelReportRender(ReportRender):
+    MAX_CELL_LENGTH = 50
 
     def __init__(self, file_path: str, theme='default'):
         """
         Parameters
         ----------
-        file_path:
+        file_path: str
+            The excel report file path, if exists will be override
         """
         super(ExcelReportRender, self).__init__(file_path=file_path)
+
+        if os.path.exists(file_path):
+            if not os.path.isfile(file_path):
+                raise ValueError(f"Report excel file path already exists, and not a file: {file_path}")
+            logger.warning(f"Report excel file path already exists, it will be overwritten: {file_path}")
+            os.remove(file_path)
+        else:
+            excel_file_dir = os.path.dirname(file_path)
+            if not os.path.exists(excel_file_dir):
+                logger.info(f"Create directory '{excel_file_dir}' because of not exists ")
+                os.makedirs(excel_file_dir, exist_ok=True)
 
         self.theme = Theme(theme)
         self.workbook = xlsxwriter.Workbook(file_path)  # {workbook}: {experiment_report} = 1:1
 
     def _write_cell(self, sheet, row_index, column_index, value, max_length_dict, cell_format_dict=None):
-        MAX_CELL_LENGTH = 50
 
         if cell_format_dict is not None:
             cell_format = self.workbook.add_format(cell_format_dict)
@@ -209,18 +222,18 @@ class ExcelReportRender(ReportRender):
         max_len = max_length_dict.get(column_index, 0)
         if max_len < value_width:
             max_length_dict[column_index] = value_width
-            if value_width > MAX_CELL_LENGTH:
-                value_width_ = MAX_CELL_LENGTH
+            if value_width > self.MAX_CELL_LENGTH:
+                value_width_ = self.MAX_CELL_LENGTH
             else:
                 value_width_ = value_width
             sheet.set_column(column_index, column_index, value_width_+2)
 
     def _render_2d_table(self, df, table_config, sheet, start_position=(0, 0)):
-        """ Render entities to excel table
+        """ Render pd.DataFrame to excel table
 
         Parameters
         ----------
-        df:
+        df: pd.DataFrame
         table_config:
             {
                 "columns": [
@@ -243,15 +256,13 @@ class ExcelReportRender(ReportRender):
 
         """
 
-        MAX_CELL_LENGTH = 50
-
         def calc_cell_length(header, max_content_length):
             header_len = len(header) + 4  # 2 space around header
             if max_content_length > header_len:
-                if max_content_length <= MAX_CELL_LENGTH:
+                if max_content_length <= self.MAX_CELL_LENGTH:
                     return max_content_length
                 else:
-                    return MAX_CELL_LENGTH
+                    return self.MAX_CELL_LENGTH
             else:
                 return header_len
 
@@ -339,16 +350,6 @@ class ExcelReportRender(ReportRender):
         return value, {}
 
     @staticmethod
-    def _check_input_df(df: pd.DataFrame, sheet_name, keys=None):
-        if df.shape[0] < 1 or df.shape[1] < 1:
-            logger.warning(f"Empty DataFrame, skipped create '{sheet_name}' sheet.")
-            return False
-        if keys is not None:
-            for k in keys:
-                assert k in df.columns, f'Require column "{k}" in df to create sheet "{sheet_name}"'
-        return True  # check pass
-
-    @staticmethod
     def _get_keys_in_table_config(table_config):
         return [c['key'] for c in table_config['columns']]
 
@@ -405,8 +406,7 @@ class ExcelReportRender(ReportRender):
         columns_name = self._get_keys_in_table_config(table_config)
         df = self._data_list_to_df(dataset_metas, columns_name)
 
-        if not self._check_input_df(df, sheet_name, self._get_keys_in_table_config(table_config)):
-            return
+
 
         self._render_2d_table(df, table_config, sheet_name)
 
@@ -441,9 +441,6 @@ class ExcelReportRender(ReportRender):
         # df_feature_trans = pd.DataFrame(data=[ft._asdict().values() for ft in fts], columns=fts[0]._asdict().keys())
         df = self._data_list_to_df(fts, columns_name)
 
-        if not self._check_input_df(df, sheet_name, keys=columns_name):
-            return
-
         self._render_2d_table(df, table_config, sheet_name)
 
     def _write_confusion_matrix(self, confusion_matrix_data: ConfusionMatrixMeta):
@@ -454,8 +451,6 @@ class ExcelReportRender(ReportRender):
 
         sheet_name = "Confusion matrix"
         confusion_matrix_style = self.theme.theme_config['confusion_matrix']
-        if not self._check_input_df(df, sheet_name):
-            return
 
         def to_config(c):
             return {
@@ -520,9 +515,6 @@ class ExcelReportRender(ReportRender):
             }
         }
         df = pd.DataFrame(samples, columns=['datetime', 'cpu', 'ram'])
-
-        if not self._check_input_df(df, sheet_name, keys=self._get_keys_in_table_config(table_config)):
-            return
 
         sheet = self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
 
@@ -690,9 +682,6 @@ class ExcelReportRender(ReportRender):
         sheet_name = "pseduo_labeling"
         df = pd.DataFrame(data=label_stats)
 
-        if not self._check_input_df(df, sheet_name):
-            return
-
         table_config = {
             "columns": [
                 {
@@ -759,9 +748,6 @@ class ExcelReportRender(ReportRender):
         eval_keys_with_label.insert(0, '')
         df = pd.DataFrame(data=scores_list, columns=eval_keys_with_label)
 
-        if not self._check_input_df(df, sheet_name):
-            return
-
         def _to_config(c):
             return {
                 'name': c,
@@ -776,9 +762,6 @@ class ExcelReportRender(ReportRender):
 
     def _write_regression_evaluation(self, report_dict, sheet_name):
         df = pd.DataFrame(data=report_dict.items(), columns=['metric', 'score'])
-
-        if not self._check_input_df(df, sheet_name):
-            return
 
         table_config = {
             "columns": [
@@ -803,7 +786,7 @@ class ExcelReportRender(ReportRender):
         elif task in [const.TASK_REGRESSION]:
             self._write_regression_evaluation(report_dict, sheet_name)
         else:
-            logger.warning(f'Unknown task type {task}')
+            logger.warning(f'Unknown task type {task}, skip to create sheet "{sheet_name}" ')
 
     @staticmethod
     def _get_step_by_type(exp, step_cls):
@@ -826,7 +809,7 @@ class ExcelReportRender(ReportRender):
 
         """
         def log_skip_sheet(name):
-            logger.info("Skip create datasets sheet because of empty data. ")
+            logger.info(f"Skip create {name} sheet because of empty data. ")
         if experiment_meta.datasets is not None:
             self._write_dataset_sheet(experiment_meta.datasets)
         else:
