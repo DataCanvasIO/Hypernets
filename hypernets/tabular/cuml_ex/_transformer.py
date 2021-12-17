@@ -13,6 +13,7 @@ from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, Targe
     StandardScaler, MaxAbsScaler, MinMaxScaler, RobustScaler
 from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular import sklearn_ex as sk_ex
 from .. import tb_transformer
@@ -168,11 +169,69 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
         return target
 
 
-@tb_transformer(cudf.DataFrame, name='TargetEncoder')
-class LocalizableTargetEncoder(TargetEncoder, Localizable):
+@tb_transformer(cudf.DataFrame)
+class SlimTargetEncoder(TargetEncoder, BaseEstimator):
+    """
+    The slimmed TargetEncoder with 'train' and 'train_encode' attribute were set to None.
+    """
+
+    def __init__(self, n_folds=4, smooth=0, seed=42, split_method='interleaved', dtype=None, output_2d=False):
+        super().__init__(n_folds=n_folds, smooth=smooth, seed=seed, split_method=split_method)
+
+        self.dtype = dtype
+        self.output_2d = output_2d
+
+    def fit(self, X, y):
+        super().fit(X, y)
+        self.train = None
+        self.train_encode = None
+        return self
+
+    def fit_transform(self, X, y):
+        Xt, _ = self._fit_transform(X, y)
+        self.train = None
+        self.train_encode = None
+        self._fitted = True
+        if self.dtype is not None:
+            Xt = Xt.astype(self.dtype)
+        if self.output_2d:
+            Xt = Xt.reshape(-1, 1)
+        return Xt
+
+    def transform(self, X):
+        Xt = super().transform(X)
+        if self.dtype is not None:
+            Xt = Xt.astype(self.dtype)
+        if self.output_2d:
+            Xt = Xt.reshape(-1, 1)
+        return Xt
+
+    def _check_is_fitted(self):
+        check_is_fitted(self, '_fitted')
+
+    def _is_train_df(self, df):
+        return False
+
+    @property
+    def split_method(self):
+        return self.split
+
     def as_local(self):
-        target = sk_ex.TargetEncoder(n_folds=self.n_folds, smooth=self.smooth, seed=self.seed, split_method=self.split)
-        copy_attrs(self, target, '_fitted', 'train', 'train_encode', 'encode_all', 'mean')
+        target = sk_ex.SlimTargetEncoder(n_folds=self.n_folds, smooth=self.smooth, seed=self.seed,
+                                         split_method=self.split, dtype=self.dtype, output_2d=self.output_2d)
+        copy_attrs(self, target, '_fitted', 'train', 'train_encode', 'encode_all', 'mean', 'output_2d')
+        return target
+
+
+@tb_transformer(cudf.DataFrame)
+class MultiTargetEncoder(sk_ex.MultiTargetEncoder):
+    target_encoder_cls = SlimTargetEncoder
+    label_encoder_cls = LabelEncoder
+
+    def as_local(self):
+        target = sk_ex.MultiTargetEncoder(n_folds=self.n_folds, smooth=self.smooth, seed=self.seed,
+                                          split_method=self.split_method)
+        target.encoders_ = {k: le.as_local() for k, le in self.encoders_.items()}
         return target
 
 

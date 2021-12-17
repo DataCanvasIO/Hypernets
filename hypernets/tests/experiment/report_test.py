@@ -3,8 +3,7 @@ import os
 import tempfile
 import time
 
-import pandas as pd
-
+from hypernets.experiment._extractor import ConfusionMatrixMeta
 from hypernets.experiment.compete import StepNames
 from hypernets.experiment.report import ExcelReportRender
 from hypernets.utils import const
@@ -16,12 +15,7 @@ class TestExcelReport:
 
     @staticmethod
     def create_prediction_stats_df():
-        return pd.DataFrame(data={
-            'dataset': ['Test'],
-            'elapsed': [1000],
-            'rows': [10000000],
-            'speed': [100000/1024]  # {n}K/s
-        })
+        return [('Test', 1000, 10000000)]
 
     @staticmethod
     def create_dataset_meta():
@@ -30,7 +24,9 @@ class TestExcelReport:
 
     @staticmethod
     def create_confusion_matrix_data():
-        return [[1, 4, 6], [1, 4, 6], [1, 4, 6]]
+        data = [[1, 4, 6], [1, 4, 6], [1, 4, 6]]
+        labels = [0, 1, 2]
+        return ConfusionMatrixMeta(data, labels)
 
     @staticmethod
     def create_resource_monitor_df():

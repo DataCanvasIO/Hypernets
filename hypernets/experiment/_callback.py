@@ -1,5 +1,8 @@
 # -*- coding:utf-8 -*-
 __author__ = 'yangjian'
+
+from ._extractor import ConfusionMatrixMeta
+
 """
 
 """
@@ -15,6 +18,7 @@ import joblib
 import psutil
 from sklearn import metrics as sk_metrics
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.utils.multiclass import unique_labels
 from IPython.display import display, display_markdown
 
 from hypernets.tabular import get_tool_box
@@ -285,6 +289,37 @@ class MLEvaluateCallback(ExperimentCallback):
         self._eval_df_shape = None
         self._eval_elapse = None
 
+    def experiment_start(self, exp):
+        """
+            exp.evaluation:
+                {
+                    'metrics': {
+                        'f1': 0.1,
+                    },
+                    "classification_report": {
+                        "0": {
+                            'f1': 0.1,
+                        }
+                    },
+                    "confusion_matrix": [[1,2], [3,4]],
+                    "timing": {
+                        'predict': 100,
+                        'predict_proba': 100
+                    }
+                }
+        Parameters
+        ----------
+        exp
+
+        Returns
+        -------
+
+        """
+        # define attrs
+        exp.y_eval_proba = None
+        exp.y_eval_pred = None
+        exp.evaluation = {}
+
     @staticmethod
     def to_prediction(y_score):
         pass
@@ -300,8 +335,6 @@ class MLEvaluateCallback(ExperimentCallback):
 
     def experiment_end(self, exp, elapsed):
         # Attach prediction
-        exp.y_eval_proba = None  # define attr
-        exp.y_eval_pred = None
         if exp.y_eval is not None and exp.X_eval is not None:
             _t = time.time()
             exp.y_eval_pred = exp.model_.predict(exp.X_eval)  # TODO: try to use proba
@@ -310,8 +343,11 @@ class MLEvaluateCallback(ExperimentCallback):
                     exp.y_eval_proba = exp.model_.predict_proba(exp.X_eval)
                 except Exception as e:
                     print("predict_proba failed", e)
-            exp._eval_elapsed = time.time() - _t
+            exp.evaluation['timing'] = {'predict': time.time() - _t, 'predict_proba': 0}
         if self.evaluate_prediction_dir is not None:
+            write_dir = self.evaluate_prediction_dir
+            if not os.path.exists(write_dir):
+                os.makedirs(write_dir)  # TODO: logger.info(f"Create prediction persist directory: {write_dir}")
             persist_pred_path = os.path.join(self.evaluate_prediction_dir, 'predict.pkl')
             persist_proba_path = os.path.join(self.evaluate_prediction_dir, 'predict_proba.pkl')
             self._persist(exp.y_eval_proba, 'y_eval_proba', persist_pred_path)
@@ -375,6 +411,10 @@ class MLReportCallback(ExperimentCallback):
 
     def experiment_start(self, exp):
         self._rum.start_watch()
+        # define attrs
+        exp.y_eval_proba = None
+        exp.y_eval_pred = None
+        exp.evaluation = {}
 
     def experiment_end(self, exp, elapsed):
         # 1. Mock full experiment: Add evaluation
@@ -385,7 +425,9 @@ class MLReportCallback(ExperimentCallback):
             y_pred = exp.y_eval_pred
             if exp.task in [const.TASK_MULTICLASS, const.TASK_BINARY]:
                 evaluation_result = classification_report(y_test, y_pred, output_dict=True, digits=DIGITS)
-                confusion_matrix_result = confusion_matrix(y_test, y_pred)
+                labels = unique_labels(y_test, y_pred)
+                confusion_matrix_data = confusion_matrix(y_test, y_pred, labels=labels)
+                confusion_matrix_result = ConfusionMatrixMeta(confusion_matrix_data, labels)
             elif exp.task in [const.TASK_REGRESSION]:
                 explained_variance = round(sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred), DIGITS)
                 neg_mean_absolute_error = round(sk_metrics.mean_absolute_error(y_true=y_test, y_pred=y_pred), DIGITS)
@@ -414,7 +456,6 @@ class MLReportCallback(ExperimentCallback):
             evaluation_result = {}
 
         # 2. get experiment meta and render to excel
-        # TODO: add others
         self._experiment_meta = ExperimentExtractor(exp, evaluation_result,
                                                     confusion_matrix_result, self._rum.data).extract()
         self.render.render(self._experiment_meta)

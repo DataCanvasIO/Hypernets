@@ -37,8 +37,9 @@ def make_experiment(hyper_model_cls,
                     hyper_model_options=None,
                     clear_cache=None,
                     discriminator=None,
-                    evaluate_metrics='auto',
-                    evaluate_prediction_dir=None,
+                    evaluation_metrics='auto',
+                    evaluation_persist_prediction=False,
+                    evaluation_persist_prediction_dir=None,
                     report_render=None,
                     report_render_options=None,
                     log_level=None,
@@ -123,11 +124,12 @@ def make_experiment(hyper_model_cls,
             -logging.INFO
             -logging.DEBUG
             -logging.NOTSET
-    evaluate_metrics: str, list, or None (default='auto'),
+    evaluation_metrics: str, list, or None (default='auto'),
         If *eval_data* is not None, it used to evaluate model with the metrics.
         For str should be 'auto', it will selected metrics accord to machine learning task type.
         For list should be metrics name.
-    evaluate_prediction_dir: str or None (default=None)
+    evaluation_persist_prediction: bool (default=False)
+    evaluation_persist_prediction_dir: str or None (default='predction')
         The dir to persist prediction, if exists will be overwritten
     report_render: str, obj, optional, default is None
         The experiment report render.
@@ -283,7 +285,11 @@ def make_experiment(hyper_model_cls,
     if eval_data is not None:
         from hypernets.experiment import MLEvaluateCallback
         if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS]:
-            callbacks.append(MLEvaluateCallback(evaluate_metrics, evaluate_prediction_dir))
+            if evaluation_persist_prediction is True:
+                persist_dir = evaluation_persist_prediction_dir
+            else:
+                persist_dir = None
+            callbacks.append(MLEvaluateCallback(evaluation_metrics, persist_dir))
 
     if report_render is not None:
         from hypernets.experiment import MLReportCallback

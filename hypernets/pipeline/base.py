@@ -75,11 +75,18 @@ class PipelineOutput(ComposeTransformer):
         inputs = self.space.get_inputs(self)
         assert len(inputs) == 1, 'Pipeline does not support branching.'
         next, steps = self.get_transformers(inputs[0], self.input_id)
-        p = pipeline.Pipeline(steps)
+        p = self.create_pipeline(steps)
         return next, (self.pipeline_name, p)
+
+    @staticmethod
+    def create_pipeline(steps):
+        return pipeline.Pipeline(steps)
 
 
 class Pipeline(ConnectionSpace):
+    input_space_cls = PipelineInput
+    output_space_cls = PipelineOutput
+
     def __init__(self, module_list, columns=None, keep_link=False, space=None, name=None):
         assert isinstance(module_list, list), f'module_list must be a List.'
         assert len(module_list) > 0, f'module_list contains at least 1 Module.'
@@ -96,9 +103,9 @@ class Pipeline(ConnectionSpace):
             self.connect_module_or_subgraph(last, self._module_list[i])
             # self._module_list[i](last)
             last = self._module_list[i]
-        pipeline_input = PipelineInput(name=self.name + '_input', space=self.space)
-        pipeline_output = PipelineOutput(pipeline_name=self.name, columns=self.columns, name=self.name + '_output',
-                                         space=self.space)
+        pipeline_input = self.input_space_cls(name=self.name + '_input', space=self.space)
+        pipeline_output = self.output_space_cls(pipeline_name=self.name, columns=self.columns,
+                                                name=self.name + '_output', space=self.space)
         pipeline_input.output_id = pipeline_output.id
         pipeline_output.input_id = pipeline_input.id
 
@@ -166,7 +173,6 @@ class DataFrameMapper(ComposeTransformer):
             transformers.append((p.columns, transformer))
 
         pv = self.param_values
-        # ct = dataframe_mapper.DataFrameMapper(features=transformers, **pv)
         ct = self._create_dataframe_mapper(features=transformers, **pv)
         return next, (self.name, ct)
 

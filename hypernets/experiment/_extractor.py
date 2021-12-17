@@ -113,10 +113,18 @@ class StepMeta(BaseMeta):
         self.end_datetime = end_datetime
 
 
+class ConfusionMatrixMeta(BaseMeta):
+
+    def __init__(self, data, labels=None):
+        self.data = data
+        self.labels = labels
+
+
 class ExperimentMeta(BaseMeta):
 
     def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta],
-                 evaluation_metric=None, confusion_matrix=None, resource_usage=None, prediction_stats=None):
+                 evaluation_metric=None, confusion_matrix: ConfusionMatrixMeta = None,
+                 resource_usage=None, prediction_stats=None):
 
         self.task = task
         self.datasets = datasets
@@ -145,7 +153,7 @@ class Extractor(metaclass=abc.ABCMeta):
         return configuration
 
     @abc.abstractmethod
-    def get_output_features(self):
+    def selected_features(self):
         raise NotImplemented
 
     def get_status(self):
@@ -168,7 +176,7 @@ class Extractor(metaclass=abc.ABCMeta):
         else:
             inputs_list = self.step.input_features_
 
-        outputs_list = self.get_output_features()
+        outputs_list = self.selected_features()
 
         if outputs_list is not None:
             increased = list(set(outputs_list) - set(inputs_list))
@@ -200,28 +208,26 @@ class Extractor(metaclass=abc.ABCMeta):
 
 class ABSFeatureSelectionStepExtractor(Extractor, metaclass=abc.ABCMeta):
 
-    def _get_extension(self):
-        selected_features = self.step.selected_features_  #
-        if selected_features is None or  len(self.step.selected_features_) == 0:
-            raise ValueError(f"'selected_features_' is empty for step {self.step}")
+    # def _get_extension(self):
+    #     selected_features = self.step.selected_features_  #
+    #     if selected_features is None or len(selected_features) == 0:
+    #         raise ValueError(f"'selected_features_' is empty for step {self.step}")
 
-    def get_output_features(self):
-        selected_features = self.step.selected_features_  #
-        if selected_features is None:
-            return self.step.input_features_
-        else:
-            return selected_features
+    def selected_features(self):
+        return self.step.selected_features
+
+    def unselected_features(self):
+        return self.step.unselected_features
 
 
 class DataCleanStepExtractor(ABSFeatureSelectionStepExtractor):
 
     def _get_extension(self):
-        super(DataCleanStepExtractor, self)._get_extension()
         return {'unselected_reason': self.step.get_fitted_params()['unselected_reason']}
 
 
 class FeatureGenerationStepExtractor(Extractor):
-    def get_output_features(self):
+    def selected_features(self):
         output_features = self.step.transformer_.transformed_feature_names_
         if output_features is None:
             return self.step.input_features_
@@ -282,7 +288,6 @@ class FeatureGenerationStepExtractor(Extractor):
 class DriftStepExtractor(ABSFeatureSelectionStepExtractor):
 
     def _get_extension(self):
-        super(DriftStepExtractor, self)._get_extension()
         extension = self.step.get_fitted_params()
         config = super(DriftStepExtractor, self).get_configuration()
         extension['drifted_features_auc'] = []
@@ -292,12 +297,13 @@ class DriftStepExtractor(ABSFeatureSelectionStepExtractor):
             variable_shift_threshold = config['variable_shift_threshold']
             if config['remove_shift_variable']:
                 for col, score in scores.items():
-                    if col not in self.step.selected_features_:
+                    if col not in self.selected_features():
                         if score > variable_shift_threshold:
                             over_variable_threshold_features.append((col, score))  # removed
                         else:
-                            logger.warning(f"Score of feature '{col}' is "
-                                           f"{score} < threshold = {variable_shift_threshold} but not removed.")
+                            pass
+                            # logger.warning(f"Score of feature '{col}' is "
+                            #                f"{score} < threshold = {variable_shift_threshold} but not removed.")
                 over_variable_threshold_features = sorted(over_variable_threshold_features, key=lambda item: item[1], reverse=True)
                 extension['drifted_features_auc'] = over_variable_threshold_features
 
@@ -366,7 +372,6 @@ class FeatureSelectionStepExtractor(ABSFeatureImportancesSelectionStepExtractor)
             ]
         }
         """
-        super(FeatureSelectionStepExtractor, self)._get_extension()
         imps = self.step.get_fitted_params()['importances']
         # extension['importances'] = imps.tolist() if imps is not None else []
         output_extension = {
@@ -394,7 +399,6 @@ class MultiLinearityStepExtractor(ABSFeatureSelectionStepExtractor):
             'features': extension['features']
         }
         """
-        super(MultiLinearityStepExtractor, self)._get_extension()
         feature_clusters = self.step.get_fitted_params()['feature_clusters']
         unselected_features = OrderedDict()
         for fc in feature_clusters:
@@ -413,7 +417,6 @@ class PermutationImportanceStepExtractor(ABSFeatureImportancesSelectionStepExtra
         return configuration
 
     def _get_extension(self):
-        super(PermutationImportanceStepExtractor, self)._get_extension()
 
         selected_features = self.step.selected_features_ if self.step.selected_features_ is not None else []
         importances = self.step.importances_
@@ -433,7 +436,7 @@ class SpaceSearchStepExtractor(Extractor):
         ret_ext_copy['history'] = None
         return ret_ext_copy
 
-    def get_output_features(self):
+    def selected_features(self):
         return ['y']
 
     def get_configuration(self):
@@ -460,7 +463,7 @@ class FinalTrainStepExtractor(Extractor):
             extension["estimator"] = self.step.estimator_.gbm_model.__class__.__name__
             return extension
 
-    def get_output_features(self):
+    def selected_features(self):
         return ['y']
 
     def _get_extension(self):
@@ -469,7 +472,7 @@ class FinalTrainStepExtractor(Extractor):
 
 class EnsembleStepExtractor(Extractor):
 
-    def get_output_features(self):
+    def selected_features(self):
         return ['y']
 
     def get_configuration(self):
@@ -501,7 +504,7 @@ class EnsembleStepExtractor(Extractor):
 
 
 class PseudoStepExtractor(Extractor):
-    def get_output_features(self):
+    def selected_features(self):
         return self.step.input_features_
 
     def get_configuration(self):
@@ -518,7 +521,7 @@ class PseudoStepExtractor(Extractor):
         scores = self.step.test_proba_
 
         if pseudo_label_stat is not None:
-            for k, v in  pseudo_label_stat.items():
+            for k, v in pseudo_label_stat.items():
                 if hasattr(v, 'tolist'):
                     pseudo_label_stat[k] = v.tolist()
             pseudo_label_stat = dict(pseudo_label_stat)
@@ -616,15 +619,31 @@ class ExperimentExtractor:
             # self._get_dataset_meta(exp.X_train, 'Train', exp.task)
             meta_list.append(self._get_dataset_meta(df, type_name, task))
 
+    def is_evaluated(self):
+        return self.exp.X_eval is not None and self.exp.y_eval is not None and self.exp.y_eval_pred is not None
+
     def extract(self):
         exp = self.exp
+        # datasets
         datasets_meta: List[DatasetMeta] = []
         self._append_dataset_meta(datasets_meta, exp.X_train, 'Train',  exp.task)
         self._append_dataset_meta(datasets_meta, exp.X_test, 'Test',  exp.task)
         self._append_dataset_meta(datasets_meta, exp.X_eval, 'Eval',  exp.task)
 
+        # steps
         steps_meta = [self.extract_step(i, step) for i, step in enumerate(exp.steps)]
 
-        return ExperimentMeta(task=exp.task, datasets=datasets_meta, steps=steps_meta,
-                              evaluation_metric=self.evaluation_result, confusion_matrix=self.confusion_matrix_result,
-                              resource_usage=self.resource_usage)
+        # prediction stats
+        if self.is_evaluated():
+            evaluation = exp.evaluation
+            elapsed = evaluation['timing']['predict']
+            rows = exp.X_eval.shape[0]
+            prediction_stats = [('Eval', elapsed, rows)]
+        else:
+            prediction_stats = None
+
+        return ExperimentMeta(task=exp.hyper_model_.task, datasets=datasets_meta, steps=steps_meta,
+                              evaluation_metric=self.evaluation_result,
+                              confusion_matrix=self.confusion_matrix_result,
+                              resource_usage=self.resource_usage,
+                              prediction_stats=prediction_stats)

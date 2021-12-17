@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from hypernets.core import set_random_state, randint
 from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
@@ -20,12 +20,13 @@ logger = logging.get_logger(__name__)
 
 
 class PlainSearchSpace(object):
-    def __init__(self, enable_dt=True, enable_lr=True, enable_nn=True):
-        assert enable_dt or enable_lr or enable_nn
+    def __init__(self, enable_dt=True, enable_lr=True, enable_nn=True, enable_dtr=False):
+        assert enable_dt or enable_lr or enable_nn or enable_dtr
 
         super(PlainSearchSpace, self).__init__()
 
         self.enable_dt = enable_dt
+        self.enable_dtr = enable_dtr
         self.enable_lr = enable_lr
         self.enable_nn = enable_nn
 
@@ -35,6 +36,15 @@ class PlainSearchSpace(object):
         return dict(
             cls=DecisionTreeClassifier,
             criterion=Choice(["gini", "entropy"]),
+            splitter=Choice(["best", "random"]),
+            max_depth=Choice([None, 3, 5, 10, 20, 50]),
+            random_state=randint(),
+        )
+
+    @property
+    def dtr(self):
+        return dict(
+            cls=DecisionTreeRegressor,
             splitter=Choice(["best", "random"]),
             max_depth=Choice([None, 3, 5, 10, 20, 50]),
             random_state=randint(),
@@ -114,6 +124,8 @@ class PlainSearchSpace(object):
             estimators = []
             if self.enable_dt:
                 estimators.append(self.dt)
+            if self.enable_dtr:
+                estimators.append(self.dtr)
             if self.enable_lr:
                 estimators.append(self.lr)
             if self.enable_nn:

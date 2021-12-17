@@ -13,3 +13,4 @@ python-geohash
 XlsxWriter>=3.0.2
 psutil
 joblib
+pyyaml

@@ -2,6 +2,7 @@
 """
 
 """
+import inspect
 import re
 import time
 
@@ -1252,3 +1253,188 @@ class TargetEncoder(BaseEstimator):
 
         df[self.id_col] = np.arange(len(x))
         return df
+
+
+@tb_transformer(pd.DataFrame)
+class SlimTargetEncoder(TargetEncoder):
+    """
+    The slimmed TargetEncoder with 'train' and 'train_encode' attribute were set to None.
+    """
+
+    def __init__(self, n_folds=4, smooth=0, seed=42, split_method='interleaved', dtype=None, output_2d=False):
+        super().__init__(n_folds=n_folds, smooth=smooth, seed=seed, split_method=split_method)
+
+        self.dtype = dtype
+        self.output_2d = output_2d
+
+    def fit(self, X, y):
+        super().fit(X, y)
+        self.train = None
+        self.train_encode = None
+        return self
+
+    def fit_transform(self, X, y):
+        Xt, _ = self._fit_transform(X, y)
+        self.train = None
+        self.train_encode = None
+        self._fitted = True
+        if self.dtype is not None:
+            Xt = Xt.astype(self.dtype)
+        if self.output_2d:
+            Xt = Xt.reshape(-1, 1)
+        return Xt
+
+    def transform(self, X):
+        Xt = super().transform(X)
+        if self.dtype is not None:
+            Xt = Xt.astype(self.dtype)
+        if self.output_2d:
+            Xt = Xt.reshape(-1, 1)
+        return Xt
+
+    def _check_is_fitted(self):
+        check_is_fitted(self, '_fitted')
+
+    def _is_train_df(self, df):
+        return False
+
+    @property
+    def split_method(self):
+        return self.split
+
+
+class ColumnEncoder(BaseEstimator):
+    """
+    Encode each column in the dataset with a separate encoder.
+    """
+
+    def create_encoder(self, X, y):
+        raise NotImplementedError()
+
+    def _check_X(self, X):
+        assert len(X.shape) == 2
+
+        if getattr(self, 'encoders_', None) is not None:  # fitted
+            encoders = self.encoders_
+            if self._is_dataframe(X):
+                assert set(X.columns.tolist()) == set(encoders.keys())
+            else:
+                assert X.shape[1] == len(self.encoders_) \
+                       and all([isinstance(k, int) for k in encoders.keys()])
+
+    def _check_y(self, y):
+        pass
+
+    @staticmethod
+    def _copy_X(X):
+        return X.copy()
+
+    @staticmethod
+    def _is_dataframe(X):
+        return hasattr(X, 'columns')
+
+    def _call_fit_transform(self, encoder, Xc, y, **kwargs):
+        if not hasattr(encoder, 'fit_transform'):
+            self._call_fit(encoder, Xc, y, **kwargs)
+            return self._call_transform(encoder, Xc)
+
+        params = list(inspect.signature(encoder.fit_transform).parameters.values())
+        if len(params) > 1 and params[1].kind in (params[1].POSITIONAL_ONLY, params[1].POSITIONAL_OR_KEYWORD):
+            return encoder.fit_transform(Xc, y, **kwargs)
+        else:
+            return encoder.fit_transform(Xc, **kwargs)
+
+    def _call_fit(self, encoder, Xc, y, **kwargs):
+        params = list(inspect.signature(encoder.fit).parameters.values())
+        if len(params) > 1 and params[1].kind in (params[1].POSITIONAL_ONLY, params[1].POSITIONAL_OR_KEYWORD):
+            return encoder.fit(Xc, y, **kwargs)
+        else:
+            return encoder.fit(Xc, **kwargs)
+
+    def _call_transform(self, encoder, Xc):
+        return encoder.transform(Xc)
+
+    def fit(self, X, y=None, **kwargs):
+        self._check_X(X)
+        self._check_y(y)
+
+        columns = X.columns.tolist() if self._is_dataframe(X) else list(range(X.shape[1]))
+        encoders = {c: self.create_encoder(X, y) for c in columns}
+
+        for c, le in encoders.items():
+            Xc = X[c] if self._is_dataframe(X) else X[:, c]
+            self._call_fit(le, Xc, y, **kwargs)
+
+        self.encoders_ = encoders
+
+        return self
+
+    def transform(self, X, *, copy=True):
+        check_is_fitted(self, 'encoders_')
+        self._check_X(X)
+        if copy:
+            X = self._copy_X(X)
+
+        if self._is_dataframe(X):
+            for c, le in self.encoders_.items():
+                X[c] = le.transform(X[c])
+        else:
+            for c, le in self.encoders_.items():
+                X[:, c] = le.transform(X[:, c])
+
+        return X
+
+    def fit_transform(self, X, y=None, *, copy=True, **kwargs):
+        self._check_X(X)
+        self._check_y(y)
+        if copy:
+            X = self._copy_X(X)
+
+        columns = X.columns.tolist() if self._is_dataframe(X) else list(range(X.shape[1]))
+        encoders = {c: self.create_encoder(X, y) for c in columns}
+
+        if self._is_dataframe(X):
+            for c, le in encoders.items():
+                X[c] = self._call_fit_transform(le, X[c], y, **kwargs)
+        else:
+            for c, le in encoders.items():
+                X[:, c] = self._call_fit_transform(le, X[:, c], y, **kwargs)
+
+        self.encoders_ = encoders
+
+        return X
+
+
+@tb_transformer(pd.DataFrame)
+class MultiTargetEncoder(ColumnEncoder):
+    target_encoder_cls = SlimTargetEncoder
+    label_encoder_cls = LabelEncoder
+
+    def __init__(self, n_folds=4, smooth=None, seed=42, split_method='interleaved', dtype=None):
+        self.n_folds = n_folds
+        self.smooth = smooth
+        self.seed = seed
+        self.split_method = split_method
+        self.dtype = dtype
+
+    def create_encoder(self, X, y):
+        smooth = int(len(X) ** .25) if self.smooth is None else self.smooth
+        encoder = self.target_encoder_cls(n_folds=self.n_folds, smooth=smooth, seed=self.seed,
+                                          split_method=self.split_method, dtype=self.dtype, output_2d=False)
+        return encoder
+
+    def fit(self, X, y=None, **kwargs):
+        assert y is not None
+
+        if str(y.dtype) == 'object':
+            le = self.label_encoder_cls()
+            y = le.fit_transform(y)
+        return super().fit(X, y, **kwargs)
+
+    def fit_transform(self, X, y=None, **kwargs):
+        assert y is not None
+
+        if str(y.dtype) == 'object':
+            le = self.label_encoder_cls()
+            y = le.fit_transform(y)
+        return super().fit_transform(X, y, **kwargs)
