@@ -187,14 +187,29 @@ class FeatureSelectStep(ExperimentStep):
         return self.selected_features_ is None
 
     def get_fitted_params(self):
+        return {**super().get_fitted_params(),
+                'selected_features': self.selected_features,
+                'unselected_features': self.unselected_features}
+
+    @property
+    def selected_features(self):
+        if self.input_features_ is None:
+            raise ValueError('Not fitted.')
+
+        r = self.selected_features_ if self.selected_features_ is not None else self.input_features_
+        return copy.copy(r)
+
+    @property
+    def unselected_features(self):
+        if self.input_features_ is None:
+            raise ValueError('Not fitted.')
+
         if self.selected_features_ is None:
-            unselected = None
+            unselected = []
         else:
             unselected = list(filter(lambda _: _ not in self.selected_features_, self.input_features_))
 
-        return {**super().get_fitted_params(),
-                'selected_features': self.selected_features_,
-                'unselected_features': unselected}
+        return unselected
 
 
 class DataCleanStep(FeatureSelectStep):

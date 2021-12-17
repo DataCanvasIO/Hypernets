@@ -87,6 +87,17 @@ class MultiLabelEncoder(HyperTransformer):
         HyperTransformer.__init__(self, sklearn_ex.MultiLabelEncoder, space, name, **kwargs)
 
 
+class MultiTargetEncoder(HyperTransformer):
+    def __init__(self, n_folds=None, smooth=None, split_method=None, space=None, name=None, **kwargs):
+        if n_folds is not None:
+            kwargs['n_folds'] = n_folds
+        if smooth is not None:
+            kwargs['smooth'] = smooth
+        if split_method is not None:
+            kwargs['split_method'] = split_method
+        HyperTransformer.__init__(self, sklearn_ex.MultiTargetEncoder, space, name, **kwargs)
+
+
 class OneHotEncoder(HyperTransformer):
     def __init__(self, categories='auto', drop=None, sparse=True, dtype=np.float64, space=None,
                  name=None, **kwargs):

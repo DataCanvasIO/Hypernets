@@ -4,8 +4,6 @@ Adapted from: https://github.com/scikit-learn-contrib/sklearn-pandas
 1. Fix the problem of confusion of column names
 2. Support `columns` is a callable object
 """
-import contextlib
-
 import numpy as np
 import pandas as pd
 from scipy import sparse as _sparse
@@ -13,7 +11,7 @@ from sklearn.base import BaseEstimator
 from sklearn.pipeline import _name_estimators, Pipeline
 from sklearn.utils import tosequence
 
-from hypernets.utils import logging
+from hypernets.utils import logging, context
 
 logger = logging.get_logger(__name__)
 
@@ -108,16 +106,6 @@ def make_transformer_pipeline(*steps):
     return TransformerPipeline(_name_estimators(steps))
 
 
-def _build_transformer(transformers):
-    if isinstance(transformers, list):
-        transformers = make_transformer_pipeline(*transformers)
-    return transformers
-
-
-def _build_feature(columns, transformers, options={}):
-    return (columns, _build_transformer(transformers), options)
-
-
 def _get_feature_names(estimator, columns=None):
     """
     Attempt to extract feature names based on a given estimator
@@ -127,20 +115,6 @@ def _get_feature_names(estimator, columns=None):
     if hasattr(estimator, 'classes_'):
         return estimator.classes_
     return None
-
-
-@contextlib.contextmanager
-def add_column_names_to_exception(column_names):
-    # Stolen from https://stackoverflow.com/a/17677938/356729
-    try:
-        yield
-    except Exception as ex:
-        if ex.args:
-            msg = u'{}: {}'.format(column_names, ex.args[0])
-        else:
-            msg = str(column_names)
-        ex.args = (msg,) + ex.args[1:]
-        raise
 
 
 class DataFrameMapper(BaseEstimator):
@@ -190,12 +164,20 @@ class DataFrameMapper(BaseEstimator):
         self.fitted_features_ = None
 
     @staticmethod
-    def _build(features, default):
+    def _build_transformer(transformers):
+        if isinstance(transformers, list):
+            transformers = make_transformer_pipeline(*transformers)
+        return transformers
+
+    def _build_feature(self, columns, transformers, options={}):
+        return columns, self._build_transformer(transformers), options
+
+    def _build(self, features, default):
         if isinstance(features, list):
-            built_features = [_build_feature(*f) for f in features]
+            built_features = [self._build_feature(*f) for f in features]
         else:
             built_features = features
-        built_default = _build_transformer(default)
+        built_default = self._build_transformer(default)
 
         return built_features, built_default
 
@@ -224,7 +206,7 @@ class DataFrameMapper(BaseEstimator):
             selected_columns += columns
             if transformers is not None:
                 input_df = options.get('input_df', self.input_df)
-                with add_column_names_to_exception(columns):
+                with context(columns):
                     Xt = self._get_col_subset(X, columns, input_df)
                     _call_fit(transformers.fit, Xt, y)
                     # print(f'{transformers}:{Xt.dtypes}')
@@ -233,7 +215,7 @@ class DataFrameMapper(BaseEstimator):
         if built_default is not False and len(X.columns) > len(selected_columns):
             unselected_columns = [c for c in X.columns.to_list() if c not in selected_columns]
             if built_default is not None:
-                with add_column_names_to_exception(unselected_columns):
+                with context(unselected_columns):
                     Xt = self._get_col_subset(X, unselected_columns, self.input_df)
                     _call_fit(built_default.fit, Xt, y)
             fitted_features.append((unselected_columns, built_default, {}))
@@ -257,7 +239,7 @@ class DataFrameMapper(BaseEstimator):
 
             Xt = self._get_col_subset(X, columns, input_df)
             if transformers is not None:
-                with add_column_names_to_exception(columns):
+                with context(columns):
                     # print(f'before ---- {transformers}:{Xt.dtypes}')
                     Xt = transformers.transform(Xt)
                     # print(f'after ---- {transformers}:{pd.DataFrame(Xt).dtypes}')
@@ -297,7 +279,7 @@ class DataFrameMapper(BaseEstimator):
 
             Xt = self._get_col_subset(X, columns, input_df)
             if transformers is not None:
-                with add_column_names_to_exception(columns):
+                with context(columns):
                     if hasattr(transformers, 'fit_transform'):
                         Xt = _call_fit(transformers.fit_transform, Xt, y)
                     else:
@@ -316,7 +298,7 @@ class DataFrameMapper(BaseEstimator):
             unselected_columns = [c for c in X.columns.to_list() if c not in selected_columns]
             Xt = self._get_col_subset(X, unselected_columns, self.input_df)
             if built_default is not None:
-                with add_column_names_to_exception(unselected_columns):
+                with context(unselected_columns):
                     if hasattr(built_default, 'fit_transform'):
                         Xt = _call_fit(built_default.fit_transform, Xt, y)
                     else:

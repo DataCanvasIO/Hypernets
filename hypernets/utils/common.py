@@ -4,24 +4,17 @@ __author__ = 'yangjian'
 
 """
 
-import hashlib
+import contextlib
 import inspect
 import math
-import pickle
 import uuid
-import re
 from collections import OrderedDict
 from functools import partial
-from io import BytesIO
-import copy
 
-import dask.array as da
 import dask.dataframe as dd
-import numpy as np
 import pandas as pd
 
 from . import logging
-from .const import TASK_BINARY, TASK_REGRESSION, TASK_MULTICLASS, TASK_MULTILABEL
 
 logger = logging.get_logger(__name__)
 
@@ -77,6 +70,20 @@ def combinations(n, m_max, m_min=1):
             c = math.factorial(n) / (math.factorial(i) * math.factorial(n - i))
             sum += c
         return sum
+
+
+@contextlib.contextmanager
+def context(msg):
+    # Stolen from https://stackoverflow.com/a/17677938/356729
+    try:
+        yield
+    except Exception as ex:
+        if ex.args:
+            msg = u'{}: {}'.format(msg, ex.args[0])
+        else:
+            msg = str(msg)
+        ex.args = (msg,) + ex.args[1:]
+        raise
 
 
 class Counter(object):
@@ -206,64 +213,3 @@ def human_data_size(value):
         return r(value / 1024 / 1024, "MB")
     else:
         return r(value / 1024 / 1024 / 1024, "GB")
-
-
-def camel_to_snake(camel_str):
-    """
-        example:
-            Convert 'camelToSnake' to 'camel_to_snake'
-    """
-    p = re.compile(r'([a-z]|\d)([A-Z])')
-    sub = re.sub(p, r'\1_\2', camel_str).lower()
-    return sub
-
-
-def _recursion_replace(container):
-    """Replace camel-case keys in *container* into snake-case
-    Parameters
-    ----------
-    container: list, dict, required
-    Returns
-    -------
-    """
-
-    if isinstance(container, list):
-        new_container = []
-        for ele in container:
-            if isinstance(ele, (list, dict)):
-                new_ele = _recursion_replace(ele)
-                new_container.append(new_ele)
-            else:
-                new_container.append(ele)
-    elif isinstance(container, dict):
-        new_container = {}
-        for k, v in container.items():
-            if isinstance(v, (dict, list)):
-                snake_key_dict = _recursion_replace(v)
-            else:
-                snake_key_dict = v
-            new_container[camel_to_snake(k)] = snake_key_dict  # attach to parent
-    else:
-        raise ValueError(f"Input is not a `dict` or `list`: {container}")
-
-    return new_container
-
-
-def camel_keys_to_snake(d: dict):
-    """
-    example:
-        Convert dict:
-            {
-                'datasetConf': {
-                    'trainData': ['./train.csv']
-                }
-            }
-        to:
-            {
-                'dataset_conf': {
-                    'train_data': ['./train.csv']
-                }
-            }
-    """
-    ret_dict = _recursion_replace(d)
-    return ret_dict

@@ -5,12 +5,32 @@
 import cudf
 import cupy
 import numpy as np
+from sklearn.pipeline import _name_estimators
 
-from hypernets.tabular.dataframe_mapper import DataFrameMapper
+from hypernets.tabular.dataframe_mapper import DataFrameMapper, TransformerPipeline
 from ._transformer import Localizable
 
 
+class CumlTransformerPipeline(TransformerPipeline):
+    def as_local(self):
+        steps = [(name, tf.as_local()) for name, tf in self.steps]
+        target = TransformerPipeline(steps)
+        return target
+
+
+def make_transformer_pipeline(*steps):
+    """Construct a TransformerPipeline from the given estimators.
+    """
+    return CumlTransformerPipeline(_name_estimators(steps))
+
+
 class CumlDataFrameMapper(DataFrameMapper, Localizable):
+    @staticmethod
+    def _build_transformer(transformers):
+        if isinstance(transformers, list):
+            transformers = make_transformer_pipeline(*transformers)
+        return transformers
+
     def _to_df(self, X, extracted, columns):
         dfs = [cudf.DataFrame(arr, index=None) for arr in extracted]
         for df, pos in zip(dfs, np.cumsum([d.shape[1] for d in dfs])):
