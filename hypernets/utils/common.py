@@ -4,22 +4,17 @@ __author__ = 'yangjian'
 
 """
 
-import hashlib
+import contextlib
 import inspect
 import math
-import pickle
 import uuid
 from collections import OrderedDict
 from functools import partial
-from io import BytesIO
 
-import dask.array as da
 import dask.dataframe as dd
-import numpy as np
 import pandas as pd
 
 from . import logging
-from .const import TASK_BINARY, TASK_REGRESSION, TASK_MULTICLASS, TASK_MULTILABEL
 
 logger = logging.get_logger(__name__)
 
@@ -75,6 +70,20 @@ def combinations(n, m_max, m_min=1):
             c = math.factorial(n) / (math.factorial(i) * math.factorial(n - i))
             sum += c
         return sum
+
+
+@contextlib.contextmanager
+def context(msg):
+    # Stolen from https://stackoverflow.com/a/17677938/356729
+    try:
+        yield
+    except Exception as ex:
+        if ex.args:
+            msg = u'{}: {}'.format(msg, ex.args[0])
+        else:
+            msg = str(msg)
+        ex.args = (msg,) + ex.args[1:]
+        raise
 
 
 class Counter(object):
