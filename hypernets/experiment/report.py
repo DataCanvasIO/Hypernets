@@ -19,7 +19,7 @@ logger = logging.get_logger(__name__)
 
 class Theme:
 
-    def __init__(self):  # May support custom theme in the next version
+    def __init__(self, theme_name):  # May support custom theme in the next version
         self.theme_config = {
             'common': {
                 'header': {
@@ -185,14 +185,15 @@ class ReportRender:
 
 class ExcelReportRender(ReportRender):
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, theme='default'):
         """
         Parameters
         ----------
         file_path:
         """
         super(ExcelReportRender, self).__init__(file_path=file_path)
-        self.theme = Theme()
+
+        self.theme = Theme(theme)
         self.workbook = xlsxwriter.Workbook(file_path)  # {workbook}: {experiment_report} = 1:1
 
     def _write_cell(self, sheet, row_index, column_index, value, max_length_dict, cell_format_dict=None):

@@ -34,7 +34,7 @@ class HyperModel:
         self.task = task
         self.discriminator = discriminator
         if self.discriminator:
-            self.discriminator.bind_history(self.history)
+             self.discriminator.bind_history(self.history)
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError

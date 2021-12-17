@@ -1,0 +1,41 @@
+dataset:
+    task: auto
+    target: y
+    trainFile: C:/Users/wuhf/Documents/datasets/bankdata_1k.csv
+    evalFile: C:/Users/wuhf/Documents/datasets/bankdata_1k.csv
+    testFile: C:/Users/wuhf/Documents/datasets/bankdata_1k.csv
+
+jobs:
+  - name: train-no-seleciton
+    experiment:
+      strategy: evolution
+      searcherOptions:
+          populationSize: 30
+          sampleSize: 30
+      earlyStopping:
+          rounds: 10
+          timeLimit: 36000
+          reward: 0.5
+      rewardMetric: f1
+      pos_label: "yes"
+      optimizeDirection: max
+      clearCache: false
+      logLevel: 20
+      evaluation:
+        metrics: auto
+        predictionDir: /tmp/a.txt
+      report:
+        enable: true
+        render: excel
+        renderOptions:
+            file_path: /tmp
+            theme: dark
+      featureSelection:
+        enable: true
+      featureGeneration:
+        enable: false
+        transPrimitives:
+    runOptions:
+        max_trials: 2
+    webui:
+        port: 8888

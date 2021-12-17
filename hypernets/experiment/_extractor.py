@@ -208,10 +208,10 @@ class Extractor(metaclass=abc.ABCMeta):
 
 class ABSFeatureSelectionStepExtractor(Extractor, metaclass=abc.ABCMeta):
 
-    def _get_extension(self):
-        selected_features = self.step.selected_features_  #
-        if selected_features is None or  len(self.step.selected_features_) == 0:
-            raise ValueError(f"'selected_features_' is empty for step {self.step}")
+    # def _get_extension(self):
+    #     selected_features = self.step.selected_features_  #
+    #     if selected_features is None or len(selected_features) == 0:
+    #         raise ValueError(f"'selected_features_' is empty for step {self.step}")
 
     def get_output_features(self):
         selected_features = self.step.selected_features_  #
@@ -224,7 +224,6 @@ class ABSFeatureSelectionStepExtractor(Extractor, metaclass=abc.ABCMeta):
 class DataCleanStepExtractor(ABSFeatureSelectionStepExtractor):
 
     def _get_extension(self):
-        super(DataCleanStepExtractor, self)._get_extension()
         return {'unselected_reason': self.step.get_fitted_params()['unselected_reason']}
 
 
@@ -290,7 +289,6 @@ class FeatureGenerationStepExtractor(Extractor):
 class DriftStepExtractor(ABSFeatureSelectionStepExtractor):
 
     def _get_extension(self):
-        super(DriftStepExtractor, self)._get_extension()
         extension = self.step.get_fitted_params()
         config = super(DriftStepExtractor, self).get_configuration()
         extension['drifted_features_auc'] = []
@@ -375,7 +373,6 @@ class FeatureSelectionStepExtractor(ABSFeatureImportancesSelectionStepExtractor)
             ]
         }
         """
-        super(FeatureSelectionStepExtractor, self)._get_extension()
         imps = self.step.get_fitted_params()['importances']
         # extension['importances'] = imps.tolist() if imps is not None else []
         output_extension = {
@@ -403,7 +400,6 @@ class MultiLinearityStepExtractor(ABSFeatureSelectionStepExtractor):
             'features': extension['features']
         }
         """
-        super(MultiLinearityStepExtractor, self)._get_extension()
         feature_clusters = self.step.get_fitted_params()['feature_clusters']
         unselected_features = OrderedDict()
         for fc in feature_clusters:
@@ -422,7 +418,6 @@ class PermutationImportanceStepExtractor(ABSFeatureImportancesSelectionStepExtra
         return configuration
 
     def _get_extension(self):
-        super(PermutationImportanceStepExtractor, self)._get_extension()
 
         selected_features = self.step.selected_features_ if self.step.selected_features_ is not None else []
         importances = self.step.importances_
@@ -527,7 +522,7 @@ class PseudoStepExtractor(Extractor):
         scores = self.step.test_proba_
 
         if pseudo_label_stat is not None:
-            for k, v in  pseudo_label_stat.items():
+            for k, v in pseudo_label_stat.items():
                 if hasattr(v, 'tolist'):
                     pseudo_label_stat[k] = v.tolist()
             pseudo_label_stat = dict(pseudo_label_stat)
