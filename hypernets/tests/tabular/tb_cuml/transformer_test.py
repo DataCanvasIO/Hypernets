@@ -151,7 +151,7 @@ class TestCumlTransformer:
         tf = CumlToolBox.transformers['ConstantImputer'](fill_value='<filled>')
         self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
-    def test_multi_labelencoder(self):
+    def test_multi_label_encoder(self):
         tf = CumlToolBox.transformers['MultiLabelEncoder'](dtype=np.int32)
         self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
@@ -159,7 +159,7 @@ class TestCumlTransformer:
         tf = CumlToolBox.transformers['OneHotEncoder'](sparse=False)
         self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_object)
 
-    def test_slim_ttarget_encoder(self):
+    def test_slim_target_encoder(self):
         tf = CumlToolBox.transformers['SlimTargetEncoder']()
         self.fit_reload_transform(tf, column_selector=lambda _: ['age', 'job', 'education'])
 
