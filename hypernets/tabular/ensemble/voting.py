@@ -49,12 +49,15 @@ class GreedyEnsemble(BaseEnsemble):
     def __init__(self, task, estimators, need_fit=False, n_folds=5, method='soft', random_state=9527,
                  scoring='neg_log_loss', ensemble_size=0):
         super(GreedyEnsemble, self).__init__(task, estimators, need_fit, n_folds, method, random_state=random_state)
+        self.scoring = scoring
+        self.scorer = get_scorer(scoring)
+        self.ensemble_size = ensemble_size
+
+        # fitted
         self.weights_ = None
         self.scores_ = None
         self.best_stack_ = None
         self.hits_ = None
-        self.scorer = get_scorer(scoring)
-        self.ensemble_size = ensemble_size
 
     def __repr__(self) -> str:
         if self.estimators is None:

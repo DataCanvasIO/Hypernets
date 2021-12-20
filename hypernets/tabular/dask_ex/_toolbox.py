@@ -181,6 +181,14 @@ class DaskToolBox(ToolBox):
     # def unique_array(ar, return_index=False, return_inverse=False, return_counts=False, axis=None):
     #     assert axis is None or axis == 0
     #     return da.unique(ar, return_index=return_index, return_inverse=return_inverse, return_counts=return_counts)
+    @staticmethod
+    def nunique_df(df):
+        if isinstance(df, dd.DataFrame):
+            columns = df.columns.to_list()
+            uniques = [df[c].nunique() for c in columns]
+            return {c: v for c, v in zip(columns, dask.compute(*uniques))}
+        else:
+            return ToolBox.nunique_df(df)
 
     @staticmethod
     def value_counts(ar):

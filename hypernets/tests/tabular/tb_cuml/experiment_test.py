@@ -5,8 +5,6 @@
 import os
 import shutil
 
-import pandas as pd
-import numpy as np
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment
 from hypernets.tabular.datasets import dsutils
@@ -22,7 +20,11 @@ def run_experiment(train_df, **kwargs):
     experiment = make_experiment(PlainModel, train_df, search_space=PlainSearchSpace(), **kwargs)
     estimator = experiment.run()
     print(experiment.random_state, estimator)
-    assert estimator is not None
+
+    assert estimator is not None and hasattr(estimator, 'as_local')
+
+    local_estimator = estimator.as_local()
+    assert not hasattr(local_estimator, 'as_local')
 
 
 @if_cuml_ready
@@ -84,5 +86,17 @@ class TestCumlExperiment:
                        # cv=False,
                        ensemble_size=5,
                        max_trials=5,
+                       # log_level='info',
+                       random_state=335, )
+
+    def test_binary_down_sample(self):
+        preprocessor = CumlToolBox.general_preprocessor(self.bank_data_cudf)
+        run_experiment(self.bank_data_cudf.copy(),
+                       hyper_model_options=dict(transformer=preprocessor),
+                       cv=False,
+                       ensemble_size=5,
+                       max_trials=5,
+                       down_sample_search=True,
+                       down_sample_search_size=0.5,
                        # log_level='info',
                        random_state=335, )

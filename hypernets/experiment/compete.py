@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.metrics import get_scorer
-from sklearn.pipeline import Pipeline
 
 from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
@@ -396,6 +395,14 @@ class DataCleanStep(FeatureSelectStep):
                 **data_shapes,
                 'unselected_reason': unselected_reason,
                 }
+
+    def as_local(self):
+        if hasattr(self.data_cleaner_, 'as_local'):
+            target = copy.copy(self)
+            target.data_cleaner_ = self.data_cleaner_.as_local()
+            return target
+        else:
+            return self
 
 
 class TransformerAdaptorStep(ExperimentStep):
@@ -969,7 +976,8 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
             df = tb_.concat_df(dfs, repartition=True)
             if isinstance(df, pd.DataFrame):
                 df = df.sample(frac=1.0)
-            logger.info(f'down_sampled: {df[name_y].value_counts().to_dict()}')
+            if logger.is_info_enabled():
+                logger.info(f'down_sampled: {tb_.value_counts(df[name_y])}')
             y = df.pop(name_y)
             return df, y
 
@@ -1344,7 +1352,8 @@ class SteppedExperiment(Experiment):
                 if X_eval is not None:
                     X_eval = step.transform(X_eval, y_eval)
 
-        estimator = self.to_estimator(self.steps) if to_step == len(self.steps) - 1 else None
+        estimator = self.to_estimator(X_train, y_train, X_test, X_eval, y_eval, self.steps) \
+            if to_step == len(self.steps) - 1 else None
         self.hyper_model_ = hyper_model
 
         return estimator
@@ -1379,15 +1388,16 @@ class SteppedExperiment(Experiment):
             return default
 
     @staticmethod
-    def to_estimator(steps):
+    def to_estimator(X_train, y_train, X_test, X_eval, y_eval, steps):
         last_step = steps[-1]
         assert getattr(last_step, 'estimator_', None) is not None
 
         pipeline_steps = [(step.name, step) for step in steps if not step.is_transform_skipped()]
 
         if len(pipeline_steps) > 0:
+            tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
             pipeline_steps += [('estimator', last_step.estimator_)]
-            estimator = Pipeline(pipeline_steps)
+            estimator = tb.transformers['Pipeline'](pipeline_steps)
             if logger.is_info_enabled():
                 names = [step[0] for step in pipeline_steps]
                 logger.info(f'trained experiment pipeline: {names}')

@@ -4,7 +4,6 @@
 """
 from functools import partial
 
-import dask
 import numpy as np
 import pandas as pd
 from dask import dataframe as dd, array as da
@@ -64,9 +63,3 @@ class _DaskCleanerHelper(_CleanerHelper):
             logger.info(f'Correct columns [{",".join(correctable)}] to {dtype}.')
 
         return X
-
-    @staticmethod
-    def _get_df_uniques(df):
-        columns = df.columns.to_list()
-        uniques = [df[c].nunique() for c in columns]
-        return {c: v for c, v in zip(columns, dask.compute(*uniques))}

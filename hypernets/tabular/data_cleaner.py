@@ -125,7 +125,10 @@ class _CleanerHelper:
 
     @staticmethod
     def _get_df_uniques(df):
-        return df.nunique(dropna=True)
+        # return df.nunique(dropna=True)
+        from . import get_tool_box
+        tb = get_tool_box(df)
+        return tb.nunique_df(df)
 
     @staticmethod
     def _get_duplicated_columns(df):

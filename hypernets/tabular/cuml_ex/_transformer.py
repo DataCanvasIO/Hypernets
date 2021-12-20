@@ -36,11 +36,15 @@ def copy_attrs(tf, target, *attrs):
     return target
 
 
+def as_local_if_possible(tf):
+    return tf.as_local() if hasattr(tf, 'as_local') else tf
+
+
 @tb_transformer(cudf.DataFrame, name='Pipeline')
 class LocalizablePipeline(Pipeline, Localizable):
     def as_local(self):
         from sklearn.pipeline import Pipeline as SkPipeline
-        steps = [(name, tf.as_local()) for name, tf in self.steps]
+        steps = [(name, as_local_if_possible(tf)) for name, tf in self.steps]
         target = SkPipeline(steps, verbose=self.verbose)
         return target
 

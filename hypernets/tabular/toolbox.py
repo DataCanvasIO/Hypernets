@@ -88,6 +88,10 @@ class ToolBox(metaclass=ToolboxMeta):
     #                      return_counts=return_counts, axis=axis)
 
     @staticmethod
+    def nunique_df(df):
+        return df.nunique(dropna=True)
+
+    @staticmethod
     def value_counts(ar):
         return pd.Series(ar).value_counts().to_dict()
 

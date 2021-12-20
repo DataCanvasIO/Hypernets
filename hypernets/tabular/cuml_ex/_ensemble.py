@@ -2,12 +2,14 @@
 """
 
 """
-import cupy
 import cudf
+import cupy
+
 from hypernets.tabular.ensemble import GreedyEnsemble
+from ._transformer import Localizable, as_local_if_possible, copy_attrs
 
 
-class CumlGreedyEnsemble(GreedyEnsemble):
+class CumlGreedyEnsemble(GreedyEnsemble, Localizable):
     np = cupy
 
     def _score(self, y_true, y_pred):
@@ -23,3 +25,11 @@ class CumlGreedyEnsemble(GreedyEnsemble):
 
         s = super(CumlGreedyEnsemble, self)._score(y_true, y_pred)
         return s
+
+    def as_local(self):
+        estimators = list(map(as_local_if_possible, self.estimators))
+        target = GreedyEnsemble(estimators=estimators, task=self.task, need_fit=self.need_fit,
+                                n_folds=self.n_folds, method=self.method, random_state=self.random_state,
+                                scoring=self.scoring, ensemble_size=self.ensemble_size)
+        copy_attrs(self, target, 'weights_', 'scores_', 'hits_', 'best_stack_')
+        return target

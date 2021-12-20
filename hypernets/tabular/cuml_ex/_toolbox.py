@@ -128,6 +128,15 @@ class CumlToolBox(ToolBox):
         return uniques
 
     @staticmethod
+    def nunique_df(df):
+        if isinstance(df, cudf.DataFrame):
+            columns = df.columns.to_list()
+            uniques = [df[c].nunique() for c in columns]
+            return {c: v for c, v in zip(columns, uniques)}
+        else:
+            return ToolBox.nunique_df(df)
+
+    @staticmethod
     def value_counts(ar):
         return cudf.Series(ar).value_counts().to_pandas().to_dict()
 
