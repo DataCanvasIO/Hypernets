@@ -375,7 +375,7 @@ class FeatureSelectionStepExtractor(ABSFeatureImportancesSelectionStepExtractor)
         imps = self.step.get_fitted_params()['importances']
         # extension['importances'] = imps.tolist() if imps is not None else []
         output_extension = {
-            "importances":  self._build_importances(self.step.input_features_, imps, self.step.selected_features_)
+            "importances":  self._build_importances(self.step.input_features_, imps, self.selected_features())
         }
         return output_extension
 
@@ -418,7 +418,7 @@ class PermutationImportanceStepExtractor(ABSFeatureImportancesSelectionStepExtra
 
     def _get_extension(self):
 
-        selected_features = self.step.selected_features_ if self.step.selected_features_ is not None else []
+        selected_features = self.selected_features()
         importances = self.step.importances_
         columns = importances.columns if importances.columns is not None else []
         importances_data = importances.importances_mean.tolist() if importances.importances_mean is not None else []

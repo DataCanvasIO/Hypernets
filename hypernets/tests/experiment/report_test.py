@@ -3,7 +3,7 @@ import os
 import tempfile
 import time
 
-from hypernets.experiment._extractor import ConfusionMatrixMeta
+from hypernets.experiment import ConfusionMatrixMeta
 from hypernets.experiment.compete import StepNames
 from hypernets.experiment.report import ExcelReportRender
 from hypernets.utils import const

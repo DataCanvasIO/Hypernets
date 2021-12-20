@@ -204,11 +204,11 @@ class ExcelReportRender(ReportRender):
         else:
             excel_file_dir = os.path.dirname(file_path)
             if not os.path.exists(excel_file_dir):
-                logger.info(f"Create directory '{excel_file_dir}' because of not exists ")
+                logger.info(f"create directory '{excel_file_dir}' because of not exists ")
                 os.makedirs(excel_file_dir, exist_ok=True)
 
         self.theme = Theme(theme)
-        self.workbook = xlsxwriter.Workbook(file_path)  # {workbook}: {experiment_report} = 1:1
+        self.workbook = xlsxwriter.Workbook(os.path.abspath(file_path))  # {workbook}: {experiment_report} = 1:1
 
     def _write_cell(self, sheet, row_index, column_index, value, max_length_dict, cell_format_dict=None):
 
@@ -405,9 +405,6 @@ class ExcelReportRender(ReportRender):
         }
         columns_name = self._get_keys_in_table_config(table_config)
         df = self._data_list_to_df(dataset_metas, columns_name)
-
-
-
         self._render_2d_table(df, table_config, sheet_name)
 
     def _write_feature_transformation(self, steps: List[StepMeta]):
@@ -844,6 +841,7 @@ class ExcelReportRender(ReportRender):
             elif step.type == StepType.PseudoLabeling:
                 self._write_pseudo_labeling(step)
 
+        logger.info(f"write report excel to {self.workbook.filename}")
         self.workbook.close()
 
 

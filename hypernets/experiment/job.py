@@ -3,8 +3,9 @@ import abc
 import os.path
 import pkg_resources
 import argparse
-from typing import Type, List
+import shutil
 import json
+from typing import Type, List, Dict
 
 import pandas as pd
 import yaml
@@ -47,11 +48,6 @@ class JobEngine(metaclass=abc.ABCMeta):
         raise NotImplemented
 
     @staticmethod
-    @abc.abstractmethod
-    def name():
-        raise NotImplemented
-
-    @staticmethod
     def _read_file(file_path):
         require_file_msg = "Csv and parquet files are supported(file name end with 'csv' or 'parquet')"
         assert file_path is not None, "file_path can not be None"
@@ -65,6 +61,54 @@ class JobEngine(metaclass=abc.ABCMeta):
             return pd.read_parquet(file_path)
         else:
             raise ValueError(require_file_msg)
+
+    def get_job_working_dir(self):
+        p = f"{self.job_conf.working_dir}/{self.job_conf.name}"
+        return os.path.abspath(p)
+
+
+class CompeteExperimentJobEngine(JobEngine, metaclass=abc.ABCMeta):
+
+    def create_experiment(self):
+        dateset_conf: DatasetConf = self.job_conf.dataset
+
+        assert dateset_conf.train_file is not None, "train_file can not be None"
+        assert dateset_conf.target is not None, "target can not be None"
+
+        experiment_conf: dict = self.job_conf.experiment
+        # flat params
+        make_kwargs = self._flat_compete_experiment_conf(experiment_conf)
+        job_working_dir = self.get_job_working_dir()
+
+        # set default prediction dir if enable persist
+        if make_kwargs.get('evaluation_persist_prediction') is True:
+            if make_kwargs.get('evaluation_persist_prediction_dir') is None:
+                make_kwargs['evaluation_persist_prediction_dir'] = f"{job_working_dir}/prediction"
+
+        # set default report file path
+        if make_kwargs.get('report_render') == 'excel':
+            report_render_options = make_kwargs.get('report_render_options')
+            default_excel_report_path = f"{job_working_dir}/report.xlsx"
+            if report_render_options is not None:
+                if report_render_options.get('file_path') is None:
+                    report_render_options['file_path'] = default_excel_report_path
+                    make_kwargs['report_render_options'] = report_render_options
+                else:
+                    pass  # use user setting
+            else:
+                make_kwargs['report_render_options'] = {'file_path': default_excel_report_path}
+
+        return self._create_experiment(make_kwargs)
+
+    def _save_read(self, p):
+        if p is not None:
+            return self._read_file(p)
+        else:
+            return None
+
+    @abc.abstractmethod
+    def _create_experiment(self, make_options):
+        raise NotImplemented
 
     @staticmethod
     def _flat_compete_experiment_conf(dict_data):
@@ -157,9 +201,9 @@ class ConfigLoader:
 
         working_dir = config_dict_snake_case.get('working_dir', '.')
         working_dir = os.path.abspath(working_dir)
-        logger.info(f"Working dir at: {working_dir}")
+        logger.info(f"working dir at: {working_dir}")
         if not os.path.exists(working_dir):
-            logger.info("Create working dir")
+            logger.info("create working dir")
             os.makedirs(working_dir, exist_ok=True)
 
         job_conf_list = []
@@ -171,67 +215,85 @@ class ConfigLoader:
 
 
 class JobGroupControl:
-    def __init__(self, job_group: JobGroup, engines_cls: List[Type[JobEngine]]):
+    def __init__(self, job_group: JobGroup, engines_cls: Dict[str, Type[JobEngine]]):
         self.job_group = job_group
-        self.engines_cls_dict = {engine_cls.name(): engine_cls for engine_cls in engines_cls}
+        self.engines_cls_dict = engines_cls
 
         self.jobs_: List[Job] = [Job(_) for _ in self.job_group.jobs_conf]
 
     def run(self):
         for i, job in enumerate(self.jobs_):
             try:
-                logger.info(f"Start to run job {i+1}/{len(self.job_group.jobs_conf)}.")
+                logger.info(f"start to run job {job.conf.name} {i+1}/{len(self.job_group.jobs_conf)}.")
                 job_conf: JobConf = job.conf
                 engine_cls = self.engines_cls_dict.get(job_conf.engine)
                 if engine_cls is None:
-                    logger.error(f"Engine '{job_conf.engine}' specified "
+                    logger.error(f"engine '{job_conf.engine}' specified "
                                  f"in job '{job_conf.name}' not found, skipped this job.")
                     continue
-                exp = engine_cls(job_conf).create_experiment()
+                engine = engine_cls(job_conf)
+
+                # check prepare dataset dir
+                job_working_dir = engine.get_job_working_dir()
+                if os.path.exists(job_working_dir):
+                    logger.warning(f"job working dir already exists, delete it: {job_working_dir} ")
+                    # os.rmdir(job_working_dir)
+                    shutil.rmtree(job_working_dir, ignore_errors=False)
+                    os.makedirs(job_working_dir)
+                exp = engine.create_experiment()
                 exp.run(**job_conf.run_options)
                 job.status_ = Job.STATUS_SUCCEED
             except Exception as e:
                 job.status_ = Job.STATUS_FAILED
                 logger.exception(e)
         summary = {job.conf.name: job.status_ for job in self.jobs_}
-        logger.info("Jobs summary:\n" + json.dumps(summary))
+        logger.info("jobs summary:\n" + json.dumps(summary))
 
 
-class JobGroupControlCLI:
+def _load_engines():
+    entry_point_name = 'hypernets_experiment'
 
-    def run(self, config_path):
-        dev_mode = True
-        entry_point_name = 'hypernets_experiment'
+    # load plugin, https://setuptools.pypa.io/en/latest/pkg_resources.html#entry-points
+    engines = {}
+    for entrypoint in pkg_resources.iter_entry_points(group=entry_point_name):
+        logger.info(f"found job engine: {entrypoint.name}")
+        plugin = entrypoint.load()
+        engines[entrypoint.name] = plugin
 
-        # load plugin, https://setuptools.pypa.io/en/latest/pkg_resources.html#entry-points
-        plugins = []
-        if not dev_mode:
-            for entrypoint in pkg_resources.iter_entry_points(group=entry_point_name):
-                plugin = entrypoint.load()
-                # TODO: info plugin
-                plugins[plugin.get_module_name()] = plugin
-        else:
-            from hypergbm.job import HyperGBMJobEngine
-            plugins = [HyperGBMJobEngine]
+    if len(engines.keys()) < 1:
+        raise RuntimeError("no job engines found.")
 
-        # read config
-        job_group = ConfigLoader(config_path).load()
 
-        # run the jobs
-        jgc = JobGroupControl(job_group, plugins)
-        jgc.run()
+def run(config_path, engines):
+    # read config
+    job_group = ConfigLoader(config_path).load()
 
-    def main(self):
-        parser = argparse.ArgumentParser(description='hyperctl command is used to manage experiments', add_help=True)
-        subparsers = parser.add_subparsers(dest="operation")
+    # run the jobs
+    jgc = JobGroupControl(job_group, engines)
+    jgc.run()
 
-        exec_parser = subparsers.add_parser("run", help="run experiments job")
-        exec_parser.add_argument("-c", "--config", help="yaml config file path", default=None, required=True)
-        args_namespace = parser.parse_args()
-        print(args_namespace)
-        operation = args_namespace.operation
-        if operation == 'run':
-            config_file = args_namespace.config
-            self.run(config_path=config_file)
-        else:
-            parser.print_help()
+
+def main():
+    """
+    Examples:
+        hyperctl run --config hypernets/tests/experiment/bankdata_config_example.yaml
+    Returns
+    -------
+
+    """
+    parser = argparse.ArgumentParser(description='hyperctl command is used to manage experiments', add_help=True)
+    subparsers = parser.add_subparsers(dest="operation")
+
+    exec_parser = subparsers.add_parser("run", help="run experiments job")
+    exec_parser.add_argument("-c", "--config", help="yaml config file path", default=None, required=True)
+    args_namespace = parser.parse_args()
+    operation = args_namespace.operation
+    if operation == 'run':
+        config_file = args_namespace.config
+        run(config_path=config_file, engines=_load_engines())
+    else:
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    main()

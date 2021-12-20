@@ -1,14 +1,14 @@
 version: 2.5
-workingDir: "Z:/experiment/2012-17"  # to store experiment files
+workingDir: {workingDir}  # to store experiment files, default is '.'
 
 dataset:
     target: y
-    trainFile: C:/Users/wuhf/Documents/datasets/bankdata_1k.csv
-    evalFile: C:/Users/wuhf/Documents/datasets/bankdata_1k.csv
-    testFile: C:/Users/wuhf/Documents/datasets/bankdata_1k.csv
+    trainFile: {trainFile}
+    evalFile: {evalFile}
+    testFile: {testFile}
 
 jobs:
-  - name: train-no-seleciton  # should be unique in workingDir or current file
+  - name: train-seleciton  # should be unique in workingDir or current file
     engine: hypergbm  # job engine, skip the job if engine is not exits
     experiment:
       strategy: evolution

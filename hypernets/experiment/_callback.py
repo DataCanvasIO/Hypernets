@@ -289,6 +289,12 @@ class MLEvaluateCallback(ExperimentCallback):
         self._eval_df_shape = None
         self._eval_elapse = None
 
+    @staticmethod
+    def get_logger():
+        from hypernets.utils import logging
+        logger = logging.get_logger(__name__)
+        return logger
+
     def experiment_start(self, exp):
         """
             exp.evaluation:
@@ -320,16 +326,15 @@ class MLEvaluateCallback(ExperimentCallback):
         exp.y_eval_pred = None
         exp.evaluation = {}
 
-    @staticmethod
-    def to_prediction(y_score):
+    def to_prediction(self, y_score):
         pass
 
-    @staticmethod
-    def _persist(obj, obj_name, path):
+    def _persist(self, obj, obj_name, path):
+        path = os.path.abspath(path)
         if path is not None:
             if os.path.exists(path):
-                print(f"[WARNING] persist path is already exists: {path} ")
-            print(f"Persist '{obj_name}' result to '{path}' ")
+                self.get_logger().warning(f"persist path is already exists {path} ")
+            self.get_logger().info(f"persist {obj_name} to {path} ")
             with open(path, 'wb') as f:
                 joblib.dump(obj, f)
 
@@ -342,7 +347,7 @@ class MLEvaluateCallback(ExperimentCallback):
                 try:
                     exp.y_eval_proba = exp.model_.predict_proba(exp.X_eval)
                 except Exception as e:
-                    print("predict_proba failed", e)
+                    self.get_logger().exception(e)
             exp.evaluation['timing'] = {'predict': time.time() - _t, 'predict_proba': 0}
         if self.evaluate_prediction_dir is not None:
             write_dir = self.evaluate_prediction_dir
