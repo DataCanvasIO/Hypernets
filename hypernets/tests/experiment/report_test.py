@@ -1,12 +1,11 @@
 import datetime
 import os
-import tempfile
 import time
 
 from hypernets.experiment import ConfusionMatrixMeta
 from hypernets.experiment.compete import StepNames
 from hypernets.experiment.report import ExcelReportRender
-from hypernets.utils import const
+from hypernets.utils import const, common as common_util
 from hypernets.experiment import ExperimentMeta, DatasetMeta, StepMeta, StepType
 from hypernets.experiment import ResourceUsageMonitor
 
@@ -94,11 +93,6 @@ class TestExcelReport:
                           end_datetime=datetime.datetime.now())
         return s_meta
 
-    @staticmethod
-    def _get_file_path():
-        file_path = tempfile.mkstemp(prefix="report_excel_", suffix=".xlsx")[1]
-        return file_path
-
     def test_render(self):
         steps_meta = [self.create_data_clean_step_meta(), self.create_ensemble_step_meta()]
         experiment_meta = ExperimentMeta(task=const.TASK_BINARY,
@@ -108,7 +102,7 @@ class TestExcelReport:
                                          confusion_matrix=self.create_confusion_matrix_data(),
                                          resource_usage=self.create_resource_monitor_df(),
                                          prediction_stats=self.create_prediction_stats_df())
-        p = self._get_file_path()
+        p = common_util.get_temp_file_path(prefix="report_excel_", suffix=".xlsx")
         print(p)
         ExcelReportRender(file_path=p).render(experiment_meta)
         assert os.path.exists(p)

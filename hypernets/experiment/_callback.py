@@ -411,8 +411,9 @@ class MLReportCallback(ExperimentCallback):
     def __init__(self, render: ReportRender, sample_interval=30):
         self.render = render
         self._rum = ResourceUsageMonitor(interval=sample_interval)
+
         # self.render_options = render_options if not None else {}
-        self._experiment_meta = None
+        self.experiment_meta_ = None
 
     def experiment_start(self, exp):
         self._rum.start_watch()
@@ -461,9 +462,9 @@ class MLReportCallback(ExperimentCallback):
             evaluation_result = {}
 
         # 2. get experiment meta and render to excel
-        self._experiment_meta = ExperimentExtractor(exp, evaluation_result,
+        self.experiment_meta_ = ExperimentExtractor(exp, evaluation_result,
                                                     confusion_matrix_result, self._rum.data).extract()
-        self.render.render(self._experiment_meta)
+        self.render.render(self.experiment_meta_)
 
     def experiment_break(self, exp, error):
         pass  # TODO

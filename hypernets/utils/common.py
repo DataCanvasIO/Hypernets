@@ -9,6 +9,8 @@ import inspect
 import math
 import uuid
 import re
+import os
+import tempfile
 from collections import OrderedDict
 from functools import partial
 
@@ -275,3 +277,17 @@ def camel_keys_to_snake(d: dict):
     """
     ret_dict = _recursion_replace(d)
     return ret_dict
+
+
+def get_temp_file_path(prefix=None, suffix=None):
+    fd, file_path = tempfile.mkstemp(prefix=prefix, suffix=suffix)
+    os.close(fd)
+    os.remove(file_path)
+    return file_path
+
+
+def get_temp_dir_path(prefix=None, suffix=None, create=True):
+    file_path = tempfile.mkdtemp(prefix=prefix, suffix=suffix)
+    if not create:
+        os.rmdir(file_path)  # empty dir
+    return file_path

@@ -1,5 +1,4 @@
 import os.path
-import tempfile
 
 import pandas as pd
 import pytest
@@ -7,7 +6,7 @@ import yaml
 
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment.job import run, JobEngine, DatasetConf, CompeteExperimentJobEngine
-from hypernets.utils import const
+from hypernets.utils import const, common as common_util
 from hypernets.tabular.datasets import dsutils
 
 
@@ -42,7 +41,7 @@ class TestJobEngine:
         df_csv = JobEngine._read_file(csv_file)
         assert df_csv.shape[0] > 1
 
-        file_path = tempfile.mkstemp(prefix="heart-disease-uci", suffix=".parquet")[1]
+        file_path = common_util.get_temp_file_path(prefix="heart-disease-uci", suffix=".parquet")
         df_csv.to_parquet(file_path)
 
         df_parquet = pd.read_parquet(file_path)
@@ -81,9 +80,9 @@ class BloodDatasetJobEngine(CompeteExperimentJobEngine):
 class TestRunJob:
 
     def create_config(self):
-        working_dir = tempfile.mkdtemp()
+        working_dir = common_util.get_temp_dir_path()
         df = dsutils.load_blood()
-        data_file = tempfile.mkstemp(suffix='.parquet')[1]
+        data_file = common_util.get_temp_file_path(suffix='.parquet')
         df.to_parquet(data_file)
 
         dict_data = {
@@ -121,7 +120,7 @@ class TestRunJob:
             ],
 
         }
-        config_p = tempfile.mkstemp(suffix='.yaml')[1]
+        config_p = common_util.get_temp_file_path(suffix='.yaml')
         with open(config_p, 'w') as f:
             yaml.dump(dict_data, f, yaml.CDumper)
         assert os.path.exists(config_p)
