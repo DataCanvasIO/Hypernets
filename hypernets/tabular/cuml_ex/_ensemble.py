@@ -6,7 +6,7 @@ import cudf
 import cupy
 
 from hypernets.tabular.ensemble import GreedyEnsemble
-from ._transformer import Localizable, as_local_if_possible, copy_attrs
+from ._transformer import Localizable, as_local_if_possible, copy_attrs_as_local
 
 
 class CumlGreedyEnsemble(GreedyEnsemble, Localizable):
@@ -31,5 +31,5 @@ class CumlGreedyEnsemble(GreedyEnsemble, Localizable):
         target = GreedyEnsemble(estimators=estimators, task=self.task, need_fit=self.need_fit,
                                 n_folds=self.n_folds, method=self.method, random_state=self.random_state,
                                 scoring=self.scoring, ensemble_size=self.ensemble_size)
-        copy_attrs(self, target, 'weights_', 'scores_', 'hits_', 'best_stack_')
+        copy_attrs_as_local(self, target, 'weights_', 'scores_', 'hits_', 'best_stack_')
         return target

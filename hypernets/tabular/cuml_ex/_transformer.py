@@ -27,12 +27,27 @@ class Localizable:
         return self  # default: do nothing
 
 
-def copy_attrs(tf, target, *attrs):
+def copy_attrs_as_local(tf, target, *attrs):
     from .. import CumlToolBox
-    for p in attrs:
-        v = getattr(tf, p)
-        v, = CumlToolBox.to_local(v)
-        setattr(target, p, v)
+
+    def to_local(x):
+        if x is None:
+            pass
+        elif isinstance(x, list):
+            x = list(map(to_local, x))
+        elif isinstance(x, tuple):
+            x = tuple(map(to_local, x))
+        elif isinstance(x, dict):
+            x = {ki: to_local(xi) for ki, xi in x.items()}
+        elif hasattr(x, 'as_local'):
+            x = x.as_local()
+        else:
+            x = CumlToolBox.to_local(x)[0]
+        return x
+
+    for a in attrs:
+        v = getattr(tf, a)
+        setattr(target, a, to_local(v))
     return target
 
 
@@ -53,7 +68,7 @@ class LocalizablePipeline(Pipeline, Localizable):
 class LocalizableStandardScaler(StandardScaler, Localizable):
     def as_local(self):
         target = sk_pre.StandardScaler(copy=self.copy, with_mean=self.with_mean, with_std=self.with_std)
-        copy_attrs(self, target, 'scale_', 'mean_', 'var_', 'n_samples_seen_')
+        copy_attrs_as_local(self, target, 'scale_', 'mean_', 'var_', 'n_samples_seen_')
         return target
 
 
@@ -61,7 +76,7 @@ class LocalizableStandardScaler(StandardScaler, Localizable):
 class LocalizableMinMaxScaler(MinMaxScaler, Localizable):
     def as_local(self):
         target = sk_pre.MinMaxScaler(self.feature_range, copy=self.copy)
-        copy_attrs(self, target, 'min_', 'scale_', 'data_min_', 'data_max_', 'data_range_', 'n_samples_seen_')
+        copy_attrs_as_local(self, target, 'min_', 'scale_', 'data_min_', 'data_max_', 'data_range_', 'n_samples_seen_')
         return target
 
 
@@ -69,7 +84,7 @@ class LocalizableMinMaxScaler(MinMaxScaler, Localizable):
 class LocalizableMaxAbsScaler(MaxAbsScaler, Localizable):
     def as_local(self):
         target = sk_pre.MaxAbsScaler(copy=self.copy)
-        copy_attrs(self, target, 'scale_', 'max_abs_', 'n_samples_seen_')
+        copy_attrs_as_local(self, target, 'scale_', 'max_abs_', 'n_samples_seen_')
         return target
 
 
@@ -78,7 +93,7 @@ class LocalizableRobustScaler(RobustScaler, Localizable):
     def as_local(self):
         target = sk_pre.RobustScaler(with_centering=self.with_centering, with_scaling=self.with_scaling,
                                      quantile_range=self.quantile_range, copy=self.copy)
-        copy_attrs(self, target, 'scale_', 'center_', )
+        copy_attrs_as_local(self, target, 'scale_', 'center_', )
         return target
 
 
@@ -87,16 +102,21 @@ class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
     def as_local(self):
         target = sk_dec.TruncatedSVD(self.n_components, algorithm=self.algorithm, n_iter=self.n_iter,
                                      random_state=self.random_state, tol=self.tol)
-        copy_attrs(self, target, 'components_', 'explained_variance_', 'explained_variance_ratio_', 'singular_values_')
+        copy_attrs_as_local(self, target, 'components_', 'explained_variance_',
+                            'explained_variance_ratio_', 'singular_values_')
         return target
 
 
 @tb_transformer(cudf.DataFrame, name='SimpleImputer')
 class LocalizableSimpleImputer(SimpleImputer, Localizable):
+    def fit(self, X, y=None):
+        self.feature_names_in_ = X.columns.tolist() if isinstance(X, (cudf.DataFrame, pd.DataFrame)) else None
+        return super().fit(X, y)
+
     def as_local(self):
         target = sk_imp.SimpleImputer(missing_values=self.missing_values, strategy=self.strategy,
                                       fill_value=self.fill_value, copy=self.copy, add_indicator=self.add_indicator)
-        copy_attrs(self, target, 'statistics_', )  # 'indicator_', )
+        copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_')  # 'indicator_', )
 
         ss = target.statistics_
         if isinstance(ss, (list, tuple)) and isinstance(ss[0], np.ndarray):
@@ -169,7 +189,7 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
         target = sk_pre.OneHotEncoder(categories=CumlToolBox.to_local(self.categories)[0],
                                       drop=self.drop, sparse=self.sparse,
                                       dtype=self.dtype, handle_unknown=self.handle_unknown)
-        copy_attrs(self, target, 'categories_', 'drop_idx_')
+        copy_attrs_as_local(self, target, 'categories_', 'drop_idx_')
         return target
 
 
@@ -223,7 +243,7 @@ class SlimTargetEncoder(TargetEncoder, BaseEstimator):
     def as_local(self):
         target = sk_ex.SlimTargetEncoder(n_folds=self.n_folds, smooth=self.smooth, seed=self.seed,
                                          split_method=self.split, dtype=self.dtype, output_2d=self.output_2d)
-        copy_attrs(self, target, '_fitted', 'train', 'train_encode', 'encode_all', 'mean', 'output_2d')
+        copy_attrs_as_local(self, target, '_fitted', 'train', 'train_encode', 'encode_all', 'mean', 'output_2d')
         return target
 
 
@@ -243,7 +263,7 @@ class MultiTargetEncoder(sk_ex.MultiTargetEncoder):
 class LocalizableLabelEncoder(LabelEncoder, Localizable):
     def as_local(self):
         target = sk_pre.LabelEncoder()
-        copy_attrs(self, target, 'classes_', )
+        copy_attrs_as_local(self, target, 'classes_', )
         return target
 
     # override to accept pd.Series and ndarray
@@ -274,7 +294,7 @@ class SafeLabelEncoder(LabelEncoder):
 
     def as_local(self):
         target = sk_ex.SafeLabelEncoder()
-        copy_attrs(self, target, 'classes_', )
+        copy_attrs_as_local(self, target, 'classes_', )
         return target
 
 

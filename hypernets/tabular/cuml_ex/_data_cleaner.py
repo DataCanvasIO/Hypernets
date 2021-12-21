@@ -6,7 +6,7 @@
 import cudf
 import cupy
 
-from ._transformer import Localizable, copy_attrs
+from ._transformer import Localizable, copy_attrs_as_local
 from ..data_cleaner import DataCleaner, _CleanerHelper
 
 
@@ -29,7 +29,7 @@ class CumlDataCleaner(DataCleaner, Localizable):
                              reserve_columns=self.reserve_columns,
                              reduce_mem_usage=self.reduce_mem_usage,
                              int_convert_to=self.int_convert_to)
-        copy_attrs(self, target, 'df_meta_', 'columns_', 'dropped_constant_columns_',
+        copy_attrs_as_local(self, target, 'df_meta_', 'columns_', 'dropped_constant_columns_',
                    'dropped_idness_columns_', 'dropped_duplicated_columns_')
 
         return target

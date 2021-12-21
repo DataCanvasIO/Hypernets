@@ -408,8 +408,11 @@ class CumlToolBox(ToolBox):
         return estimator
 
     @staticmethod
-    def wrap_local_estimator(estimator):
-        for fn_name in ('fit', 'fit_cross_validation', 'predict', 'predict_proba'):
+    def wrap_local_estimator(estimator, *, methods=None):
+        if methods is None:
+            methods = ('fit', 'fit_cross_validation', 'predict', 'predict_proba')
+
+        for fn_name in methods:
             fn_name_original = f'_wrapped_{fn_name}_by_wle'
             if hasattr(estimator, fn_name) and not hasattr(estimator, fn_name_original):
                 fn = getattr(estimator, fn_name)
@@ -417,6 +420,20 @@ class CumlToolBox(ToolBox):
                 setattr(estimator, fn_name_original, fn)
                 setattr(estimator, fn_name, partial(CumlToolBox.call_local, fn))
                 # print('wrapped:', fn_name)
+        return estimator
+
+    @staticmethod
+    def unwrap_local_estimator(estimator, *, methods=None, copy=False):
+        if methods is None:
+            methods = ('fit', 'fit_cross_validation', 'predict', 'predict_proba')
+
+        for fn_name in methods:
+            fn_name_original = f'_wrapped_{fn_name}_by_wle'
+            if hasattr(estimator, fn_name) and hasattr(estimator, fn_name_original):
+                fn = getattr(estimator, fn_name_original)
+                assert callable(fn)
+                setattr(estimator, fn_name, fn)
+                delattr(estimator, fn_name_original)
         return estimator
 
     @classmethod
