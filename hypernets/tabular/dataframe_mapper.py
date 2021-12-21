@@ -422,7 +422,7 @@ class DataFrameMapper(BaseEstimator):
         #         if logger.is_debug_enabled():
         #             logger.debug(f'convert {col} as {dtype} from {stype}')
         #         df[col] = df[col].astype(dtype)
-        dfs = [pd.DataFrame(arr, index=None) for arr in extracted]
+        dfs = [pd.DataFrame(arr, index=None).reset_index(drop=True) for arr in extracted]
         df = pd.concat(dfs, axis=1, ignore_index=True) if len(dfs) > 1 else dfs[0]
         df.columns = columns
         if len(X) == len(df):
