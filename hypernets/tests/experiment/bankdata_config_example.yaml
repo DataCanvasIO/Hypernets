@@ -1,0 +1,44 @@
+version: 2.5
+workingDir: {workingDir}  # to store experiment files, default is '.'
+
+dataset:
+    target: y
+    trainFile: {trainFile}
+    evalFile: {evalFile}
+    testFile: {testFile}
+
+jobs:
+  - name: train-seleciton  # should be unique in workingDir or current file
+    engine: hypergbm  # job engine, skip the job if engine is not exits
+    experiment:
+      strategy: evolution
+      searcherOptions:
+          populationSize: 30
+          sampleSize: 30
+      earlyStopping:
+          rounds: 10
+          timeLimit: 36000
+          reward: 0.7
+      rewardMetric: f1
+      posLabel: "yes"
+      optimizeDirection: max
+      clearCache: false
+      logLevel: 20
+      evaluation:
+        metrics: auto
+        persistPrediction: true
+        persistPredictionDir:   # str, optional for None , store to {workingDir}/{jobs[i].name}/prediction
+      report:
+        enable: true
+        render: excel
+        renderOptions:
+            filePath:  # str, optional, for None store to {workingDir}/{jobs[i].name}/report.xlsx
+            theme: dark
+      featureSelection:
+        enable: false
+      featureGeneration:
+        enable: false
+    runOptions:
+        max_trials: 2
+    webui:
+        port: 8888

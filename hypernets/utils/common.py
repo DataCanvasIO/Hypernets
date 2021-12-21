@@ -8,6 +8,9 @@ import contextlib
 import inspect
 import math
 import uuid
+import re
+import os
+import tempfile
 from collections import OrderedDict
 from functools import partial
 
@@ -213,3 +216,78 @@ def human_data_size(value):
         return r(value / 1024 / 1024, "MB")
     else:
         return r(value / 1024 / 1024 / 1024, "GB")
+
+
+def camel_to_snake(camel_str):
+    """
+        example:
+            Convert 'camelToSnake' to 'camel_to_snake'
+    """
+    p = re.compile(r'([a-z]|\d)([A-Z])')
+    sub = re.sub(p, r'\1_\2', camel_str).lower()
+    return sub
+
+
+def _recursion_replace(container):
+    """Replace camel-case keys in *container* into snake-case
+    Parameters
+    ----------
+    container: list, dict, required
+    Returns
+    -------
+    """
+
+    if isinstance(container, list):
+        new_container = []
+        for ele in container:
+            if isinstance(ele, (list, dict)):
+                new_ele = _recursion_replace(ele)
+                new_container.append(new_ele)
+            else:
+                new_container.append(ele)
+    elif isinstance(container, dict):
+        new_container = {}
+        for k, v in container.items():
+            if isinstance(v, (dict, list)):
+                snake_key_dict = _recursion_replace(v)
+            else:
+                snake_key_dict = v
+            new_container[camel_to_snake(k)] = snake_key_dict  # attach to parent
+    else:
+        raise ValueError(f"Input is not a `dict` or `list`: {container}")
+
+    return new_container
+
+
+def camel_keys_to_snake(d: dict):
+    """
+    example:
+        Convert dict:
+            {
+                'datasetConf': {
+                    'trainData': ['./train.csv']
+                }
+            }
+        to:
+            {
+                'dataset_conf': {
+                    'train_data': ['./train.csv']
+                }
+            }
+    """
+    ret_dict = _recursion_replace(d)
+    return ret_dict
+
+
+def get_temp_file_path(prefix=None, suffix=None):
+    fd, file_path = tempfile.mkstemp(prefix=prefix, suffix=suffix)
+    os.close(fd)
+    os.remove(file_path)
+    return file_path
+
+
+def get_temp_dir_path(prefix=None, suffix=None, create=True):
+    file_path = tempfile.mkdtemp(prefix=prefix, suffix=suffix)
+    if not create:
+        os.rmdir(file_path)  # empty dir
+    return file_path

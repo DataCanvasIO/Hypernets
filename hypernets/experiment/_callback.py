@@ -289,6 +289,12 @@ class MLEvaluateCallback(ExperimentCallback):
         self._eval_df_shape = None
         self._eval_elapse = None
 
+    @staticmethod
+    def get_logger():
+        from hypernets.utils import logging
+        logger = logging.get_logger(__name__)
+        return logger
+
     def experiment_start(self, exp):
         """
             exp.evaluation:
@@ -320,16 +326,15 @@ class MLEvaluateCallback(ExperimentCallback):
         exp.y_eval_pred = None
         exp.evaluation = {}
 
-    @staticmethod
-    def to_prediction(y_score):
+    def to_prediction(self, y_score):
         pass
 
-    @staticmethod
-    def _persist(obj, obj_name, path):
+    def _persist(self, obj, obj_name, path):
+        path = os.path.abspath(path)
         if path is not None:
             if os.path.exists(path):
-                print(f"[WARNING] persist path is already exists: {path} ")
-            print(f"Persist '{obj_name}' result to '{path}' ")
+                self.get_logger().warning(f"persist path is already exists {path} ")
+            self.get_logger().info(f"persist {obj_name} to {path} ")
             with open(path, 'wb') as f:
                 joblib.dump(obj, f)
 
@@ -342,9 +347,12 @@ class MLEvaluateCallback(ExperimentCallback):
                 try:
                     exp.y_eval_proba = exp.model_.predict_proba(exp.X_eval)
                 except Exception as e:
-                    print("predict_proba failed", e)
+                    self.get_logger().exception(e)
             exp.evaluation['timing'] = {'predict': time.time() - _t, 'predict_proba': 0}
         if self.evaluate_prediction_dir is not None:
+            write_dir = self.evaluate_prediction_dir
+            if not os.path.exists(write_dir):
+                os.makedirs(write_dir)  # TODO: logger.info(f"Create prediction persist directory: {write_dir}")
             persist_pred_path = os.path.join(self.evaluate_prediction_dir, 'predict.pkl')
             persist_proba_path = os.path.join(self.evaluate_prediction_dir, 'predict_proba.pkl')
             self._persist(exp.y_eval_proba, 'y_eval_proba', persist_pred_path)
@@ -403,8 +411,9 @@ class MLReportCallback(ExperimentCallback):
     def __init__(self, render: ReportRender, sample_interval=30):
         self.render = render
         self._rum = ResourceUsageMonitor(interval=sample_interval)
+
         # self.render_options = render_options if not None else {}
-        self._experiment_meta = None
+        self.experiment_meta_ = None
 
     def experiment_start(self, exp):
         self._rum.start_watch()
@@ -453,9 +462,9 @@ class MLReportCallback(ExperimentCallback):
             evaluation_result = {}
 
         # 2. get experiment meta and render to excel
-        self._experiment_meta = ExperimentExtractor(exp, evaluation_result,
+        self.experiment_meta_ = ExperimentExtractor(exp, evaluation_result,
                                                     confusion_matrix_result, self._rum.data).extract()
-        self.render.render(self._experiment_meta)
+        self.render.render(self.experiment_meta_)
 
     def experiment_break(self, exp, error):
         pass  # TODO

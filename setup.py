@@ -82,6 +82,11 @@ setup(
     package_data={
         'hypernets': ['tabular/datasets/*.csv', 'tabular/datasets/*.txt', 'tabular/datasets/*.gz'],
     },
+    entry_points={
+        'console_scripts': [
+            'hyperctl = hypernets.experiment.job:main',
+        ]
+    },
     zip_safe=False,
     include_package_data=True,
 )

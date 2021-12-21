@@ -1,13 +1,12 @@
 import os.path
-import tempfile
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
-from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback
+from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback, ExperimentMeta
 from hypernets.experiment.compete import StepNames
 from hypernets.tabular.datasets import dsutils
-from hypernets.experiment import ExperimentMeta
+from hypernets.utils import common as common_util
 
 
 def test_experiment_with_blood_simple():
@@ -83,7 +82,7 @@ def run_export_excel_report(maker, has_eval_data=True):
     df_train['Drifted'] = np.random.random(df_train.shape[0])
     df_eval['Drifted'] = np.random.random(df_eval.shape[0]) * 100
 
-    file_path = tempfile.mkstemp(prefix="report_excel_", suffix=".xlsx")[1]
+    file_path = common_util.get_temp_file_path(prefix="report_excel_", suffix=".xlsx")
     print(file_path)
     experiment = maker(df_train, target, df_eval, file_path)
     estimator = experiment.run(max_trials=3)
@@ -97,7 +96,7 @@ def run_export_excel_report(maker, has_eval_data=True):
             mle_callback = callback
 
     assert mlr_callback is not None
-    _experiment_meta: ExperimentMeta = mlr_callback._experiment_meta
+    _experiment_meta: ExperimentMeta = mlr_callback.experiment_meta_
 
     assert len(_experiment_meta.resource_usage) > 0
     assert len(_experiment_meta.steps) == 4
@@ -171,8 +170,7 @@ def test_regression_task_report():
 
     df_train['Drifted'] = np.random.random(df_train.shape[0])
     df_eval['Drifted'] = np.random.random(df_eval.shape[0]) * 100
-
-    file_path = tempfile.mkstemp(prefix="report_excel_", suffix=".xlsx")[1]
+    file_path = common_util.get_temp_file_path(prefix="report_excel_", suffix=".xlsx")
     print(file_path)
     experiment = make_experiment(PlainModel, df_train,
                                  target=target,
@@ -196,7 +194,7 @@ def test_regression_task_report():
             mle_callback = callback
 
     assert mlr_callback is not None
-    _experiment_meta: ExperimentMeta = mlr_callback._experiment_meta
+    _experiment_meta: ExperimentMeta = mlr_callback.experiment_meta_
 
     assert len(_experiment_meta.resource_usage) > 0
     assert len(_experiment_meta.steps) == 4
