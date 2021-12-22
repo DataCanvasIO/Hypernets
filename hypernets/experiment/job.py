@@ -262,7 +262,7 @@ def _load_engines():
 
     if len(engines.keys()) < 1:
         raise RuntimeError("no job engines found.")
-
+    return engines
 
 def run(config_path, engines):
     # read config
