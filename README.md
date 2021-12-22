@@ -5,7 +5,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/hypernets.svg)](https://pypi.org/project/hypernets)
 
 ## We Are Hiring！
-Dear folks, we are opening several precious positions based in Beijing both for professionals and interns avid in AutoML/NAS, please send your resume/cv to yangjian@zetyun.com. (Application deadline: TBD.)  
+Dear folks, we are offering challenging opportunities located in Beijing for both professionals and students who are keen on AutoML/NAS. Come be a part of DataCanvas! Please send your CV to yangjian@zetyun.com. (Application deadline: TBD.)  
 
 ## Hypernets: A General Automated Machine Learning Framework
 Hypernets is a general AutoML framework, based on which it can implement automatic optimization tools for various machine learning frameworks and libraries, including deep learning frameworks such as tensorflow, keras, pytorch, and machine learning libraries like sklearn, lightgbm, xgboost, etc.
@@ -26,28 +26,31 @@ We introduced an abstract search space representation, taking into account the r
 
 ## Installation
 
-Install Hypernets with `pip` command:
- 
+Install Hypernets with different options:
+
+* Typical installation:
 ```bash
 pip install hypernets
 ```
 
-Optional, to run Hypernets in JupyterLab notebooks, install Hypernets and JupyterLab with command:
+* To run Hypernets in JupyterLab/Jupyter notebook, install with command:
 ```bash
 pip install hypernets[notebook]
 ```
 
-Optional, to run Hypernets in distributed Dask cluster, install Hypernets with command:
+* To run Hypernets in distributed Dask cluster, install with command:
 ```bash
 pip install hypernets[dask]
 ```
 
-Optional, to support dataset with simplified Chinese in feature generation, install `jieba` package before run Hypernets, or install Hypernets with command:
+* To support dataset with simplified Chinese in feature generation, 
+  * Install `jieba` package before running Hypernets.
+  * OR install Hypernets with command:
 ```bash
 pip install hypernets[zhcn]
 ```
 
-Optional, install all Hypernets components and dependencies with one command:
+* Install all above with one command:
 ```bash
 pip install hypernets[all]
 ```
@@ -63,12 +66,12 @@ python -m hypernets.examples.smoke_testing
 * [A Brief Tutorial for Developing AutoML Tools with Hypernets](https://github.com/BochenLv/knn_toy_model/blob/main/Introduction.md)
 
 ## Hypernets related projects
-
+* [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning (AutoML) framework.
 * [HyperGBM](https://github.com/DataCanvasIO/HyperGBM): A full pipeline AutoML tool integrated various GBM models.
 * [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
 * [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
 * [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
-* [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning framework.
+
 
 ![DataCanvas AutoML Toolkit](docs/source/images/datacanvas_automl_toolkit.png)
 
