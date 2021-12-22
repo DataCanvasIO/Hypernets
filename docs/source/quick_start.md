@@ -2,7 +2,19 @@
 
 ## Installation
 
-Python version 3.6 or above is necessary before installing Hypernets. Install Hypernets with `pip` command:
+Python version 3.6 or above is necessary before installing Hypernets. 
+
+### Conda
+
+Install Hypernets with `conda` from the channel *conda-forge*:
+
+```bash
+conda install -c conda-forge hypernets
+```
+
+### Pip
+
+Install Hypernets with `pip` command:
 
 ```bash
 pip install hypernets

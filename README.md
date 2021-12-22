@@ -26,7 +26,16 @@ We introduced an abstract search space representation, taking into account the r
 
 ## Installation
 
-Install Hypernets with different options:
+### Conda
+
+Install Hypernets with `conda` from the channel *conda-forge*:
+
+```bash
+conda install -c conda-forge hypernets
+```
+
+### Pip
+Install Hypernets with `pip` has different options:
 
 * Typical installation:
 ```bash
