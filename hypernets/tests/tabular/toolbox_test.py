@@ -1,6 +1,9 @@
+import os.path as path
+
 import pandas as pd
 
 from hypernets.tabular import get_tool_box
+from hypernets.tabular.datasets import dsutils
 
 
 class TestToolBox:
@@ -34,3 +37,10 @@ class TestToolBox:
         df2 = pd.concat([s, s], axis=0)
         assert isinstance(df1, pd.Series)
         assert (df1 == df2).all()
+
+    def test_load_data(self, ):
+        data_dir = path.split(dsutils.__file__)[0]
+        data_file = f'{data_dir}/blood.csv'
+        tb = get_tool_box(pd.DataFrame)
+        df = tb.load_data(data_file)
+        assert isinstance(df, pd.DataFrame)

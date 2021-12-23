@@ -4,7 +4,7 @@
 """
 import copy
 import math
-
+from functools import partial
 import numpy as np
 import pandas as pd
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
@@ -73,6 +73,52 @@ class ToolBox(metaclass=ToolboxMeta):
     @staticmethod
     def from_local(*data):
         return data
+
+    @staticmethod
+    def load_data(data_path, *, reset_index=False, reader_mapping=None, **kwargs):
+        import os.path as path
+        import glob
+
+        if reader_mapping is None:
+            reader_mapping = {
+                'csv': partial(pd.read_csv, low_memory=False),
+                'txt': partial(pd.read_csv, low_memory=False),
+                'parquet': pd.read_parquet,
+                'par': pd.read_parquet,
+                'json': pd.read_json,
+                'pkl': pd.read_pickle,
+                'pickle': pd.read_pickle,
+            }
+
+        def get_file_format(file_path):
+            return path.splitext(file_path)[-1].lstrip('.')
+
+        def get_file_format_by_glob(data_pattern):
+            for f in glob.glob(data_pattern, recursive=True):
+                fmt_ = get_file_format(f)
+                if fmt_ in reader_mapping.keys():
+                    return fmt_
+            return None
+
+        if glob.has_magic(data_path):
+            fmt = get_file_format_by_glob(data_path)
+        elif not path.exists(data_path):
+            raise ValueError(f'Not found path {data_path}')
+        elif path.isdir(data_path):
+            path_pattern = f'{data_path}*' if data_path.endswith(path.sep) else f'{data_path}{path.sep}*'
+            fmt = get_file_format_by_glob(path_pattern)
+        else:
+            fmt = path.splitext(data_path)[-1].lstrip('.')
+
+        if fmt not in reader_mapping.keys():
+            raise ValueError(f'Not supported data format{fmt}')
+        fn = reader_mapping[fmt]
+        df = fn(data_path, **kwargs)
+
+        if reset_index:
+            df.reset_index(drop=True, inplace=True)
+
+        return df
 
     @staticmethod
     def unique(y):

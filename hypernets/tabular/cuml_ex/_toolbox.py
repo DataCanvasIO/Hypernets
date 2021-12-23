@@ -29,6 +29,9 @@ type(_transformer)  # disable: optimize import
 
 logger = logging.get_logger(__name__)
 
+if not cupy.cuda.is_available():
+    logger.warning('Not found available CUDA devices.')
+
 
 class CumlToolBox(ToolBox):
     acceptable_types = (cupy.ndarray, cudf.DataFrame, cudf.Series)
@@ -113,6 +116,19 @@ class CumlToolBox(ToolBox):
                 return x
 
         return [from_np_or_pd(x) for x in data]
+
+    @staticmethod
+    def load_data(data_path, *, reset_index=False, reader_mapping=None, **kwargs):
+        if reader_mapping is None:
+            reader_mapping = {
+                'csv': cudf.read_csv,
+                'txt': cudf.read_csv,
+                'parquet': cudf.read_parquet,
+                'par': cudf.read_parquet,
+                'json': cudf.read_json,
+            }
+        df = ToolBox.load_data(data_path, reset_index=reset_index, reader_mapping=reader_mapping, **kwargs)
+        return df
 
     @staticmethod
     def unique(y):

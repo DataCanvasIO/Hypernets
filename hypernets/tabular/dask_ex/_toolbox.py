@@ -166,6 +166,34 @@ class DaskToolBox(ToolBox):
         return [cls.to_dask_type(t) for t in data]
 
     @staticmethod
+    def load_data(data_path, *, reset_index=False, reader_mapping=None, **kwargs):
+        import os.path as path
+        import glob
+
+        if reader_mapping is None:
+            reader_mapping = {
+                'csv': dd.read_csv,
+                'txt': dd.read_csv,
+                'parquet': dd.read_parquet,
+                'par': dd.read_parquet,
+                'json': dd.read_json,
+            }
+
+        if path.isdir(data_path) and not glob.has_magic(data_path):
+            data_path = f'{data_path}*' if data_path.endswith(path.sep) else f'{data_path}{path.sep}*'
+
+        df = ToolBox.load_data(data_path, reset_index=False, reader_mapping=reader_mapping, **kwargs)
+
+        if reset_index:
+            df = DaskToolBox.reset_index(df)
+
+        worker_count = DaskToolBox.dask_worker_count()
+        if worker_count > 1 and df.npartitions < worker_count:
+            df = df.repartition(npartitions=worker_count)
+
+        return df
+
+    @staticmethod
     def unique(y):
         if isinstance(y, da.Array):
             uniques = da.unique(y).compute()
@@ -451,6 +479,7 @@ class DaskToolBox(ToolBox):
     @staticmethod
     def concat_df(dfs, axis=0, repartition=False, **kwargs):
         if DaskToolBox.exist_dask_object(*dfs):
+            dfs_orig = dfs
             dfs = [dd.from_dask_array(v) if DaskToolBox.is_dask_array(v) else v for v in dfs]
 
             if all([isinstance(df, (dd.Series, pd.Series)) for df in dfs]):
@@ -460,7 +489,8 @@ class DaskToolBox(ToolBox):
                 return df
 
             if axis == 0:
-                values = [df[dfs[0].columns].to_dask_array(lengths=True) for df in dfs]
+                values = [df[dfs[0].columns].to_dask_array(lengths=True)
+                          if not DaskToolBox.is_dask_array(df) else df for df in dfs_orig]
                 df = DaskToolBox.array_to_df(DaskToolBox.vstack_array(values), meta=dfs[0])
             else:
                 dfs = [DaskToolBox.make_divisions_known(df) for df in dfs]

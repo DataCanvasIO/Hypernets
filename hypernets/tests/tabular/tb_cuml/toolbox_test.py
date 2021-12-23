@@ -2,6 +2,8 @@
 """
 
 """
+import os.path as path
+
 import pytest
 
 from hypernets.tabular import get_tool_box
@@ -107,3 +109,10 @@ class TestCumlToolBox:
         df2 = cudf.concat([s, s], axis=0)
         assert isinstance(df1, cudf.Series)
         assert (df1 == df2).all()
+
+    def test_load_data(self, ):
+        data_dir = path.split(dsutils.__file__)[0]
+        data_file = f'{data_dir}/blood.csv'
+
+        df = CumlToolBox.load_data(data_file, reset_index=True)
+        assert isinstance(df, cudf.DataFrame)

@@ -11,8 +11,7 @@ from hypernets.model import HyperModel
 from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import clear as _clear_cache
-from hypernets.tabular.metrics import metric_to_scoring
-from hypernets.utils import const, load_data, logging, isnotebook, load_module, DocLens
+from hypernets.utils import const, logging, isnotebook, load_module, DocLens
 
 logger = logging.get_logger(__name__)
 
@@ -35,13 +34,14 @@ def make_experiment(hyper_model_cls,
                     reward_metric=None,
                     optimize_direction=None,
                     hyper_model_options=None,
-                    clear_cache=None,
                     discriminator=None,
                     evaluation_metrics='auto',
                     evaluation_persist_prediction=False,
                     evaluation_persist_prediction_dir=None,
                     report_render=None,
                     report_render_options=None,
+                    experiment_cls=None,
+                    clear_cache=None,
                     log_level=None,
                     **kwargs):
     """
@@ -51,20 +51,16 @@ def make_experiment(hyper_model_cls,
     ----------
     hyper_model_cls: subclass of HyperModel
         Subclass of HyperModel to run trials within the experiment.
-    train_data : str, Pandas or Dask DataFrame
+    train_data : str, Pandas or Dask or Cudf DataFrame
         Feature data for training with target column.
-        For str, it's should be the data path in file system,
-        we'll detect data format from this path (only .csv and .parquet are supported now) and read it.
+        For str, it's should be the data path in file system, will be loaded as pnadas Dataframe.
+        we'll detect data format from this path (only .csv and .parquet are supported now).
     target : str, optional
         Target feature name for training, which must be one of the drain_data columns, default is 'y'.
-    eval_data : str, Pandas or Dask DataFrame, optional
-        Feature data for evaluation with target column.
-        For str, it's should be the data path in file system,
-        we'll detect data format from this path (only .csv and .parquet are supported now) and read it.
-    test_data : str, Pandas or Dask DataFrame, optional
-        Feature data for testing without target column.
-        For str, it's should be the data path in file system,
-        we'll detect data format from this path (only .csv and .parquet are supported now) and read it.
+    eval_data : str, Pandas or Dask or Cudf DataFrame, optional
+        Feature data for evaluation, should be None or have the same python type with 'train_data'.
+    test_data : str, Pandas or Dask or Cudf DataFrame, optional
+        Feature data for testing without target column, should be None or have the same python type with 'train_data'.
     task : str or None, (default=None)
         Task type(*binary*, *multiclass* or *regression*).
         If None, inference the type of task automatically
@@ -113,17 +109,6 @@ def make_experiment(hyper_model_cls,
         Discriminator is used to determine whether to continue training
     hyper_model_options: dict, optional
         Options to initlize HyperModel except *reward_metric*, *task*, *callbacks*, *discriminator*.
-    clear_cache: bool, optional, (default False)
-    log_level : int, str, or None, (default=None),
-        Level of logging, possible values:
-            -logging.CRITICAL
-            -logging.FATAL
-            -logging.ERROR
-            -logging.WARNING
-            -logging.WARN
-            -logging.INFO
-            -logging.DEBUG
-            -logging.NOTSET
     evaluation_metrics: str, list, or None (default='auto'),
         If *eval_data* is not None, it used to evaluate model with the metrics.
         For str should be 'auto', it will selected metrics accord to machine learning task type.
@@ -137,6 +122,20 @@ def make_experiment(hyper_model_cls,
         for obj should be instance ReportRender
     report_render_options: dict, optional
         The options to create render, is used if render is str.
+    experiment_cls: class, or None, (default=CompeteExperiment)
+        The experiment type, CompeteExperiment or it's subclass.
+    clear_cache: bool, optional, (default False)
+        Clear cache store before running the expeirment.
+    log_level : int, str, or None, (default=None),
+        Level of logging, possible values:
+            -logging.CRITICAL
+            -logging.FATAL
+            -logging.ERROR
+            -logging.WARNING
+            -logging.WARN
+            -logging.INFO
+            -logging.DEBUG
+            -logging.NOTSET
 
     kwargs:
         Parameters to initialize experiment instance, refrence CompeteExperiment for more details.
@@ -156,7 +155,9 @@ def make_experiment(hyper_model_cls,
 
     """
     assert callable(hyper_model_cls) and hasattr(hyper_model_cls, '__name__')
-    assert train_data is not None, 'train data is required.'
+    assert train_data is not None, 'train_data is required.'
+    assert eval_data is None or type(eval_data) is type(train_data)
+    assert test_data is None or type(test_data) is type(train_data)
     if not issubclass(hyper_model_cls, HyperModel):
         logger.warning(f'{hyper_model_cls.__name__} isn\'t subclass of HyperModel.')
 
@@ -232,13 +233,17 @@ def make_experiment(hyper_model_cls,
 
         return [es] + cbs
 
-    X_train, X_eval, X_test = [load_data(data) if data is not None else None
-                               for data in (train_data, eval_data, test_data)]
-
-    tb = get_tool_box(X_train, X_eval, X_test)
-    if hasattr(tb, 'is_dask_dataframe'):
-        X_train, X_eval, X_test = [tb.reset_index(x) if tb.is_dask_dataframe(x) else x
-                                   for x in (X_train, X_eval, X_test)]
+    if isinstance(train_data, str):
+        import pandas as pd
+        tb = get_tool_box(pd.DataFrame)
+        X_train = tb.load_data(train_data, reset_index=True)
+        X_eval = tb.load_data(eval_data, reset_index=True) if eval_data is not None else None
+        X_test = tb.load_data(test_data, reset_index=True) if test_data is not None else None
+    else:
+        tb = get_tool_box(train_data, eval_data, test_data)
+        X_train = tb.reset_index(train_data)
+        X_eval = tb.reset_index(eval_data) if eval_data is not None else None
+        X_test = tb.reset_index(test_data) if test_data is not None else None
 
     if target is None:
         target = find_target(X_train)
@@ -257,7 +262,7 @@ def make_experiment(hyper_model_cls,
         logger.info(f'no reward metric specified, use "{reward_metric}" for {task} task by default.')
 
     if kwargs.get('scorer') is None:
-        scorer = metric_to_scoring(reward_metric, task=task, pos_label=kwargs.get('pos_label'))
+        scorer = tb.metrics.metric_to_scoring(reward_metric, task=task, pos_label=kwargs.get('pos_label'))
     else:
         scorer = kwargs.pop('scorer')
 
@@ -312,8 +317,10 @@ def make_experiment(hyper_model_cls,
     hm = hyper_model_cls(searcher, reward_metric=reward_metric, task=task, callbacks=search_callbacks,
                          discriminator=discriminator, **hyper_model_options)
 
-    experiment = CompeteExperiment(hm, X_train, y_train, X_eval=X_eval, y_eval=y_eval, X_test=X_test,
-                                   task=task, id=id, callbacks=callbacks, scorer=scorer, **kwargs)
+    if experiment_cls is None:
+        experiment_cls = CompeteExperiment
+    experiment = experiment_cls(hm, X_train, y_train, X_eval=X_eval, y_eval=y_eval, X_test=X_test,
+                                task=task, id=id, callbacks=callbacks, scorer=scorer, **kwargs)
 
     if clear_cache:
         _clear_cache()
