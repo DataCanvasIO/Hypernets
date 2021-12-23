@@ -119,7 +119,7 @@ class ToolboxMeta(type):
     def transformers(cls):
         qn = cls.qname
         attr_tfs = f'transformers_{qn}_'
-        attr_tfs_update_at = 'ftransformers_update_at_{qn}_'
+        attr_tfs_update_at = f'transformers_update_at_{qn}_'
         tfs = getattr(cls, attr_tfs, None)
         update_at = getattr(cls, attr_tfs_update_at, 0)
 

@@ -35,7 +35,7 @@ conda install -c conda-forge hypernets
 ```
 
 ### Pip
-Install Hypernets with `pip` has different options:
+Install Hypernets with different options:
 
 * Typical installation:
 ```bash
