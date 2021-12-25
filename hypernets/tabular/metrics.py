@@ -138,9 +138,13 @@ def evaluate(estimator, X, y, metrics, *, task=None, pos_label=None, classes=Non
     if task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
         proba = predict_proba(estimator, X, n_jobs=n_jobs)
         pred = proba2predict(proba, task=task, threshold=threshold, classes=classes)
+        if metrics is None:
+            metrics = ['auc', 'accuracy', 'f1', 'recall']
     else:
         pred = predict(estimator, X, n_jobs=n_jobs)
         proba = None
+        if metrics is None:
+            metrics = ['mse', 'mae', 'msle', 'rmse', 'r2']
 
     if task == const.TASK_BINARY and pos_label is None:
         pos_label = classes[-1]
