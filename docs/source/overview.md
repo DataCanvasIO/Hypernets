@@ -1,6 +1,6 @@
 # Overview
 
-Hypernets is a general automated search framework, based on which it can implement automatic optimization tools for various machine learning frameworks and libraries, including deep learning frameworks such as tensorflow, keras, pytorch, and machine learning libraries like sklearn, lightgbm, xgboost, etc.
+Hypernets is a general automated machine learning framework, based on which it can implement automatic optimization tools for various machine learning frameworks and libraries, including deep learning frameworks such as tensorflow, keras, pytorch, and machine learning libraries like sklearn, lightgbm, xgboost, etc.
 We introduced an abstract search space representation, taking into account the requirements of hyperparameter optimization and neural architecture search(NAS), making Hypernets a general framework that can adapt to various automated machine learning needs.
 
 The figure below shows conceptual model of Hypernets.
@@ -10,16 +10,16 @@ The figure below shows conceptual model of Hypernets.
 ## Key Components
 
 ### HyperSpace
-The space of all feasible solutions for a model is called **Search Space**. HyperSpace is an abstract representation of the search space composed of `Parameter Space`, `Connection Space`, and `Module Space`. The general form of HyperSpace is a DAG, so it can represent ML pipeline and neural network architecture very flexibly.
+The space of all feasible solutions for a model is called **Search Space**. HyperSpace is an abstract representation of the search space composed of `Parameter Space`, `Connection Space`, and `Module Space`. The general form of HyperSpace is a Directed Acyclic Graph (DAG), so it can represent flexibly the ML pipeline and the neural network architecture.
 
-### Seacher
-Search algorithms that looking for a optimal solution in `HyperSpace` and generating samples for `HyperModel`.
+### Searcher
+Various search strategies are involved in the `Searcher`, which iteratively looks for hyperparameters in `HyperSpace` and transfers to `HyperModel`. Combined with `Estimator`, it could find the optimal model.
 
 ### HyperModel
-High-level interface for users to perform model search and training, as long as the defined search space and training data are passed in to get the best model. HyperModel is an abstract class that needs to implement a dedicated HyperModel for different frameworks or domains. For example, `HyperKeras` is used to automatically search for neural networks built with keras, and `HyperGBM` is used to automatically optimize ML pipeline composed of sklearn, xgboost, and lightgbm....
+`HyperModel` is a high-level interface which can access the defined search space and the training data to perform model search and model training. HyperModel is formed as an abstract class that can be implemented for different frameworks and domains. The well developed HyperModels are `HyperGBM` and `HyperDT`, which can process tabular dataset by various GBM algorithms (lightGBM, XGBoost, CatBoost) and self-built algorithm DeepTable respectively. `HyperKeras`, as another HyperModel, could automatically search for neural networks. 
 
 ### Estimator
-A specific `HyperModle` needs to be paired with a dedicated `Estimator` to fit and evaluate the sample given by the `HyperModel`. This sample may be a set of hyperparameters, a network architecture, or a mixture of them.
+Every specific HyperModel is paired with a dedicated `Estimator`. The Estimator receives either a set of hyperparametres, or a network architecture from HyperModel and sends back rewards (metric scores) after fitting and evaluation.
 
 ### Experiment
-The playground to prepare training and testing data, and search the optimized estimator with HyperModel.
+`Experiment` is the playground where prepares the training and testing data, and obtains the optimized estimator through HyperModel.
