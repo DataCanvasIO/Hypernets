@@ -841,11 +841,14 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
         # fitted
         self.encoders_ = None
 
+    def create_encoder(self):
+        return LocalizedTfidfVectorizer(**self.encoder_kwargs)
+
     def fit(self, X, y=None):
-        assert isinstance(X, (np.ndarray, pd.DataFrame)) and len(X.shape) == 2
+        assert len(X.shape) == 2
 
         if self.columns is None:
-            if isinstance(X, pd.DataFrame):
+            if hasattr(X, 'columns'):
                 columns = column_selector.column_object(X)
             else:
                 columns = range(X.shape[1])
@@ -854,9 +857,9 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
 
         encoders = {}
         for c in columns:
-            encoder = LocalizedTfidfVectorizer(**self.encoder_kwargs)
-            Xc = X[c] if isinstance(X, pd.DataFrame) else X[:, c]
-            encoders[c] = encoder.fit(Xc, y)
+            encoder = self.create_encoder()
+            Xc = X[c] if hasattr(X, 'columns') else X[:, c]
+            encoders[c] = encoder.fit(Xc)
 
         self.encoders_ = encoders
 
@@ -864,45 +867,43 @@ class TfidfEncoder(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         assert self.encoders_ is not None
-        assert isinstance(X, (np.ndarray, pd.DataFrame)) and len(X.shape) == 2
+        assert len(X.shape) == 2
 
-        if isinstance(X, pd.DataFrame):
+        from . import get_tool_box
+        tb = get_tool_box(X)
+
+        if hasattr(X, 'columns'):
             X = X.copy()
             if self.flatten:
-                dfs = [X]
+                dfs = []
+                encoded = []
                 for c, encoder in self.encoders_.items():
                     t = encoder.transform(X[c]).toarray()
-                    dfs.append(pd.DataFrame(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
-                    X.pop(c)
-                X = pd.concat(dfs, axis=1)
+                    dfs.append(tb.array_to_df(t, index=X.index, columns=[f'{c}_tfidf_{i}' for i in range(t.shape[1])]))
+                    encoded.append(c)
+                unencoded = set(X.columns.tolist()) - set(encoded)
+                if len(unencoded) > 0:
+                    dfs.insert(0, X[unencoded])
+                X = tb.concat_df(dfs, axis=1)
             else:
                 for c, encoder in self.encoders_.items():
                     t = encoder.transform(X[c]).toarray()
                     X[c] = t.tolist()
         else:
             r = []
-            tolist = None if self.flatten else np.vectorize(self._to_array, otypes=[object], signature='(m)->()')
             for i in range(X.shape[1]):
                 Xi = X[:, i]
                 if i in self.encoders_.keys():
                     encoder = self.encoders_[i]
                     t = encoder.transform(Xi).toarray()
-                    if tolist is not None:
-                        t = tolist(t).reshape((-1, 1))
+                    if not self.flatten:
+                        t = tb.collapse_last_dim(t, keep_dim=True)
                     r.append(t)
                 else:
                     r.append(Xi)
-            X = np.hstack(r)
+            X = tb.hstack_array(r)
 
         return X
-
-    @staticmethod
-    def _to_list(x):
-        return x.tolist()
-
-    @staticmethod
-    def _to_array(x):
-        return x
 
 
 @tb_transformer(pd.DataFrame)

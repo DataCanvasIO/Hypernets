@@ -11,6 +11,7 @@ from cuml.decomposition import TruncatedSVD
 from cuml.pipeline import Pipeline
 from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, TargetEncoder, \
     StandardScaler, MaxAbsScaler, MinMaxScaler, RobustScaler
+from cuml.feature_extraction.text import TfidfVectorizer
 from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_is_fitted
@@ -190,6 +191,57 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
                                       drop=self.drop, sparse=self.sparse,
                                       dtype=self.dtype, handle_unknown=self.handle_unknown)
         copy_attrs_as_local(self, target, 'categories_', 'drop_idx_')
+        return target
+
+
+@tb_transformer(cudf.DataFrame, name='TfidfVectorizer')
+class LocalizableTfidfVectorizer(TfidfVectorizer, Localizable):
+    def as_local(self):
+        from .. import CumlToolBox
+        target = sk_ex.TfidfVectorizer(
+            # input="content",
+            # encoding="utf-8",
+            # decode_error="ignore",
+            # strip_accents=None,
+            lowercase=self.lowercase,
+            preprocessor=self.preprocessor,
+            tokenizer=None,
+            analyzer=self.analyzer,
+            stop_words=self.stop_words,
+            # token_pattern=r"(?u)\b\w\w+\b",
+            ngram_range=self.ngram_range,
+            max_df=self.max_df,
+            min_df=self.min_df,
+            max_features=self.max_features,
+            vocabulary=self.vocabulary,
+            binary=self.binary,
+            dtype=np.float64,
+            norm=self.norm,
+            use_idf=self.use_idf,
+            smooth_idf=self.smooth_idf,
+            sublinear_tf=self.sublinear_tf,
+        )
+
+        # copy_attrs_as_local(self, target, 'idf_', 'vocabulary_', '_fixed_vocabulary', 'stop_words_')
+        copy_attrs_as_local(self, target, 'vocabulary_', 'stop_words_')
+        target.fixed_vocabulary_ = self._fixed_vocabulary
+        if isinstance(target.vocabulary_, pd.Series):
+            target.vocabulary_ = {v: i for i, v in target.vocabulary_.to_dict().items()}  # to dict,and swap key/value
+        idf = self.idf_
+        if len(idf.shape) > 1 and idf.shape[0] == 1:
+            idf = idf[0]
+        target.idf_ = CumlToolBox.to_local(idf)[0]
+        return target
+
+
+@tb_transformer(cudf.DataFrame)
+class TfidfEncoder(sk_ex.TfidfEncoder, Localizable):
+    def create_encoder(self):
+        return LocalizableTfidfVectorizer(**self.encoder_kwargs)
+
+    def as_local(self):
+        target = sk_ex.TfidfEncoder(columns=self.columns, flatten=self.flatten, **self.encoder_kwargs)
+        copy_attrs_as_local(self, target, 'encoders_')
         return target
 
 

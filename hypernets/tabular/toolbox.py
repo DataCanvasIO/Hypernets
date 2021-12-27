@@ -158,6 +158,25 @@ class ToolBox(metaclass=ToolboxMeta):
         else:
             return arr[indices]
 
+    @staticmethod
+    def collapse_last_dim(arr, keep_dim=True):
+        """
+        Collapse the last dimension
+        :param arr: data array
+        :param keep_dim: keep the last dim as one or not
+        :return:
+        """
+
+        def _collapse(x):
+            return x
+
+        fn = np.vectorize(_collapse, otypes=[object], signature='(m)->()')
+        t = fn(arr)
+        if keep_dim:
+            shape = arr.shape[:-1] + (1,)
+            t = t.reshape(shape)
+        return t
+
     @classmethod
     def hstack_array(cls, arrs):
         arrs = [a.reshape(-1, 1) if a.ndim == 1 else a for a in arrs]

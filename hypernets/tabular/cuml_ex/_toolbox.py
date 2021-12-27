@@ -156,6 +156,25 @@ class CumlToolBox(ToolBox):
     def value_counts(ar):
         return cudf.Series(ar).value_counts().to_pandas().to_dict()
 
+    @staticmethod
+    def collapse_last_dim(arr, keep_dim=True):
+        """
+        Collapse the last dimension
+        :param arr: data array
+        :param keep_dim: keep the last dim as one or not
+        :return:
+        """
+
+        def _collapse(x):
+            return x
+
+        fn = cupy.vectorize(_collapse, otypes=[object], signature='(m)->()')
+        t = fn(arr)
+        if keep_dim:
+            shape = arr.shape[:-1] + (1,)
+            t = t.reshape(shape)
+        return t
+
     # @staticmethod
     # def reset_index(X):
     #     return ToolBox.reset_index(X)

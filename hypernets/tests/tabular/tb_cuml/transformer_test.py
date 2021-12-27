@@ -74,17 +74,23 @@ class TestCumlTransformer:
     def teardown_class(cls):
         shutil.rmtree(cls.work_dir, ignore_errors=True)
 
-    def fit_reload_transform(self, tf, *, column_selector=None, dtype=None, check_options=None):
-        df = self.bank_data.copy()
-        y = df.pop('y')
+    def fit_reload_transform(self, tf, *, df=None, target=None, column_selector=None, dtype=None, check_options=None):
+        if df is None:
+            df = self.bank_data.copy()
+            target = 'y'
+
+        if target is not None:
+            y = df.pop(target)
+            y_cf = cudf.from_pandas(y)
+        else:
+            y_cf = None
+
         if column_selector:
             columns = column_selector(df)
             df = df[columns]
         if dtype is not None:
             df = df.astype(dtype)
-
         cf = cudf.from_pandas(df)
-        y_cf = cudf.from_pandas(y)
 
         tf.fit_transform(cf.copy(), y_cf)
         file_path = f'{self.work_dir}/fitted_{type(tf).__name__}.pkl'
@@ -173,6 +179,38 @@ class TestCumlTransformer:
         pipeline = CumlToolBox.transformers['Pipeline']([('onehot_encoder', ohe), ('svd', svd)])
 
         self.fit_reload_transform(pipeline, column_selector=CumlToolBox.column_selector.column_object)
+
+    def test_tfidf_encoder(self):
+        tf = CumlToolBox.transformers['TfidfEncoder']()
+        self.fit_reload_transform(tf, df=self.movie_lens,
+                                  column_selector=lambda _: ['title', 'genres'],
+                                  check_options=dict(dtypes=False, values=False))
+
+    def test_tfidf_encoder_flatten(self):
+        tf = CumlToolBox.transformers['TfidfEncoder'](flatten=True)
+        self.fit_reload_transform(tf, df=self.movie_lens,
+                                  column_selector=lambda _: ['title', 'genres'],
+                                  check_options=dict(dtypes=False))
+
+    def test_tfidf_encoder_basic(self):
+        df = self.movie_lens.copy()
+        df['genres'] = df['genres'].apply(lambda s: s.replace('|', ' '))
+        df = cudf.from_pandas(df)
+
+        cls = CumlToolBox.transformers['TfidfEncoder']
+
+        encoder = cls(['title', 'genres'], flatten=False)
+        Xt = encoder.fit_transform(df.copy())
+        assert isinstance(Xt, cudf.DataFrame)
+        assert 'title' in Xt.columns.tolist()
+        assert 'genres' in Xt.columns.tolist()
+        assert isinstance(Xt['genres'][0], (list, np.ndarray))
+
+        encoder = cls(flatten=True)
+        Xt = encoder.fit_transform(df[['title', 'genres']].copy())
+        assert isinstance(Xt, cudf.DataFrame)
+        assert 'genres' not in Xt.columns.tolist()
+        assert 'genres_tfidf_0' in Xt.columns.tolist()
 
     def test_general_preprocessor(self):
         X_foo = cudf.from_pandas(self.bank_data.head())
