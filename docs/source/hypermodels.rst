@@ -1,7 +1,7 @@
 HyperModel
 =============
 
-HyperModel is an abstract class that needs to implement a dedicated HyperModel for different frameworks or domains. HyperModel explore hyper-parameters sample from Searcher, fit and evaluate Estimator, then reward the metric score to Searcher for optimization. The figure below shows HyperModel search sequence.
+HyperModel is the core element of the Hypernets architecture. It is a high-level interface which can access the defined search space and the training data to perform model search and model training. The figure below shows the HyperModel search sequence. For every loop, the `HyperModel` explores hyperparameter samples from `Searcher`, calls the `Estimator` to perform fitting and evaluation operations, then updates the metric score to `Searcher` for further optimization.
 
 .. image:: images/hyper_model_search_sequence.png
    :width: 600
@@ -12,10 +12,12 @@ HyperModel is an abstract class that needs to implement a dedicated HyperModel f
 Customize HyperModel
 -------------------------
 
-To customize HyerModel, two components are required:
+To customize HyperModel, two components are required:
 
-* HyperModel: subclass of *hypernets.model.HyperModel*, create newer Estimator instance with searched space sample, and load trained estimator from storage.
+* HyperModel: subclass of *hypernets.model.HyperModel*. It creates a new estimator instance with the defined hyperparameter samples. Meanwhile, it loads the trained estimator from storage.
 
-* Estimator: subclass of  *hypernets.model.Estimator*, the core component for model fitting/evaluation/prediction/persistence.
+* Estimator: subclass of  *hypernets.model.Estimator*. It contains subfunctions: model fitting, evaluation, prediction, etc.
 
-You can reference  *hypernets.examples.plain_model.PlainModel* and *hypernets.examples.plain_model.PlainEstimator* as start point. See `DeepTables <https://github.com/DataCanvasIO/DeepTables>`_, `HyperGBM <https://github.com/DataCanvasIO/HyperGBM>`_, `HyperKeras <https://github.com/DataCanvasIO/HyperKeras>`_ for more details.
+As a start point, refer to the examples  *hypernets.examples.plain_model.PlainModel* and *hypernets.examples.plain_model.PlainEstimator*.
+
+For more details, see `DeepTables <https://github.com/DataCanvasIO/DeepTables>`_, `HyperGBM <https://github.com/DataCanvasIO/HyperGBM>`_, `HyperKeras <https://github.com/DataCanvasIO/HyperKeras>`_.
