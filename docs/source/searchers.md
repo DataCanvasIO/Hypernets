@@ -23,7 +23,7 @@ searcher = MCTSSearcher(search_space_fn, use_meta_learner=False, max_node_space=
 **Required Parameters**
 * *space_fn*: callable, A search space function which when called returns a `HyperSpace` instance.
 
-**Optinal Parameters**
+**Optional Parameters**
 - *policy*: hypernets.searchers.mcts_core.BasePolicy, (default=None), The policy for *Selection* and *Backpropagation* phases, `UCT` by default.
 - *max_node_space*: int, (default=10), Maximum space for node expansion
 - *use_meta_learner*: bool, (default=True), Meta-learner aims to evaluate the performance of unseen samples based on previously evaluated samples. It provides a practical solution to accurately estimate a search branch with many simulations without involving the actual training.
@@ -48,7 +48,7 @@ searcher = EvolutionSearcher(search_space_fn, population_size=20, sample_size=5,
 - *population_size*: int, Size of population
 - *sample_size*: int, The number of parent candidates selected in each cycle of evolution
 
-**Optinal Parameters**
+**Optional Parameters**
 - *regularized*: bool, (default=False), Whether to enable regularized
 - *use_meta_learner*: bool, (default=True), Meta-learner aims to evaluate the performance of unseen samples based on previously evaluated samples. It provides a practical solution to accurately estimate a search branch with many simulations without involving the actual training.
 - *candidates_size*: int, (default=10), The number of samples for the meta-learner to evaluate candidate paths when roll out
@@ -59,6 +59,7 @@ searcher = EvolutionSearcher(search_space_fn, population_size=20, sample_size=5,
 ## RandomSearcher
 
 As its name suggests, Random Search uses random combinations of hyperparameters.
+
 **Code example**
 ```
 from hypernets.searchers import RandomSearcher
@@ -69,7 +70,7 @@ searcher = RandomSearcher(search_space_fn, optimize_direction='min')
 **Required Parameters**
 - *space_fn*: callable, A search space function which when called returns a `HyperSpace` instance
 
-**Optinal Parameters**
+**Optional Parameters**
 - *optimize_direction*: 'min' or 'max', (default='min'), Whether the search process is approaching the maximum or minimum reward value.
 - *space_sample_validation_fn*: callable or None, (default=None), Used to verify the validity of samples from the search space, and can be used to add specific constraint rules to the search space to reduce the size of the space.
 
