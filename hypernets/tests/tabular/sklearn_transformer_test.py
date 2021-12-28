@@ -296,9 +296,9 @@ class Test_Transformer():
         assert Xt.shape == (df.shape[0], 19)
 
     def test_datetime_encoder(self):
-        def is_holiday(t):
+        def is_holiday(x):
             holidays = {'0501', '0502', '0503'}
-            return int(t.strftime('%m%d') in holidays)
+            return x.apply(lambda t: int(t.strftime('%m%d') in holidays))
 
         months = {'oct': 10, 'may': 5, 'apr': 4, 'jun': 6, 'feb': 2, 'aug': 8, 'jan': 1, 'jul': 7, 'nov': 11,
                   'sep': 9, 'mar': 3, 'dec': 12}

@@ -5,9 +5,11 @@
 import os
 import pickle
 import shutil
+from datetime import datetime
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from hypernets.tabular.datasets import dsutils
 from . import if_cuml_ready, is_cuml_installed
 from ... import test_output_dir
@@ -211,6 +213,20 @@ class TestCumlTransformer:
         assert isinstance(Xt, cudf.DataFrame)
         assert 'genres' not in Xt.columns.tolist()
         assert 'genres_tfidf_0' in Xt.columns.tolist()
+
+    def test_datetime_encoder(self):
+        df = self.movie_lens.copy()
+        df['timestamp'] = df['timestamp'].apply(datetime.fromtimestamp)
+
+        # fit with only datetime column
+        tf = CumlToolBox.transformers['DatetimeEncoder']()
+        self.fit_reload_transform(tf, df=df.copy(), column_selector=lambda _: ['timestamp', ],
+                                  check_options=dict(dtypes=False))
+
+        # fit with only datetime and object columns
+        tf = CumlToolBox.transformers['DatetimeEncoder']()
+        self.fit_reload_transform(tf, df=df.copy(), column_selector=lambda _: ['timestamp', 'genres'],
+                                  check_options=dict(dtypes=False))
 
     def test_general_preprocessor(self):
         X_foo = cudf.from_pandas(self.bank_data.head())

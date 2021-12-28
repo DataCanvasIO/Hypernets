@@ -246,6 +246,33 @@ class TfidfEncoder(sk_ex.TfidfEncoder, Localizable):
 
 
 @tb_transformer(cudf.DataFrame)
+class DatetimeEncoder(sk_ex.DatetimeEncoder, Localizable):
+    all_items = sk_ex.DatetimeEncoder.all_items.copy()
+    all_items.pop('week')  # does not support
+
+    default_include = [k for k in sk_ex.DatetimeEncoder.default_include if k != 'week']
+
+    @staticmethod
+    def to_dataframe(X):
+        if isinstance(X, cudf.DataFrame):
+            pass
+        elif isinstance(X, cupy.ndarray):
+            X = cudf.DataFrame(X)
+        elif isinstance(X, CumlArray):
+            X = X.to_output('cudf')
+        else:
+            X = sk_ex.DatetimeEncoder.to_dataframe(X)
+        return X
+
+    def as_local(self):
+        target = sk_ex.DatetimeEncoder(columns=self.columns, include=self.include,
+                                       exclude=self.exclude, extra=self.extra,
+                                       drop_constants=self.drop_constants)
+        copy_attrs_as_local(self, target, 'extract_')
+        return target
+
+
+@tb_transformer(cudf.DataFrame)
 class SlimTargetEncoder(TargetEncoder, BaseEstimator):
     """
     The slimmed TargetEncoder with 'train' and 'train_encode' attribute were set to None.

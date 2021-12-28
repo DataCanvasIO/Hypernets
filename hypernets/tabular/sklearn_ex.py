@@ -912,7 +912,7 @@ class DatetimeEncoder(BaseEstimator, TransformerMixin):
                  'week', 'weekday', 'dayofyear',
                  'timestamp']
     all_items = {k: k for k in all_items}
-    all_items['timestamp'] = lambda t: time.mktime(t.timetuple())
+    all_items['timestamp'] = lambda x: (x.astype('int64') * 1e-9)
 
     default_include = ['month', 'day', 'hour', 'minute',
                        'week', 'weekday', 'dayofyear']
@@ -961,28 +961,35 @@ class DatetimeEncoder(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         if self.columns is None:
-            if not isinstance(X, pd.DataFrame):
-                X = pd.DataFrame(X)
+            X = self.to_dataframe(X)
             self.columns = column_selector.column_all_datetime(X)
 
         return self
 
     def transform(self, X, y=None):
         if len(self.columns) > 0:
-            if isinstance(X, pd.DataFrame):
-                X = X.copy()
-                input_df = True
-            else:
-                X = pd.DataFrame(X)
-                input_df = False
+            X_orig = X
+            X = self.to_dataframe(X)
+            input_df = X_orig is X
+
             dfs = [df for c in self.columns for df in self.transform_column(X[c])]
-            X.drop(columns=self.columns, inplace=True)
+            unencoded = set(X.columns.tolist()) - set(self.columns)
+            X = X[list(unencoded)]
             if len(dfs) > 0:
-                dfs.insert(0, X)
-                X = pd.concat(dfs, axis=1)
+                if len(unencoded) > 0:
+                    dfs.insert(0, X)
+                tb = get_tool_box(*dfs)
+                X = tb.concat_df(dfs, axis=1)
+
             if not input_df:
                 X = X.values
 
+        return X
+
+    @staticmethod
+    def to_dataframe(X):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
         return X
 
     def transform_column(self, Xc):
@@ -995,11 +1002,11 @@ class DatetimeEncoder(BaseEstimator, TransformerMixin):
             if isinstance(c, str):
                 t = getattr(Xc.dt, c)
             else:
-                t = Xc.apply(c)
+                t = c(Xc)
             t.name = f'{Xc.name}_{k}'
             dfs.append(t)
 
-        if self.drop_constants:
+        if self.drop_constants and len(Xc) > 1:
             dfs = [t for t in dfs if t.nunique() > 1]
 
         return dfs
