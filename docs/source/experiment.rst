@@ -1,7 +1,7 @@
 Experiment
 ================
 
-Experiment is the playground to prepare training and testing data, and search the optimized estimator with HyperModel. Use experiment with the following steps:
+Experiment is the playground to prepare training and testing data, and search the optimized estimator with HyperModel. Use `experiment` with the following steps:
 
 * Prepare datasets
 
@@ -20,7 +20,7 @@ Experiment is the playground to prepare training and testing data, and search th
 GeneralExperiment
 -------------------------
 
-GeneralExperiment the basic implementation of Experiment. Example:
+GeneralExperiment is the basic implementation of experiment. Example code:
 
 .. code-block:: python
 
@@ -64,7 +64,7 @@ GeneralExperiment the basic implementation of Experiment. Example:
 CompeteExperiment
 --------------------------------
 
-CompeteExperiment is a implementation of experiment with many advanced features for tabular data, such as data cleaning, feature generation, feature selection, semi-supervised machine learning, two-stages searching etc.
+CompeteExperiment is an implementation of experiment with many advanced features for tabular data, such as data cleaning, feature generation, feature selection, semi-supervised machine learning, two-stages searching etc.
 
 .. image:: images/compete_experiment.png
    :height: 500
@@ -129,7 +129,7 @@ Set the Number of Search Trials
 
 One can set the max search trial number by adjusting `max_trials`.
 
-The following code sets the max searching time as 3 hours:
+The following codes set the max trial times as 300:
 
 .. code-block:: python
 
@@ -182,7 +182,7 @@ If the `X_eval` or `y_eval` is None, the experiment object will split the `X_tra
 Set the Evaluation Criterion
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-The default evaluation criterion is `accuracy` for classification task is, and `rmse` for regression task. Other criterions can be used by setting `reward_metric`. For example:
+The default evaluation criterion is `accuracy` for classification task is, and `rmse` for regression task. Other criterions can be set by `reward_metric`. For example:
 
 
 .. code-block:: python
@@ -377,7 +377,7 @@ An code example:
 Feature selection
 >>>>>>>>>>>>>>>>>>>>>
 
-*CompeteExperiment* evaluates the feature importances by training a pre-defined model. Then it chooses the most important ones among them to continue the model training.
+*CompeteExperiment* evaluates the feature importance by training a pre-defined model. Then it chooses the most important ones among them to continue the model training.
 
 To enable feature selection, one needs to set *feature_selection=True* when creating experiment. Relevant parameters:
 
@@ -402,7 +402,7 @@ An example code:
 UnderSampling pre-search
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Normally, hyperparameter optimization will utilize all training data. However, this will cost a huge amount of time for a large dataset. To alleviate this problem, one can perform a pre-search with only a part of data to try more model parameters in the same amount of time. Better parameters will then be used for training with the whole data to obtain the optimal parameters.
+Normally, hyperparameter optimization utilizes all training data. However, this will cost a huge amount of time for a large dataset. To alleviate this problem, one can perform a pre-search with only a part of data to try more model parameters in the same amount of time. Better parameters will then be used for training with the whole data to obtain the optimal parameters.
 
 To enable feature selection, one needs to set *down_sample_search=True*  when creating experiment. Relevant parameters:
 
@@ -425,7 +425,7 @@ An example code:
 The second stage feature selection
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-*CompeteExperiment* supports continuing data processing with the trained model, which is officially called  *Two-stage search*. There are two types of Two-stage processings supported by *CompeteExperiment*: Two-stage feature selection and pseudo label which will be covered in the rest of this section.
+*CompeteExperiment* supports continuing data processing with the trained model, which is officially called  *Two-stage search*. There are two types of Two-stage processing supported by *CompeteExperiment*: Two-stage feature selection and pseudo label which will be covered in the rest of this section.
 
 In *CompeteExperiment*, the second stage feature selection is to choose models with good performances in the first stage, and use *permutation_importance* to evaluate them to give better features.
 
@@ -484,7 +484,7 @@ Note: Pseudo label is only valid for classification task.
 Change the log level
 >>>>>>>>>>>>>>>>>>>>>>>>>
 
-The progress messages during training can be shown by setting `log_level` (`str` or `int`) to change the log level. Please refer the `logging` package for further details. Besides, more thorough messages will show  when `verbose` is set as `1`.
+The progress messages during training can be printed by setting `log_level` (`str` or `int`) to change the log level. Please refer to the `logging` package for more details. Besides, more thorough messages will show  when `verbose` is set as `1`.
 
 The following codes sets the log level to 'INFO':
 
