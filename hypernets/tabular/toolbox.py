@@ -5,10 +5,12 @@
 import copy
 import math
 from functools import partial
+
 import numpy as np
 import pandas as pd
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
+
 from hypernets.core import randint
 from hypernets.utils import logging, const
 from . import collinearity as collinearity_
@@ -25,6 +27,7 @@ from . import pseudo_labeling as pseudo_labeling_
 from . import sklearn_ex as sk_ex  # register customized transformer
 from ._base import ToolboxMeta, register_transformer
 from .cfg import TabularCfg as c
+from .persistence import ParquetPersistence
 
 try:
     import lightgbm
@@ -119,6 +122,10 @@ class ToolBox(metaclass=ToolboxMeta):
             df.reset_index(drop=True, inplace=True)
 
         return df
+
+    @staticmethod
+    def parquet():
+        return ParquetPersistence()
 
     @staticmethod
     def unique(y):

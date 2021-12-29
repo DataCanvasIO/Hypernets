@@ -14,6 +14,7 @@ from hypernets.utils import const, logging
 from . import _data_cleaner
 from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
 from . import _estimator_detector
+from . import _persistence
 from . import _pseudo_labeling
 from .. import sklearn_ex as sk_ex
 from ..toolbox import ToolBox, register_transformer, randint
@@ -129,6 +130,10 @@ class CumlToolBox(ToolBox):
             }
         df = ToolBox.load_data(data_path, reset_index=reset_index, reader_mapping=reader_mapping, **kwargs)
         return df
+
+    @staticmethod
+    def parquet():
+        return _persistence.CumlParquetPersistence()
 
     @staticmethod
     def unique(y):
