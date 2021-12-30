@@ -24,6 +24,8 @@ jobs:
             python-version: 3.6
             ft-version: 0.23
             dask-version: 2021.1.1
+          - ft-version: 1.2
+            dask-version: 2021.10
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
