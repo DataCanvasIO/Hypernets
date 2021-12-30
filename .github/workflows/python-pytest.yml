@@ -25,6 +25,15 @@ jobs:
             ft-version: 0.23
             dask-version: 2021.1.1
           - os: ubuntu-latest
+            python-version: 3.7
+            ft-version: 1.2
+            dask-version: 2021.10
+          - os: ubuntu-latest
+            python-version: 3.8
+            ft-version: 1.2
+            dask-version: 2021.10
+          - os: windows-latest
+            python-version: 3.8
             ft-version: 1.2
             dask-version: 2021.10
     steps:
