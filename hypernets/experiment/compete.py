@@ -1266,7 +1266,6 @@ class DaskPseudoLabelStep(PseudoLabelStep):
                 and tb.exist_dask_object(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)):
             return super().merge_pseudo_label(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs)
 
-        tb = get_tool_box(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)
         if self.resplit:
             x_list = [X_train, X_pseudo]
             y_list = [y_train, y_pseudo]
@@ -1629,7 +1628,16 @@ class CompeteExperiment(SteppedExperiment):
             scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric,
                                                   task=task, pos_label=kwargs.get('pos_label'))
 
+        if collinearity_detection:
+            try:
+                tb.collinearity_detector()
+            except NotImplementedError:
+                raise NotImplementedError('collinearity_detection is not supported for your data')
+
         if feature_generation:
+            if 'FeatureGenerationTransformer' not in tb.transformers.keys():
+                raise NotImplementedError('feature_generation is not supported for your data')
+
             if data_cleaner_args is None:
                 data_cleaner_args = {}
             cs = tb.column_selector
