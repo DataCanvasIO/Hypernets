@@ -549,7 +549,7 @@ class ToolBox(metaclass=ToolboxMeta):
     # reused modules
     # drift_detection = drift_detection_
     # feature_importance = feature_importance_
-    feature_generators = feature_generators_
+    # feature_generators = feature_generators_
     column_selector = column_selector_
     metrics = metrics_.Metrics
 

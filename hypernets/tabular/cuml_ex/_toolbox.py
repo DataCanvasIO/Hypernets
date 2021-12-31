@@ -559,6 +559,10 @@ class CumlToolBox(ToolBox):
     _pseudo_labeling_cls = _pseudo_labeling.CumlPseudoLabeling
     _greedy_ensemble_cls = _ensemble.CumlGreedyEnsemble
 
+    @classmethod
+    def collinearity_detector(cls):
+        raise NotImplementedError('collinearity_detector is not implemented with cuml.')
+
 
 _predefined_transformers = dict(
     PassThroughEstimator=sk_ex.PassThroughEstimator,
