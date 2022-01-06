@@ -21,11 +21,15 @@ _KIND_LIST = 'list'
 _KIND_NONE = 'none'
 
 
+class SkipCache(Exception):
+    pass
+
+
 class CacheCallback:
     def on_enter(self, fn, *args, **kwargs):
         """
         is fired before checking cache.
-        raise Exception to skip load cache
+        raise Exception to disable cache
         """
         pass
 
@@ -53,7 +57,7 @@ class CacheCallback:
 
 def cache(strategy=None, arg_keys=None, attr_keys=None, attrs_to_restore=None, transformer=None,
           callbacks=None, cache_dir=None):
-    assert strategy in [_STRATEGY_TRANSFORM, _STRATEGY_TRANSFORM, None]
+    assert strategy in [_STRATEGY_TRANSFORM, _STRATEGY_DATA, None]
     assert isinstance(arg_keys, (tuple, list, str, type(None)))
     assert isinstance(attr_keys, (tuple, list, str, type(None)))
     assert isinstance(attrs_to_restore, (tuple, list, str, type(None)))
@@ -165,7 +169,7 @@ def decorate(fn, *, cache_dir, strategy,
                     for k in attrs_to_restore:
                         setattr(obj, k, cached_attributes.get(k))
 
-                if meta['strategy'] == 'data':
+                if meta['strategy'] == _STRATEGY_DATA:
                     result = cached_data
                 else:  # strategy==transform
                     if isinstance(transformer, str):
@@ -176,6 +180,8 @@ def decorate(fn, *, cache_dir, strategy,
                         result = transformer(*args, **kwargs)
 
                 loaded = True
+        except SkipCache:
+            pass
         except Exception as e:
             logger.warning(e)
 
@@ -189,12 +195,12 @@ def decorate(fn, *, cache_dir, strategy,
 
                 # store cache
                 cache_strategy = strategy if strategy is not None else cfg.cache_strategy
-                if cache_strategy == 'transform' and (result is None or transformer is not None):
+                if cache_strategy == _STRATEGY_TRANSFORM and (result is None or transformer is not None):
                     cache_data = None
-                    meta = {'strategy': 'transform'}
+                    meta = {'strategy': _STRATEGY_TRANSFORM}
                 else:
                     cache_data = result
-                    meta = {'strategy': 'data'}
+                    meta = {'strategy': _STRATEGY_DATA}
 
                 if attrs_to_restore is not None:
                     meta['attributes'] = {k: getattr(obj, k, None) for k in attrs_to_restore}
