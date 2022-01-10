@@ -208,6 +208,11 @@ class DataFrameMapper(BaseEstimator):
                 input_df = options.get('input_df', self.input_df)
                 with context(columns):
                     Xt = self._get_col_subset(X, columns, input_df)
+                    if logger.is_debug_enabled():
+                        msg = f'fit {type(transformers).__name__}, X shape:{X.shape}'
+                        if hasattr(transformers, 'steps'):
+                            msg += f", steps:{[s[0] for s in transformers.steps]}"
+                        logger.debug(msg)
                     _call_fit(transformers.fit, Xt, y)
                     # print(f'{transformers}:{Xt.dtypes}')
 
@@ -240,6 +245,11 @@ class DataFrameMapper(BaseEstimator):
             Xt = self._get_col_subset(X, columns, input_df)
             if transformers is not None:
                 with context(columns):
+                    if logger.is_debug_enabled():
+                        msg = f'transform {type(transformers).__name__}, X shape:{X.shape}'
+                        if hasattr(transformers, 'steps'):
+                            msg += f", steps:{[s[0] for s in transformers.steps]}"
+                        logger.debug(msg)
                     # print(f'before ---- {transformers}:{Xt.dtypes}')
                     Xt = transformers.transform(Xt)
                     # print(f'after ---- {transformers}:{pd.DataFrame(Xt).dtypes}')
@@ -280,6 +290,11 @@ class DataFrameMapper(BaseEstimator):
             Xt = self._get_col_subset(X, columns, input_df)
             if transformers is not None:
                 with context(columns):
+                    if logger.is_debug_enabled():
+                        msg = f'fit_transform {type(transformers).__name__}, X shape:{X.shape}'
+                        if hasattr(transformers, 'steps'):
+                            msg += f", steps:{[s[0] for s in transformers.steps]}"
+                        logger.debug(msg)
                     if hasattr(transformers, 'fit_transform'):
                         Xt = _call_fit(transformers.fit_transform, Xt, y)
                     else:
