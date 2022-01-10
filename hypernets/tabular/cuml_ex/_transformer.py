@@ -110,14 +110,10 @@ class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
 
 @tb_transformer(cudf.DataFrame, name='SimpleImputer')
 class LocalizableSimpleImputer(SimpleImputer, Localizable):
-    def fit(self, X, y=None):
-        self.feature_names_in_ = X.columns.tolist() if isinstance(X, (cudf.DataFrame, pd.DataFrame)) else None
-        return super().fit(X, y)
-
     def as_local(self):
         target = sk_imp.SimpleImputer(missing_values=self.missing_values, strategy=self.strategy,
                                       fill_value=self.fill_value, copy=self.copy, add_indicator=self.add_indicator)
-        copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_')  # 'indicator_', )
+        copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_', 'n_features_in_')  # 'indicator_', )
 
         ss = target.statistics_
         if isinstance(ss, (list, tuple)) and isinstance(ss[0], np.ndarray):
@@ -154,8 +150,44 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
                                        self.n_features_in_)
                 )
 
+    def fit(self, X, y=None):
+        self.feature_names_in_ = X.columns.tolist() if isinstance(X, (cudf.DataFrame, pd.DataFrame)) else None
+
+        if not isinstance(X, cudf.DataFrame):
+            return super().fit(X, y)
+
+        num_kinds = {'i', 'u', 'f'}
+
+        if self.strategy == 'constant':
+            if self.fill_value is not None:
+                stat = np.full(X.shape[1], self.fill_value)
+            else:
+                stat = np.array([0 if d.kind in num_kinds else 'missing_value' for d in X.dtypes])
+        elif self.strategy == 'most_frequent':
+            mode = X.mode(dropna=True, axis=0)
+            stat = mode.iloc[0].to_pandas().values
+        elif self.strategy == 'mean':
+            assert all(d.kind in num_kinds for d in X.dtypes), f'only numeric type support strategy {self.strategy}'
+            stat = X.mean(axis=0, skipna=True).to_pandas().values
+        elif self.strategy == 'median':
+            assert all(d.kind in num_kinds for d in X.dtypes), f'only numeric type support strategy {self.strategy}'
+            stat = X.median(axis=0, skipna=True).to_pandas().values
+        else:
+            raise ValueError(f'Unsupported strategy: {self.strategy}')
+
+        self.n_features_in_ = X.shape[1]
+        self.statistics_ = stat
+
+        return self
+
     def transform(self, X):
-        Xt = super().transform(X)
+        if isinstance(X, cudf.DataFrame):
+            assert self.feature_names_in_ is not None and X.columns.tolist() == self.feature_names_in_
+            value = {c: v for c, v in zip(self.feature_names_in_, self.statistics_)}
+            Xt = X.fillna(value)
+        else:
+            Xt = super().transform(X)
+
         if isinstance(Xt, cudf.Series):
             Xt = Xt.to_frame()
         elif isinstance(Xt, CumlArray):

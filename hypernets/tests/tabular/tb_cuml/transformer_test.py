@@ -36,9 +36,12 @@ def check_dataframe(df1, df2, *, shape=True, columns=True, dtypes=True, values=T
         assert all(df1.columns == df2.columns), 'The same column names were required.'
 
     if dtypes:
-        assert all(df1.dtypes == df2.dtypes), 'The same column dtypes were required.'
+        assert df1.dtypes.tolist() == df2.dtypes.tolist(), 'The same column dtypes were required.'
 
     if values:
+        if not columns:
+            df2.columns = df1.columns
+
         float_cols = df1.select_dtypes(['float32', 'float64']).columns.tolist()
         if float_cols:
             df1_float = df1[float_cols]
@@ -141,15 +144,18 @@ class TestCumlTransformer:
 
     def test_impute_number_mean(self):
         tf = CumlToolBox.transformers['SimpleImputer'](strategy='mean')
-        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number,
+                                  dtype='float64', check_options=dict(columns=False), )
 
     def test_impute_number_median(self):
         tf = CumlToolBox.transformers['SimpleImputer'](strategy='median')
-        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number,
+                                  dtype='float64', check_options=dict(columns=False), )
 
     def test_impute_number_most_frequent(self):
         tf = CumlToolBox.transformers['SimpleImputer'](strategy='most_frequent')
-        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number,
+                                  dtype='float64', check_options=dict(columns=False), )
 
     def test_impute_number_constant(self):
         tf = CumlToolBox.transformers['SimpleImputer'](strategy='constant', fill_value=99.99)
