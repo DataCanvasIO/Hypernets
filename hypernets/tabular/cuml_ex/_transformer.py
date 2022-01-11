@@ -17,6 +17,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular import sklearn_ex as sk_ex
+from hypernets.utils import get_params
 from .. import tb_transformer
 
 
@@ -54,6 +55,16 @@ def copy_attrs_as_local(tf, target, *attrs):
 
 def as_local_if_possible(tf):
     return tf.as_local() if hasattr(tf, 'as_local') else tf
+
+
+def _repr(tf):
+    params = get_params(tf)
+    params.pop('handle', None)
+    params.pop('output_type', None)
+    params.pop('verbose', None)
+
+    params = ', '.join(f'{k}={v}' for k, v in params.items())
+    return f'{tf.__class__.__name__}({params})'
 
 
 @tb_transformer(cudf.DataFrame, name='Pipeline')
@@ -106,6 +117,9 @@ class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
         copy_attrs_as_local(self, target, 'components_', 'explained_variance_',
                             'explained_variance_ratio_', 'singular_values_')
         return target
+
+    def __repr__(self):
+        return _repr(self)
 
 
 @tb_transformer(cudf.DataFrame, name='SimpleImputer')
@@ -194,6 +208,9 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
             Xt = cupy.array(Xt)
         return Xt
 
+    def __repr__(self):
+        return _repr(self)
+
 
 @tb_transformer(cudf.DataFrame)
 class ConstantImputer(BaseEstimator, TransformerMixin, Localizable):
@@ -224,6 +241,9 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
                                       dtype=self.dtype, handle_unknown=self.handle_unknown)
         copy_attrs_as_local(self, target, 'categories_', 'drop_idx_')
         return target
+
+    def __repr__(self):
+        return _repr(self)
 
 
 @tb_transformer(cudf.DataFrame, name='TfidfVectorizer')
@@ -264,6 +284,9 @@ class LocalizableTfidfVectorizer(TfidfVectorizer, Localizable):
             idf = idf[0]
         target.idf_ = CumlToolBox.to_local(idf)[0]
         return target
+
+    def __repr__(self):
+        return _repr(self)
 
 
 @tb_transformer(cudf.DataFrame)
