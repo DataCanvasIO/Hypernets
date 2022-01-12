@@ -50,6 +50,8 @@ try:
             le = LabelEncoder()
             y = le.fit_transform(y)
             le.classes_, = CumlToolBox.to_local(le.classes_)
+            if 'eval_metric' not in kwargs.keys():
+                kwargs['eval_metric'] = 'logloss' if len(le.classes_) == 2 else 'mlogloss'
             super().fit(X, y, **kwargs)
             self.y_encoder_ = le
             return self
