@@ -159,7 +159,8 @@ class TestCumlTransformer:
 
     def test_impute_number_constant(self):
         tf = CumlToolBox.transformers['SimpleImputer'](strategy='constant', fill_value=99.99)
-        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number)
+        self.fit_reload_transform(tf, column_selector=CumlToolBox.column_selector.column_number,
+                                  dtype='float64', check_options=dict(columns=False), )
 
     def test_impute_object_constant(self):
         tf = CumlToolBox.transformers['ConstantImputer'](fill_value='<filled>')

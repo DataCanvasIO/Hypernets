@@ -447,6 +447,10 @@ class CumlToolBox(ToolBox):
                     r = fn_fix(r)
             return r
 
+        if hasattr(estimator, 'as_local'):
+            estimator = estimator.as_local()
+            return estimator
+
         estimator = copy.copy(estimator)
         if hasattr(estimator, 'predict_proba'):
             orig_predict_proba = estimator.predict_proba
