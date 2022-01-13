@@ -330,7 +330,7 @@ def load_batch(batch_spec_dict, batches_data_dir):
     batch_name = batch_spec_dict['name']
     jobs_dict = batch_spec_dict['jobs']
 
-    default_daemon_conf = {"host": "localhost",  "port": 8060, "exit_on_finish": False}
+    default_daemon_conf = consts.default_daemon_conf()
     user_daemon_conf = batch_spec_dict.get('daemon')
     if user_daemon_conf is not None:
         default_daemon_conf.update(user_daemon_conf)

@@ -183,7 +183,7 @@ def test_run_local():
         "name": batch_name,
         "daemon": {
             "port": 8061,
-            "exit_on_finish": False
+            "exit_on_finish": True
         },
         "version": 2.5
     }
