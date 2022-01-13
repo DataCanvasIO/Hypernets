@@ -2,8 +2,9 @@
 """
 
 """
+import copy
 from functools import partial
-
+import inspect
 import cudf
 import cupy
 import numpy as np
@@ -311,35 +312,43 @@ class CumlToolBox(ToolBox):
     @staticmethod
     def permutation_importance(estimator, X, y, *args, scoring=None, n_repeats=5,
                                n_jobs=None, random_state=None):
-        if not CumlToolBox.is_cuml_object(X):
-            return ToolBox.permutation_importance(estimator, X, y, *args,
-                                                  scoring=scoring,
-                                                  n_repeats=n_repeats,
-                                                  n_jobs=n_jobs,
-                                                  random_state=random_state)
-        from sklearn import utils as sk_utils
-        from sklearn.metrics import check_scoring
-        scorer = check_scoring(CumlToolBox.wrap_for_local_scorer(estimator, CumlToolBox.infer_task_type(y)), scoring)
-        y, = CumlToolBox.to_local(y)
-        baseline_score = scorer(estimator, X, y)
-        scores = []
+        # if not CumlToolBox.is_cuml_object(X):
+        #     return ToolBox.permutation_importance(estimator, X, y, *args,
+        #                                           scoring=scoring,
+        #                                           n_repeats=n_repeats,
+        #                                           n_jobs=n_jobs,
+        #                                           random_state=random_state)
+        # from sklearn import utils as sk_utils
+        # from sklearn.metrics import check_scoring
+        # scorer = check_scoring(CumlToolBox.wrap_for_local_scorer(estimator, CumlToolBox.infer_task_type(y)), scoring)
+        # y, = CumlToolBox.to_local(y)
+        # baseline_score = scorer(estimator, X, y)
+        # scores = []
+        #
+        # X = X.reset_index(drop=True)
+        # for c in X.columns:
+        #     col_scores = []
+        #     X_permuted = X.copy()
+        #     for i in range(n_repeats):
+        #         rnd = random_state.randint(1, 65535) if hasattr(random_state, 'randint') else randint()
+        #         X_permuted[c] = X[c].sample(n=X.shape[0], random_state=rnd).reset_index(drop=True)
+        #         col_scores.append(scorer(estimator, X_permuted, y))
+        #     if logger.is_debug_enabled():
+        #         logger.debug(f'permuted scores [{c}]: {col_scores}')
+        #     scores.append(col_scores)
+        #
+        # importances = baseline_score - np.array(scores)
+        # return sk_utils.Bunch(importances_mean=np.mean(importances, axis=1),
+        #                       importances_std=np.std(importances, axis=1),
+        #                       importances=importances)
 
-        X = X.reset_index(drop=True)
-        for c in X.columns:
-            col_scores = []
-            X_permuted = X.copy()
-            for i in range(n_repeats):
-                rnd = random_state.randint(1, 65535) if hasattr(random_state, 'randint') else randint()
-                X_permuted[c] = X[c].sample(n=X.shape[0], random_state=rnd).reset_index(drop=True)
-                col_scores.append(scorer(estimator, X_permuted, y))
-            if logger.is_debug_enabled():
-                logger.debug(f'permuted scores [{c}]: {col_scores}')
-            scores.append(col_scores)
-
-        importances = baseline_score - np.array(scores)
-        return sk_utils.Bunch(importances_mean=np.mean(importances, axis=1),
-                              importances_std=np.std(importances, axis=1),
-                              importances=importances)
+        estimator = CumlToolBox.wrap_for_local_scorer(estimator, CumlToolBox.infer_task_type(y))
+        X, y = CumlToolBox.to_local(X, y)
+        return ToolBox.permutation_importance(estimator, X, y, *args,
+                                              scoring=scoring,
+                                              n_repeats=n_repeats,
+                                              n_jobs=n_jobs,
+                                              random_state=random_state)
 
     @staticmethod
     def compute_class_weight(class_weight, *, classes, y):
@@ -427,6 +436,10 @@ class CumlToolBox(ToolBox):
     @staticmethod
     def wrap_for_local_scorer(estimator, target_type):
         def _call_with_local(fn_call, fn_fix, *args, **kwargs):
+            params = inspect.signature(fn_call).parameters.keys()
+            if 'to_local' in params:
+                kwargs['to_local'] = True
+
             r = fn_call(*args, **kwargs)
             if CumlToolBox.is_cuml_object(r):
                 r, = CumlToolBox.to_local(r)
@@ -434,6 +447,7 @@ class CumlToolBox(ToolBox):
                     r = fn_fix(r)
             return r
 
+        estimator = copy.copy(estimator)
         if hasattr(estimator, 'predict_proba'):
             orig_predict_proba = estimator.predict_proba
             fix = CumlToolBox.fix_binary_predict_proba_result if target_type == const.TASK_BINARY else None
@@ -500,12 +514,6 @@ class CumlToolBox(ToolBox):
             return preprocessor
         else:
             return ToolBox.general_preprocessor(X, y)
-
-    # @classmethod
-    # def general_estimator(cls, X, y=None, estimator=None, task=None):
-    #     est = ToolBox.general_estimator(X, y, estimator=estimator, task=task)
-    #
-    #     return cls.wrap_local_estimator(est)
 
     @classmethod
     def general_estimator(cls, X, y=None, estimator=None, task=None):

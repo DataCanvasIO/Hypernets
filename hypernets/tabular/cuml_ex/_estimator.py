@@ -57,6 +57,7 @@ try:
 
             if 'eval_metric' not in kwargs.keys():
                 kwargs['eval_metric'] = 'logloss' if len(classes) == 2 else 'mlogloss'
+
             super().fit(X, y, **kwargs)
             self.y_encoder_ = le
             return self
@@ -86,18 +87,27 @@ try:
 
         def __getattribute__(self, name):
             if name == 'classes_':
-                le = getattr(self, 'y_encoder_', None)
-                if le is not None:
-                    return le.classes_
+                try:
+                    le = getattr(self, 'y_encoder_')
+                    if le is not None:
+                        return le.classes_
+                    else:
+                        from .. import CumlToolBox
+                        classes_ = super().__getattribute__(name)
+                        return CumlToolBox.to_local(classes_)[0]
+                except:
+                    pass  # no attribute 'y_encoder_', not fitted in other words
 
             return super().__getattribute__(name)
 
 
     class AdaptedXGBRegressor(xgboost.XGBRegressor):
-        def predict(self, X, **kwargs):
+        def predict(self, X, to_local=False, **kwargs):
             from .. import CumlToolBox
             pred = super().predict(X, **kwargs)
-            pred, = CumlToolBox.from_local(pred, enable_cuml_array=False)
+
+            if not to_local:
+                pred, = CumlToolBox.from_local(pred, enable_cuml_array=False)
             return pred
 
 except ImportError:

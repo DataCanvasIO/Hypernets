@@ -448,8 +448,10 @@ class ToolBox(metaclass=ToolboxMeta):
             frac = c.permutation_importance_sample_limit / X_shape[0]
             X, _, y, _ = cls.train_test_split(X, y, train_size=frac, random_state=random_state)
 
-        if n_jobs is None:
-            n_jobs = c.joblib_njobs
+        # if n_jobs is None:
+        #     n_jobs = c.joblib_njobs
+        if isinstance(n_jobs, int) and n_jobs <= 0:
+            n_jobs = None  # higher performance than -1
 
         for i, est in enumerate(estimators):
             if logger.is_info_enabled():
