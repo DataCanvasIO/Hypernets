@@ -77,6 +77,17 @@ def _get_fit_kwargs(estimator, *, X_eval, y_eval, early_stopping_rounds=20, verb
     return kwargs
 
 
+def _detect_options(estimator, method, **kwargs):
+    r = {}
+    params = inspect.signature(getattr(estimator, method)).parameters.keys()
+
+    for k, v in kwargs.items():
+        if k in params:
+            r[k] = v
+
+    return r
+
+
 class DriftDetector:
     def __init__(self, preprocessor=None, estimator=None, random_state=None):
         self.preprocessor = preprocessor
@@ -151,7 +162,8 @@ class DriftDetector:
             #     kwargs['verbose'] = 0
             kwargs = _get_fit_kwargs(estimator, X_eval=x_val_fold, y_eval=y_val_fold)
             estimator.fit(x_train_fold, y_train_fold, **kwargs)
-            proba = estimator.predict_proba(x_val_fold)[:, 1]
+            kwargs = _detect_options(estimator, 'predict_proba', to_local=True, verbose=False)
+            proba = estimator.predict_proba(x_val_fold, **kwargs)[:, 1]
             y_val_fold, proba = tb.to_local(y_val_fold, proba)
             auc = roc_auc_score(y_val_fold, proba)
             logger.info(f'auc: {auc}')

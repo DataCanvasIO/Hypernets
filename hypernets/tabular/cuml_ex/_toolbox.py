@@ -512,10 +512,11 @@ class CumlToolBox(ToolBox):
         def default_xgb(task_):
             from ._estimator import AdaptedXGBClassifier, AdaptedXGBRegressor
             options = dict(n_estimators=100,
-                           num_leaves=15,
+                           tree_method='gpu_hist',
+                           # num_leaves=15,
                            max_depth=5,
                            min_child_weight=5,
-                           learning_rate=0.01,
+                           learning_rate=0.1,
                            gamma=1,
                            reg_alpha=1,
                            reg_lambda=1,
