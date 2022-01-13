@@ -18,11 +18,14 @@ from sklearn.utils.multiclass import type_of_target
 
 from hypernets.tabular import ToolBox, register_transformer
 from hypernets.utils import logging, const, is_os_linux
-from . import _dataframe_mapper as dataframe_mapper_
-from . import _transformers as tfs
-from . import _feature_generators as feature_generators_
+from . import _collinearity, _drift_detection, _pseudo_labeling, _model_selection, _ensemble
 from . import _data_cleaner
-from . import _metrics, _collinearity, _drift_detection, _pseudo_labeling, _data_hasher, _model_selection, _ensemble
+from . import _data_hasher
+from . import _dataframe_mapper
+from . import _feature_generators
+from . import _metrics
+from . import _persistence
+from . import _transformers as tfs
 from .. import sklearn_ex as sk_ex
 
 try:
@@ -204,6 +207,10 @@ class DaskToolBox(ToolBox):
         else:
             uniques = ToolBox.unique(y)
         return uniques
+
+    @staticmethod
+    def parquet():
+        return _persistence.DaskParquetPersistence()
 
     # @staticmethod
     # def unique_array(ar, return_index=False, return_inverse=False, return_counts=False, axis=None):
@@ -646,10 +653,10 @@ class DaskToolBox(ToolBox):
         return estimator
 
     @staticmethod
-    def permutation_importance(estimator, X, y, *args, scoring=None, n_repeats=5,
+    def permutation_importance(estimator, X, y, *, scoring=None, n_repeats=5,
                                n_jobs=None, random_state=None):
         if not DaskToolBox.is_dask_dataframe(X):
-            return sk_inspect.permutation_importance(estimator, X, y, *args,
+            return sk_inspect.permutation_importance(estimator, X, y,
                                                      scoring=scoring,
                                                      n_repeats=n_repeats,
                                                      n_jobs=n_jobs,
@@ -760,7 +767,7 @@ _predefined_transformers = dict(
     QuantileTransformer=dm_pre.QuantileTransformer,
     # PowerTransformer=sk_pre.PowerTransformer,
     PCA=dm_dec.PCA,
-    DataFrameMapper=dataframe_mapper_.DaskDataFrameMapper,
+    DataFrameMapper=_dataframe_mapper.DaskDataFrameMapper,
     PassThroughEstimator=sk_ex.PassThroughEstimator,
 
     AsTypeTransformer=sk_ex.AsTypeTransformer,
@@ -769,7 +776,7 @@ _predefined_transformers = dict(
     # SkewnessKurtosisTransformer=sk_ex.SkewnessKurtosisTransformer,
     # FeatureSelectionTransformer=sk_ex.FeatureSelectionTransformer,
     # FloatOutputImputer=tfs.FloatOutputImputer,
-    DataFrameWrapper=dataframe_mapper_.DaskDataFrameMapper,
+    # DataFrameWrapper=,
     # GaussRankScaler=sk_ex.GaussRankScaler,
     # VarLenFeatureEncoder=tfs.VarLenFeatureEncoder,
 
@@ -786,7 +793,7 @@ _predefined_transformers = dict(
 
     # TfidfEncoder=sk_ex.TfidfEncoder,
     # DatetimeEncoder=sk_ex.DatetimeEncoder,
-    FeatureGenerationTransformer=feature_generators_.DaskFeatureGenerationTransformer,
+    FeatureGenerationTransformer=_feature_generators.DaskFeatureGenerationTransformer,
 )
 
 for name, tf in _predefined_transformers.items():

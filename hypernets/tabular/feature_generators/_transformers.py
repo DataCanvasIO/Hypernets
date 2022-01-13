@@ -3,11 +3,13 @@ import re
 import featuretools as ft
 import numpy as np
 import pandas as pd
-from featuretools import variable_types
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import BaseEstimator
 
-from hypernets.tabular.column_selector import column_all_datetime, column_number_exclude_timedelta
+from hypernets.tabular import get_tool_box
+from hypernets.tabular.column_selector import column_all_datetime, column_number_exclude_timedelta, \
+    column_category, column_bool
 from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
+from . import _base
 from ._primitives import CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive
 
 _named_primitives = [CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive]
@@ -38,7 +40,7 @@ def _fix_feature_name(s):
     return s
 
 
-class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
+class FeatureGenerationTransformer(BaseEstimator):
     ft_index = 'e_hypernets_ft_index'
 
     def __init__(self, task=None, trans_primitives=None,
@@ -52,7 +54,9 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
                  max_features=-1,
                  drop_cols=None,
                  feature_selection_args=None,
-                 fix_feature_names=True):
+                 fix_feature_names=True,
+                 categorical_as_object=True,
+                 bool_as_int=True):
         """
 
         Args:
@@ -82,6 +86,8 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         self.drop_cols = drop_cols
         self.feature_selection_args = feature_selection_args
         self.fix_feature_names = fix_feature_names
+        self.categorical_as_object = categorical_as_object
+        self.bool_as_int = bool_as_int
 
         # fitted
         self.original_cols = []
@@ -91,7 +97,7 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         self.transformed_feature_names_ = None
         self.feature_defs_names_ = None
 
-    def fit(self, X, y=None, **kwargs):
+    def fit(self, X, y=None, *, reserve_index=False, **kwargs):
         original_cols = X.columns.to_list()
 
         if self.feature_selection_args is not None:
@@ -123,17 +129,33 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         es = ft.EntitySet(id='es_hypernets_fit')
         make_index = self.ft_index not in original_cols
         feature_type_dict = self._get_feature_types(X)
-        es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
-                                 make_index=make_index, index=self.ft_index)
-        feature_matrix, feature_defs = ft.dfs(entityset=es, target_entity="e_hypernets_ft",
-                                              ignore_variables={"e_hypernets_ft": []},
-                                              return_variable_types="all",
-                                              trans_primitives=trans_primitives,
-                                              drop_exact=self.drop_cols,
-                                              max_depth=self.max_depth,
-                                              max_features=self.max_features,
-                                              features_only=False)
-        X.pop(self.ft_index)
+
+        if _base.FT_V0:
+            es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
+                                     make_index=make_index, index=self.ft_index)
+            feature_matrix, feature_defs = ft.dfs(entityset=es, target_entity="e_hypernets_ft",
+                                                  ignore_variables={"e_hypernets_ft": []},
+                                                  return_variable_types="all",
+                                                  trans_primitives=trans_primitives,
+                                                  drop_exact=self.drop_cols,
+                                                  max_depth=self.max_depth,
+                                                  max_features=self.max_features,
+                                                  features_only=False)
+        else:
+            es.add_dataframe(dataframe=X, dataframe_name='e_hypernets_ft',
+                             index=self.ft_index,
+                             make_index=make_index, logical_types=feature_type_dict)
+            feature_matrix, feature_defs = ft.dfs(entityset=es, target_dataframe_name="e_hypernets_ft",
+                                                  ignore_columns={"e_hypernets_ft": []},
+                                                  return_types="all",
+                                                  trans_primitives=trans_primitives,
+                                                  drop_exact=self.drop_cols,
+                                                  max_depth=self.max_depth,
+                                                  max_features=self.max_features,
+                                                  features_only=False)
+
+        if make_index and not reserve_index:
+            X.pop(self.ft_index)
 
         self.feature_defs_ = feature_defs
         self.original_cols = original_cols
@@ -162,18 +184,50 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
         es = ft.EntitySet(id='es_hypernets_transform')
         feature_type_dict = self._get_feature_types(X)
         make_index = self.ft_index not in X.columns.to_list()
-        es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
-                                 make_index=make_index, index=self.ft_index)
+
+        if _base.FT_V0:
+            es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
+                                     make_index=make_index, index=self.ft_index)
+        else:
+            if make_index:
+                tb = get_tool_box(X)
+                X = tb.reset_index(X)
+                X[self.ft_index] = X.index
+            es.add_dataframe(dataframe=X, dataframe_name='e_hypernets_ft',
+                             index=self.ft_index, make_index=False, logical_types=feature_type_dict)
+
         Xt = ft.calculate_feature_matrix(self.feature_defs_, entityset=es, n_jobs=1, verbose=False)
         if make_index:
             X.pop(self.ft_index)
             if self.ft_index in Xt.columns.to_list():
                 Xt.pop(self.ft_index)
+
+        if self.categorical_as_object:
+            cat_cols = column_category(Xt)
+            if cat_cols:
+                Xt[cat_cols] = Xt[cat_cols].astype('object')
+        if self.bool_as_int:
+            bool_cols = column_bool(Xt)
+            if bool_cols:
+                Xt[bool_cols] = Xt[bool_cols].astype('int')
         Xt = Xt.replace([np.inf, -np.inf], np.nan)
 
         if self.fix_feature_names:
             Xt = self._fix_transformed_feature_names(Xt)
 
+        return Xt
+
+    def fit_transform(self, X, y=None, **fit_params):
+        make_index = self.ft_index not in X.columns.to_list()
+
+        self.fit(X, y, reserve_index=True, **fit_params)
+        Xt = self.transform(X)
+
+        if make_index:
+            if self.ft_index in X.columns.to_list():
+                X.pop(self.ft_index)
+            if self.ft_index in Xt.columns.to_list():
+                Xt.pop(self.ft_index)
         return Xt
 
     @staticmethod
@@ -267,11 +321,11 @@ class FeatureGenerationTransformer(BaseEstimator, TransformerMixin):
                      + self.latlong_cols + self.text_cols
         unknown_cols = [c for c in original_cols if c not in known_cols]
         self._merge_dict(feature_types,
-                         {c: variable_types.Numeric for c in self.continuous_cols},
-                         {c: variable_types.Datetime for c in self.datetime_cols},
-                         {c: variable_types.LatLong for c in self.latlong_cols},
-                         {c: variable_types.NaturalLanguage for c in self.text_cols},
-                         {c: variable_types.Categorical for c in self.categories_cols},
-                         {c: variable_types.Unknown for c in unknown_cols},
+                         {c: _base.Numeric for c in self.continuous_cols},
+                         {c: _base.Datetime for c in self.datetime_cols},
+                         {c: _base.LatLong for c in self.latlong_cols},
+                         {c: _base.NaturalLanguage for c in self.text_cols},
+                         {c: _base.Categorical for c in self.categories_cols},
+                         {c: _base.Unknown for c in unknown_cols},
                          )
         return feature_types

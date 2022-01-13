@@ -5,10 +5,12 @@
 import copy
 import math
 from functools import partial
+
 import numpy as np
 import pandas as pd
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
+
 from hypernets.core import randint
 from hypernets.utils import logging, const
 from . import collinearity as collinearity_
@@ -25,6 +27,7 @@ from . import pseudo_labeling as pseudo_labeling_
 from . import sklearn_ex as sk_ex  # register customized transformer
 from ._base import ToolboxMeta, register_transformer
 from .cfg import TabularCfg as c
+from .persistence import ParquetPersistence
 
 try:
     import lightgbm
@@ -119,6 +122,10 @@ class ToolBox(metaclass=ToolboxMeta):
             df.reset_index(drop=True, inplace=True)
 
         return df
+
+    @staticmethod
+    def parquet():
+        return ParquetPersistence()
 
     @staticmethod
     def unique(y):
@@ -441,8 +448,10 @@ class ToolBox(metaclass=ToolboxMeta):
             frac = c.permutation_importance_sample_limit / X_shape[0]
             X, _, y, _ = cls.train_test_split(X, y, train_size=frac, random_state=random_state)
 
-        if n_jobs is None:
-            n_jobs = c.joblib_njobs
+        # if n_jobs is None:
+        #     n_jobs = c.joblib_njobs
+        if isinstance(n_jobs, int) and n_jobs <= 0:
+            n_jobs = None  # higher performance than -1
 
         for i, est in enumerate(estimators):
             if logger.is_info_enabled():
@@ -542,7 +551,7 @@ class ToolBox(metaclass=ToolboxMeta):
     # reused modules
     # drift_detection = drift_detection_
     # feature_importance = feature_importance_
-    feature_generators = feature_generators_
+    # feature_generators = feature_generators_
     column_selector = column_selector_
     metrics = metrics_.Metrics
 

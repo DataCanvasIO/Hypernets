@@ -19,7 +19,7 @@ from hypernets.utils import logging
 logger = logging.getLogger(__name__)
 
 
-class Test_FeatureGeneratorWithDask:
+class TestFeatureGeneratorWithDask:
     @classmethod
     def setup_class(cls):
         setup_dask(cls)
@@ -29,14 +29,13 @@ class Test_FeatureGeneratorWithDask:
         df.drop(['id'], axis=1, inplace=True)
         ddf = dd.from_pandas(df.head(100), npartitions=2)
         tb = get_tool_box(ddf)
-        X_train, X_test = tb.train_test_split(ddf, test_size=0.2, random_state=42)
 
         ftt = tb.transformers['FeatureGenerationTransformer'](
             task='binary', trans_primitives=['cross_categorical'],
-            categories_cols=tb.column_selector.column_object_category_bool(X_train))
+            categories_cols=tb.column_selector.column_object_category_bool(ddf))
         preprocessor = tb.general_preprocessor(ddf)
         pipe = Pipeline(steps=[('feature_gen', ftt), ('processor', preprocessor)])
-        X_t = pipe.fit_transform(X_train)
+        X_t = pipe.fit_transform(ddf)
         X_t = X_t.compute()
         assert X_t.shape[1] == 62
 

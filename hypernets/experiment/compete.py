@@ -1066,14 +1066,21 @@ class EnsembleStep(EstimatorBuilderStep):
         self.scorer = scorer if scorer is not None else get_scorer('neg_log_loss')
         self.ensemble_size = ensemble_size
 
-    def build_estimator(self, hyper_model, X_train, y_train, X_eval=None, y_eval=None, **kwargs):
+    def select_trials(self, hyper_model):
+        """
+        select trails to ensemble from hyper_model (and it's history)
+        """
         best_trials = hyper_model.get_top_trials(self.ensemble_size)
-        estimators = [hyper_model.load_estimator(trial.model_file) for trial in best_trials]
+        return best_trials
+
+    def build_estimator(self, hyper_model, X_train, y_train, X_eval=None, y_eval=None, **kwargs):
+        trials = self.select_trials(hyper_model)
+        estimators = [hyper_model.load_estimator(trial.model_file) for trial in trials]
         ensemble = self.get_ensemble(estimators, X_train, y_train)
 
-        if all(['oof' in trial.memo.keys() for trial in best_trials]):
+        if all(['oof' in trial.memo.keys() for trial in trials]):
             logger.info('ensemble with oofs')
-            oofs = self.get_ensemble_predictions(best_trials, ensemble)
+            oofs = self.get_ensemble_predictions(trials, ensemble)
             assert oofs is not None
             if hasattr(oofs, 'shape'):
                 tb = get_tool_box(y_train, oofs)
@@ -1259,7 +1266,6 @@ class DaskPseudoLabelStep(PseudoLabelStep):
                 and tb.exist_dask_object(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)):
             return super().merge_pseudo_label(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo, **kwargs)
 
-        tb = get_tool_box(X_train, y_train, X_eval, y_eval, X_pseudo, y_pseudo)
         if self.resplit:
             x_list = [X_train, X_pseudo]
             y_list = [y_train, y_pseudo]
@@ -1622,19 +1628,16 @@ class CompeteExperiment(SteppedExperiment):
             scorer = tb.metrics.metric_to_scoring(hyper_model.reward_metric,
                                                   task=task, pos_label=kwargs.get('pos_label'))
 
-        steps = []
-        two_stage = False
-        if hasattr(tb, 'exist_dask_object'):
-            enable_dask = tb.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval)
-        else:
-            enable_dask = False
-
-        if enable_dask:
-            ensemble_cls, pseudo_cls = DaskEnsembleStep, DaskPseudoLabelStep
-        else:
-            ensemble_cls, pseudo_cls = EnsembleStep, PseudoLabelStep
+        if collinearity_detection:
+            try:
+                tb.collinearity_detector()
+            except NotImplementedError:
+                raise NotImplementedError('collinearity_detection is not supported for your data')
 
         if feature_generation:
+            if 'FeatureGenerationTransformer' not in tb.transformers.keys():
+                raise NotImplementedError('feature_generation is not supported for your data')
+
             if data_cleaner_args is None:
                 data_cleaner_args = {}
             cs = tb.column_selector
@@ -1658,100 +1661,116 @@ class CompeteExperiment(SteppedExperiment):
                     reserve_columns += list(cols)
             data_cleaner_args['reserve_columns'] = reserve_columns
 
+        #
+        steps = []
+        two_stage = False
+        creators = self.get_creators(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
+                                     down_sample_search=down_sample_search)
+
         # data clean
-        steps.append(DataCleanStep(self, StepNames.DATA_CLEAN,
-                                   data_cleaner_args=data_cleaner_args, cv=cv,
-                                   train_test_split_strategy=train_test_split_strategy))
+        creator = creators[StepNames.DATA_CLEAN]
+        steps.append(creator(self, StepNames.DATA_CLEAN,
+                             data_cleaner_args=data_cleaner_args, cv=cv,
+                             train_test_split_strategy=train_test_split_strategy))
 
         # feature generation
         if feature_generation:
-            steps.append(FeatureGenerationStep(
-                self, StepNames.FEATURE_GENERATION,
-                trans_primitives=feature_generation_trans_primitives,
-                max_depth=feature_generation_max_depth,
-                continuous_cols=feature_generation_continuous_cols,
-                datetime_cols=feature_generation_datetime_cols,
-                categories_cols=feature_generation_categories_cols,
-                latlong_cols=feature_generation_latlong_cols,
-                text_cols=feature_generation_text_cols,
-            ))
+            creator = creators[StepNames.FEATURE_GENERATION]
+            steps.append(creator(self, StepNames.FEATURE_GENERATION,
+                                 trans_primitives=feature_generation_trans_primitives,
+                                 max_depth=feature_generation_max_depth,
+                                 continuous_cols=feature_generation_continuous_cols,
+                                 datetime_cols=feature_generation_datetime_cols,
+                                 categories_cols=feature_generation_categories_cols,
+                                 latlong_cols=feature_generation_latlong_cols,
+                                 text_cols=feature_generation_text_cols,
+                                 ))
 
         # select by collinearity
         if collinearity_detection:
-            steps.append(MulticollinearityDetectStep(self, StepNames.MULITICOLLINEARITY_DETECTION))
+            creator = creators[StepNames.MULITICOLLINEARITY_DETECTION]
+            steps.append(creator(self, StepNames.MULITICOLLINEARITY_DETECTION))
 
         # drift detection
         if drift_detection and X_test is not None:
-            steps.append(DriftDetectStep(self, StepNames.DRIFT_DETECTION,
-                                         remove_shift_variable=drift_detection_remove_shift_variable,
-                                         variable_shift_threshold=drift_detection_variable_shift_threshold,
-                                         threshold=drift_detection_threshold,
-                                         remove_size=drift_detection_remove_size,
-                                         min_features=drift_detection_min_features,
-                                         num_folds=drift_detection_num_folds))
+            creator = creators[StepNames.DRIFT_DETECTION]
+            steps.append(creator(self, StepNames.DRIFT_DETECTION,
+                                 remove_shift_variable=drift_detection_remove_shift_variable,
+                                 variable_shift_threshold=drift_detection_variable_shift_threshold,
+                                 threshold=drift_detection_threshold,
+                                 remove_size=drift_detection_remove_size,
+                                 min_features=drift_detection_min_features,
+                                 num_folds=drift_detection_num_folds))
         # feature selection by importance
         if feature_selection:
-            steps.append(FeatureImportanceSelectionStep(
-                self, StepNames.FEATURE_IMPORTANCE_SELECTION,
-                strategy=feature_selection_strategy,
-                threshold=feature_selection_threshold,
-                quantile=feature_selection_quantile,
-                number=feature_selection_number))
+            creator = creators[StepNames.FEATURE_IMPORTANCE_SELECTION]
+            steps.append(creator(self, StepNames.FEATURE_IMPORTANCE_SELECTION,
+                                 strategy=feature_selection_strategy,
+                                 threshold=feature_selection_threshold,
+                                 quantile=feature_selection_quantile,
+                                 number=feature_selection_number))
 
         # first-stage search
+        creator = creators[StepNames.SPACE_SEARCHING]
         if down_sample_search:
-            steps.append(SpaceSearchWithDownSampleStep(
-                self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds, size=down_sample_search_size,
-                max_trials=down_sample_search_max_trials, time_limit=down_sample_search_time_limit))
+            steps.append(creator(self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds,
+                                 size=down_sample_search_size,
+                                 max_trials=down_sample_search_max_trials,
+                                 time_limit=down_sample_search_time_limit))
         else:
-            steps.append(SpaceSearchStep(
-                self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
+            steps.append(creator(self, StepNames.SPACE_SEARCHING, cv=cv, num_folds=num_folds))
 
         # pseudo label
         if pseudo_labeling and X_test is not None and task in [const.TASK_BINARY, const.TASK_MULTICLASS]:
             if ensemble_size is not None and ensemble_size > 1:
-                estimator_builder = ensemble_cls(self, StepNames.ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
+                creator = creators[StepNames.ENSEMBLE]
+                estimator_builder = creator(self, StepNames.ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
             else:
-                estimator_builder = FinalTrainStep(self, StepNames.TRAINING, retrain_on_wholedata=retrain_on_wholedata)
-            step = pseudo_cls(self, StepNames.PSEUDO_LABELING,
-                              estimator_builder_name=estimator_builder.name,
-                              strategy=pseudo_labeling_strategy,
-                              proba_threshold=pseudo_labeling_proba_threshold,
-                              proba_quantile=pseudo_labeling_proba_quantile,
-                              sample_number=pseudo_labeling_sample_number,
-                              resplit=pseudo_labeling_resplit)
+                creator = creators[StepNames.TRAINING]
+                estimator_builder = creator(self, StepNames.TRAINING, retrain_on_wholedata=retrain_on_wholedata)
             steps.append(estimator_builder)
-            steps.append(step)
+            creator = creators[StepNames.PSEUDO_LABELING]
+            steps.append(creator(self, StepNames.PSEUDO_LABELING,
+                                 estimator_builder_name=estimator_builder.name,
+                                 strategy=pseudo_labeling_strategy,
+                                 proba_threshold=pseudo_labeling_proba_threshold,
+                                 proba_quantile=pseudo_labeling_proba_quantile,
+                                 sample_number=pseudo_labeling_sample_number,
+                                 resplit=pseudo_labeling_resplit))
             two_stage = True
 
         # importance selection
         if feature_reselection:
-            step = PermutationImportanceSelectionStep(
-                self, StepNames.FEATURE_RESELECTION,
-                scorer=scorer,
-                estimator_size=feature_reselection_estimator_size,
-                strategy=feature_reselection_strategy,
-                threshold=feature_reselection_threshold,
-                quantile=feature_reselection_quantile,
-                number=feature_reselection_number)
-            steps.append(step)
+            creator = creators[StepNames.FEATURE_RESELECTION]
+            steps.append(creator(self, StepNames.FEATURE_RESELECTION,
+                                 scorer=scorer,
+                                 estimator_size=feature_reselection_estimator_size,
+                                 strategy=feature_reselection_strategy,
+                                 threshold=feature_reselection_threshold,
+                                 quantile=feature_reselection_quantile,
+                                 number=feature_reselection_number))
             two_stage = True
 
         # two-stage search
         if two_stage:
+            creator = creators[StepNames.FINAL_SEARCHING]
             if down_sample_search:
-                steps.append(SpaceSearchWithDownSampleStep(
-                    self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds, size=down_sample_search_size,
-                    max_trials=down_sample_search_max_trials, time_limit=down_sample_search_time_limit))
+                steps.append(creator(self, StepNames.FINAL_SEARCHING,
+                                     cv=cv, num_folds=num_folds,
+                                     size=down_sample_search_size,
+                                     max_trials=down_sample_search_max_trials,
+                                     time_limit=down_sample_search_time_limit))
             else:
-                steps.append(SpaceSearchStep(
-                    self, StepNames.FINAL_SEARCHING, cv=cv, num_folds=num_folds))
+                steps.append(creator(self, StepNames.FINAL_SEARCHING,
+                                     cv=cv, num_folds=num_folds))
 
         # final train
         if ensemble_size is not None and ensemble_size > 1:
-            last_step = ensemble_cls(self, StepNames.FINAL_ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
+            creator = creators[StepNames.FINAL_ENSEMBLE]
+            last_step = creator(self, StepNames.FINAL_ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
         else:
-            last_step = FinalTrainStep(self, StepNames.FINAL_TRAINING, retrain_on_wholedata=retrain_on_wholedata)
+            creator = creators[StepNames.FINAL_TRAINING]
+            last_step = creator(self, StepNames.FINAL_TRAINING, retrain_on_wholedata=retrain_on_wholedata)
         steps.append(last_step)
 
         # ignore warnings
@@ -1768,6 +1787,34 @@ class CompeteExperiment(SteppedExperiment):
                                                 id=id,
                                                 callbacks=callbacks,
                                                 random_state=random_state)
+
+    @staticmethod
+    def get_creators(hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None,
+                     down_sample_search=False, ):
+        mapping = {
+            StepNames.DATA_CLEAN: DataCleanStep,
+            StepNames.FEATURE_GENERATION: FeatureGenerationStep,
+            StepNames.MULITICOLLINEARITY_DETECTION: MulticollinearityDetectStep,
+            StepNames.DRIFT_DETECTION: DriftDetectStep,
+            StepNames.FEATURE_IMPORTANCE_SELECTION: FeatureImportanceSelectionStep,
+            StepNames.SPACE_SEARCHING: SpaceSearchWithDownSampleStep if down_sample_search else SpaceSearchStep,
+            StepNames.ENSEMBLE: EnsembleStep,
+            StepNames.TRAINING: FinalTrainStep,
+            StepNames.FEATURE_RESELECTION: PermutationImportanceSelectionStep,
+            StepNames.PSEUDO_LABELING: PseudoLabelStep,
+            StepNames.FINAL_SEARCHING: SpaceSearchWithDownSampleStep if down_sample_search else SpaceSearchStep,
+            StepNames.FINAL_ENSEMBLE: EnsembleStep,
+            StepNames.FINAL_TRAINING: FinalTrainStep,
+        }
+
+        tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+        if hasattr(tb, 'exist_dask_object') \
+                and tb.exist_dask_object(X_train, y_train, X_test, X_eval, y_eval):
+            mapping[StepNames.ENSEMBLE] = DaskEnsembleStep
+            mapping[StepNames.FINAL_ENSEMBLE] = DaskEnsembleStep
+            mapping[StepNames.PSEUDO_LABELING] = DaskPseudoLabelStep
+
+        return mapping
 
     def get_data_character(self):
         data_character = super(CompeteExperiment, self).get_data_character()

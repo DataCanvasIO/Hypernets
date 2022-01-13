@@ -2,8 +2,6 @@ import inspect
 import pickle
 from functools import partial
 
-import dask.array as da
-import dask.dataframe as dd
 import pandas as pd
 from sklearn.base import BaseEstimator
 
@@ -11,7 +9,6 @@ from hypernets import __version__
 from hypernets.tabular import get_tool_box
 from hypernets.utils import fs, logging
 from .cfg import TabularCfg as cfg
-from .persistence import to_parquet, read_parquet
 
 logger = logging.get_logger(__name__)
 
@@ -19,20 +16,20 @@ _STRATEGY_DATA = 'data'
 _STRATEGY_TRANSFORM = 'transform'
 
 _KIND_DEFAULT = 'pickle'
-_KIND_DATAFRAME = 'dataframe'
+_KIND_PARQUET = 'parquet'
 _KIND_LIST = 'list'
 _KIND_NONE = 'none'
 
-_KIND_DASK_ARRAY = 'dask_array'
-_KIND_DASK_DATAFRAME = 'dask_dataframe'
-_KIND_DASK_SERIES = 'dask_series'
+
+class SkipCache(Exception):
+    pass
 
 
 class CacheCallback:
     def on_enter(self, fn, *args, **kwargs):
         """
         is fired before checking cache.
-        raise Exception to skip load cache
+        raise Exception to disable cache
         """
         pass
 
@@ -60,7 +57,7 @@ class CacheCallback:
 
 def cache(strategy=None, arg_keys=None, attr_keys=None, attrs_to_restore=None, transformer=None,
           callbacks=None, cache_dir=None):
-    assert strategy in [_STRATEGY_TRANSFORM, _STRATEGY_TRANSFORM, None]
+    assert strategy in [_STRATEGY_TRANSFORM, _STRATEGY_DATA, None]
     assert isinstance(arg_keys, (tuple, list, str, type(None)))
     assert isinstance(attr_keys, (tuple, list, str, type(None)))
     assert isinstance(attrs_to_restore, (tuple, list, str, type(None)))
@@ -119,12 +116,11 @@ def decorate(fn, *, cache_dir, strategy,
         cache_path = None
         loaded = False
         result = None
+        tb = _get_tool_box_for_cache(*args, **kwargs)
 
         try:
             for c in callbacks:
                 c.on_enter(fn, *args, **kwargs)
-
-            tb = _get_tool_box_for_cache(*args, **kwargs)
 
             # bind arguments
             bind_args = sig.bind(*args, **kwargs)
@@ -162,7 +158,7 @@ def decorate(fn, *, cache_dir, strategy,
             # detect and load cache
             if fs.exists(f'{cache_path}.meta'):
                 # load
-                cached_data, meta = _load_cache(cache_path)
+                cached_data, meta = _load_cache(tb, cache_path)
 
                 for c in callbacks:
                     c.on_apply(fn, cached_data, *args, **kwargs)
@@ -173,7 +169,7 @@ def decorate(fn, *, cache_dir, strategy,
                     for k in attrs_to_restore:
                         setattr(obj, k, cached_attributes.get(k))
 
-                if meta['strategy'] == 'data':
+                if meta['strategy'] == _STRATEGY_DATA:
                     result = cached_data
                 else:  # strategy==transform
                     if isinstance(transformer, str):
@@ -184,6 +180,8 @@ def decorate(fn, *, cache_dir, strategy,
                         result = transformer(*args, **kwargs)
 
                 loaded = True
+        except SkipCache:
+            pass
         except Exception as e:
             logger.warning(e)
 
@@ -197,19 +195,19 @@ def decorate(fn, *, cache_dir, strategy,
 
                 # store cache
                 cache_strategy = strategy if strategy is not None else cfg.cache_strategy
-                if cache_strategy == 'transform' and (result is None or transformer is not None):
+                if cache_strategy == _STRATEGY_TRANSFORM and (result is None or transformer is not None):
                     cache_data = None
-                    meta = {'strategy': 'transform'}
+                    meta = {'strategy': _STRATEGY_TRANSFORM}
                 else:
                     cache_data = result
-                    meta = {'strategy': 'data'}
+                    meta = {'strategy': _STRATEGY_DATA}
 
                 if attrs_to_restore is not None:
                     meta['attributes'] = {k: getattr(obj, k, None) for k in attrs_to_restore}
                 if isinstance(obj, BaseEstimator):
                     meta['params_'] = obj.get_params(deep=False)  # for info
 
-                _store_cache(cache_path, cache_data, meta=meta)
+                _store_cache(tb, cache_path, cache_data, meta=meta)
 
                 for c in callbacks:
                     c.on_leave(fn, *args, **kwargs)
@@ -234,79 +232,53 @@ def _get_tool_box_for_cache(*args, **kwargs):
     return get_tool_box(*dtypes)
 
 
-def _store_cache(cache_path, data, meta):
+def _store_cache(toolbox, cache_path, data, meta):
     meta = meta.copy() if meta is not None else {}
     meta['version'] = __version__
 
-    if isinstance(data, (list, tuple)):
+    if data is None:
+        meta.update({'kind': _KIND_NONE, 'items': []})
+    elif isinstance(data, (list, tuple)):
         items = [f'_{i}' for i in range(len(data))]
         for d, i in zip(data, items):
             _store_cache(f'{cache_path}{i}', d, meta)
         meta.update({'kind': _KIND_LIST, 'items': items})
-    elif isinstance(data, pd.DataFrame):
-        item = f'.parquet'
-        to_parquet(data, f'{cache_path}{item}', delayed=False, filesystem=fs)
-        meta.update({'kind': _KIND_DATAFRAME, 'items': [item]})
-    elif data is None:
-        meta.update({'kind': _KIND_NONE, 'items': []})
-    elif isinstance(data, dd.DataFrame):
-        item = f'.parquet'
-        if not fs.exists(f'{cache_path}{item}'):
-            fs.mkdirs(f'{cache_path}{item}')
-        to_parquet(data, f'{cache_path}{item}', delayed=False, filesystem=fs)
-        meta.update({'kind': _KIND_DASK_DATAFRAME, 'items': [item]})
-    elif isinstance(data, dd.Series):
-        item = f'.parquet'
-        df = data.to_frame()
-        if not fs.exists(f'{cache_path}{item}'):
-            fs.mkdirs(f'{cache_path}{item}')
-        to_parquet(df, f'{cache_path}{item}', delayed=False, filesystem=fs)
-        meta.update({'kind': _KIND_DASK_SERIES, 'items': [item]})
-    elif isinstance(data, da.Array):
-        item = f'.parquet'
-        columns = [f'c{i}' for i in range(data.shape[-1])]
-        df = dd.from_dask_array(data, columns=columns)
-        if not fs.exists(f'{cache_path}{item}'):
-            fs.mkdirs(f'{cache_path}{item}')
-        to_parquet(df, f'{cache_path}{item}', delayed=False, filesystem=fs)
-        meta.update({'kind': _KIND_DASK_ARRAY, 'items': [item]})
     else:
-        item = f'.pkl'
-        with fs.open(f'{cache_path}{item}', 'wb') as f:
-            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-        meta.update({'kind': _KIND_DEFAULT, 'items': [item]})
+        pq = toolbox.parquet()
+        if isinstance(data, pq.acceptable_types):
+            item = f'.parquet'
+            pq.store(data, f'{cache_path}{item}', filesystem=fs)
+            meta.update({'kind': _KIND_PARQUET, 'items': [item]})
+        else:
+            item = f'.pkl'
+            with fs.open(f'{cache_path}{item}', 'wb') as f:
+                pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            meta.update({'kind': _KIND_DEFAULT, 'items': [item]})
 
     with fs.open(f'{cache_path}.meta', 'wb') as f:
         pickle.dump(meta, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def _load_cache(cache_path):
+def _load_cache(toolbox, cache_path):
     with fs.open(f'{cache_path}.meta', 'rb') as f:
         meta = pickle.load(f)
 
     if meta['version'] != __version__:
-        raise EnvironmentError(f'Incompatible version: {meta["version"]}')
+        raise EnvironmentError(f'Incompatible version: {meta["version"]}, please clear cache and try again.')
 
     data_kind = meta['kind']
     items = meta['items']
 
-    if data_kind == _KIND_LIST:
-        data = [_load_cache(f'{cache_path}{i}')[0] for i in items]
-    elif data_kind == _KIND_NONE:
+    if data_kind == _KIND_NONE:
         data = None
+    elif data_kind == _KIND_LIST:
+        data = [_load_cache(f'{cache_path}{i}')[0] for i in items]
     elif data_kind == _KIND_DEFAULT:  # pickle
         with fs.open(f'{cache_path}{items[0]}', 'rb') as f:
             data = pickle.load(f)
-    elif data_kind == _KIND_DATAFRAME:
-        data = read_parquet(f'{cache_path}{items[0]}', delayed=False, filesystem=fs)
-    elif data_kind == _KIND_DASK_DATAFRAME:
-        data = read_parquet(f'{cache_path}{items[0]}', delayed=True, filesystem=fs)
-    elif data_kind == _KIND_DASK_SERIES:
-        df = read_parquet(f'{cache_path}{items[0]}', delayed=True, filesystem=fs)
-        data = df[df.columns[0]]
-    elif data_kind == _KIND_DASK_ARRAY:
-        df = read_parquet(f'{cache_path}{items[0]}', delayed=True, filesystem=fs)
-        data = df.to_dask_array(lengths=True)
+    elif data_kind == _KIND_PARQUET:
+        pq = toolbox.parquet()
+        data = pq.load(f'{cache_path}{items[0]}', filesystem=fs)
     else:
         raise ValueError(f'Unexpected cache data kind "{data_kind}"')
 
@@ -324,19 +296,3 @@ def clear(cache_dir=None, fn=None):
     if fs.exists(cache_dir):
         fs.rm(cache_dir, recursive=True)
         fs.mkdirs(cache_dir, exist_ok=True)
-#
-#
-# class CacheLoader:
-#     def __call__(self, cache_path):
-#         raise NotImplemented
-#
-#     def accept(self, meta):
-#         raise NotImplemented
-#
-#
-# class CacheStorer:
-#     def __call__(self, cache_path):
-#         raise NotImplemented
-#
-#     def accept(self, data):
-#         raise NotImplemented

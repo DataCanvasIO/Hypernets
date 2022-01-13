@@ -50,23 +50,24 @@ def _tic_toc_decorate(log_level, name, details, fn):
 
     def tic_toc_call(*args, **kwargs):
         tic = time.time()
-        r = fn(*args, **kwargs)
-        toc = time.time()
-        elapsed = toc - tic
+        try:
+            r = fn(*args, **kwargs)
+            return r
+        finally:
+            toc = time.time()
+            elapsed = toc - tic
 
-        msg = f'elapsed {elapsed:.3f} seconds'
-        if details and (len(args) > 0 or len(kwargs) > 0):
-            ba = fn_sig.bind(*args, **kwargs)
-            args = [f'<{k}>' if k == 'self' else f'{k}={_format_value(v)}'
-                    for k, v in ba.arguments.items()]
-            msg += f', details:\t{", ".join(args)}'
+            msg = f'elapsed {elapsed:.3f} seconds'
+            if details and (len(args) > 0 or len(kwargs) > 0):
+                ba = fn_sig.bind(*args, **kwargs)
+                args = [f'<{k}>' if k == 'self' else f'{k}={_format_value(v)}'
+                        for k, v in ba.arguments.items()]
+                msg += f', details:\t{", ".join(args)}'
 
-        logger.log(log_level, msg)
+            logger.log(log_level, msg)
 
-        _stat_call_counter[logger_name] += 1
-        _stat_second_counter[logger_name] += elapsed
-
-        return r
+            _stat_call_counter[logger_name] += 1
+            _stat_second_counter[logger_name] += elapsed
 
     setattr(tic_toc_call, _TIC_TOC_TAG, True)
 

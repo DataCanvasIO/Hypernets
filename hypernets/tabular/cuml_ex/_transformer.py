@@ -17,6 +17,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular import sklearn_ex as sk_ex
+from hypernets.utils import get_params
 from .. import tb_transformer
 
 
@@ -54,6 +55,16 @@ def copy_attrs_as_local(tf, target, *attrs):
 
 def as_local_if_possible(tf):
     return tf.as_local() if hasattr(tf, 'as_local') else tf
+
+
+def _repr(tf):
+    params = get_params(tf)
+    params.pop('handle', None)
+    params.pop('output_type', None)
+    params.pop('verbose', None)
+
+    params = ', '.join(f'{k}={v}' for k, v in params.items())
+    return f'{tf.__class__.__name__}({params})'
 
 
 @tb_transformer(cudf.DataFrame, name='Pipeline')
@@ -107,17 +118,16 @@ class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
                             'explained_variance_ratio_', 'singular_values_')
         return target
 
+    def __repr__(self):
+        return _repr(self)
+
 
 @tb_transformer(cudf.DataFrame, name='SimpleImputer')
 class LocalizableSimpleImputer(SimpleImputer, Localizable):
-    def fit(self, X, y=None):
-        self.feature_names_in_ = X.columns.tolist() if isinstance(X, (cudf.DataFrame, pd.DataFrame)) else None
-        return super().fit(X, y)
-
     def as_local(self):
         target = sk_imp.SimpleImputer(missing_values=self.missing_values, strategy=self.strategy,
                                       fill_value=self.fill_value, copy=self.copy, add_indicator=self.add_indicator)
-        copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_')  # 'indicator_', )
+        copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_', 'n_features_in_')  # 'indicator_', )
 
         ss = target.statistics_
         if isinstance(ss, (list, tuple)) and isinstance(ss[0], np.ndarray):
@@ -154,13 +164,52 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
                                        self.n_features_in_)
                 )
 
+    def fit(self, X, y=None):
+        self.feature_names_in_ = X.columns.tolist() if isinstance(X, (cudf.DataFrame, pd.DataFrame)) else None
+
+        if not isinstance(X, cudf.DataFrame):
+            return super().fit(X, y)
+
+        num_kinds = {'i', 'u', 'f'}
+
+        if self.strategy == 'constant':
+            if self.fill_value is not None:
+                stat = np.full(X.shape[1], self.fill_value)
+            else:
+                stat = np.array([0 if d.kind in num_kinds else 'missing_value' for d in X.dtypes])
+        elif self.strategy == 'most_frequent':
+            mode = X.mode(dropna=True, axis=0)
+            stat = mode.iloc[0].to_pandas().values
+        elif self.strategy == 'mean':
+            assert all(d.kind in num_kinds for d in X.dtypes), f'only numeric type support strategy {self.strategy}'
+            stat = X.mean(axis=0, skipna=True).to_pandas().values
+        elif self.strategy == 'median':
+            assert all(d.kind in num_kinds for d in X.dtypes), f'only numeric type support strategy {self.strategy}'
+            stat = X.median(axis=0, skipna=True).to_pandas().values
+        else:
+            raise ValueError(f'Unsupported strategy: {self.strategy}')
+
+        self.n_features_in_ = X.shape[1]
+        self.statistics_ = stat
+
+        return self
+
     def transform(self, X):
-        Xt = super().transform(X)
+        if isinstance(X, cudf.DataFrame):
+            assert self.feature_names_in_ is not None and X.columns.tolist() == self.feature_names_in_
+            value = {c: v for c, v in zip(self.feature_names_in_, self.statistics_)}
+            Xt = X.fillna(value)
+        else:
+            Xt = super().transform(X)
+
         if isinstance(Xt, cudf.Series):
             Xt = Xt.to_frame()
         elif isinstance(Xt, CumlArray):
             Xt = cupy.array(Xt)
         return Xt
+
+    def __repr__(self):
+        return _repr(self)
 
 
 @tb_transformer(cudf.DataFrame)
@@ -192,6 +241,9 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
                                       dtype=self.dtype, handle_unknown=self.handle_unknown)
         copy_attrs_as_local(self, target, 'categories_', 'drop_idx_')
         return target
+
+    def __repr__(self):
+        return _repr(self)
 
 
 @tb_transformer(cudf.DataFrame, name='TfidfVectorizer')
@@ -232,6 +284,9 @@ class LocalizableTfidfVectorizer(TfidfVectorizer, Localizable):
             idf = idf[0]
         target.idf_ = CumlToolBox.to_local(idf)[0]
         return target
+
+    def __repr__(self):
+        return _repr(self)
 
 
 @tb_transformer(cudf.DataFrame)

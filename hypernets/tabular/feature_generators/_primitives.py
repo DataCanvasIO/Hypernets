@@ -6,11 +6,12 @@ from functools import partial
 
 import geohash
 import numpy as np
-from featuretools import variable_types, primitives
+from featuretools import primitives
 from featuretools.primitives import Haversine
 from sklearn.pipeline import make_pipeline
 
 from hypernets.tabular.cfg import TabularCfg as cfg
+from . import _base
 
 
 class DaskCompatibleTransformPrimitive(primitives.TransformPrimitive):
@@ -46,8 +47,9 @@ class DaskCompatibleTransformPrimitive(primitives.TransformPrimitive):
 
 class CrossCategorical(DaskCompatibleTransformPrimitive):
     name = "cross_categorical"
-    input_types = [variable_types.Categorical, variable_types.Categorical]
-    return_type = variable_types.Categorical
+    input_types = [_base.ColumnSchema(logical_type=_base.Categorical),
+                   _base.ColumnSchema(logical_type=_base.Categorical)]
+    return_type = _base.ColumnSchema(logical_type=_base.Categorical, semantic_tags={'category'})
 
     def fn_pd(self, x1, *args):
         result = np.array(x1, 'U')
@@ -84,8 +86,8 @@ def _geo_hash(x, precision=12):
 
 class GeoHashPrimitive(DaskCompatibleTransformPrimitive):
     name = "geohash"
-    input_types = [variable_types.LatLong]
-    return_type = variable_types.Categorical
+    input_types = [_base.ColumnSchema(logical_type=_base.LatLong)]
+    return_type = _base.ColumnSchema(logical_type=_base.Categorical, semantic_tags={'category'})
 
     precision = cfg.geohash_precision
 
@@ -97,8 +99,8 @@ class GeoHashPrimitive(DaskCompatibleTransformPrimitive):
 
 class TfidfPrimitive(primitives.TransformPrimitive):
     name = 'tfidf'
-    input_types = [variable_types.NaturalLanguage]
-    return_dtype = variable_types.Numeric
+    input_types = [_base.ColumnSchema(logical_type=_base.NaturalLanguage)]
+    return_dtype = _base.ColumnSchema(logical_type=_base.Numeric, semantic_tags={'numeric'})
     commutative = True
     compatibility = [primitives.Library.PANDAS, primitives.Library.DASK]
 

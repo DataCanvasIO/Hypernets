@@ -4,6 +4,7 @@
 """
 import os
 import shutil
+import pytest
 
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment
@@ -98,5 +99,23 @@ class TestCumlExperiment:
                        max_trials=5,
                        down_sample_search=True,
                        down_sample_search_size=0.5,
+                       # log_level='info',
+                       random_state=335, )
+
+    @pytest.mark.xfail
+    def test_binary_feature_generation(self):
+        preprocessor = CumlToolBox.general_preprocessor(self.bank_data_cudf)
+        run_experiment(self.bank_data_cudf.copy(),
+                       hyper_model_options=dict(transformer=preprocessor),
+                       feature_generation=True,
+                       # log_level='info',
+                       random_state=335, )
+
+    @pytest.mark.xfail
+    def test_binary_collinearity_detection(self):
+        preprocessor = CumlToolBox.general_preprocessor(self.bank_data_cudf)
+        run_experiment(self.bank_data_cudf.copy(),
+                       hyper_model_options=dict(transformer=preprocessor),
+                       collinearity_detection=True,
                        # log_level='info',
                        random_state=335, )

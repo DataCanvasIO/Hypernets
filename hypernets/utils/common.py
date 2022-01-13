@@ -34,8 +34,12 @@ def get_params(obj, include_default=False):
 
         init_signature = inspect.signature(init)
         parameters = [p for p in init_signature.parameters.values()
-                      if p.name != 'self' and p.kind != p.VAR_KEYWORD]
+                      if p.name != 'self']  # and p.kind != p.VAR_KEYWORD]
         return parameters
+
+    fn_get_params = getattr(obj, 'get_params', None)
+    if callable(fn_get_params):
+        return fn_get_params()
 
     out = OrderedDict()
     for p in _get_init_params(type(obj)):
