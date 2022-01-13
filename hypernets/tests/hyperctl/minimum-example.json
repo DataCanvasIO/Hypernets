@@ -1,0 +1,12 @@
+{
+    "jobs": [
+        {
+            "params": {
+                "learning_rate": 0.1
+            },
+            "execution": {
+                "command": "pwd"
+            }
+        }
+    ]
+}

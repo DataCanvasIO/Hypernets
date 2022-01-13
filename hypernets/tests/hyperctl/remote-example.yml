@@ -1,0 +1,23 @@
+version: 2.5
+params:
+    learning_rate: [0.1,0.5]
+    dataset: ['path/d1.csv','path/d2.csv']
+data_dir: /tmp/hyperctl-batches-data
+execution:
+  command: python3 main.py
+resource:
+  cpu: 2
+  ram: 1024
+  gpu: 1
+daemon:
+  port: 8060
+backend:
+  type: remote
+  conf:
+    machines:
+      - hostname: host1
+        username: hyperctl
+        ssh_rsa_file: ~/.ssh/id_rsa
+      - hostname: host2
+        username: hyperctl
+        password: hyperctl
