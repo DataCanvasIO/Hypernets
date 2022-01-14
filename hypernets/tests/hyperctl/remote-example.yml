@@ -2,7 +2,6 @@ version: 2.5
 params:
     learning_rate: [0.1,0.5]
     dataset: ['path/d1.csv','path/d2.csv']
-data_dir: /tmp/hyperctl-batches-data
 execution:
   command: python3 main.py
 resource:

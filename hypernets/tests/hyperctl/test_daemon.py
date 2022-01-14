@@ -62,7 +62,6 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
 
 
 def test_run_generate_job_specs():
-
     batch_config_path = "hypernets/tests/hyperctl/remote-example.yml"
     fd, fp = tempfile.mkstemp(prefix="jobs_spec_", suffix=".json")
     os.close(fd)
@@ -74,7 +73,6 @@ def test_run_generate_job_specs():
     assert fp_.exists()
     jobs_spec = daemon.load_json(fp)
     assert len(jobs_spec['jobs']) == 4
-    assert 'batch_data_dir' in jobs_spec
     assert 'daemon' in jobs_spec
     assert 'name' in jobs_spec
     assert len(jobs_spec['backend']['conf']['machines']) == 2

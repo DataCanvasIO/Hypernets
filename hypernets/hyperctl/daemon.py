@@ -15,6 +15,7 @@ from tornado.ioloop import PeriodicCallback
 from tornado.log import app_log
 from tornado.web import RequestHandler, Finish, HTTPError, Application
 
+from hypernets import __version__ as current_version
 from hypernets.hyperctl import Context, set_context, get_context
 from hypernets.hyperctl import consts
 from hypernets.hyperctl import dao
@@ -277,48 +278,65 @@ def load_json(file_path):
     return json.loads(content)
 
 
-def run_generate_job_specs(config, output):
-    yaml_file = config
+def _copy_item(src, dest, key):
+    v = src.get(key)
+    if v is not None:
+        dest[key] = v
+
+
+def run_generate_job_specs(template, output):
+    yaml_file = template
     output_path = Path(output)
-    # checkout output
+    # 1. validation
+    # 1.1. checkout output
     if output_path.exists():
         raise FileExistsError(output)
-    os.makedirs(output_path.parent, exist_ok=True)
 
+    # load file
     config_dict = load_yaml(yaml_file)
-    params = config_dict['params']
 
-    # ensure array
+    # 1.3. check values should be array
+    assert "params" in config_dict
+    params = config_dict['params']
     for k, v in params.items():
         if not isinstance(v, list):
             raise ValueError(f"Value of param '{k}' should be list")
 
+    # 1.4. check command exists
+    assert "execution" in config_dict
+    assert 'command' in config_dict['execution']
+
+    # 2. combine params to generate jobs
     job_param_names = params.keys()
     param_values = [params[_] for _ in job_param_names]
 
     def make_job_dict(job_param_values):
         job_params_dict = dict(zip(job_param_names, job_param_values))
-        name = common_util.generate_short_id()
         job_dict = {
-            "name": name,
+            "name": common_util.generate_short_id(),
             "params": job_params_dict,
-            "resource": config_dict['resource'],
             "execution": config_dict['execution']
         }
+        _copy_item(config_dict, job_dict, 'resource')
         return job_dict
+
     jobs = [make_job_dict(_) for _ in itertools.product(*param_values)]
 
-    jobs_spec = {
+    # 3. merge to bath spec
+    batch_spec = {
         "jobs": jobs,
         'name': config_dict.get('name', common_util.generate_short_id()),
-        "batch_data_dir": config_dict['data_dir'],
-        "backend": config_dict['backend'],
-        "daemon": config_dict['daemon'],
-        "version": config_dict['version']
+        "version": config_dict.get('version', current_version)
     }
+
+    _copy_item(config_dict, batch_spec, 'backend')
+    _copy_item(config_dict, batch_spec, 'daemon')
+
+    # 4. write to file
+    os.makedirs(output_path.parent, exist_ok=True)
     with open(output_path, 'w', newline='\n') as f:
-        f.write(json.dumps(jobs_spec, indent=4))
-    return jobs_spec
+        f.write(json.dumps(batch_spec, indent=4))
+    return batch_spec
 
 
 def run_batch_from_config_file(config, batches_data_dir=None):
@@ -519,65 +537,82 @@ def show_job(batch_name, job_name, batches_data_dir=None):
     print(job_desc)
 
 
-def _add_batch_parser(subparsers, bdd_help):
-
-    exec_parser = subparsers.add_parser("batch", help="batch operations")
-
-    batch_subparsers = exec_parser.add_subparsers(dest="batch_operation")
-
-    batch_list_parse = batch_subparsers.add_parser("list", help="list batches")
-    batch_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
-
-
-def _add_job_parser(subparsers, bdd_help):
-
-    exec_parser = subparsers.add_parser("job", help="job operations")
-
-    batch_subparsers = exec_parser.add_subparsers(dest="job_operation")
-
-    job_list_parse = batch_subparsers.add_parser("list", help="list jobs")
-    job_list_parse.add_argument("--batch-name", help="batch name", default=None, required=True)
-    job_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
-
-    def add_job_spec_args(parser_):
-        parser_.add_argument("--batch-name", help="batch name", default=None, required=True)
-        parser_.add_argument("--job-name", help="job name", default=None, required=True)
-        parser_.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
-
-    job_kill_parse = batch_subparsers.add_parser("kill", help="kill job")
-    add_job_spec_args(job_kill_parse)
-
-    job_describe_parse = batch_subparsers.add_parser("describe", help="describe job")
-    add_job_spec_args(job_describe_parse)
-
-
-def _add_run_parser(subparsers, bdd_help):
-    exec_parser = subparsers.add_parser("run", help="run jobs")
-    exec_parser.add_argument("-c", "--config", help="specific jobs json file", default=None, required=True)
-    exec_parser.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
-
-
 def main():
-    bdd_help = f"batches data dir, if None will get from environment var {consts.KEY_ENV_BATCHES_DATA_DIR}"
+
+    bdd_help = f"batches data dir, default get from environment variable {consts.KEY_ENV_BATCHES_DATA_DIR}"
+
+    def setup_global_args(global_parser):
+        # console output
+        logging_group = global_parser.add_argument_group('Console outputs')
+
+        logging_group.add_argument('--log-level', '--log', type=str, default='info',
+                                   help='logging level, default is %(default)s')
+        logging_group.add_argument('-error', dest='log_level', action='store_const', const='error',
+                                   help='alias of "--log-level error"')
+        logging_group.add_argument('-warn', dest='log_level', action='store_const', const='warn',
+                                   help='alias of "--log-level warn"')
+        logging_group.add_argument('-info', dest='log_level', action='store_const', const='info',
+                                   help='alias of "--log-level info"')
+        logging_group.add_argument('-debug', dest='log_level', action='store_const', const='debug',
+                                   help='alias of "--log-level debug"')
+
+    def setup_batch_parser(operation_parser):
+        exec_parser = operation_parser.add_parser("batch", help="batch operations")
+        batch_subparsers = exec_parser.add_subparsers(dest="batch_operation")
+        batch_list_parse = batch_subparsers.add_parser("list", help="list batches")
+        batch_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+
+    def setup_job_parser(operation_parser):
+
+        exec_parser = operation_parser.add_parser("job", help="job operations")
+
+        batch_subparsers = exec_parser.add_subparsers(dest="job_operation")
+
+        job_list_parse = batch_subparsers.add_parser("list", help="list jobs")
+        job_list_parse.add_argument("-b", "--batch", help="batch name", default=None, required=True)
+        job_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+
+        def add_job_spec_args(parser_):
+            parser_.add_argument("-b", "--batch", help="batch name", default=None, required=True)
+            parser_.add_argument("-j", "--job", help="job name", default=None, required=True)
+            parser_.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+
+        job_kill_parse = batch_subparsers.add_parser("kill", help="kill job")
+        add_job_spec_args(job_kill_parse)
+
+        job_describe_parse = batch_subparsers.add_parser("describe", help="describe job")
+        add_job_spec_args(job_describe_parse)
+
+    def setup_run_parser(operation_parser):
+        exec_parser = operation_parser.add_parser("run", help="run jobs")
+        exec_parser.add_argument("-c", "--config", help="specific jobs json file", default=None, required=True)
+        exec_parser.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+
+    def setup_generate_parser(operation_parser):
+        exec_parser = operation_parser.add_parser("generate", help="generate specific jobs json file ")
+        exec_parser.add_argument("-t", "--template", help="template yaml file", default=None, required=True)
+        exec_parser.add_argument("-o", "--output", help="output json file", default="batch.json", required=False)
 
     parser = argparse.ArgumentParser(prog="hyperctl",
                                      description='hyperctl command is used to manage jobs', add_help=True)
-    # parser.add_argument("-v", "--verbose", default=False, help="give more output log", required=False)
+    setup_global_args(parser)
 
     subparsers = parser.add_subparsers(dest="operation")
 
-    _add_run_parser(subparsers, bdd_help)
-
-    exec_parser = subparsers.add_parser("generate", help="generate specific jobs json file ")
-    exec_parser.add_argument("-c", "--config", help="input yaml file", default=None, required=True)
-    exec_parser.add_argument("-o", "--output", help="output json file", default="batch.json", required=False)
-
-    _add_batch_parser(subparsers, bdd_help)
-    _add_job_parser(subparsers, bdd_help)
+    setup_run_parser(subparsers)
+    setup_generate_parser(subparsers)
+    setup_batch_parser(subparsers)
+    setup_job_parser(subparsers)
 
     args_namespace = parser.parse_args()
 
     kwargs = args_namespace.__dict__.copy()
+
+    log_level = kwargs.pop('log_level')
+    if log_level is None:
+        log_level = hyn_logging.INFO
+    hyn_logging.set_level(log_level)
+
     operation = kwargs.pop('operation')
 
     if operation == 'run':

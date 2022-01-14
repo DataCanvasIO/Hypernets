@@ -25,7 +25,7 @@ optional arguments:
 
 ```
 
-Create a python script `~/job.py` to run job with following content:
+Create a python script `~/job-script.py` to run job with following content:
 ```python
 from hypernets import hyperctl
 
@@ -34,7 +34,7 @@ assert params
 print(params)
 ```
 
-put the minimum jobs' specification config into a file `jobs.json`:
+put the minimum jobs' specification config into a file `batch.json`:
 ```json
 {
     "jobs": [
@@ -52,7 +52,7 @@ put the minimum jobs' specification config into a file `jobs.json`:
 
 run the job with command:
 ```shell
-hyperctl run --config ./jobs.json
+hyperctl run --config ./batch.json
 ```
 
 **Generate jobs**
@@ -71,24 +71,19 @@ it shall generate jobs with params:
 - `{ "learning_rate": 0.2, "max_depth": 3 }`
 - `{ "learning_rate": 0.2, "max_depth": 5 }`
 
-To batch generate jobs you should write job template file `jobs.yml` with following content:
+To batch generate jobs you should write job template file `job-template.yml` with following content:
 
 ```yaml
-version: 2.5
 params:
     learning_rate: [0.1,0.2]
     max_depth: [3, 5]
-data_dir: /tmp/hyperctl-batches-data
 execution:
   command: python3 main.py
-backend:
-  type: local
-  conf:
 ```
 
 run command to generate jobs specification config:
 ```shell
-hyperctl generate --config ./jobs.yml --output ./jobs-generated.json
+hyperctl generate --template ./job-template.yml --output ./batch.json
 ```
 
 **Parallel jobs in remote machines**
@@ -147,3 +142,14 @@ You can run jobs in remote machines via SSH. Configure the host's connections se
 }
 ```
 
+**Job template description**
+```
+name: eVqNV5Ut1 // the same as job configuration `name`
+version: "2.5" // the same as job configuration `version`
+params:  // dict[str, list], required, value should be list 
+    param1: ["value1", "value2"]
+execution: // the same as job configuration `jobs.execution`
+resource: // the same as job configuration `jobs.resource`
+daemon: // the same as job configuration `daemon`
+backend:  // the same as job configuration `backend`
+```
