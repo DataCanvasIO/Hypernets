@@ -2,6 +2,7 @@
 """
 
 """
+import cudf
 import cupy as cp
 import numpy as np
 from cuml import metrics as cu_metrics
@@ -42,6 +43,14 @@ def _calc_score_cuml(y_true, y_preds, y_proba=None, metrics=('accuracy',), task=
     y_true = _to_dtype(y_true, 'float64')
     y_preds = _to_dtype(y_preds, 'float64')
     y_proba = _to_dtype(y_proba, 'float64')
+
+    if task == const.TASK_REGRESSION:
+        if isinstance(y_true, cudf.Series):
+            y_true = y_true.values
+        if isinstance(y_preds, cudf.Series):
+            y_preds = y_preds.values
+        if isinstance(y_proba, cudf.Series):
+            y_proba = y_proba.values
 
     scores = {}
     for metric in metrics:

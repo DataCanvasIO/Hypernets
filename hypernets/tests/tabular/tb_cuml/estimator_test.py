@@ -9,6 +9,7 @@ import pytest
 
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
+from hypernets.utils import const
 from . import if_cuml_ready, is_cuml_installed
 from ... import test_output_dir
 
@@ -28,10 +29,12 @@ def fit_evaluate(est, data_df, target='y', test_size=0.3, **kwargs):
     if hasattr(est, 'classes_') and len(est.classes_) > 1:
         proba = est.predict_proba(X_test)
         metrics = ['accuracy', 'logloss', ]
+        task = const.TASK_BINARY if len(est.classes_) == 2 else const.TASK_MULTICLASS
     else:
         proba = None
         metrics = ['mse', 'mae', 'rmse', 'r2']  # 'msle',
-    scores = tb.metrics.calc_score(y_test, pred, proba, metrics=metrics)
+        task = const.TASK_REGRESSION
+    scores = tb.metrics.calc_score(y_test, pred, proba, metrics=metrics, task=task)
     print(type(est).__name__, target, scores)
 
 
