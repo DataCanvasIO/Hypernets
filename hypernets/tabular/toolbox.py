@@ -392,6 +392,23 @@ class ToolBox(metaclass=ToolboxMeta):
 
         return estimator_
 
+    @staticmethod
+    def permutation_importance(estimator, X, y, *,
+                               scoring=None, n_repeats=5, n_jobs=None,
+                               random_state=None, sample_weight=None, max_samples=1.0):
+        """
+        see: sklearn.inspection.permutation_importance
+        """
+        if hasattr(estimator, 'permutation_importance'):
+            importance = estimator.permutation_importance(X, y,
+                                                          scoring=scoring, n_repeats=n_repeats, n_jobs=n_jobs,
+                                                          random_state=random_state)
+        else:
+            importance = inspection.permutation_importance(estimator, X, y,
+                                                           scoring=scoring, n_repeats=n_repeats, n_jobs=n_jobs,
+                                                           random_state=random_state)
+        return importance
+
     @classmethod
     def permutation_importance_batch(cls, estimators, X, y, scoring=None, n_repeats=5,
                                      n_jobs=None, random_state=None):
@@ -541,7 +558,6 @@ class ToolBox(metaclass=ToolboxMeta):
 
     # reused utilities
     train_test_split = sk_ms.train_test_split
-    permutation_importance = inspection.permutation_importance
     compute_class_weight = sk_utils.compute_class_weight
 
     @staticmethod
