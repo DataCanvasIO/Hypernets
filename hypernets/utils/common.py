@@ -4,13 +4,15 @@ __author__ = 'yangjian'
 
 """
 
+import cProfile
 import contextlib
 import inspect
 import math
-import uuid
-import re
 import os
+import pstats
+import re
 import tempfile
+import uuid
 from collections import OrderedDict
 from functools import partial
 
@@ -91,6 +93,17 @@ def context(msg):
             msg = str(msg)
         ex.args = (msg,) + ex.args[1:]
         raise
+
+
+def profile(fn, sort_by='cumtime'):
+    assert callable(fn)
+
+    p = cProfile.Profile()
+    p.enable()
+    fn()
+    p.disable()
+    s = pstats.Stats(p).sort_stats(sort_by)
+    return s
 
 
 class Counter(object):
@@ -297,10 +310,10 @@ def get_temp_dir_path(prefix=None, suffix=None, create=True):
     return file_path
 
 
-_SHORT_UUID_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",  "a", "b", "c", "d", "e", "f", "g",
-                    "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y",
-                    "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q",
-                    "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+_SHORT_UUID_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g",
+                     "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y",
+                     "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q",
+                     "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 
 
 def generate_short_id():
