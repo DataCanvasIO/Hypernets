@@ -15,4 +15,4 @@ from ._tic_tok import tic_toc, report as tic_toc_report, report_as_dataframe as 
 from .common import generate_id, combinations, isnotebook, Counter, to_repr, get_params, context, profile
 from .common import load_data, load_module
 from ._estimators import load_estimator, save_estimator, get_tree_importances
-from ._perf import get_perf, dump_perf
+from ._perf import get_perf, dump_perf, load_perf

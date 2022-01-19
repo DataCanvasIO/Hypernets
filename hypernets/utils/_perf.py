@@ -3,8 +3,10 @@
 
 """
 import time
+from _datetime import datetime
 from collections import OrderedDict
 
+import pandas as pd
 import psutil
 
 try:
@@ -55,11 +57,11 @@ def get_perf(proc=None, recursive=True, metrics=None):
     metrics['mem_used'] = mem.used
     if proc:
         if recursive:
-            vms = []
-            _recursive_proc(vms, proc, lambda p: p.memory_info().vms)
-            metrics['mem_used_proc'] = sum(vms)
+            rss = []
+            _recursive_proc(rss, proc, lambda p: p.memory_info().rss)
+            metrics['mem_used_proc'] = sum(rss)
         else:
-            metrics['mem_used_proc'] = proc.memory_info().vms
+            metrics['mem_used_proc'] = proc.memory_info().rss
 
     for i, h in enumerate(_gpu_devices):
         used = pynvml.nvmlDeviceGetUtilizationRates(h)
@@ -104,3 +106,28 @@ def dump_perf(file_path, pid=None, recursive=False, interval=1):
         import traceback
         traceback.print_exc()
         pass
+
+
+def load_perf(file_path, human_readable=True):
+    df = pd.read_csv(file_path)
+    columns = df.columns.to_list()
+    assert 'timestamp' in columns
+
+    df['timestamp'] = df['timestamp'].apply(lambda t: datetime.strptime(t, '%Y-%m-%d %H:%M:%S'))
+    start_at = df['timestamp'].min()
+    df.insert(1, 'elapsed', (df['timestamp'] - start_at).apply(lambda t: t.seconds))
+
+    if human_readable:
+        GB = 1024 ** 3
+        if 'cpu_used_proc' in columns:
+            df['cpu_used_proc'] = df['cpu_used_proc'] / df['cpu_total']
+        for c in columns:
+            if c.startswith('mem_'):
+                df[c] = df[c] / GB
+            if c.startswith('gpu_'):
+                if c.find('_power_') > 0:
+                    df[c] = df[c] / 1000
+                elif c.find('_mem_') > 0:
+                    df[c] = df[c] / GB
+
+    return df
