@@ -10,6 +10,7 @@ import dask.array as da
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from dask_ml import compose as dm_comp
 from dask_ml import model_selection as dm_sel, preprocessing as dm_pre, impute as dm_imp, decomposition as dm_dec
 from sklearn import inspection as sk_inspect, metrics as sk_metrics
 from sklearn import model_selection as sk_sel, utils as sk_utils
@@ -754,6 +755,7 @@ class DaskToolBox(ToolBox):
 
 _predefined_transformers = dict(
     Pipeline=pipeline.Pipeline,
+    ColumnTransformer=dm_comp.ColumnTransformer,
     SimpleImputer=dm_imp.SimpleImputer,
     StandardScaler=dm_pre.StandardScaler,
     MinMaxScaler=dm_pre.MinMaxScaler,
