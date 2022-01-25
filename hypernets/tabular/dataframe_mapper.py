@@ -161,6 +161,8 @@ class DataFrameMapper(BaseEstimator):
         self.df_out_dtype_transforms = df_out_dtype_transforms
 
         # fitted
+        self.feature_names_in_ = None
+        self.n_features_in_ = None
         self.fitted_features_ = None
 
     @staticmethod
@@ -184,6 +186,7 @@ class DataFrameMapper(BaseEstimator):
     def fit(self, X, y=None):
         built_features, built_default = self._build(self.features, self.default)
 
+        columns_in = X.columns.to_list()
         fitted_features = []
         selected_columns = []
 
@@ -225,6 +228,8 @@ class DataFrameMapper(BaseEstimator):
                     _call_fit(built_default.fit, Xt, y)
             fitted_features.append((unselected_columns, built_default, {}))
 
+        self.feature_names_in_ = columns_in
+        self.n_features_in_ = len(columns_in)
         self.fitted_features_ = fitted_features
 
         return self
@@ -260,6 +265,7 @@ class DataFrameMapper(BaseEstimator):
         return self._to_transform_result(X, extracted, transformed_columns)
 
     def fit_transform(self, X, y=None, *fit_args):
+        columns_in = X.columns.to_list()
         fitted_features = []
         selected_columns = []
         transformed_columns = []
@@ -327,6 +333,8 @@ class DataFrameMapper(BaseEstimator):
 
             fitted_features.append((unselected_columns, built_default, {}))
 
+        self.feature_names_in_ = columns_in
+        self.n_features_in_ = len(columns_in)
         self.fitted_features_ = fitted_features
 
         return self._to_transform_result(X, extracted, transformed_columns)
