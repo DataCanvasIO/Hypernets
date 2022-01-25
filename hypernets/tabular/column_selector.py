@@ -2,14 +2,20 @@
 """
 
 """
-import dask
 import numpy as np
 import pandas as pd
-from dask import dataframe as dd
 from scipy.stats import skew, kurtosis
 from sklearn.compose import make_column_selector
 
 from .cfg import TabularCfg as cfg
+
+try:
+    import dask
+    from dask import dataframe as dd
+
+    _dask_installed = True
+except ImportError:
+    _dask_installed = False
 
 try:
     import jieba
@@ -26,7 +32,7 @@ class ColumnSelector(make_column_selector):
         super(ColumnSelector, self).__init__(pattern, dtype_include=dtype_include, dtype_exclude=dtype_exclude)
 
     def __call__(self, df):
-        if isinstance(df, dd.DataFrame):
+        if _dask_installed and isinstance(df, dd.DataFrame):
             # # if not hasattr(df, 'iloc'):
             # #     raise ValueError("make_column_selector can only be applied to "
             # #                      "pandas dataframes")
@@ -81,7 +87,7 @@ class AutoCategoryColumnSelector(ColumnSelector):
         if len(others) > 0:
             if callable(uniquer):
                 nuniques = uniquer(df[others])
-            elif isinstance(df, dd.DataFrame):
+            elif _dask_installed and isinstance(df, dd.DataFrame):
                 nuniques = [df[c].nunique() for c in others]
                 nuniques = {k: v for k, v in zip(others, dask.compute(*nuniques))}
             else:
@@ -110,7 +116,7 @@ class TextColumnSelector(ColumnSelector):
         selected = super().__call__(df)
         if len(selected) > 0 and self.word_count_threshold > 1:
             word_count = df[selected].applymap(self._word_count).max(axis=0)
-            if isinstance(df, dd.DataFrame):
+            if _dask_installed and isinstance(df, dd.DataFrame):
                 word_count = word_count.compute()
             selected = [c for c, n in word_count.to_dict().items() if n >= self.word_count_threshold]
 
@@ -145,7 +151,7 @@ class LatLongColumnSelector:
         if cols is None or len(cols) < 1:
             return cols
 
-        if isinstance(df, dd.DataFrame):
+        if _dask_installed and isinstance(df, dd.DataFrame):
             row = df.reduction(LatLongColumnSelector._reduce_is_latlong,
                                aggregate=np.all, aggregate_kwargs=dict(axis=0),
                                meta={c: 'bool' for c in cols}
@@ -178,7 +184,7 @@ class MinMaxColumnSelector(object):
         self.max = max
 
     def __call__(self, df):
-        if isinstance(df, dd.DataFrame):
+        if _dask_installed and isinstance(df, dd.DataFrame):
             return self._select_dask_dataframe(df)
         elif isinstance(df, pd.DataFrame):
             return self._select_pandas_dataframe(df)
