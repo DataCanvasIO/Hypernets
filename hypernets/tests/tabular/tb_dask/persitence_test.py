@@ -4,13 +4,12 @@ import os
 from hypernets.tabular.datasets import dsutils
 from hypernets.tests import test_output_dir
 from hypernets.utils import fs
-from . import if_dask_ready, is_dask_installed
+from . import if_dask_ready, is_dask_installed, setup_dask
 
 if is_dask_installed:
     import dask.dataframe as dd
     import dask.array as da
     from hypernets.tabular.dask_ex import DaskToolBox
-    from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 
     p = DaskToolBox.parquet()
 

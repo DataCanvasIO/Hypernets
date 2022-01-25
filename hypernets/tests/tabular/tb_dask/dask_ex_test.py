@@ -2,9 +2,13 @@
 """
 
 """
-import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+
+from . import if_dask_ready, is_dask_installed
+
+if is_dask_installed:
+    import dask.dataframe as dd
 
 
 def prepare_dataframe():
@@ -15,6 +19,7 @@ def prepare_dataframe():
     return pdf, ddf
 
 
+@if_dask_ready
 def test_max_abs_scale():
     from sklearn import preprocessing as sk_pre
     import hypernets.tabular.dask_ex as de
@@ -45,6 +50,7 @@ def test_max_abs_scale():
     assert delta < TOL
 
 
+@if_dask_ready
 def test_ordinal_encoder():
     from hypernets.tabular.dask_ex import SafeOrdinalEncoder
     df1 = pd.DataFrame({"A": [1, 2, 3, 4],

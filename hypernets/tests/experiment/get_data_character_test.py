@@ -1,21 +1,22 @@
-from dask import dataframe as dd
 from sklearn.preprocessing import LabelEncoder
 
 from hypernets.experiment import CompeteExperiment, Experiment
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
 from hypernets.tests.model.plain_model_test import create_plain_model
-from hypernets.tests.tabular.dask_transofromer_test import setup_dask
+from hypernets.tests.tabular.tb_dask import if_dask_ready, is_dask_installed, setup_dask
 
 
 class Test_Get_character:
     @classmethod
     def setup_class(cls):
-        setup_dask(cls)
+        if is_dask_installed:
+            import dask.dataframe as dd
+            setup_dask(cls)
 
-        cls.boston = dd.from_pandas(dsutils.load_boston(), npartitions=1)
-        cls.blood = dd.from_pandas(dsutils.load_blood(), npartitions=1)
-        cls.bike_sharing = dd.from_pandas(dsutils.load_Bike_Sharing(), npartitions=1)
+            cls.boston = dd.from_pandas(dsutils.load_boston(), npartitions=1)
+            cls.blood = dd.from_pandas(dsutils.load_blood(), npartitions=1)
+            cls.bike_sharing = dd.from_pandas(dsutils.load_Bike_Sharing(), npartitions=1)
 
     # A test for multiclass task
     def experiment_with_bike_sharing(self, init_kwargs, run_kwargs, row_count=3000, with_dask=False):
@@ -173,13 +174,21 @@ class Test_Get_character:
 
     def test_multiclass_with_bike_sharing(self):
         self.experiment_with_bike_sharing({}, {})
+
+    @if_dask_ready
+    def test_multiclass_with_bike_sharing_dask(self):
         self.experiment_with_bike_sharing({}, {}, with_dask=True)
 
     def test_binary_with_blood(self):
         self.experiment_with_blood({}, {})
+
+    @if_dask_ready
+    def test_binary_with_blood_dask(self):
         self.experiment_with_blood({}, {}, with_dask=True)
 
     def test_regression_with_boston(self):
-
         self.experiment_with_boston({}, {})
+
+    @if_dask_ready
+    def test_regression_with_boston_dask(self):
         self.experiment_with_boston({}, {}, with_dask=True)

@@ -7,8 +7,7 @@ import pandas as pd
 from pandas.util import hash_pandas_object
 
 from hypernets.tabular.datasets.dsutils import load_bank
-from . import if_dask_ready, is_dask_installed
-from ..dask_transofromer_test import setup_dask
+from . import if_dask_ready, is_dask_installed, setup_dask
 
 if is_dask_installed:
     import dask.dataframe as dd

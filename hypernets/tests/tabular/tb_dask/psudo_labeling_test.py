@@ -1,5 +1,4 @@
-from hypernets.tests.tabular.dask_transofromer_test import setup_dask
-from . import if_dask_ready, is_dask_installed
+from . import if_dask_ready, is_dask_installed, setup_dask
 from ..psudo_labeling_test import TestPseudoLabeling as _TestPseudoLabeling
 
 if is_dask_installed:

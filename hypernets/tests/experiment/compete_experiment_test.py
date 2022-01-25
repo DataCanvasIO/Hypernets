@@ -1,13 +1,15 @@
 from datetime import datetime
 
-import dask.dataframe as dd
 from sklearn.preprocessing import LabelEncoder
 
 from hypernets.experiment import CompeteExperiment
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
 from hypernets.tests.model.plain_model_test import create_plain_model
-from hypernets.tests.tabular.dask_transofromer_test import setup_dask
+from hypernets.tests.tabular.tb_dask import if_dask_ready, is_dask_installed, setup_dask
+
+if is_dask_installed:
+    import dask.dataframe as dd
 
 
 def experiment_with_bank_data(init_kwargs, run_kwargs, row_count=3000, with_dask=False):
@@ -193,21 +195,25 @@ def test_with_feature_generator():
                                     feature_generation_text_cols=['title']), {})
 
 
+@if_dask_ready
 def test_with_pl_dask():
     experiment_with_bank_data(dict(cv=False, pseudo_labeling=True), {},
                               with_dask=True)
 
 
+@if_dask_ready
 def test_with_ensemble_dask():
     experiment_with_bank_data(dict(ensemble_size=5, cv=False), {},
                               with_dask=True)
 
 
+@if_dask_ready
 def test_with_cv_ensemble_dask():
     experiment_with_bank_data(dict(ensemble_size=5, cv=True), {},
                               row_count=6000, with_dask=True)
 
 
+@if_dask_ready
 def test_with_feature_generator_dask():
     experiment_with_movie_lens(dict(feature_generation=True, feature_selection=True,
                                     feature_generation_text_cols=['title']), {}, with_dask=True)

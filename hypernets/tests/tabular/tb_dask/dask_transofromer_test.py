@@ -1,56 +1,17 @@
-import math
-import os
-
-import dask
-import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import psutil
 
-from hypernets.tabular import dask_ex as dex
 from hypernets.tabular.datasets import dsutils
 from hypernets.utils import const
+from . import if_dask_ready, is_dask_installed, setup_dask
+
+if is_dask_installed:
+    import dask.dataframe as dd
+    import dask
+    from hypernets.tabular import dask_ex as dex
 
 
-def _startup_dask(overload):
-    from dask.distributed import LocalCluster, Client
-
-    if os.environ.get('DASK_SCHEDULER_ADDRESS') is not None:
-        # use dask default settings
-        client = Client()
-    else:
-        # start local cluster
-        cores = psutil.cpu_count()
-        workers = math.ceil(cores / 3)
-        workers = max(2, workers)
-        if workers > 1:
-            if overload <= 0:
-                overload = 1.0
-            mem_total = psutil.virtual_memory().available / (1024 ** 3)  # GB
-            mem_per_worker = math.ceil(mem_total / workers * overload)
-            if mem_per_worker > mem_total:
-                mem_per_worker = mem_total
-            cluster = LocalCluster(processes=True, n_workers=workers, threads_per_worker=4,
-                                   memory_limit=f'{mem_per_worker}GB')
-        else:
-            cluster = LocalCluster(processes=False)
-
-        client = Client(cluster)
-    return client
-
-
-def setup_dask(cls):
-    try:
-        from dask.distributed import default_client
-        client = default_client()
-    except:
-        client = _startup_dask(2.0)
-    print('Dask Client:', client)
-
-    if cls is not None:
-        setattr(cls, 'dask_client_', client)
-
-
+@if_dask_ready
 class Test_DaskCustomizedTransformer:
     @classmethod
     def setup_class(cls):

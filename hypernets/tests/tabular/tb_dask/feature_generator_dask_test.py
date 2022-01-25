@@ -5,20 +5,22 @@
 import math
 from datetime import datetime
 
-import dask.dataframe as dd
 import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
-# from hypernets.tabular.feature_generators import FeatureGenerationTransformer
-from hypernets.tests.tabular.dask_transofromer_test import setup_dask
 from hypernets.utils import logging
+from . import if_dask_ready, is_dask_installed, setup_dask
+
+if is_dask_installed:
+    import dask.dataframe as dd
 
 logger = logging.getLogger(__name__)
 
 
+@if_dask_ready
 class TestFeatureGeneratorWithDask:
     @classmethod
     def setup_class(cls):
@@ -50,8 +52,8 @@ class TestFeatureGeneratorWithDask:
             task='binary', trans_primitives=['cross_categorical'],
             categories_cols=tb.column_selector.column_object_category_bool(X_train))
         dfm = tb.transformers['DataFrameMapper'](features=[(X_train.columns.to_list(), ftt)],
-                                                  input_df=True,
-                                                  df_out=True)
+                                                 input_df=True,
+                                                 df_out=True)
         X_t = dfm.fit_transform(X_train)
         X_t = X_t.compute()
         assert X_t.shape[1] == 62
