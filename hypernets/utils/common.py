@@ -14,10 +14,6 @@ import re
 import tempfile
 import uuid
 from collections import OrderedDict
-from functools import partial
-
-import dask.dataframe as dd
-import pandas as pd
 
 from . import logging
 
@@ -158,69 +154,6 @@ def load_module(mod_name):
     pkg = __import__(pkg, fromlist=[''])
     mod = getattr(pkg, mod)
     return mod
-
-
-def load_data(data, **kwargs):
-    if not isinstance(data, str):
-        if type(data).__name__.find('DataFrame') < 0:
-            logger.warning(f'You data type {type(data).__name__} is not DataFrame.')
-        return data
-
-    import os.path as path
-    import glob
-
-    try:
-        from dask.distributed import default_client as dask_default_client
-        client = dask_default_client()
-        dask_enabled, worker_count = True, len(client.ncores())
-    except ValueError:
-        dask_enabled, worker_count = False, 1
-
-    fmt_mapping = {
-        'csv': (partial(pd.read_csv, low_memory=False), dd.read_csv),
-        'txt': (pd.read_csv, dd.read_csv),
-        'parquet': (pd.read_parquet, dd.read_parquet),
-        'par': (pd.read_parquet, dd.read_parquet),
-        'json': (pd.read_json, dd.read_json),
-        'pkl': (pd.read_pickle, None),
-        'pickle': (pd.read_pickle, None),
-    }
-
-    def get_file_format(file_path):
-        return path.splitext(file_path)[-1].lstrip('.')
-
-    def get_file_format_by_glob(data_pattern):
-        for f in glob.glob(data_pattern, recursive=True):
-            fmt_ = get_file_format(f)
-            if fmt_ in fmt_mapping.keys():
-                return fmt_
-        return None
-
-    if glob.has_magic(data):
-        fmt = get_file_format_by_glob(data)
-    elif not path.exists(data):
-        raise ValueError(f'Not found path {data}')
-    elif path.isdir(data):
-        path_pattern = f'{data}*' if data.endswith(path.sep) else f'{data}{path.sep}*'
-        fmt = get_file_format_by_glob(path_pattern)
-    else:
-        fmt = path.splitext(data)[-1].lstrip('.')
-
-    if fmt not in fmt_mapping.keys():
-        # fmt = fmt_mapping.keys()[0]
-        raise ValueError(f'Not supported data format{fmt}')
-    fn = fmt_mapping[fmt][int(dask_enabled)]
-    if fn is None:
-        raise ValueError(f'Not supported data format{fmt}')
-
-    if dask_enabled and path.isdir(data) and not glob.has_magic(data):
-        data = f'{data}*' if data.endswith(path.sep) else f'{data}{path.sep}*'
-    df = fn(data, **kwargs)
-
-    if dask_enabled and worker_count > 1 and df.npartitions < worker_count:
-        df = df.repartition(npartitions=worker_count)
-
-    return df
 
 
 def human_data_size(value):
