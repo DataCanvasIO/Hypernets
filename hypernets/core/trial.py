@@ -209,9 +209,9 @@ class TrialHistory():
             history = TrialHistory(line.strip())
             while line is not None and line != '':
                 line = input.readline()
-                if line is None or line.strip('\r\n') == '':
+                if line is None or line.strip() == '':
                     continue
-                fields = line.strip('\r\n').split('|')
+                fields = line.strip().split('|')
                 assert len(fields) >= 4, f'Trial format is not correct. \r\nline:[{line}]'
                 sample = space_fn()
                 vector = [float(n) if n.__contains__('.') else int(n) for n in
