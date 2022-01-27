@@ -185,21 +185,31 @@ class TrialHistory():
         return times, best_rewards, rewards, best_trial_no, best_elapsed
 
     def save(self, filepath):
+        if filepath.endswith('.pkl'):
+            with open(filepath, 'wb') as output:
+                pickle.dump(self, output, protocol=pickle.HIGHEST_PROTOCOL)
+                return
+
         with open(filepath, 'w') as output:
             output.write(f'{self.optimize_direction}\r\n')
             for trial in self.trials:
                 data = f'{trial.trial_no}|{trial.space_sample.vectors}|{trial.reward}|{trial.elapsed}' + \
-                       f'|{trial.model_file if trial.model_file else ""}\r\n'
+                       f'|{trial.model_file if trial.model_file else ""}|{trial.succeeded}\r\n'
                 output.write(data)
 
     @staticmethod
     def load_history(space_fn, filepath):
+        if filepath.endswith('.pkl'):
+            with open(filepath, 'rb') as input:
+                history = pickle.load(input)
+                return history
+
         with open(filepath, 'r') as input:
             line = input.readline()
             history = TrialHistory(line.strip())
             while line is not None and line != '':
-                line = input.readline()
-                if line.strip() == '':
+                line = input.readline().strip('\n')
+                if line == '':
                     continue
                 fields = line.split('|')
                 assert len(fields) >= 4, f'Trial format is not correct. \r\nline:[{line}]'
@@ -213,6 +223,8 @@ class TrialHistory():
                     model_file = None
                 trial = Trial(space_sample=sample, trial_no=int(fields[0]), reward=float(fields[2]),
                               elapsed=float(fields[3]), model_file=model_file)
+                if len(fields) > 5:
+                    trial.succeeded = bool(fields[5])
                 history.append(trial)
             return history
 
