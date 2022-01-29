@@ -12,19 +12,21 @@ from ._transformer import Localizable, as_local_if_possible, copy_attrs_as_local
 class CumlGreedyEnsemble(GreedyEnsemble, Localizable):
     np = cupy
 
-    def _score(self, y_true, y_pred):
-        if isinstance(y_true, cupy.ndarray):
-            y_true = cupy.asnumpy(y_true)
-        elif isinstance(y_true, cudf.Series):
-            y_true = y_true.to_pandas()
+    @staticmethod
+    def _to_local(y):
+        if isinstance(y, cupy.ndarray):
+            y = cupy.asnumpy(y)
+        elif isinstance(y, cudf.Series):
+            y = y.to_pandas()
 
-        if isinstance(y_pred, cupy.ndarray):
-            y_pred = cupy.asnumpy(y_pred)
-        elif isinstance(y_pred, cudf.Series):
-            y_pred = y_pred.to_pandas()
+        return y
 
-        s = super(CumlGreedyEnsemble, self)._score(y_true, y_pred)
-        return s
+    def _score(self, y_true, y_preds):
+        y_true = self._to_local(y_true)
+        y_preds = list(map(self._to_local, y_preds))
+
+        r = super()._score(y_true, y_preds)
+        return r
 
     def as_local(self):
         estimators = list(map(as_local_if_possible, self.estimators))
