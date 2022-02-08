@@ -115,7 +115,8 @@ def load_perf(file_path, human_readable=True):
 
     df['timestamp'] = df['timestamp'].apply(lambda t: datetime.strptime(t, '%Y-%m-%d %H:%M:%S'))
     start_at = df['timestamp'].min()
-    df.insert(1, 'elapsed', (df['timestamp'] - start_at).apply(lambda t: t.seconds))
+    delta = pd.Timedelta(1, 'S')
+    df.insert(1, 'elapsed', (df['timestamp'] - start_at) // delta)
 
     if human_readable:
         GB = 1024 ** 3
