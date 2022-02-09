@@ -1,5 +1,0 @@
-{
-  "packageManager": "python",
-  "packageName": "hn_widget",
-  "uninstallInstructions": "Use your Python package manager (pip, conda, etc.) to uninstall the package hn_widget"
-}

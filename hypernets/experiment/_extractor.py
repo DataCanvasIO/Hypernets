@@ -515,16 +515,23 @@ class PseudoStepExtractor(Extractor):
         return configuration
 
     def _get_extension(self):
+
+        def np2py(o):
+            if hasattr(o, 'tolist'):
+                return o.tolist()
+            else:
+                return o
+
         pseudo_label_stat = self.step.pseudo_label_stat_
-        classes_ = list(pseudo_label_stat.keys()) if pseudo_label_stat is not None else None
+        classes_ = list(map(lambda _: np2py(_), pseudo_label_stat.keys())) if pseudo_label_stat is not None else None
 
         scores = self.step.test_proba_
 
         if pseudo_label_stat is not None:
+            pseudo_label_stat_ = {}
             for k, v in pseudo_label_stat.items():
-                if hasattr(v, 'tolist'):
-                    pseudo_label_stat[k] = v.tolist()
-            pseudo_label_stat = dict(pseudo_label_stat)
+                pseudo_label_stat_[np2py(k)] = np2py(v)
+            pseudo_label_stat = dict(pseudo_label_stat_)
         else:
             pseudo_label_stat = {}
 
@@ -537,7 +544,7 @@ class PseudoStepExtractor(Extractor):
             {
                 "probabilityDensity": probability_density,
                 "samples": pseudo_label_stat,
-                "selectedLabel": classes_[0],
+                "selectedLabel": np2py(classes_[0]),
             }
         return result_extension
 
@@ -641,8 +648,8 @@ class ExperimentExtractor:
             prediction_stats = [('Eval', elapsed, rows)]
         else:
             prediction_stats = None
-
-        return ExperimentMeta(task=exp.hyper_model_.task, datasets=datasets_meta, steps=steps_meta,
+        # FIXME: exp.hyper_model_.task
+        return ExperimentMeta(task=exp.hyper_model.task, datasets=datasets_meta, steps=steps_meta,
                               evaluation_metric=self.evaluation_result,
                               confusion_matrix=self.confusion_matrix_result,
                               resource_usage=self.resource_usage,

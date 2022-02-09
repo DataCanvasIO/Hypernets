@@ -1,11 +1,10 @@
 # -*- coding:utf-8 -*-
 __author__ = 'yangjian'
 
-from ._extractor import ConfusionMatrixMeta
-
 """
 
 """
+import abc
 import time
 import os
 from datetime import datetime
@@ -27,6 +26,7 @@ from hypernets.experiment import ExperimentExtractor
 from . import ExperimentCallback
 from .compete import StepNames
 from .report import ReportRender
+from ._extractor import ConfusionMatrixMeta, StepMeta
 
 
 class ConsoleCallback(ExperimentCallback):
@@ -481,3 +481,96 @@ class MLReportCallback(ExperimentCallback):
     def step_break(self, exp, step, error):
         pass
 
+
+class ActionType:
+    ExperimentStart = 'experimentStart'
+    ExperimentBreak = 'experimentBreak'
+    ExperimentEnd = 'experimentEnd'
+    StepStart = 'stepStart'
+    StepBreak = 'stepBreak'
+    StepEnd = 'stepEnd'
+    EarlyStopped = 'earlyStopped'
+    TrialEnd = 'trialEnd'
+
+
+class ABSExperimentVisCallback(ExperimentCallback, metaclass=abc.ABCMeta):
+
+    def __init__(self, hyper_model_callback_cls, **kwargs):
+        self.hyper_model_callback_cls = hyper_model_callback_cls
+
+    @staticmethod
+    def get_step(experiment, step_name):
+        for i, step in enumerate(experiment.steps):
+            if step.name == step_name:
+                return i, step
+        return -1, None
+
+    @classmethod
+    def get_step_index(cls, experiment, step_name):
+        return cls.get_step(experiment, step_name)[0]
+
+    def experiment_start(self, exp):
+        self.setup_hyper_model_callback(exp, -1)
+        d = ExperimentExtractor(exp).extract()
+        self.experiment_start_(exp, d)
+
+    @abc.abstractmethod
+    def experiment_start_(self, exp, experiment_data):
+        raise NotImplemented
+
+    def _find_hyper_model_callback(self, exp):
+        for callback in exp.hyper_model.callbacks:
+            if isinstance(callback, self.hyper_model_callback_cls):
+                return callback
+        return exp
+
+    def setup_hyper_model_callback(self, exp, step_index):
+        hyper_model_callback = self._find_hyper_model_callback(exp)
+        assert hyper_model_callback
+        hyper_model_callback.set_current_running_step_index(step_index)
+        hyper_model_callback.set_exp_id(id(exp))
+
+    def step_start(self, exp, step):
+        step_name = step
+        step_index = self.get_step_index(exp, step_name)
+        self.setup_hyper_model_callback(exp, step_index)
+        payload = {
+            'index': step_index,
+            'status': StepMeta.STATUS_PROCESS,
+            'start_datetime': time.time(),
+        }
+        self.step_start_(exp, step, payload)
+
+    @abc.abstractmethod
+    def step_start_(self, exp, step, d):
+        raise NotImplemented
+
+    def step_end(self, exp, step, output, elapsed):
+        step_name = step
+        step = exp.get_step(step_name)
+
+        step.done_time = time.time()  # fix done_time is none
+        step_index = self.get_step_index(exp, step_name)
+        step_meta_dict = ExperimentExtractor.extract_step(step_index, step).to_dict()
+
+        self.step_end_(exp, step, output, elapsed, step_meta_dict)
+
+    @abc.abstractmethod
+    def step_end_(self, exp, step, output, elapsed, step_meta_dict):
+        raise NotImplemented
+
+    def step_break(self, exp, step, error):
+        step_name = step
+        step_index = self.get_step_index(exp, step_name)
+        payload = {
+            'index': step_index,
+            'extension': {
+                'reason': str(error)
+            },
+            'status': StepMeta.STATUS_ERROR
+        }
+        self.step_break_(exp, step, error, payload)
+
+    @abc.abstractmethod
+    def step_break_(self, exp, step, error, payload):
+        raise NotImplemented

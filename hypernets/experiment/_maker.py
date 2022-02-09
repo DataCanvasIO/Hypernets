@@ -40,6 +40,12 @@ def make_experiment(hyper_model_cls,
                     evaluation_persist_prediction_dir=None,
                     report_render=None,
                     report_render_options=None,
+                    notebook_hyper_model_callback_cls=None,
+                    notebook_experiment_callback_cls=None,
+                    webui=False,
+                    webui_options=None,
+                    webui_hyper_model_callback_cls=None,
+                    webui_experiment_callback_cls=None,
                     experiment_cls=None,
                     clear_cache=None,
                     log_level=None,
@@ -208,14 +214,21 @@ def make_experiment(hyper_model_cls,
         else:
             raise ValueError(f"Unknown report render '{render}' ")
 
+    def is_set_notebook_callback_cls():
+        return notebook_experiment_callback_cls is not None and notebook_hyper_model_callback_cls is not None
+
     def default_experiment_callbacks():
-        cbs = cfg.experiment_callbacks_notebook if isnotebook() else cfg.experiment_callbacks_console
-        cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cbs]
+        if isnotebook() and is_set_notebook_callback_cls():
+            cbs = [notebook_experiment_callback_cls()]
+        else:
+            cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cfg.experiment_callbacks_console]
         return cbs
 
     def default_search_callbacks():
-        cbs = cfg.hyper_model_callbacks_notebook if isnotebook() else cfg.hyper_model_callbacks_console
-        cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cbs]
+        if isnotebook() and is_set_notebook_callback_cls():
+            cbs = [notebook_hyper_model_callback_cls()]
+        else:
+            cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cfg.hyper_model_callbacks_console]
         return cbs
 
     def append_early_stopping_callbacks(cbs):
@@ -286,6 +299,23 @@ def make_experiment(hyper_model_cls,
 
     if callbacks is None:
         callbacks = default_experiment_callbacks()
+
+    if webui:
+        skip_webui = False
+        if webui_hyper_model_callback_cls is None:
+            skip_webui = True
+            logger.warning(f"skip webui because webui_hyper_model_callback_cls is None")
+
+        if webui_experiment_callback_cls is None:
+            skip_webui = True
+            logger.warning(f"skip webui because webui_experiment_callback_cls is None")
+
+        if webui_options is None:
+            webui_options = {}
+
+        if not skip_webui:
+            search_callbacks.append(webui_hyper_model_callback_cls())
+            callbacks.append(webui_experiment_callback_cls(**webui_options))
 
     if eval_data is not None:
         from hypernets.experiment import MLEvaluateCallback
