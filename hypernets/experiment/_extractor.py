@@ -268,6 +268,22 @@ class FeatureGenerationStepExtractor(Extractor):
         else:
             pass  # replaced_feature_defs_names or feature_defs_names is empty
 
+        def get_variable_type(f):
+            if hasattr(f, 'variable_type'):
+                return f.variable_type.type_string
+            elif hasattr(f, 'column_schema'):
+                column_schema = f.column_schema
+                if column_schema.is_boolean:
+                    return 'boolean'
+                if column_schema.is_categorical:
+                    return 'categorical'
+                if column_schema.is_datetime:
+                    return 'datetime'
+                if column_schema.is_numeric:
+                    return 'numeric'
+                return 'unknown'
+            return 'unknown_ft_version'
+
         def get_feature_detail(f):
             f_name = f.get_name()
             if mapping is not None:
@@ -276,7 +292,7 @@ class FeatureGenerationStepExtractor(Extractor):
                 'name': f_name,
                 'primitive': type(f.primitive).__name__,
                 'parentFeatures': list(map(lambda x: x.get_name(), f.base_features)),
-                'variableType': f.variable_type.type_string,
+                'variableType': get_variable_type(f),
                 'derivationType': type(f).__name__
             }
         feature_defs = self.step.transformer_.feature_defs_
