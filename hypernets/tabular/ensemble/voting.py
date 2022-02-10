@@ -5,10 +5,12 @@ __author__ = 'yangjian'
 """
 from collections import defaultdict
 
+import joblib
 from sklearn.metrics import get_scorer
 from sklearn.metrics._scorer import _PredictScorer
 
 from .base_ensemble import BaseEnsemble
+from ..cfg import TabularCfg as cfg
 
 
 class AveragingEnsemble(BaseEnsemble):
@@ -78,8 +80,15 @@ class GreedyEnsemble(BaseEnsemble):
                            ('ensemble_size', self.ensemble_size)])
         return df._repr_html_()
 
-    def _score(self, y_true, y_pred):
-        return self.scorer._score_func(y_true, y_pred, **self.scorer._kwargs) * self.scorer._sign
+    # def _score(self, y_true, y_pred):
+    #     return self.scorer._score_func(y_true, y_pred, **self.scorer._kwargs) * self.scorer._sign
+
+    def _score(self, y_ture, y_preds):
+        fn = joblib.delayed(self.scorer._score_func)
+        paral = joblib.Parallel(n_jobs=cfg.joblib_njobs, **cfg.joblib_options)
+        rs = paral(fn(y_ture, p, **self.scorer._kwargs) for p in y_preds)
+        rs = [r * self.scorer._sign for r in rs]
+        return rs
 
     def fit_predictions(self, predictions, y_true):
         np = self.np
@@ -100,7 +109,8 @@ class GreedyEnsemble(BaseEnsemble):
         else:
             size = self.ensemble_size
         for i in range(size):
-            stack_scores = []
+            # stack_scores = []
+            preds = []
             for j in range(predictions.shape[1]):
                 if len(predictions.shape) == 2:
                     pred = predictions[:, j]
@@ -113,8 +123,10 @@ class GreedyEnsemble(BaseEnsemble):
                     mean_predictions = pred
                 elif self.task == 'binary' and len(mean_predictions.shape) == 2 and mean_predictions.shape[1] == 2:
                     mean_predictions = mean_predictions[:, 1]
-                score = self._score(y_true, mean_predictions)
-                stack_scores.append(score)
+                preds.append(mean_predictions)
+                # score = self._score(y_true, mean_predictions)
+                # stack_scores.append(score)
+            stack_scores = self._score(y_true, preds)
 
             # best = np.argmax(stack_scores)
             # scores.append(stack_scores[best])

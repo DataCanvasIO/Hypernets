@@ -16,6 +16,63 @@ from hypernets.utils import const, logging, isnotebook, load_module, DocLens
 logger = logging.get_logger(__name__)
 
 
+def find_target(df):
+    columns = df.columns.to_list()
+    for col in columns:
+        if col.lower() in cfg.experiment_default_target_set:
+            return col
+    raise ValueError(f'Not found one of {cfg.experiment_default_target_set} from your data,'
+                     f' implicit target must be specified.')
+
+
+def default_experiment_callbacks():
+    cbs = cfg.experiment_callbacks_notebook if isnotebook() else cfg.experiment_callbacks_console
+    cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cbs]
+    return cbs
+
+
+def default_search_callbacks():
+    cbs = cfg.hyper_model_callbacks_notebook if isnotebook() else cfg.hyper_model_callbacks_console
+    cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cbs]
+    return cbs
+
+
+def to_search_object(search_space, optimize_direction, searcher, searcher_options):
+    def to_searcher(cls, options):
+        assert search_space is not None, '"search_space" should be specified if "searcher" is None or str.'
+        assert optimize_direction in {'max', 'min'}
+        if options is None:
+            options = {}
+        options['optimize_direction'] = optimize_direction
+        s = make_searcher(cls, search_space, **options)
+
+        return s
+
+    if searcher is None:
+        from hypernets.searchers import EvolutionSearcher
+        sch = to_searcher(EvolutionSearcher, searcher_options)
+    elif isinstance(searcher, (type, str)):
+        sch = to_searcher(searcher, searcher_options)
+    else:
+        from hypernets.core.searcher import Searcher as SearcherSpec
+        if not isinstance(searcher, SearcherSpec):
+            logger.warning(f'Unrecognized searcher "{searcher}".')
+        sch = searcher
+
+    return sch
+
+
+def to_report_render_object(render, options):
+    from hypernets.experiment.report import ReportRender, get_render
+    options = {} if options is None else options
+    if isinstance(render, ReportRender):
+        return render
+    elif isinstance(render, str):
+        return get_render(render)(**options)
+    else:
+        raise ValueError(f"Unknown report render '{render}' ")
+
+
 def make_experiment(hyper_model_cls,
                     train_data,
                     target=None,
@@ -40,12 +97,6 @@ def make_experiment(hyper_model_cls,
                     evaluation_persist_prediction_dir=None,
                     report_render=None,
                     report_render_options=None,
-                    notebook_hyper_model_callback_cls=None,
-                    notebook_experiment_callback_cls=None,
-                    webui=False,
-                    webui_options=None,
-                    webui_hyper_model_callback_cls=None,
-                    webui_experiment_callback_cls=None,
                     experiment_cls=None,
                     clear_cache=None,
                     log_level=None,
@@ -173,64 +224,6 @@ def make_experiment(hyper_model_cls,
         log_level = logging.WARN
     logging.set_level(log_level)
 
-    def find_target(df):
-        columns = df.columns.to_list()
-        for col in columns:
-            if col.lower() in cfg.experiment_default_target_set:
-                return col
-        raise ValueError(f'Not found one of {cfg.experiment_default_target_set} from your data,'
-                         f' implicit target must be specified.')
-
-    def default_searcher(cls, options):
-        assert search_space is not None, '"search_space" should be specified when "searcher" is None or str.'
-        assert optimize_direction in {'max', 'min'}
-        if options is None:
-            options = {}
-        options['optimize_direction'] = optimize_direction
-        s = make_searcher(cls, search_space, **options)
-
-        return s
-
-    def to_search_object(sch):
-        from hypernets.core.searcher import Searcher as SearcherSpec
-        from hypernets.searchers import EvolutionSearcher
-
-        if sch is None:
-            sch = default_searcher(EvolutionSearcher, searcher_options)
-        elif isinstance(sch, (type, str)):
-            sch = default_searcher(sch, searcher_options)
-        elif not isinstance(sch, SearcherSpec):
-            logger.warning(f'Unrecognized searcher "{sch}".')
-
-        return sch
-
-    def to_report_render_object(render, options):
-        from hypernets.experiment.report import ReportRender, get_render
-        options = {} if options is None else options
-        if isinstance(render, ReportRender):
-            return render
-        elif isinstance(render, str):
-            return get_render(render)(**options)
-        else:
-            raise ValueError(f"Unknown report render '{render}' ")
-
-    def is_set_notebook_callback_cls():
-        return notebook_experiment_callback_cls is not None and notebook_hyper_model_callback_cls is not None
-
-    def default_experiment_callbacks():
-        if isnotebook() and is_set_notebook_callback_cls():
-            cbs = [notebook_experiment_callback_cls()]
-        else:
-            cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cfg.experiment_callbacks_console]
-        return cbs
-
-    def default_search_callbacks():
-        if isnotebook() and is_set_notebook_callback_cls():
-            cbs = [notebook_hyper_model_callback_cls()]
-        else:
-            cbs = [load_module(cb)() if isinstance(cb, str) else cb for cb in cfg.hyper_model_callbacks_console]
-        return cbs
-
     def append_early_stopping_callbacks(cbs):
         from hypernets.core.callbacks import EarlyStoppingCallback
 
@@ -285,7 +278,7 @@ def make_experiment(hyper_model_cls,
     if optimize_direction is None or len(optimize_direction) == 0:
         optimize_direction = 'max' if scorer._sign > 0 else 'min'
 
-    searcher = to_search_object(searcher)
+    searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options)
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
             and 'down_sample_search' not in kwargs.keys():
@@ -299,23 +292,6 @@ def make_experiment(hyper_model_cls,
 
     if callbacks is None:
         callbacks = default_experiment_callbacks()
-
-    if webui:
-        skip_webui = False
-        if webui_hyper_model_callback_cls is None:
-            skip_webui = True
-            logger.warning(f"skip webui because webui_hyper_model_callback_cls is None")
-
-        if webui_experiment_callback_cls is None:
-            skip_webui = True
-            logger.warning(f"skip webui because webui_experiment_callback_cls is None")
-
-        if webui_options is None:
-            webui_options = {}
-
-        if not skip_webui:
-            search_callbacks.append(webui_hyper_model_callback_cls())
-            callbacks.append(webui_experiment_callback_cls(**webui_options))
 
     if eval_data is not None:
         from hypernets.experiment import MLEvaluateCallback

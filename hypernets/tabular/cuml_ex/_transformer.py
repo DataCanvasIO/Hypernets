@@ -21,6 +21,38 @@ from hypernets.utils import get_params
 from .. import tb_transformer
 
 
+def _tf_check_n_features(self, X, reset):
+    """  from cuml
+
+    Set the `n_features_in_` attribute, or check against it.
+
+    Parameters
+    ----------
+    X : {ndarray, sparse matrix} of shape (n_samples, n_features)
+        The input samples.
+    reset : bool
+        If True, the `n_features_in_` attribute is set to `X.shape[1]`.
+        Else, the attribute must already exist and the function checks
+        that it is equal to `X.shape[1]`.
+    """
+    n_features = X.shape[1]
+
+    if reset:
+        self.n_features_in_ = n_features
+    else:
+        if not hasattr(self, 'n_features_in_'):
+            raise RuntimeError(
+                "The reset parameter is False but there is no "
+                "n_features_in_ attribute. Is this estimator fitted?"
+            )
+        if n_features != self.n_features_in_:
+            raise ValueError(
+                'X has {} features, but this {} is expecting {} features '
+                'as input.'.format(n_features, self.__class__.__name__,
+                                   self.n_features_in_)
+            )
+
+
 class Localizable:
     def as_local(self):
         """
@@ -83,6 +115,10 @@ class LocalizableStandardScaler(StandardScaler, Localizable):
         copy_attrs_as_local(self, target, 'scale_', 'mean_', 'var_', 'n_samples_seen_')
         return target
 
+    # override to fix cuml
+    def _check_n_features(self, X, reset):
+        _tf_check_n_features(self, X, reset)
+
 
 @tb_transformer(cudf.DataFrame, name='MinMaxScaler')
 class LocalizableMinMaxScaler(MinMaxScaler, Localizable):
@@ -90,6 +126,10 @@ class LocalizableMinMaxScaler(MinMaxScaler, Localizable):
         target = sk_pre.MinMaxScaler(self.feature_range, copy=self.copy)
         copy_attrs_as_local(self, target, 'min_', 'scale_', 'data_min_', 'data_max_', 'data_range_', 'n_samples_seen_')
         return target
+
+    # override to fix cuml
+    def _check_n_features(self, X, reset):
+        _tf_check_n_features(self, X, reset)
 
 
 @tb_transformer(cudf.DataFrame, name='MaxAbsScaler')
@@ -99,6 +139,10 @@ class LocalizableMaxAbsScaler(MaxAbsScaler, Localizable):
         copy_attrs_as_local(self, target, 'scale_', 'max_abs_', 'n_samples_seen_')
         return target
 
+    # override to fix cuml
+    def _check_n_features(self, X, reset):
+        _tf_check_n_features(self, X, reset)
+
 
 @tb_transformer(cudf.DataFrame, name='RobustScaler')
 class LocalizableRobustScaler(RobustScaler, Localizable):
@@ -107,6 +151,10 @@ class LocalizableRobustScaler(RobustScaler, Localizable):
                                      quantile_range=self.quantile_range, copy=self.copy)
         copy_attrs_as_local(self, target, 'scale_', 'center_', )
         return target
+
+    # override to fix cuml
+    def _check_n_features(self, X, reset):
+        _tf_check_n_features(self, X, reset)
 
 
 @tb_transformer(cudf.DataFrame, name='TruncatedSVD')
@@ -136,33 +184,7 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
 
     # override to fix cuml
     def _check_n_features(self, X, reset):
-        """Set the `n_features_in_` attribute, or check against it.
-
-        Parameters
-        ----------
-        X : {ndarray, sparse matrix} of shape (n_samples, n_features)
-            The input samples.
-        reset : bool
-            If True, the `n_features_in_` attribute is set to `X.shape[1]`.
-            Else, the attribute must already exist and the function checks
-            that it is equal to `X.shape[1]`.
-        """
-        n_features = X.shape[1]
-
-        if reset:
-            self.n_features_in_ = n_features
-        else:
-            if not hasattr(self, 'n_features_in_'):
-                raise RuntimeError(
-                    "The reset parameter is False but there is no "
-                    "n_features_in_ attribute. Is this estimator fitted?"
-                )
-            if n_features != self.n_features_in_:
-                raise ValueError(
-                    'X has {} features, but this {} is expecting {} features '
-                    'as input.'.format(n_features, self.__class__.__name__,
-                                       self.n_features_in_)
-                )
+        _tf_check_n_features(self, X, reset)
 
     def fit(self, X, y=None):
         self.feature_names_in_ = X.columns.tolist() if isinstance(X, (cudf.DataFrame, pd.DataFrame)) else None

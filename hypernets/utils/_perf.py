@@ -31,7 +31,7 @@ def _initialize_pynvml():
         _gpu_devices = [pynvml.nvmlDeviceGetHandleByIndex(i) for i in range(pynvml.nvmlDeviceGetCount())]
 
 
-def get_perf(proc=None, recursive=True, metrics=None):
+def get_perf(proc=None, recursive=True, children_pool=None, metrics=None):
     """
     Get process performance metrics
     """
@@ -46,7 +46,7 @@ def get_perf(proc=None, recursive=True, metrics=None):
     if proc:
         if recursive:
             percents = []
-            _recursive_proc(percents, proc, lambda p: p.cpu_percent())
+            _recursive_proc(percents, proc, children_pool, lambda p: p.cpu_percent())
             metrics['proc_count'] = len(percents)
             metrics['cpu_used_proc'] = sum(percents)
         else:
@@ -58,7 +58,7 @@ def get_perf(proc=None, recursive=True, metrics=None):
     if proc:
         if recursive:
             rss = []
-            _recursive_proc(rss, proc, lambda p: p.memory_info().rss)
+            _recursive_proc(rss, proc, children_pool, lambda p: p.memory_info().rss)
             metrics['mem_used_proc'] = sum(rss)
         else:
             metrics['mem_used_proc'] = proc.memory_info().rss
@@ -75,27 +75,44 @@ def get_perf(proc=None, recursive=True, metrics=None):
     return metrics
 
 
-def _recursive_proc(buf, proc_, fn):
+def _recursive_proc(result_buf, proc_, children_pool, fn):
+    assert children_pool is None or isinstance(children_pool, dict)
+
     try:
-        buf.append(fn(proc_))
-        for c in proc_.children():
-            _recursive_proc(buf, c, fn)
+        result_buf.append(fn(proc_))
     except:
         pass
+
+    for c in proc_.children(recursive=True):
+        # _recursive_proc(result_buf, c, fn)
+        if children_pool is None:
+            p = c
+        else:
+            cpid = c.pid
+            if cpid in children_pool.keys():
+                p = children_pool[cpid]
+            else:
+                children_pool[cpid] = c
+                p = c
+
+        try:
+            result_buf.append(fn(p))
+        except:
+            pass
 
 
 def dump_perf(file_path, pid=None, recursive=False, interval=1):
     """
     Dump process performance metrics data into a csv file
     """
-
+    children_pool = {} if recursive else None
     metrics = OrderedDict()
     proc = psutil.Process(pid) if pid else None
     header = True
     try:
         with open(file_path, 'w') as f:
             while True:
-                get_perf(proc, recursive=recursive, metrics=metrics)
+                get_perf(proc, recursive=recursive, children_pool=children_pool, metrics=metrics)
                 if header:
                     header = False
                     f.write(','.join(metrics.keys()) + '\n')
@@ -115,7 +132,8 @@ def load_perf(file_path, human_readable=True):
 
     df['timestamp'] = df['timestamp'].apply(lambda t: datetime.strptime(t, '%Y-%m-%d %H:%M:%S'))
     start_at = df['timestamp'].min()
-    df.insert(1, 'elapsed', (df['timestamp'] - start_at).apply(lambda t: t.seconds))
+    delta = pd.Timedelta(1, 'S')
+    df.insert(1, 'elapsed', (df['timestamp'] - start_at) // delta)
 
     if human_readable:
         GB = 1024 ** 3
