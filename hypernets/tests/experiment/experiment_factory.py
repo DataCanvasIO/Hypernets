@@ -82,9 +82,9 @@ def create_drift_detection_experiment(maker=None, **user_kwargs):
 def create_feature_selection_experiment(maker=None, **user_kwargs):
     exp_kwargs = \
         dict(feature_selection=True,
-             feature_selection_strategy='threshold',
+             feature_selection_strategy='quantile',
              feature_selection_threshold=100,
-             feature_selection_quantile=None,
+             feature_selection_quantile=0.5,
              feature_selection_number=None, )
     return _create_experiment(exp_kwargs, maker=maker, need_test=False, user_kwargs=user_kwargs)
 
@@ -95,11 +95,10 @@ def create_feature_reselection_experiment(maker=None, **user_kwargs):
              drift_detection=False,
              feature_reselection=True,
              feature_reselection_estimator_size=10,
-             feature_reselection_strategy='threshold',
+             feature_reselection_strategy='quantile',
              feature_reselection_threshold=0.1,
-             feature_reselection_quantile=None,
+             feature_reselection_quantile=0.5,
              feature_reselection_number=None)
-
     return _create_experiment(exp_kwargs, maker=maker, need_test=True, user_kwargs=user_kwargs)
 
 
