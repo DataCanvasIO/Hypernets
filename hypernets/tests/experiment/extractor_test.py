@@ -33,11 +33,12 @@ def test_drift_detect_extractor():
     unselected_features = dd_step.extension['unselected_features']
     assert "Drifted" == unselected_features['over_variable_threshold'][0][0]
 
-    over_threshold_feature_epoch = unselected_features['over_threshold'][0]
-
-    assert over_threshold_feature_epoch['elapsed']
-    assert over_threshold_feature_epoch['epoch'] == 0
-    assert isinstance(over_threshold_feature_epoch['removed_features'][0][0], str)
+    over_threshold_feature_epochs = unselected_features['over_threshold']
+    if len(over_threshold_feature_epochs) > 0:
+        over_threshold_feature_epoch = over_threshold_feature_epochs[0]
+        assert over_threshold_feature_epoch['elapsed']
+        assert over_threshold_feature_epoch['epoch'] == 0
+        assert isinstance(over_threshold_feature_epoch['removed_features'][0][0], str)
 
 
 def run_feature_selection_extractor(creator, fs_step_index):
