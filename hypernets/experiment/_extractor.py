@@ -268,6 +268,22 @@ class FeatureGenerationStepExtractor(Extractor):
         else:
             pass  # replaced_feature_defs_names or feature_defs_names is empty
 
+        def get_variable_type(f):
+            if hasattr(f, 'variable_type'):
+                return f.variable_type.type_string
+            elif hasattr(f, 'column_schema'):
+                column_schema = f.column_schema
+                if column_schema.is_boolean:
+                    return 'boolean'
+                if column_schema.is_categorical:
+                    return 'categorical'
+                if column_schema.is_datetime:
+                    return 'datetime'
+                if column_schema.is_numeric:
+                    return 'numeric'
+                return 'unknown'
+            return 'unknown_ft_version'
+
         def get_feature_detail(f):
             f_name = f.get_name()
             if mapping is not None:
@@ -276,7 +292,7 @@ class FeatureGenerationStepExtractor(Extractor):
                 'name': f_name,
                 'primitive': type(f.primitive).__name__,
                 'parentFeatures': list(map(lambda x: x.get_name(), f.base_features)),
-                'variableType': f.variable_type.type_string,
+                'variableType': get_variable_type(f),
                 'derivationType': type(f).__name__
             }
         feature_defs = self.step.transformer_.feature_defs_
@@ -515,16 +531,23 @@ class PseudoStepExtractor(Extractor):
         return configuration
 
     def _get_extension(self):
+
+        def np2py(o):
+            if hasattr(o, 'tolist'):
+                return o.tolist()
+            else:
+                return o
+
         pseudo_label_stat = self.step.pseudo_label_stat_
-        classes_ = list(pseudo_label_stat.keys()) if pseudo_label_stat is not None else None
+        classes_ = list(map(lambda _: np2py(_), pseudo_label_stat.keys())) if pseudo_label_stat is not None else None
 
         scores = self.step.test_proba_
 
         if pseudo_label_stat is not None:
+            pseudo_label_stat_ = {}
             for k, v in pseudo_label_stat.items():
-                if hasattr(v, 'tolist'):
-                    pseudo_label_stat[k] = v.tolist()
-            pseudo_label_stat = dict(pseudo_label_stat)
+                pseudo_label_stat_[np2py(k)] = np2py(v)
+            pseudo_label_stat = dict(pseudo_label_stat_)
         else:
             pseudo_label_stat = {}
 
@@ -537,7 +560,7 @@ class PseudoStepExtractor(Extractor):
             {
                 "probabilityDensity": probability_density,
                 "samples": pseudo_label_stat,
-                "selectedLabel": classes_[0],
+                "selectedLabel": np2py(classes_[0]),
             }
         return result_extension
 
@@ -641,8 +664,8 @@ class ExperimentExtractor:
             prediction_stats = [('Eval', elapsed, rows)]
         else:
             prediction_stats = None
-
-        return ExperimentMeta(task=exp.hyper_model_.task, datasets=datasets_meta, steps=steps_meta,
+        # FIXME: exp.hyper_model_.task
+        return ExperimentMeta(task=exp.hyper_model.task, datasets=datasets_meta, steps=steps_meta,
                               evaluation_metric=self.evaluation_result,
                               confusion_matrix=self.confusion_matrix_result,
                               resource_usage=self.resource_usage,
