@@ -4,6 +4,7 @@
 """
 import os
 import shutil
+
 import pytest
 
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
@@ -17,15 +18,18 @@ if is_cuml_installed:
     from hypernets.tabular.cuml_ex import CumlToolBox
 
 
-def run_experiment(train_df, **kwargs):
+def run_experiment(train_df, check_as_local=True, **kwargs):
     experiment = make_experiment(PlainModel, train_df, search_space=PlainSearchSpace(), **kwargs)
     estimator = experiment.run()
     print(experiment.random_state, estimator)
 
-    assert estimator is not None and hasattr(estimator, 'as_local')
+    assert estimator is not None
 
-    local_estimator = estimator.as_local()
-    assert not hasattr(local_estimator, 'as_local')
+    if check_as_local:
+        assert hasattr(estimator, 'as_local')
+
+        local_estimator = estimator.as_local()
+        assert not hasattr(local_estimator, 'as_local')
 
 
 @if_cuml_ready
@@ -38,7 +42,7 @@ class TestCumlExperiment:
         df = dsutils.load_bank()
         df['y'] = LabelEncoder().fit_transform(df['y'])  # binary task target
         df['education'] = LabelEncoder().fit_transform(df['education'])  # multiclass task target
-        cls.bank_data_cudfbank_data = df
+        cls.bank_data = df
         cls.bank_data_cudf = cudf.from_pandas(df)
 
         cls.boston_data = dsutils.load_blood()
@@ -118,4 +122,15 @@ class TestCumlExperiment:
                        hyper_model_options=dict(transformer=preprocessor),
                        collinearity_detection=True,
                        # log_level='info',
+                       random_state=335, )
+
+    def test_adapt_to_cuml(self):
+        preprocessor = CumlToolBox.general_preprocessor(self.bank_data_cudf)
+        run_experiment(self.bank_data.copy(), check_as_local=False,
+                       hyper_model_options=dict(transformer=preprocessor),
+                       data_adaption_target='cuml',
+                       cv=False,
+                       ensemble_size=5,
+                       max_trials=5,
+                       log_level='info',
                        random_state=335, )

@@ -14,7 +14,7 @@ def _run_experiment(creator):
 
 def test_data_clean_extractor():
     exp_data, estimator = _run_experiment(experiment_factory.create_data_clean_experiment)
-    step = exp_data.steps[0]
+    step = exp_data.steps[1]
     extension = step.extension
 
     assert step.type == DataCleanStep.__name__
@@ -29,7 +29,7 @@ def test_data_clean_extractor():
 
 def test_drift_detect_extractor():
     exp_data, estimator = _run_experiment(experiment_factory.create_drift_detection_experiment)
-    dd_step = exp_data.steps[1]
+    dd_step = exp_data.steps[2]
     unselected_features = dd_step.extension['unselected_features']
     assert "Drifted" == unselected_features['over_variable_threshold'][0][0]
 
@@ -56,16 +56,16 @@ def run_feature_selection_extractor(creator, fs_step_index):
 
 
 def test_feature_selection_extractor():
-    run_feature_selection_extractor(experiment_factory.create_feature_selection_experiment, 1)
+    run_feature_selection_extractor(experiment_factory.create_feature_selection_experiment, 2)
 
 
 def test_feature_reselection_extractor():
-    run_feature_selection_extractor(experiment_factory.create_feature_reselection_experiment, 2)
+    run_feature_selection_extractor(experiment_factory.create_feature_reselection_experiment, 3)
 
 
 def test_multicollinearity_detect_extractor():
     exp_data, estimator = _run_experiment(experiment_factory.create_multicollinearity_detect_experiment)
-    multicollinearity_detect_step = exp_data.steps[1]
+    multicollinearity_detect_step = exp_data.steps[2]
     print(multicollinearity_detect_step)
     unselected_features = multicollinearity_detect_step.extension['unselected_features']
     assert len(unselected_features.keys()) > 0
@@ -75,7 +75,7 @@ def test_multicollinearity_detect_extractor():
 
 def test_feature_generation_extractor():
     exp_data, estimator = _run_experiment(experiment_factory.create_feature_generation_experiment)
-    fg_step = exp_data.steps[1]
+    fg_step = exp_data.steps[2]
 
     output_features = fg_step.extension['outputFeatures']
     assert len(output_features) > 0
@@ -96,7 +96,7 @@ def test_feature_generation_extractor():
 
 def test_pseudo_labeling_extractor():
     exp_data, estimator = _run_experiment(experiment_factory.create_pseudo_labeling_experiment)
-    pl_step = exp_data.steps[3]
+    pl_step = exp_data.steps[4]
 
     samples = pl_step.extension['samples']
     assert samples[0] >= 0

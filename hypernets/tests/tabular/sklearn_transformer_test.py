@@ -144,6 +144,17 @@ class Test_Transformer():
         assert len(fse.scores_.items()) == 17
         assert len(fse.columns_) == 10
 
+    def test_feature_selection_by_importances(self):
+        df = self.bank_data.copy()
+        y = df.pop('y')
+        fse = skex.FeatureImportancesSelectionTransformer('binary', strategy='number', number=5)
+        fse.fit(df, y)
+        assert fse.n_features_in_ == len(df.columns)
+        assert len(fse.selected_features_) == 5
+
+        x_t = fse.transform(df)
+        assert x_t.columns.to_list() == fse.selected_features_
+
     def test_multi_label_encoder(self):
         df = pd.DataFrame({"A": [1, 2, 3, 4],
                            "B": ['a', 'a', 'a', 'b']})

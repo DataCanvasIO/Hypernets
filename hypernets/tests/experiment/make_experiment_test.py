@@ -1,4 +1,5 @@
 import os.path
+
 import numpy as np
 from sklearn.model_selection import train_test_split
 
@@ -6,6 +7,7 @@ from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback, ExperimentMeta
 from hypernets.experiment.compete import StepNames
 from hypernets.tabular.datasets import dsutils
+from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from hypernets.utils import common as common_util
 
 
@@ -27,6 +29,19 @@ def test_experiment_with_blood_down_sample():
     estimator = experiment.run(max_trials=3)
     print(estimator)
     assert estimator is not None
+
+
+def test_experiment_with_data_adaption():
+    df = dsutils.load_bank()
+    df = MultiLabelEncoder().fit_transform(df)
+    mem_usage = int(df.memory_usage().sum())
+    experiment = make_experiment(PlainModel, df, target='y', search_space=PlainSearchSpace(),
+                                 data_adaption_memory_limit=mem_usage // 2,
+                                 log_level='info',
+                                 )
+    estimator = experiment.run(max_trials=3)
+    assert estimator is not None
+    assert estimator.steps[0][0] == 'data_adaption'
 
 
 def test_experiment_with_blood_down_sample_by_class():
@@ -99,7 +114,7 @@ def run_export_excel_report(maker, has_eval_data=True):
     _experiment_meta: ExperimentMeta = mlr_callback.experiment_meta_
 
     assert len(_experiment_meta.resource_usage) > 0
-    assert len(_experiment_meta.steps) == 4
+    assert len(_experiment_meta.steps) == 5
     assert os.path.exists(file_path)
 
     if has_eval_data:
@@ -125,6 +140,7 @@ def test_str_render():
                                      report_render='excel',
                                      report_render_options={'file_path': file_path})
         return experiment
+
     run_export_excel_report(maker)
 
 
@@ -141,6 +157,7 @@ def test_obj_render():
                                      search_space=PlainSearchSpace(enable_lr=False, enable_nn=False),
                                      report_render=ExcelReportRender(file_path))
         return experiment
+
     run_export_excel_report(maker)
 
 
@@ -156,6 +173,7 @@ def test_no_eval_data_render():
                                      report_render='excel',
                                      report_render_options={'file_path': file_path})
         return experiment
+
     run_export_excel_report(maker, has_eval_data=False)
 
 
@@ -197,11 +215,10 @@ def test_regression_task_report():
     _experiment_meta: ExperimentMeta = mlr_callback.experiment_meta_
 
     assert len(_experiment_meta.resource_usage) > 0
-    assert len(_experiment_meta.steps) == 4
+    assert len(_experiment_meta.steps) == 5
     assert os.path.exists(file_path)
 
     assert mle_callback is not None
     assert _experiment_meta.evaluation_metric is not None
     assert len(_experiment_meta.prediction_stats) == 1
     assert len(_experiment_meta.datasets) == 3
-
