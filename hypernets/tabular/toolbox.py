@@ -8,6 +8,7 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
+import psutil
 from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
 
@@ -24,7 +25,7 @@ from . import estimator_detector as estimator_detector_
 from . import feature_generators as feature_generators_
 from . import metrics as metrics_
 from . import pseudo_labeling as pseudo_labeling_
-from . import sklearn_ex as sk_ex  # register customized transformer
+from . import sklearn_ex as sk_ex  # NOQA,  register customized transformer
 from ._base import ToolboxMeta, register_transformer
 from .cfg import TabularCfg as c
 from .persistence import ParquetPersistence
@@ -37,8 +38,6 @@ except ImportError:
     lightgbm_installed = False
 
 logger = logging.get_logger(__name__)
-
-type(sk_ex)  # disable: optimize import
 
 
 class ToolBox(metaclass=ToolboxMeta):
@@ -68,6 +67,30 @@ class ToolBox(metaclass=ToolboxMeta):
             return None
         else:
             return X.shape
+
+    @staticmethod
+    def memory_total():
+        mem = psutil.virtual_memory()
+        return mem.total
+
+    @staticmethod
+    def memory_free():
+        mem = psutil.virtual_memory()
+        return mem.used
+
+    @staticmethod
+    def memory_usage(*data):
+        usage = 0
+        for x in data:
+            if isinstance(x, pd.DataFrame):
+                usage += x.memory_usage().sum()
+            elif isinstance(x, pd.Series):
+                usage += x.memory_usage()
+            elif isinstance(x, np.ndarray):
+                usage += x.nbytes
+            else:
+                pass  # ignore
+        return usage
 
     @staticmethod
     def to_local(*data):
@@ -626,6 +649,10 @@ class ToolBox(metaclass=ToolboxMeta):
             auc_threshold=auc_threshold, min_features=min_features, remove_size=remove_size,
             sample_balance=sample_balance, max_test_samples=max_test_samples, cv=cv, random_state=random_state,
             callbacks=callbacks)
+
+    @classmethod
+    def feature_selector_with_feature_importances(cls, strategy=None, threshold=None, quantile=None, number=None):
+        pass
 
     @classmethod
     def pseudo_labeling(cls, strategy, threshold=None, quantile=None, number=None):

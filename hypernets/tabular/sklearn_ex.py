@@ -483,6 +483,77 @@ class FeatureSelectionTransformer(BaseEstimator):
 
 
 @tb_transformer(pd.DataFrame)
+class FeatureImportancesSelectionTransformer(BaseEstimator):
+    def __init__(self, task=None, strategy=None, threshold=None, quantile=None, number=None, data_clean=True):
+        super().__init__()
+
+        self.task = task
+        self.strategy = strategy
+        self.threshold = threshold
+        self.quantile = quantile
+        self.number = number
+        self.data_clean = data_clean
+
+        # fitted
+        self.feature_names_in_ = None
+        self.n_features_in_ = None
+        self.feature_importances_ = None
+        self.selected_features_ = None
+
+    def fit(self, X, y):
+        tb = get_tool_box(X, y)
+        if self.task is None:
+            self.task, _ = tb.infer_task_type(y)
+
+        columns_in = X.columns.to_list()
+        # logger.info(f'all columns: {columns}')
+
+        if self.data_clean:
+            logger.info('data cleaning')
+            kwargs = dict(replace_inf_values=np.nan, drop_label_nan_rows=True,
+                          drop_constant_columns=False, drop_duplicated_columns=False,
+                          drop_idness_columns=False, reduce_mem_usage=False,
+                          correct_object_dtype=False, int_convert_to=None,
+                          )
+            dc = tb.data_cleaner(**kwargs)
+            X, y = dc.fit_transform(X, y)
+
+        preprocessor = tb.general_preprocessor(X)
+        estimator = tb.general_estimator(X, y, task=self.task)
+
+        if self.task != 'regression' and y.dtype != 'int':
+            logger.info('label encoding')
+            le = tb.transformers['LabelEncoder']()
+            y = le.fit_transform(y)
+
+        logger.info('preprocessing')
+        X = preprocessor.fit_transform(X, y)
+        logger.info('scoring')
+        estimator.fit(X, y)
+        importances = estimator.feature_importances_
+
+        selected, unselected = \
+            tb.select_feature_by_importance(importances, strategy=self.strategy,
+                                            threshold=self.threshold,
+                                            quantile=self.quantile,
+                                            number=self.number)
+        columns = X.columns.to_list()
+        selected = [columns[i] for i in selected]
+
+        self.n_features_in_ = len(columns_in)
+        self.feature_names_in_ = columns_in
+        self.feature_importances_ = importances
+        self.selected_features_ = selected
+
+        logger.info(f'selected columns:{self.selected_features_}')
+
+        return self
+
+    def transform(self, X):
+        return X[self.selected_features_]
+
+
+@tb_transformer(pd.DataFrame)
 class FloatOutputImputer(SimpleImputer):
 
     def transform(self, X):

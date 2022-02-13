@@ -3,8 +3,9 @@
 
 """
 import copy
-from functools import partial
 import inspect
+from functools import partial
+
 import cudf
 import cupy
 import numpy as np
@@ -13,10 +14,11 @@ from cuml.common.array import CumlArray
 
 from hypernets.utils import const, logging
 from . import _data_cleaner
-from . import _dataframe_mapper, _transformer, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
+from . import _dataframe_mapper, _metrics, _data_hasher, _model_selection, _ensemble, _drift_detection
 from . import _estimator_detector
 from . import _persistence
 from . import _pseudo_labeling
+from . import _transformer  # NOQA,  register customized transformer
 from .. import sklearn_ex as sk_ex
 from ..toolbox import ToolBox, register_transformer, randint
 
@@ -26,8 +28,6 @@ try:
     is_xgboost_installed = True
 except ImportError:
     is_xgboost_installed = False
-
-type(_transformer)  # disable: optimize import
 
 logger = logging.get_logger(__name__)
 
@@ -71,6 +71,30 @@ class CumlToolBox(ToolBox):
     @staticmethod
     def exist_cuml_object(*args):
         return any(map(CumlToolBox.is_cuml_object, args))
+
+    @staticmethod
+    def memory_total():
+        device = cupy.cuda.Device(0)
+        return device.mem_info[1]
+
+    @staticmethod
+    def memory_free():
+        device = cupy.cuda.Device(0)
+        return device.mem_info[0]
+
+    @staticmethod
+    def memory_usage(*data):
+        usage = 0
+        for x in data:
+            if isinstance(x, cudf.DataFrame):
+                usage += x.memory_usage().sum()
+            elif isinstance(x, cudf.Series):
+                usage += x.memory_usage()
+            elif isinstance(x, cupy.ndarray):
+                usage += x.nbytes
+            else:
+                pass  # ignore
+        return usage
 
     @staticmethod
     def to_local(*data):
@@ -619,6 +643,7 @@ _predefined_transformers = dict(
     # # TfidfEncoder=sk_ex.TfidfEncoder,
     # # DatetimeEncoder=sk_ex.DatetimeEncoder,
     # # FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
+    FeatureImportancesSelectionTransformer=sk_ex.FeatureImportancesSelectionTransformer,
 )
 for name, tf in _predefined_transformers.items():
     register_transformer(tf, name=name, dtypes=cudf.DataFrame)

@@ -796,6 +796,7 @@ _predefined_transformers = dict(
     # TfidfEncoder=sk_ex.TfidfEncoder,
     # DatetimeEncoder=sk_ex.DatetimeEncoder,
     FeatureGenerationTransformer=_feature_generators.DaskFeatureGenerationTransformer,
+    FeatureImportancesSelectionTransformer=sk_ex.FeatureImportancesSelectionTransformer,
 )
 
 for name, tf in _predefined_transformers.items():

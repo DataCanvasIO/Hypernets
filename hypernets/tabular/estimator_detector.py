@@ -2,6 +2,7 @@
 """
 
 """
+
 import pandas as pd
 from sklearn.datasets import make_classification, make_regression
 
@@ -81,6 +82,9 @@ class EstimatorDetector:
             self.fit_estimator(estimator, X, y)
             result.add('fitted')
         except Exception as e:
-            logger.info(e)
+            logger.info(f'EstimatorDetector error: {e}, ')
+            # logger.info(e)
+            if logger.is_debug_enabled():
+                logger.debug(e)
 
         return result
