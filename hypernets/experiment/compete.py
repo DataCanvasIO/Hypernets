@@ -23,6 +23,8 @@ logger = logging.get_logger(__name__)
 
 DEFAULT_EVAL_SIZE = 0.3
 
+DATA_ADAPTION_TARGET_CUML_ALIASES = {'cuml', 'cuda', 'cudf', 'gpu'}
+
 
 def _set_log_level(log_level):
     logging.set_level(log_level)
@@ -47,6 +49,7 @@ def _generate_dataset_id(X_train, y_train, X_test, X_eval, y_eval):
 
 
 class StepNames:
+    DATA_ADAPTION = 'data_adaption'
     DATA_CLEAN = 'data_clean'
     FEATURE_GENERATION = 'feature_generation'
     MULITICOLLINEARITY_DETECTION = 'multicollinearity_detection'
@@ -209,6 +212,140 @@ class FeatureSelectStep(ExperimentStep):
             unselected = list(filter(lambda _: _ not in self.selected_features_, self.input_features_))
 
         return unselected
+
+
+class DataAdaptionStep(FeatureSelectStep):
+    def __init__(self, experiment, name, target=None, memory_limit=0.05, min_cols=0.1):
+        assert isinstance(memory_limit, (int, float)) and memory_limit > 0
+
+        super().__init__(experiment, name)
+
+        self.target = target
+        self.memory_limit = memory_limit
+        self.min_cols = min_cols
+
+    def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        assert self.target is None or isinstance(X_train, pd.DataFrame), \
+            f'Only pandas/numpy data can be adapted to {self.target}'
+
+        super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
+
+        tb, tb_target = self.get_tool_box_with_target(X_train, y_train, X_test, X_eval, y_eval)
+        memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
+
+        if isinstance(self.memory_limit, float) and 0.0 < self.memory_limit < 1.0:
+            if tb is tb_target:
+                memory_free = tb.memory_free() + memory_usage
+            else:
+                memory_free = tb_target.memory_free()
+            memory_limit = self.memory_limit * memory_free
+        else:
+            memory_limit = int(self.memory_limit)
+
+        if memory_usage > memory_limit:
+            if isinstance(self.min_cols, float) and 0.0 < self.min_cols < 1.0:
+                min_cols = int(self.min_cols * X_train.shape[1])
+            else:
+                min_cols = int(self.min_cols)
+            if min_cols < 10:
+                min_cols = min(10, X_train.shape[1])
+
+            # step 1, compact rows
+            frac = memory_limit / memory_usage
+            if frac * X_train.shape[1] < min_cols:
+                f = int(frac * X_train.shape[1]) / min_cols
+                X_train, y_train, X_test, X_eval, y_eval = \
+                    self.compact_by_rows(X_train, y_train, X_test, X_eval, y_eval, f)
+
+            # step 2, compact columns
+            if min_cols < X_train.shape[1]:
+                memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
+                frac = memory_limit / memory_usage
+                X_train, y_train, X_test, X_eval, y_eval = \
+                    self.compact_by_columns(X_train, y_train, X_test, X_eval, y_eval, frac)
+
+            if logger.is_info_enabled():
+                memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
+                logger.info(f'adapted X_train:{tb.get_shape(X_train)}, '
+                            f'X_test:{tb.get_shape(X_test, allow_none=True)}, '
+                            f'X_eval:{tb.get_shape(X_eval, allow_none=True)}. '
+                            f'memory usage: {memory_usage / (1024 ** 3):.3f}GB, ')
+
+            # update experiment attributes
+            exp = self.experiment
+            exp.X_train = X_train
+            exp.y_train = y_train
+            exp.X_eval = X_eval
+            exp.y_eval = y_eval
+            exp.X_test = X_test
+
+            self.selected_features_ = X_train.columns.to_list()
+        else:
+            self.selected_features_ = None  # do nothing
+
+        if tb_target is not tb:
+            logger.info(f'adapt locale data with {tb_target}')
+            X_train, y_train, X_test, X_eval, y_eval = \
+                tb_target.from_local(X_train, y_train, X_test, X_eval, y_eval)
+
+        return hyper_model, X_train, y_train, X_test, X_eval, y_eval
+    #
+    # def transform(self, X, y=None, **kwargs):
+    #     tb, tb_target = self.get_tool_box_with_target(X, y)
+    #     if tb_target is not tb:
+    #         X, y = tb_target.from_local(X, y)
+    #
+    #     return super().transform(X, y, **kwargs)
+    #
+    # def is_transform_skipped(self):
+    #     skipped = super().is_transform_skipped()
+    #     if skipped:
+    #         if self.target is not None:
+    #             tb, tb_target = self.get_tool_box_with_target(pd.DataFrame)
+    #             skipped = skipped and tb is tb_target
+    #     return skipped
+
+    def get_tool_box_with_target(self, *data):
+        tb = get_tool_box(*data)
+        if self.target is None:
+            tb_target = tb
+        elif isinstance(self.target, str) and self.target.lower() in DATA_ADAPTION_TARGET_CUML_ALIASES:
+            import cudf
+            tb_target = get_tool_box(cudf.DataFrame)
+        else:
+            tb_target = get_tool_box(self.target)
+        return tb, tb_target
+
+    def compact_by_rows(self, X_train, y_train, X_test, X_eval, y_eval, frac):
+        X_train, y_train = self.sample(X_train, y_train, frac)
+        if X_eval is not None:
+            X_eval, y_eval = self.sample(X_eval, y_eval, frac)
+        if X_test is not None:
+            X_test, _ = self.sample(X_test, None, frac)
+
+        return X_train, y_train, X_test, X_eval, y_eval
+
+    def compact_by_columns(self, X_train, y_train, X_test, X_eval, y_eval, frac):
+        tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+        tf_cls = tb.transformers['FeatureImportancesSelectionTransformer']
+        tf = tf_cls(task=self.task, strategy='number', number=frac)
+        tf.fit(X_train, y_train)
+
+        X_train = tf.transform(X_train)
+        if X_eval is not None:
+            X_eval = tf.transform(X_eval)
+        if X_test is not None:
+            X_test = tf.transform(X_test)
+
+        return X_train, y_train, X_test, X_eval, y_eval
+
+    def sample(self, X, y, frac):
+        tb = get_tool_box(X, y)
+        options = {}
+        if y is not None and self.task != const.TASK_REGRESSION:
+            options['stratify'] = y
+        X, _, y, _ = tb.train_test_split(X, y, train_size=frac, **options)
+        return X, y
 
 
 class DataCleanStep(FeatureSelectStep):
@@ -1435,6 +1572,10 @@ class CompeteExperiment(SteppedExperiment):
                  callbacks=None,
                  random_state=None,
                  scorer=None,
+                 data_adaption=None,
+                 data_adaption_target=None,
+                 data_adaption_memory_limit=0.05,
+                 data_adaption_min_cols=0.1,
                  data_cleaner_args=None,
                  feature_generation=False,
                  feature_generation_trans_primitives=None,
@@ -1518,8 +1659,19 @@ class CompeteExperiment(SteppedExperiment):
             (see [get_scorer](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.get_scorer.html))
             or a callable (see [make_scorer](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.make_scorer.html)).
             Will be inferred from *hyper_model.reward_metric* if it's None.
-        data_cleaner_args : dict, (default=None)
-            dictionary of parameters to initialize the `DataCleaner` instance. If None, `DataCleaner` will initialized
+        data_adaption: bool, (default True for Pandas/Cuml data types)
+            Whether to enable data adaption. Support Pandas/Cuml data types only.
+        data_adaption_target: None or str or dataframe type, (default None)
+            Whether to run the next steps. 'cuml' or 'cuda', adapt training data into cuml datatypes and run next steps on nvidia GPU Devices.
+            None, not change the training data types.
+        data_adaption_memory_limit: int or float, (default 0.05)
+            If float, should be between 0.0 and 1.0 and represent the proportion of the system free memory.
+            If int, represents the absolute byte number of memory.
+        data_adaption_min_cols: int or float, (default 0.1)
+            If float, should be between 0.0 and 1.0 and represent the proportion of the original dataframe column number.
+            If int, represents the absolute column number.
+        data_cleaner_args : dict, (default None)
+            Dictionary of parameters to initialize the `DataCleaner` instance. If None, `DataCleaner` will be initialized
             with default values.
         feature_generation : bool (default False),
             Whether to enable feature generation.
@@ -1667,6 +1819,19 @@ class CompeteExperiment(SteppedExperiment):
         creators = self.get_creators(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                                      down_sample_search=down_sample_search)
 
+        # data adaption
+        if data_adaption is None:
+            data_adaption = tb.__name__.lower().find('dask') < 0
+
+        if data_adaption:
+            if tb.__name__.lower().find('dask') >= 0:
+                raise ValueError('Data adaption dose not support dask data types now.')
+            creator = creators[StepNames.DATA_ADAPTION]
+            steps.append(creator(self, StepNames.DATA_ADAPTION,
+                                 target=data_adaption_target,
+                                 memory_limit=data_adaption_memory_limit,
+                                 min_cols=data_adaption_min_cols))
+
         # data clean
         creator = creators[StepNames.DATA_CLEAN]
         steps.append(creator(self, StepNames.DATA_CLEAN,
@@ -1792,6 +1957,7 @@ class CompeteExperiment(SteppedExperiment):
     def get_creators(hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None,
                      down_sample_search=False, ):
         mapping = {
+            StepNames.DATA_ADAPTION: DataAdaptionStep,
             StepNames.DATA_CLEAN: DataCleanStep,
             StepNames.FEATURE_GENERATION: FeatureGenerationStep,
             StepNames.MULITICOLLINEARITY_DETECTION: MulticollinearityDetectStep,
@@ -1825,6 +1991,17 @@ class CompeteExperiment(SteppedExperiment):
     def run(self, **kwargs):
         run_kwargs = {**self.run_kwargs, **kwargs}
         return super().run(**run_kwargs)
+
+    def to_estimator(self, X_train, y_train, X_test, X_eval, y_eval, steps):
+        estimator = super().to_estimator(X_train, y_train, X_test, X_eval, y_eval, steps)
+
+        first_step = steps[0]
+        if isinstance(first_step, DataAdaptionStep):
+            if str(first_step.target).lower() in DATA_ADAPTION_TARGET_CUML_ALIASES \
+                    and isinstance(self.X_train, pd.DataFrame) and hasattr(estimator, 'as_local'):
+                estimator = estimator.as_local()
+
+        return estimator
 
     def _repr_html_(self):
         try:

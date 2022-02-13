@@ -14,6 +14,7 @@ logger = logging.get_logger(__name__)
 
 
 class StepType:
+    DataAdapting = 'DataAdaptionStep'
     DataCleaning = 'DataCleanStep'
     CollinearityDetection = 'MulticollinearityDetectStep'
     DriftDetection = 'DriftDetectStep'
@@ -218,6 +219,12 @@ class ABSFeatureSelectionStepExtractor(Extractor, metaclass=abc.ABCMeta):
 
     def unselected_features(self):
         return self.step.unselected_features
+
+
+class DataAdaptionStepExtractor(ABSFeatureSelectionStepExtractor):
+
+    def _get_extension(self):
+        return {}
 
 
 class DataCleanStepExtractor(ABSFeatureSelectionStepExtractor):
@@ -594,6 +601,7 @@ class ExperimentExtractor:
         self.resource_usage = resource_usage
 
     extractors = {
+        StepType.DataAdapting: DataAdaptionStepExtractor,
         StepType.DataCleaning: DataCleanStepExtractor,
         StepType.FeatureGeneration: FeatureGenerationStepExtractor,
         StepType.DriftDetection: DriftStepExtractor,
