@@ -44,6 +44,11 @@ def get_job_params():
     return get_job(job_name, daemon_portal)['params']
 
 
+def get_job_working_dir():
+    job_working_dir = os.getenv(consts.KEY_ENV_JOB_EXECUTION_WORKING_DIR)
+    return job_working_dir
+
+
 def list_jobs(daemon_portal):
     # if daemon_portal is None:
     #     daemon_portal = os.getenv(consts.KEY_ENV_DAEMON_PORTAL)
