@@ -545,7 +545,7 @@ class FeatureImportancesSelectionTransformer(BaseEstimator):
         self.feature_importances_ = importances
         self.selected_features_ = selected
 
-        logger.info(f'selected columns:{self.selected_features_}')
+        # logger.info(f'selected columns:{self.selected_features_}')
 
         return self
 

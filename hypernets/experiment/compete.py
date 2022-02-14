@@ -4,6 +4,7 @@ __author__ = 'yangjian'
 
 """
 import copy
+import gc
 import math
 import time
 from collections import OrderedDict
@@ -230,6 +231,7 @@ class DataAdaptionStep(FeatureSelectStep):
 
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
+        GB = 1024 ** 3
         tb, tb_target = self.get_tool_box_with_target(X_train, y_train, X_test, X_eval, y_eval)
         memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
 
@@ -242,7 +244,19 @@ class DataAdaptionStep(FeatureSelectStep):
         else:
             memory_limit = int(self.memory_limit)
 
+        if logger.is_info_enabled():
+            logger.info(f'{self.name} original data memory usage:{memory_usage / GB:.3f}, '
+                        f'limit: {memory_limit / GB:.3f}GB')
+
         if memory_usage > memory_limit:
+            # clear experiment data attributes
+            exp = self.experiment
+            exp.X_train = None
+            exp.y_train = None
+            exp.X_eval = None
+            exp.y_eval = None
+            exp.X_test = None
+
             if isinstance(self.min_cols, float) and 0.0 < self.min_cols < 1.0:
                 min_cols = int(self.min_cols * X_train.shape[1])
             else:
@@ -256,6 +270,7 @@ class DataAdaptionStep(FeatureSelectStep):
                 f = int(frac * X_train.shape[1]) / min_cols
                 X_train, y_train, X_test, X_eval, y_eval = \
                     self.compact_by_rows(X_train, y_train, X_test, X_eval, y_eval, f)
+                gc.collect()
 
             # step 2, compact columns
             if min_cols < X_train.shape[1]:
@@ -263,16 +278,16 @@ class DataAdaptionStep(FeatureSelectStep):
                 frac = memory_limit / memory_usage
                 X_train, y_train, X_test, X_eval, y_eval = \
                     self.compact_by_columns(X_train, y_train, X_test, X_eval, y_eval, frac)
+                gc.collect()
 
             if logger.is_info_enabled():
                 memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
-                logger.info(f'adapted X_train:{tb.get_shape(X_train)}, '
+                logger.info(f'{self.name} adapted X_train:{tb.get_shape(X_train)}, '
                             f'X_test:{tb.get_shape(X_test, allow_none=True)}, '
                             f'X_eval:{tb.get_shape(X_eval, allow_none=True)}. '
-                            f'memory usage: {memory_usage / (1024 ** 3):.3f}GB, ')
+                            f'memory usage: {memory_usage / GB:.3f}GB, ')
 
-            # update experiment attributes
-            exp = self.experiment
+            # restore experiment attributes
             exp.X_train = X_train
             exp.y_train = y_train
             exp.X_eval = X_eval
@@ -284,12 +299,12 @@ class DataAdaptionStep(FeatureSelectStep):
             self.selected_features_ = None  # do nothing
 
         if tb_target is not tb:
-            logger.info(f'adapt locale data with {tb_target}')
+            logger.info(f'{self.name} adapt local data with {tb_target}')
             X_train, y_train, X_test, X_eval, y_eval = \
                 tb_target.from_local(X_train, y_train, X_test, X_eval, y_eval)
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
-    #
+
     # def transform(self, X, y=None, **kwargs):
     #     tb, tb_target = self.get_tool_box_with_target(X, y)
     #     if tb_target is not tb:
@@ -327,9 +342,18 @@ class DataAdaptionStep(FeatureSelectStep):
 
     def compact_by_columns(self, X_train, y_train, X_test, X_eval, y_eval, frac):
         tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+        memory_usage = tb.memory_usage(X_train, y_train)
+        memory_free = tb.memory_free()
+        f_sample = memory_free / (memory_usage * 10)
+        if f_sample < 1.0:
+            logger.info(f'sample train data {f_sample} to calculate feature importances')
+            X, y = self.sample(X_train, y_train, f_sample)
+        else:
+            X, y = X_train, y_train
+
         tf_cls = tb.transformers['FeatureImportancesSelectionTransformer']
         tf = tf_cls(task=self.task, strategy='number', number=frac)
-        tf.fit(X_train, y_train)
+        tf.fit(X, y)
 
         X_train = tf.transform(X_train)
         if X_eval is not None:
@@ -1456,6 +1480,7 @@ class SteppedExperiment(Experiment):
                 break
             assert step.status_ != ExperimentStep.STATUS_RUNNING
 
+            gc.collect()
             if X_test is not None and X_train.columns.to_list() != X_test.columns.to_list():
                 logger.warning(f'X_train{X_train.columns.to_list()} and X_test{X_test.columns.to_list()}'
                                f' have different columns before {step.name}, try fix it.')
