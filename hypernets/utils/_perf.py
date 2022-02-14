@@ -12,23 +12,30 @@ import psutil
 try:
     import pynvml
 
+    pynvml_installed = True
 except ImportError:
-    pynvml = None
+    pynvml_installed = False
 except:
     import traceback
 
     traceback.print_exc()
-    pynvml = None
+    pynvml_installed = False
 
 _gpu_devices = []
 
 
 def _initialize_pynvml():
-    if pynvml is not None and pynvml.nvmlLib is None:
-        pynvml.nvmlInit()
+    global _gpu_devices, pynvml_installed
 
-        global _gpu_devices
-        _gpu_devices = [pynvml.nvmlDeviceGetHandleByIndex(i) for i in range(pynvml.nvmlDeviceGetCount())]
+    if pynvml_installed and pynvml.nvmlLib is None:
+        try:
+            pynvml.nvmlInit()
+
+            _gpu_devices = [pynvml.nvmlDeviceGetHandleByIndex(i) for i in range(pynvml.nvmlDeviceGetCount())]
+        except Exception as e:
+            print('nvmlInit Error:', e)
+            pynvml_installed = False
+            _gpu_devices = []
 
 
 def get_perf(proc=None, recursive=True, children_pool=None, metrics=None):
@@ -80,25 +87,39 @@ def _recursive_proc(result_buf, proc_, children_pool, fn):
 
     try:
         result_buf.append(fn(proc_))
-    except:
-        pass
 
-    for c in proc_.children(recursive=True):
-        # _recursive_proc(result_buf, c, fn)
-        if children_pool is None:
-            p = c
-        else:
-            cpid = c.pid
-            if cpid in children_pool.keys():
-                p = children_pool[cpid]
-            else:
-                children_pool[cpid] = c
+        for c in proc_.children(recursive=True):
+            # _recursive_proc(result_buf, c, fn)
+            if children_pool is None:
                 p = c
+            else:
+                cpid = c.pid
+                if cpid in children_pool.keys():
+                    p = children_pool[cpid]
+                else:
+                    children_pool[cpid] = c
+                    p = c
 
-        try:
-            result_buf.append(fn(p))
-        except:
-            pass
+            try:
+                result_buf.append(fn(p))
+            except KeyboardInterrupt:
+                raise
+            except InterruptedError:
+                raise
+            except:
+                import traceback
+                traceback.print_exc()
+                pass
+    except KeyboardInterrupt:
+        raise
+    except InterruptedError:
+        raise
+    except psutil.NoSuchProcess:
+        raise
+    except:
+        import traceback
+        traceback.print_exc()
+        pass
 
 
 def dump_perf(file_path, pid=None, recursive=False, interval=1):
@@ -119,6 +140,15 @@ def dump_perf(file_path, pid=None, recursive=False, interval=1):
                 f.write(','.join(map(str, metrics.values())) + '\n')
                 f.flush()
                 time.sleep(interval)
+    except KeyboardInterrupt:
+        # print('KeyboardInterrupt')
+        pass
+    except InterruptedError:
+        # print('InterruptedError')
+        pass
+    except psutil.NoSuchProcess:
+        # print('NoSuchProcess')
+        pass
     except:
         import traceback
         traceback.print_exc()

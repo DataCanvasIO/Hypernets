@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+import gc
 
 from .cfg import DispatchCfg as c
 from ..core.callbacks import EarlyStoppingError
@@ -24,6 +25,7 @@ class InProcessDispatcher(Dispatcher):
         retry_counter = 0
 
         while trial_no <= max_trials:
+            gc.collect()
             try:
                 space_sample = hyper_model.searcher.sample()
                 if hyper_model.history.is_existed(space_sample):
