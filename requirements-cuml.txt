@@ -1,3 +1,4 @@
 cupy
 cudf
 cuml
+pynvml
