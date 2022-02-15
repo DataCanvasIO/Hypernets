@@ -141,8 +141,10 @@ class FeatureGenerationTransformer(BaseEstimator):
                                                   max_depth=self.max_depth,
                                                   max_features=self.max_features,
                                                   features_only=False)
+            if make_index and not reserve_index:
+                X.pop(self.ft_index)
         else:
-            es.add_dataframe(dataframe=X, dataframe_name='e_hypernets_ft',
+            es.add_dataframe(dataframe=X.copy(), dataframe_name='e_hypernets_ft',
                              index=self.ft_index,
                              make_index=make_index, logical_types=feature_type_dict)
             feature_matrix, feature_defs = ft.dfs(entityset=es, target_dataframe_name="e_hypernets_ft",
@@ -153,9 +155,6 @@ class FeatureGenerationTransformer(BaseEstimator):
                                                   max_depth=self.max_depth,
                                                   max_features=self.max_features,
                                                   features_only=False)
-
-        if make_index and not reserve_index:
-            X.pop(self.ft_index)
 
         self.feature_defs_ = feature_defs
         self.original_cols = original_cols
