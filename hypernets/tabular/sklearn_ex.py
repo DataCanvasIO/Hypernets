@@ -104,6 +104,26 @@ class AsTypeTransformer(BaseEstimator):
 #         return y
 
 @tb_transformer(pd.DataFrame)
+class ConstantImputer(BaseEstimator, TransformerMixin):
+    def __init__(self, missing_values=np.nan, fill_value=None, copy=True) -> None:
+        super().__init__()
+
+        self.missing_values = missing_values
+        self.fill_value = fill_value
+        self.copy = copy
+
+    def fit(self, X, y=None, ):
+        return self
+
+    def transform(self, X, y=None):
+        if self.copy:
+            X = X.copy()
+
+        X.replace(self.missing_values, self.fill_value, inplace=True)
+        return X
+
+
+@tb_transformer(pd.DataFrame)
 class SafeLabelEncoder(LabelEncoder):
     def transform(self, y):
         check_is_fitted(self, 'classes_')
