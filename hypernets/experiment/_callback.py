@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
 __author__ = 'yangjian'
 
+from ..core import Callback, EarlyStoppingCallback
+
 """
 
 """
@@ -11,6 +13,7 @@ from datetime import datetime
 from collections import OrderedDict
 from threading import Thread, RLock
 import math
+from typing import Type
 
 import pandas as pd
 import joblib
@@ -26,7 +29,7 @@ from hypernets.experiment import ExperimentExtractor
 from . import ExperimentCallback
 from .compete import StepNames
 from .report import ReportRender
-from ._extractor import ConfusionMatrixMeta, StepMeta
+from ._extractor import ConfusionMatrixMeta, StepMeta, EarlyStoppingStatusMeta
 
 
 class ConsoleCallback(ExperimentCallback):
@@ -493,9 +496,66 @@ class ActionType:
     TrialEnd = 'trialEnd'
 
 
-class ABSExperimentVisCallback(ExperimentCallback, metaclass=abc.ABCMeta):
+class ABSExpVisHyperModelCallback(Callback, metaclass=abc.ABCMeta):
 
-    def __init__(self, hyper_model_callback_cls, **kwargs):
+    def __init__(self):
+        super(Callback, self).__init__()
+        self.max_trials = None
+        self.current_running_step_index = None
+        self.exp_id = None
+
+    def set_exp_id(self, exp_id):
+        self.exp_id = exp_id
+
+    def set_current_running_step_index(self, value):
+        self.current_running_step_index = value
+
+    def assert_ready(self):
+        assert self.exp_id is not None
+        assert self.current_running_step_index is not None
+
+    def on_search_start(self, hyper_model, X, y, X_eval, y_eval, cv,
+                        num_folds, max_trials, dataset_id, trial_store, **fit_kwargs):
+        self.max_trials = max_trials  # to record trail summary info
+
+    @staticmethod
+    def get_early_stopping_status_data(hyper_model):
+        """ Return early stopping data if triggered """
+        # check whether end cause by early stopping
+        for c in hyper_model.callbacks:
+            if isinstance(c, EarlyStoppingCallback):
+                if c.triggered:
+                    if c.start_time is not None:
+                        elapsed_time = time.time() - c.start_time
+                    else:
+                        elapsed_time = None
+                    ess = EarlyStoppingStatusMeta(c.best_reward, c.best_trial_no, c.counter_no_improvement_trials,
+                                                  c.triggered, c.triggered_reason, elapsed_time)
+                    return ess
+        return None
+
+    def on_search_end(self, hyper_model):
+        self.assert_ready()
+        early_stopping_data = self.get_early_stopping_status_data(hyper_model)
+        self.on_search_end_(hyper_model, early_stopping_data)
+
+    def on_search_end_(self, hyper_model, early_stopping_data):
+        pass
+
+    @staticmethod
+    def get_space_params(space):
+        params_dict = {}
+        for hyper_param in space.get_assigned_params():
+            param_name = hyper_param.alias
+            param_value = hyper_param.value
+            if param_name is not None and param_value is not None:
+                params_dict[param_name] = str(param_value)
+        return params_dict
+
+
+class ABSExpVisExperimentCallback(ExperimentCallback, metaclass=abc.ABCMeta):
+
+    def __init__(self, hyper_model_callback_cls: Type[ABSExpVisHyperModelCallback], **kwargs):
         self.hyper_model_callback_cls = hyper_model_callback_cls
 
     @staticmethod
