@@ -493,3 +493,36 @@ The following codes sets the log level to 'INFO':
     hyper_model = create_hyperModel()
     experiment = CompeteExperiment(hyper_model, log_level='INFO', verbose=1, ...)
 
+
+Export experiment report
+>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+If you want to export the experiment report in Excel format after training, you can set `report_render` to `excel`.
+The sample code for opening the experiment report is as follows:
+
+.. code-block:: python
+
+    from sklearn.model_selection import train_test_split
+
+    from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
+    from hypernets.experiment import make_experiment
+    from hypernets.tabular.datasets import dsutils
+
+    df = dsutils.load_boston()
+
+    df_train, df_eval = train_test_split(df, test_size=0.2)
+    search_space=PlainSearchSpace(enable_lr=False, enable_nn=False, enable_dt=False, enable_dtr=True)
+
+    experiment = make_experiment(PlainModel, df_train,
+                                 target='target',
+                                 search_space=search_space,
+                                 report_render='excel')
+    estimator = experiment.run(max_trials=3)
+    print(estimator)
+
+A excel report file named `report.xlsx` will be generated in the current directory, as follows
+
+.. image:: images/excel_experiment_report.png
+   :width: 600
+   :align: center
+   :alt: excel experiment report

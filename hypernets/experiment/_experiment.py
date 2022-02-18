@@ -161,6 +161,6 @@ class Experiment(object):
 
     def plot_dataset(self):
         data = self.get_data_character()
-        from hn_widget.widget import DatasetSummary
+        from experiment_notebook_widget.widget import DatasetSummary
         widget = DatasetSummary(data)
         display(widget)

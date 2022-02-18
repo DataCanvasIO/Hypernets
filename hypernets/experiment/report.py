@@ -187,19 +187,19 @@ class ReportRender:
 class ExcelReportRender(ReportRender):
     MAX_CELL_LENGTH = 50
 
-    def __init__(self, file_path: str, theme='default'):
+    def __init__(self, file_path: str = './report.xlsx', theme='default'):
         """
         Parameters
         ----------
-        file_path: str
-            The excel report file path, if exists will be override
+        file_path: str, optional, default is './report.xlsx'
+            The excel report file path, if exists will be overwritten
         """
         super(ExcelReportRender, self).__init__(file_path=file_path)
 
         if os.path.exists(file_path):
             if not os.path.isfile(file_path):
                 raise ValueError(f"Report excel file path already exists, and not a file: {file_path}")
-            logger.warning(f"Report excel file path already exists, it will be overwritten: {file_path}")
+            logger.warning(f"Report excel file path is already exists, it will be overwritten: {file_path}")
             os.remove(file_path)
         else:
             excel_file_dir = os.path.dirname(file_path)
