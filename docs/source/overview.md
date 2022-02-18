@@ -23,3 +23,6 @@ A specific `HyperModle` needs to be paired with a dedicated `Estimator` to fit a
 
 ### Experiment
 The playground to prepare training and testing data, and search the optimized estimator with HyperModel.
+
+### Tabular Toolbox
+A general tabular data computing layer. At present, we provide the implementations of pandas, cudf and dask data types. 

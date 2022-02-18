@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 from cuml.common.array import CumlArray
 from cuml.decomposition import TruncatedSVD
+from cuml.feature_extraction.text import TfidfVectorizer
 from cuml.pipeline import Pipeline
 from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, TargetEncoder, \
     StandardScaler, MaxAbsScaler, MinMaxScaler, RobustScaler
-from cuml.feature_extraction.text import TfidfVectorizer
 from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
 from hypernets.tabular import sklearn_ex as sk_ex
@@ -235,23 +235,10 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
 
 
 @tb_transformer(cudf.DataFrame)
-class ConstantImputer(BaseEstimator, TransformerMixin, Localizable):
-    def __init__(self, missing_values=np.nan, fill_value=None, copy=True) -> None:
-        super().__init__()
-
-        self.missing_values = missing_values
-        self.fill_value = fill_value
-        self.copy = copy
-
-    def fit(self, X, y=None, ):
-        return self
-
-    def transform(self, X, y=None):
-        if self.copy:
-            X = X.copy()
-
-        X.replace(self.missing_values, self.fill_value, inplace=True)
-        return X
+class ConstantImputer(sk_ex.ConstantImputer, Localizable):
+    def as_local(self):
+        target = sk_ex.ConstantImputer(missing_values=self.missing_values, fill_value=self.fill_value, copy=self.copy)
+        return target
 
 
 @tb_transformer(cudf.DataFrame, name='OneHotEncoder')
