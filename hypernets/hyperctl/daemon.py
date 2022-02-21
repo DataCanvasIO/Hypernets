@@ -545,16 +545,16 @@ def main():
         # console output
         logging_group = global_parser.add_argument_group('Console outputs')
 
-        logging_group.add_argument('--log-level', '--log', type=str, default='info',
+        logging_group.add_argument('--log-level', type=str, default='INFO',
                                    help='logging level, default is %(default)s')
-        logging_group.add_argument('-error', dest='log_level', action='store_const', const='error',
-                                   help='alias of "--log-level error"')
-        logging_group.add_argument('-warn', dest='log_level', action='store_const', const='warn',
-                                   help='alias of "--log-level warn"')
-        logging_group.add_argument('-info', dest='log_level', action='store_const', const='info',
-                                   help='alias of "--log-level info"')
-        logging_group.add_argument('-debug', dest='log_level', action='store_const', const='debug',
-                                   help='alias of "--log-level debug"')
+        logging_group.add_argument('-error', dest='log_level', action='store_const', const='ERROR',
+                                   help='alias of "--log-level=ERROR"')
+        logging_group.add_argument('-warn', dest='log_level', action='store_const', const='WARN',
+                                   help='alias of "--log-level=WARN"')
+        logging_group.add_argument('-info', dest='log_level', action='store_const', const='INFO',
+                                   help='alias of "--log-level=INFO"')
+        logging_group.add_argument('-debug', dest='log_level', action='store_const', const='DEBUG',
+                                   help='alias of "--log-level=DEBUG"')
 
     def setup_batch_parser(operation_parser):
         exec_parser = operation_parser.add_parser("batch", help="batch operations")
