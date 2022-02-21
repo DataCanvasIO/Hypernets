@@ -531,9 +531,18 @@ The sample code for opening the experiment report is as follows:
     estimator = experiment.run(max_trials=3)
     print(estimator)
 
-A excel report file named `report.xlsx` will be generated in the current directory, as follows
+A excel report file named `report.xlsx` will be generated in the current directory, as follows:
 
 .. image:: images/excel_experiment_report.png
    :width: 600
-   :align: center
+   :align: left
    :alt: excel experiment report
+
+You can set report output file path by add param `report_render_options`, here is the example code of how to set output report to `/tmp/report.xlsx`:
+
+.. code-block:: python
+    ...
+    experiment = make_experiment(...,
+                             report_render='excel',
+                             report_render_options={'file_path': "/tmp/report.xlsx"})
+    ...
