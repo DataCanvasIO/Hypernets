@@ -77,6 +77,14 @@ class RemoteShellExecutor(ShellExecutor):
         self._remote_process = None
 
     def run(self):
+        # check remote host setting
+        daemon_host = get_context().batch.daemon_conf.host
+        if consts.HOST_LOCALHOST == daemon_host:
+            logger.warning("recommended that set IP address that can be accessed in remote machines, "
+                           "but now it's \"localhost\", and the task executed on the remote machines "
+                           "may fail because it can't get information from the daemon server,"
+                           " you can set it in `daemon.host` ")
+
         # create remote data dir
         execution_data_dir = Path(self.job.execution.data_dir).as_posix()
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
@@ -86,6 +94,7 @@ class RemoteShellExecutor(ShellExecutor):
         # create run shell file
         fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
         os.close(fd_run_file)
+
         self._write_run_shell_script(run_file)
 
         # copy file to remote

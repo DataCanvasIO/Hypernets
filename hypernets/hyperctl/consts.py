@@ -18,11 +18,13 @@ cd ${KEY_ENV_JOB_EXECUTION_WORKING_DIR}
 #{KEY_TEMPLATE_COMMAND}# >"${KEY_ENV_JOB_DATA_DIR}/stdout" 2>"${KEY_ENV_JOB_DATA_DIR}/stderr"
 """
 
+HOST_LOCALHOST = "localhost"
+
 
 def default_daemon_conf():
     return {
         "port": 8060,
         "exit_on_finish": False,
-        "host": "localhost"
+        "host": HOST_LOCALHOST
     }
 

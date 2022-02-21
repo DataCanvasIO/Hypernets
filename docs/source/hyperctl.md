@@ -135,6 +135,7 @@ You can run jobs in remote machines via SSH. Configure the host's connections se
     },
     "name": "eVqNV5Ut1",  // str, optional, batch name, default is a new uuid 
     "daemon": {  // dict, optional, daemon process setting
+        "host": "192.168.10.206",  // str, optional, default is localhosh, http service host ip, you should use IP address that can be accessed in remote machines if is remote backend
         "port": 8060,  // int, optional, default is 8060, http service port
         "exit_on_finish": false  // boolean, optional , default is false, whether to exit the process when all jobs are finished
     },
