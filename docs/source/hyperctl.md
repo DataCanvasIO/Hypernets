@@ -22,7 +22,6 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
 
-
 ```
 
 Create a python script `~/job-script.py` to run job with following content:
@@ -107,6 +106,10 @@ You can run jobs in remote machines via SSH. Configure the host's connections se
 }
 ```
 
+Note that the configuration item `daemon.host` should be accessed by remote machines declared in the configuration `backend.conf.machines`,
+otherwise, the task will fail because the daemon server cannot be accessed.
+
+
 **Job configuration's description**
 ```
 {
@@ -123,7 +126,7 @@ You can run jobs in remote machines via SSH. Configure the host's connections se
                 "gpu": 1
             },
             "execution": {
-                "command": "sleep 3", // str, required, command to the the job, recommend use absolute path or path relative to {execution.working_dir}
+                "command": "sleep 3", // str, required, command to the the job, if execute a file, recommend use absolute path or path relative to {execution.working_dir}
                 "working_dir": "/tmp", // str, optional, default is execution.data_dir,  working dir to run the command
                 "data_dir": "/tmp/hyperctl-batch-data/aVqNV5Ut1"  // str, optional, default is {batch_data_dir}/{job_name}, the directory to write job's output data
             }
