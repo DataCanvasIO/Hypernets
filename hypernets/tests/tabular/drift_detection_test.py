@@ -33,7 +33,7 @@ class Test_drift_detection:
         df = load_bank().head(1000)
         selector = FeatureSelectorWithDriftDetection()
         scores = selector._covariate_shift_score(df[:700], df[700:], cv=5)
-        assert scores['id'] == 0.95
+        assert scores['id'] >= 0.95
 
     def test_shufflesplit(self):
         df = load_bank().head(1000)

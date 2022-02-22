@@ -3,6 +3,7 @@
 
 """
 import copy
+import gc as gc_
 import math
 from functools import partial
 
@@ -76,7 +77,7 @@ class ToolBox(metaclass=ToolboxMeta):
     @staticmethod
     def memory_free():
         mem = psutil.virtual_memory()
-        return mem.used
+        return mem.available
 
     @staticmethod
     def memory_usage(*data):
@@ -95,6 +96,11 @@ class ToolBox(metaclass=ToolboxMeta):
     @staticmethod
     def to_local(*data):
         return data
+
+    @staticmethod
+    def gc():
+        gc_.collect()
+        gc_.collect()
 
     @staticmethod
     def from_local(*data):
@@ -255,7 +261,10 @@ class ToolBox(metaclass=ToolboxMeta):
                 return pd.DataFrame(t, columns=header.columns)
 
         dfs = [header] + [to_pd_type(df) for df in dfs[1:]]
-        return pd.concat(dfs, axis=axis, **kwargs)
+        df = pd.concat(dfs, axis=axis, **kwargs)
+        if repartition:
+            df = df.sample(frac=1.0)
+        return df
 
     @staticmethod
     def reset_index(df):

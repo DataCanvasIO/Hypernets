@@ -34,7 +34,7 @@ class HyperModel:
         self.task = task
         self.discriminator = discriminator
         if self.discriminator:
-             self.discriminator.bind_history(self.history)
+            self.discriminator.bind_history(self.history)
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError
@@ -85,7 +85,7 @@ class HyperModel:
 
             trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
             trial.iteration_scores = estimator.get_iteration_scores()
-            if oof is not None:
+            if oof is not None and self._is_memory_enough(oof):
                 trial.memo['oof'] = oof
             if oof_scores is not None:
                 trial.memo['oof_scores'] = oof_scores
@@ -103,6 +103,12 @@ class HyperModel:
                     self.searcher.update_result(space_sample, t.reward)
 
         return trial
+
+    @staticmethod
+    def _is_memory_enough(oof):
+        tb = get_tool_box(oof)
+        free = tb.memory_free() / tb.memory_total()
+        return free > 0.618
 
     def _get_reward(self, value, key=None):
         def cast_float(value):

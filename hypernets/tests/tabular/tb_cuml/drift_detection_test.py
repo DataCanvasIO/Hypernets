@@ -23,7 +23,7 @@ class Test_drift_detection:
         selector = dd_selector()
         scores = selector._covariate_shift_score(df[:700], df[700:])
         print('_covariate_shift_score', scores)
-        assert scores['id'] == 1.0
+        assert scores['id'] >=0.95
 
     def test_feature_selection(self):
         df = load_bank()

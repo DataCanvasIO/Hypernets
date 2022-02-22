@@ -318,7 +318,10 @@ class CumlToolBox(ToolBox):
 
         dfs = [header] + [to_cudf_type(df) for df in dfs[1:]]
 
-        return cudf.concat(dfs, axis=axis, **kwargs)
+        df = cudf.concat(dfs, axis=axis, **kwargs)
+        if repartition:
+            df = df.sample(frac=1.0)
+        return df
 
     @staticmethod
     def fix_binary_predict_proba_result(proba):
