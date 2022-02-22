@@ -4,7 +4,6 @@ __author__ = 'yangjian'
 
 """
 import copy
-import gc
 import math
 import time
 from collections import OrderedDict
@@ -23,6 +22,7 @@ from hypernets.utils import logging, const, df_utils
 logger = logging.get_logger(__name__)
 
 DEFAULT_EVAL_SIZE = 0.3
+GB = 1024 ** 3
 
 DATA_ADAPTION_TARGET_CUML_ALIASES = {'cuml', 'cuda', 'cudf', 'gpu'}
 
@@ -47,6 +47,27 @@ def _generate_dataset_id(X_train, y_train, X_test, X_eval, y_eval):
 
     sign = tb.data_hasher()([X_train, y_train, X_test, X_eval, y_eval])
     return sign
+
+
+def _sample_by_classes(X, y, class_size, random_state=None, copy_data=True):
+    if X is None or y is None:
+        return None, None
+
+    tb = get_tool_box(X, y)
+
+    name_y = '__experiment_y_tmp__'
+    df = X.copy() if copy_data else X
+    df[name_y] = y
+    uniques = set(tb.unique(y))
+    parts = {c: df[df[name_y] == c] for c in uniques}
+    dfs = [tb.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
+           if c in class_size.keys() else part
+           for c, part in parts.items()]
+    df = tb.concat_df(dfs, repartition=True)
+    if logger.is_info_enabled():
+        logger.info(f'sample_by_classes: {tb.value_counts(df[name_y])}')
+    y = df.pop(name_y)
+    return df, y
 
 
 class StepNames:
@@ -225,13 +246,15 @@ class DataAdaptionStep(FeatureSelectStep):
         self.memory_limit = memory_limit
         self.min_cols = min_cols
 
+        # fitted
+        self.input_feature_importances_ = None
+
     def fit_transform(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
         assert self.target is None or isinstance(X_train, pd.DataFrame), \
             f'Only pandas/numpy data can be adapted to {self.target}'
 
         super().fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval)
 
-        GB = 1024 ** 3
         tb, tb_target = self.get_tool_box_with_target(X_train, y_train, X_test, X_eval, y_eval)
         memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
 
@@ -267,10 +290,10 @@ class DataAdaptionStep(FeatureSelectStep):
             # step 1, compact rows
             frac = memory_limit / memory_usage
             if frac * X_train.shape[1] < min_cols:
-                f = int(frac * X_train.shape[1]) / min_cols
+                f = frac * X_train.shape[1] / min_cols
                 X_train, y_train, X_test, X_eval, y_eval = \
                     self.compact_by_rows(X_train, y_train, X_test, X_eval, y_eval, f)
-                gc.collect()
+                tb.gc()
 
             # step 2, compact columns
             if min_cols < X_train.shape[1]:
@@ -278,14 +301,16 @@ class DataAdaptionStep(FeatureSelectStep):
                 frac = memory_limit / memory_usage
                 X_train, y_train, X_test, X_eval, y_eval = \
                     self.compact_by_columns(X_train, y_train, X_test, X_eval, y_eval, frac)
-                gc.collect()
+                tb.gc()
 
             if logger.is_info_enabled():
                 memory_usage = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
+                memory_free = tb.memory_free()
                 logger.info(f'{self.name} adapted X_train:{tb.get_shape(X_train)}, '
                             f'X_test:{tb.get_shape(X_test, allow_none=True)}, '
                             f'X_eval:{tb.get_shape(X_eval, allow_none=True)}. '
-                            f'memory usage: {memory_usage / GB:.3f}GB, ')
+                            f'memory usage: {memory_usage / GB:.3f}GB, '
+                            f'memory free: {memory_free / GB:.3f}')
 
             # restore experiment attributes
             exp.X_train = X_train
@@ -302,6 +327,8 @@ class DataAdaptionStep(FeatureSelectStep):
             logger.info(f'{self.name} adapt local data with {tb_target}')
             X_train, y_train, X_test, X_eval, y_eval = \
                 tb_target.from_local(X_train, y_train, X_test, X_eval, y_eval)
+            tb.gc()
+            tb_target.gc()
 
         return hyper_model, X_train, y_train, X_test, X_eval, y_eval
 
@@ -344,7 +371,7 @@ class DataAdaptionStep(FeatureSelectStep):
         tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
         memory_usage = tb.memory_usage(X_train, y_train)
         memory_free = tb.memory_free()
-        f_sample = memory_free / (memory_usage * 10)
+        f_sample = memory_free / (memory_usage * 12)
         if f_sample < 1.0:
             logger.info(f'sample train data {f_sample} to calculate feature importances')
             X, y = self.sample(X_train, y_train, f_sample)
@@ -361,14 +388,27 @@ class DataAdaptionStep(FeatureSelectStep):
         if X_test is not None:
             X_test = tf.transform(X_test)
 
+        self.input_feature_importances_ = tf.feature_importances_
+
         return X_train, y_train, X_test, X_eval, y_eval
 
     def sample(self, X, y, frac):
         tb = get_tool_box(X, y)
         options = {}
-        if y is not None and self.task != const.TASK_REGRESSION:
-            options['stratify'] = y
-        X, _, y, _ = tb.train_test_split(X, y, train_size=frac, **options)
+        task = self.task
+
+        if y is not None and task == const.TASK_BINARY:
+            vn = pd.Series(tb.value_counts(y)).sort_values()
+            vn_sampled = (vn * frac).astype('int')
+            delta = (min(vn.values[0], vn_sampled.values[1]) - vn_sampled.values[0]) // 4  # balance number
+            vn_sampled = vn_sampled + np.array([delta, -delta])
+            sample_size = (vn_sampled / vn).to_dict()
+            X, y = _sample_by_classes(X, y, class_size=sample_size,
+                                      random_state=self.experiment.random_state, copy_data=False)
+        else:
+            if y is not None and task != const.TASK_REGRESSION:
+                options['stratify'] = y
+            X, _, y, _ = tb.train_test_split(X, y, train_size=frac, **options)
         return X, y
 
 
@@ -1120,34 +1160,12 @@ class SpaceSearchWithDownSampleStep(SpaceSearchStep):
         size = self.size if self.size else 0.1
         task = self.task
 
-        def sample_by_classes(X, y, class_size):
-            if X is None or y is None:
-                return None, None
-
-            tb_ = get_tool_box(X, y)
-
-            name_y = '__experiment_y_tmp__'
-            df = X.copy()
-            df[name_y] = y
-            uniques = set(tb_.unique(y))
-            parts = {c: df[df[name_y] == c] for c in uniques}
-            dfs = [tb_.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
-                   if c in class_size.keys() else part
-                   for c, part in parts.items()]
-            df = tb_.concat_df(dfs, repartition=True)
-            if isinstance(df, pd.DataFrame):
-                df = df.sample(frac=1.0)
-            if logger.is_info_enabled():
-                logger.info(f'down_sampled: {tb_.value_counts(df[name_y])}')
-            y = df.pop(name_y)
-            return df, y
-
         random_state = self.experiment.random_state
         options = {}
         if isinstance(size, dict):
             assert task in {const.TASK_BINARY, const.TASK_MULTICLASS}
-            X_train_sampled, y_train_sampled = sample_by_classes(X_train, y_train, size)
-            X_eval_sampled, y_eval_sampled = sample_by_classes(X_eval, y_eval, size)
+            X_train_sampled, y_train_sampled = _sample_by_classes(X_train, y_train, size, random_state)
+            X_eval_sampled, y_eval_sampled = _sample_by_classes(X_eval, y_eval, size, random_state)
         else:
             if task in {const.TASK_BINARY, const.TASK_MULTICLASS} and isinstance(X_train, pd.DataFrame):
                 options['stratify'] = y_train
@@ -1249,8 +1267,10 @@ class EnsembleStep(EstimatorBuilderStep):
                 ensemble.fit(None, y_, oofs_)
             else:
                 ensemble.fit(None, y_train, oofs)
-        else:
+        elif X_eval is not None and y_eval is not None:
             ensemble.fit(X_eval, y_eval)
+        else:
+            ensemble.fit(X_train, y_train)
 
         return ensemble
 
@@ -1464,7 +1484,7 @@ class SteppedExperiment(Experiment):
 
         if logger.is_info_enabled():
             names = [step.name for step in steps]
-            logger.info(f'create experiment with {names}')
+            logger.info(f'create experiment with {names}, random_state={self.random_state}')
         self.steps = steps
 
         # fitted
@@ -1480,7 +1500,13 @@ class SteppedExperiment(Experiment):
                 break
             assert step.status_ != ExperimentStep.STATUS_RUNNING
 
-            gc.collect()
+            tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+            tb.gc()
+            if logger.is_info_enabled():
+                u = tb.memory_usage(X_train, y_train, X_test, X_eval, y_eval)
+                f = tb.memory_free()
+                logger.info(f'{tb.__name__} data memory usage: {u / GB:.3f}, free={f / GB:.3f}')
+
             if X_test is not None and X_train.columns.to_list() != X_test.columns.to_list():
                 logger.warning(f'X_train{X_train.columns.to_list()} and X_test{X_test.columns.to_list()}'
                                f' have different columns before {step.name}, try fix it.')
