@@ -52,7 +52,7 @@ class TabularCfg(Configurable):
             )
 
     auto_categorize = \
-        Bool(True,
+        Bool(False,
              config=True,
              help=''
              )

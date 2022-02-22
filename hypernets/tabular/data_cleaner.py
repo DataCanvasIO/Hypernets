@@ -252,13 +252,14 @@ class DataCleaner:
             if self.reserve_columns:
                 int_cols = list(filter(lambda _: _ not in self.reserve_columns, int_cols))
             if len(int_cols) > 0:
-                logger.info(f'convert int type to {self.int_convert_to}')
+                logger.info(f'convert int type to {self.int_convert_to}, {int_cols}')
                 X[int_cols] = X[int_cols].astype(self.int_convert_to)
 
         o_cols = cs.column_object(X)
         if self.reserve_columns:
             o_cols = list(filter(lambda _: _ not in self.reserve_columns, o_cols))
         if o_cols:
+            logger.info(f'convert object type to str, {o_cols}')
             X[o_cols] = X[o_cols].astype('str')
 
         if reduce_mem_usage:
@@ -267,11 +268,24 @@ class DataCleaner:
 
         return X, y
 
+    @staticmethod
+    def _copy(X, y):
+        if isinstance(X, pd.DataFrame):
+            X = copy.deepcopy(X)
+        else:
+            X = X.copy()
+
+        if y is not None:
+            if isinstance(y, (np.ndarray, pd.Series, pd.DataFrame)):
+                y = copy.deepcopy(y)
+            else:
+                y = y.copy()
+
+        return X, y
+
     def fit_transform(self, X, y=None, copy_data=True):
         if copy_data:
-            X = copy.deepcopy(X)
-            if y is not None:
-                y = copy.deepcopy(y)
+            X, y = self._copy(X, y)
 
         X, y = self.clean_data(X, y, reduce_mem_usage=self.reduce_mem_usage)
 
@@ -291,9 +305,8 @@ class DataCleaner:
 
     def transform(self, X, y=None, copy_data=True):
         if copy_data:
-            X = copy.deepcopy(X)
-            if y is not None:
-                y = copy.deepcopy(y)
+            X, y = self._copy(X, y)
+
         orig_columns = X.columns.to_list()
         X, y = self.clean_data(X, y, df_meta=self.df_meta_, reduce_mem_usage=False)
         # if self.df_meta_ is not None:

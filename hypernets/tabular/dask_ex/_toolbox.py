@@ -509,7 +509,7 @@ class DaskToolBox(ToolBox):
             if repartition:
                 df = df.shuffle(df.index, npartitions=dfs[0].npartitions)
         else:
-            df = ToolBox.concat_df(dfs, axis=axis, **kwargs)
+            df = ToolBox.concat_df(dfs, axis=axis, repartition=repartition, **kwargs)
 
         return df
 
