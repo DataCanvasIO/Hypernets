@@ -531,12 +531,13 @@ class FeatureImportancesSelectionTransformer(BaseEstimator):
         if self.data_clean:
             logger.info('data cleaning')
             kwargs = dict(replace_inf_values=np.nan, drop_label_nan_rows=True,
-                          drop_constant_columns=False, drop_duplicated_columns=False,
-                          drop_idness_columns=False, reduce_mem_usage=False,
+                          drop_constant_columns=True, drop_duplicated_columns=False,
+                          drop_idness_columns=True, reduce_mem_usage=False,
                           correct_object_dtype=False, int_convert_to=None,
                           )
             dc = tb.data_cleaner(**kwargs)
             X, y = dc.fit_transform(X, y)
+            assert set(X.columns.tolist()).issubset(set(columns_in))
 
         preprocessor = tb.general_preprocessor(X)
         estimator = tb.general_estimator(X, y, task=self.task)
@@ -559,6 +560,10 @@ class FeatureImportancesSelectionTransformer(BaseEstimator):
                                             number=self.number)
         columns = X.columns.to_list()
         selected = [columns[i] for i in selected]
+
+        if len(columns) != len(columns_in):
+            importances = [0.0 if c not in columns else importances[columns.index(c)] for c in columns_in]
+            importances = np.array(importances)
 
         self.n_features_in_ = len(columns_in)
         self.feature_names_in_ = columns_in

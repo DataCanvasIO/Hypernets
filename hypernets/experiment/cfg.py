@@ -40,6 +40,11 @@ class ExperimentCfg(Configurable):
              allow_none=True, config=True,
              help='discriminator settings',
              )
+    experiment_data_adaption_min_cols_limit = \
+        Int(10,
+            allow_none=True, config=True,
+            help=''
+            )
 
     hyper_model_callbacks_console = \
         List(default_value=['hypernets.core.callbacks.SummaryCallback', ],
@@ -48,7 +53,7 @@ class ExperimentCfg(Configurable):
              )
     hyper_model_callbacks_notebook = \
         List(default_value=['hypernets.core.callbacks.NotebookCallback',
-                           'hypernets.core.callbacks.ProgressiveCallback', ],
+                            'hypernets.core.callbacks.ProgressiveCallback', ],
              allow_none=True, config=True,
              help='Callback instance or name list.'
              )

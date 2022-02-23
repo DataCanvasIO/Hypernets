@@ -15,6 +15,7 @@ from sklearn.metrics import get_scorer
 
 from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
+from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import cache
 from hypernets.utils import logging, const, df_utils
@@ -237,7 +238,7 @@ class FeatureSelectStep(ExperimentStep):
 
 
 class DataAdaptionStep(FeatureSelectStep):
-    def __init__(self, experiment, name, target=None, memory_limit=0.05, min_cols=0.1):
+    def __init__(self, experiment, name, target=None, memory_limit=0.05, min_cols=0.3):
         assert isinstance(memory_limit, (int, float)) and memory_limit > 0
 
         super().__init__(experiment, name)
@@ -284,8 +285,9 @@ class DataAdaptionStep(FeatureSelectStep):
                 min_cols = int(self.min_cols * X_train.shape[1])
             else:
                 min_cols = int(self.min_cols)
-            if min_cols < 10:
-                min_cols = min(10, X_train.shape[1])
+            min_cols_limit = cfg.experiment_data_adaption_min_cols_limit
+            if min_cols < min_cols_limit:
+                min_cols = min(min_cols_limit, X_train.shape[1])
 
             # step 1, compact rows
             frac = memory_limit / memory_usage
@@ -455,9 +457,10 @@ class DataCleanStep(FeatureSelectStep):
         if not self.cv:
             if X_eval is None or y_eval is None:
                 eval_size = self.experiment.eval_size
+                random_state = self.experiment.random_state
                 if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
                     logger.debug('DriftDetector.train_test_split')
-                    detector = tb.drift_detector()
+                    detector = tb.drift_detector(random_state=random_state)
                     detector.fit(X_train, X_test)
                     self.detector_ = detector
                     X_train, X_eval, y_train, y_eval = \
@@ -465,17 +468,21 @@ class DataCleanStep(FeatureSelectStep):
                 else:
                     if self.task == const.TASK_REGRESSION:
                         X_train, X_eval, y_train, y_eval = \
-                            tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state)
+                            tb.train_test_split(X_train, y_train, test_size=eval_size, random_state=random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state, stratify=y_train)
+                                                random_state=random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = tb.unique(y_train)
                     y_eval_uniques = tb.unique(y_eval)
-                    assert y_train_uniques == y_eval_uniques, \
-                        'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
+                    if y_train_uniques != y_eval_uniques:
+                        vn_train = tb.value_counts(y_train)
+                        vn_eval = tb.value_counts(y_eval)
+                        raise ValueError('The classes of `y_train` and `y_eval` must be equal,'
+                                         ' try to increase eval_size.'
+                                         f'your y_train [{len(y_train)}] :{vn_train} ,'
+                                         f' y_eval [{len(y_eval)}] : {vn_eval}')
                 self.step_progress('split into train set and eval set')
             else:
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
@@ -526,6 +533,7 @@ class DataCleanStep(FeatureSelectStep):
         if not self.cv:
             if X_eval is None or y_eval is None:
                 eval_size = self.experiment.eval_size
+                random_state = self.experiment.random_state
                 if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
                     logger.debug('DriftDetector.train_test_split')
                     detector = self.detector_
@@ -535,16 +543,21 @@ class DataCleanStep(FeatureSelectStep):
                     if self.task == const.TASK_REGRESSION:
                         X_train, X_eval, y_train, y_eval = \
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state)
+                                                random_state=random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state, stratify=y_train)
+                                                random_state=random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = tb.unique(y_train)
                     y_eval_uniques = tb.unique(y_eval)
-                    assert y_train_uniques == y_eval_uniques, \
-                        'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
+                    if y_train_uniques != y_eval_uniques:
+                        vn_train = tb.value_counts(y_train)
+                        vn_eval = tb.value_counts(y_eval)
+                        raise ValueError('The classes of `y_train` and `y_eval` must be equal,'
+                                         ' try to increase eval_size.'
+                                         f'your y_train [{len(y_train)}] :{vn_train} ,'
+                                         f' y_eval [{len(y_eval)}] : {vn_eval}')
                 self.step_progress('split into train set and eval set')
             else:
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
@@ -1626,7 +1639,7 @@ class CompeteExperiment(SteppedExperiment):
                  data_adaption=None,
                  data_adaption_target=None,
                  data_adaption_memory_limit=0.05,
-                 data_adaption_min_cols=0.1,
+                 data_adaption_min_cols=0.3,
                  data_cleaner_args=None,
                  feature_generation=False,
                  feature_generation_trans_primitives=None,
@@ -1718,7 +1731,7 @@ class CompeteExperiment(SteppedExperiment):
         data_adaption_memory_limit: int or float, (default 0.05)
             If float, should be between 0.0 and 1.0 and represent the proportion of the system free memory.
             If int, represents the absolute byte number of memory.
-        data_adaption_min_cols: int or float, (default 0.1)
+        data_adaption_min_cols: int or float, (default 0.3)
             If float, should be between 0.0 and 1.0 and represent the proportion of the original dataframe column number.
             If int, represents the absolute column number.
         data_cleaner_args : dict, (default None)
