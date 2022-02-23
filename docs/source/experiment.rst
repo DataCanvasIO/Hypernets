@@ -534,15 +534,86 @@ The sample code for opening the experiment report is as follows:
 A excel report file named `report.xlsx` will be generated in the current directory, as follows:
 
 .. image:: images/excel_experiment_report.png
-   :width: 600
-   :align: left
+   :width: 90%
    :alt: excel experiment report
 
-You can set report output file path by add param `report_render_options`, here is the example code of how to set output report to `/tmp/report.xlsx`:
+
+You can set report output file path by add param ``report_render_options``, here is the example code of how to set output report to ``/tmp/report.xlsx``:
 
 .. code-block:: python
+
     ...
     experiment = make_experiment(...,
-                             report_render='excel',
-                             report_render_options={'file_path': "/tmp/report.xlsx"})
+                                 report_render='excel',
+                                 report_render_options={'file_path': "/tmp/report.xlsx"})
     ...
+
+
+Running experiment in jupyter notebook
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Hypernets provides features to help you better use experiments in notebooks, including:
+
+1. show experiment configuration
+2. show experiment dataset information
+
+Note that these features is optional, make sure you are installing hypernets by the command:
+
+.. code-block:: shell
+
+    pip install hypernets[notebook]
+
+If you do not installed the notebook widget, you can install it by command:
+
+.. code-block:: shell
+
+    pip install experiment-notebook-widget
+
+
+Here is an example of how to use these features in `jupyter notebook <https://jupyter.org/>`_ :
+
+
+1. Import modules
+
+.. code-block:: python
+
+    from sklearn.model_selection import train_test_split
+
+    from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
+    from hypernets.experiment import make_experiment
+    from hypernets.tabular.datasets import dsutils
+
+
+2. Build hypernets experiment and show configuration
+
+.. code-block:: python
+
+    df_train, df_eval = train_test_split(df, test_size=0.2)
+    search_space=PlainSearchSpace(enable_lr=False, enable_nn=False, enable_dt=False, enable_dtr=True)
+
+    experiment = make_experiment(PlainModel, df_train,
+                                 target='target',
+                                 search_space=search_space,
+                                 report_render='excel')
+    experiment
+
+
+Output:
+
+.. image:: images/notebook_experiment_config.png
+   :width: 90%
+   :alt: notebook experiment config
+
+
+3. Show experiment dataset information
+
+.. code-block:: python
+
+    experiment.plot_dataset()
+
+
+.. image:: images/notebook_plot_dataset.png
+   :width: 90%
+   :alt: notebook_plot_dataset.png
+
+You can find the notebook example at `hypernets_experiment_notebook_visualization.ipynb <https://github.com/DataCanvasIO/Hypernets/tree/master/hypernets/examples/71.hypernets_experiment_notebook_visualization.ipynb>`_
