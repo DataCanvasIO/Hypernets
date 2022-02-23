@@ -457,9 +457,10 @@ class DataCleanStep(FeatureSelectStep):
         if not self.cv:
             if X_eval is None or y_eval is None:
                 eval_size = self.experiment.eval_size
+                random_state = self.experiment.random_state
                 if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
                     logger.debug('DriftDetector.train_test_split')
-                    detector = tb.drift_detector()
+                    detector = tb.drift_detector(random_state=random_state)
                     detector.fit(X_train, X_test)
                     self.detector_ = detector
                     X_train, X_eval, y_train, y_eval = \
@@ -467,17 +468,18 @@ class DataCleanStep(FeatureSelectStep):
                 else:
                     if self.task == const.TASK_REGRESSION:
                         X_train, X_eval, y_train, y_eval = \
-                            tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state)
+                            tb.train_test_split(X_train, y_train, test_size=eval_size, random_state=random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state, stratify=y_train)
+                                                random_state=random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = tb.unique(y_train)
                     y_eval_uniques = tb.unique(y_eval)
-                    assert y_train_uniques == y_eval_uniques, \
-                        'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
+                    if y_train_uniques != y_eval_uniques:
+                        raise ValueError('The classes of `y_train` and `y_eval` must be equal,'
+                                         ' try to increase eval_size.'
+                                         f'your y_train :{y_train_uniques}, y_eval: {y_eval_uniques}')
                 self.step_progress('split into train set and eval set')
             else:
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
@@ -528,6 +530,7 @@ class DataCleanStep(FeatureSelectStep):
         if not self.cv:
             if X_eval is None or y_eval is None:
                 eval_size = self.experiment.eval_size
+                random_state = self.experiment.random_state
                 if self.train_test_split_strategy == 'adversarial_validation' and X_test is not None:
                     logger.debug('DriftDetector.train_test_split')
                     detector = self.detector_
@@ -537,16 +540,18 @@ class DataCleanStep(FeatureSelectStep):
                     if self.task == const.TASK_REGRESSION:
                         X_train, X_eval, y_train, y_eval = \
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state)
+                                                random_state=random_state)
                     else:
                         X_train, X_eval, y_train, y_eval = \
                             tb.train_test_split(X_train, y_train, test_size=eval_size,
-                                                random_state=self.experiment.random_state, stratify=y_train)
+                                                random_state=random_state, stratify=y_train)
                 if self.task != const.TASK_REGRESSION:
                     y_train_uniques = tb.unique(y_train)
                     y_eval_uniques = tb.unique(y_eval)
-                    assert y_train_uniques == y_eval_uniques, \
-                        'The classes of `y_train` and `y_eval` must be equal. Try to increase eval_size.'
+                    if y_train_uniques != y_eval_uniques:
+                        raise ValueError('The classes of `y_train` and `y_eval` must be equal,'
+                                         ' try to increase eval_size.'
+                                         f'your y_train :{y_train_uniques}, y_eval: {y_eval_uniques}')
                 self.step_progress('split into train set and eval set')
             else:
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
