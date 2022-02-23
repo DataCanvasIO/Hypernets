@@ -15,6 +15,7 @@ from sklearn.metrics import get_scorer
 
 from hypernets.core import set_random_state
 from hypernets.experiment import Experiment
+from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import cache
 from hypernets.utils import logging, const, df_utils
@@ -237,7 +238,7 @@ class FeatureSelectStep(ExperimentStep):
 
 
 class DataAdaptionStep(FeatureSelectStep):
-    def __init__(self, experiment, name, target=None, memory_limit=0.05, min_cols=0.1):
+    def __init__(self, experiment, name, target=None, memory_limit=0.05, min_cols=0.3):
         assert isinstance(memory_limit, (int, float)) and memory_limit > 0
 
         super().__init__(experiment, name)
@@ -284,8 +285,9 @@ class DataAdaptionStep(FeatureSelectStep):
                 min_cols = int(self.min_cols * X_train.shape[1])
             else:
                 min_cols = int(self.min_cols)
-            if min_cols < 10:
-                min_cols = min(10, X_train.shape[1])
+            min_cols_limit = cfg.experiment_data_adaption_min_cols_limit
+            if min_cols < min_cols_limit:
+                min_cols = min(min_cols_limit, X_train.shape[1])
 
             # step 1, compact rows
             frac = memory_limit / memory_usage
@@ -1626,7 +1628,7 @@ class CompeteExperiment(SteppedExperiment):
                  data_adaption=None,
                  data_adaption_target=None,
                  data_adaption_memory_limit=0.05,
-                 data_adaption_min_cols=0.1,
+                 data_adaption_min_cols=0.3,
                  data_cleaner_args=None,
                  feature_generation=False,
                  feature_generation_trans_primitives=None,
@@ -1718,7 +1720,7 @@ class CompeteExperiment(SteppedExperiment):
         data_adaption_memory_limit: int or float, (default 0.05)
             If float, should be between 0.0 and 1.0 and represent the proportion of the system free memory.
             If int, represents the absolute byte number of memory.
-        data_adaption_min_cols: int or float, (default 0.1)
+        data_adaption_min_cols: int or float, (default 0.3)
             If float, should be between 0.0 and 1.0 and represent the proportion of the original dataframe column number.
             If int, represents the absolute column number.
         data_cleaner_args : dict, (default None)
