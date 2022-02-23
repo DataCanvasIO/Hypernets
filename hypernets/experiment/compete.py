@@ -477,9 +477,12 @@ class DataCleanStep(FeatureSelectStep):
                     y_train_uniques = tb.unique(y_train)
                     y_eval_uniques = tb.unique(y_eval)
                     if y_train_uniques != y_eval_uniques:
+                        vn_train = tb.value_counts(y_train)
+                        vn_eval = tb.value_counts(y_eval)
                         raise ValueError('The classes of `y_train` and `y_eval` must be equal,'
                                          ' try to increase eval_size.'
-                                         f'your y_train :{y_train_uniques}, y_eval: {y_eval_uniques}')
+                                         f'your y_train [{len(y_train)}] :{vn_train} ,'
+                                         f' y_eval [{len(y_eval)}] : {vn_eval}')
                 self.step_progress('split into train set and eval set')
             else:
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
@@ -549,9 +552,12 @@ class DataCleanStep(FeatureSelectStep):
                     y_train_uniques = tb.unique(y_train)
                     y_eval_uniques = tb.unique(y_eval)
                     if y_train_uniques != y_eval_uniques:
+                        vn_train = tb.value_counts(y_train)
+                        vn_eval = tb.value_counts(y_eval)
                         raise ValueError('The classes of `y_train` and `y_eval` must be equal,'
                                          ' try to increase eval_size.'
-                                         f'your y_train :{y_train_uniques}, y_eval: {y_eval_uniques}')
+                                         f'your y_train [{len(y_train)}] :{vn_train} ,'
+                                         f' y_eval [{len(y_eval)}] : {vn_eval}')
                 self.step_progress('split into train set and eval set')
             else:
                 X_eval, y_eval = data_cleaner.transform(X_eval, y_eval)
