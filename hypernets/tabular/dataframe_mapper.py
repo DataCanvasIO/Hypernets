@@ -4,6 +4,8 @@ Adapted from: https://github.com/scikit-learn-contrib/sklearn-pandas
 1. Fix the problem of confusion of column names
 2. Support `columns` is a callable object
 """
+import hashlib
+
 import numpy as np
 import pandas as pd
 from scipy import sparse as _sparse
@@ -38,6 +40,12 @@ def _call_fit(fit_method, X, y=None, **kwargs):
     except TypeError:
         # fit takes only one argument
         return fit_method(X, **kwargs)
+
+
+def _hash(data):
+    m = hashlib.md5()
+    m.update(data)
+    return m.hexdigest()
 
 
 class TransformerPipeline(Pipeline):
@@ -362,6 +370,8 @@ class DataFrameMapper(BaseEstimator):
             name = alias
         elif isinstance(columns, list):
             name = '_'.join(map(str, columns))
+            if len(name) > 64:
+                name = name[:32] + _hash(name.encode('utf-8'))
         else:
             name = columns
         num_cols = x.shape[1] if len(x.shape) > 1 else 1
