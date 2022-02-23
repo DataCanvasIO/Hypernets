@@ -160,6 +160,12 @@ class Experiment(object):
             return self.end_time - self.start_time
 
     def plot_dataset(self):
+        try:
+            import experiment_notebook_widget
+        except Exception as e:
+            logger.error("No notebook visualization module detected, you can install by command:"
+                         "\"pip install experiment-notebook-widget\"")
+            return
         data = self.get_data_character()
         from experiment_notebook_widget.widget import DatasetSummary
         widget = DatasetSummary(data)
