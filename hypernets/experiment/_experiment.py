@@ -166,7 +166,6 @@ class Experiment(object):
             logger.error("No notebook visualization module detected, you can install by command:"
                          "\"pip install experiment-notebook-widget\"")
             return
-        data = self.get_data_character()
         from experiment_notebook_widget.widget import DatasetSummary
-        widget = DatasetSummary(data)
+        widget = DatasetSummary(self)
         display(widget)
