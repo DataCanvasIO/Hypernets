@@ -9,7 +9,8 @@ Dear folks, we are offering challenging opportunities located in Beijing for bot
 
 ## Hypernets: A General Automated Machine Learning Framework
 Hypernets is a general AutoML framework, based on which it can implement automatic optimization tools for various machine learning frameworks and libraries, including deep learning frameworks such as tensorflow, keras, pytorch, and machine learning libraries like sklearn, lightgbm, xgboost, etc.
-We introduced an abstract search space representation, taking into account the requirements of hyperparameter optimization and neural architecture search(NAS), making Hypernets a general framework that can adapt to various automated machine learning needs.
+We introduced an abstract search space representation, taking into account the requirements of hyperparameter optimization and neural architecture search(NAS), making Hypernets a general framework that can adapt to various automated machine learning needs. As an abstraction computing layer, tabular toolbox, has successfully implemented in various tabular data types: pandas, dask, cudf, etc.  
+
 
 
 ## Overview
@@ -80,7 +81,7 @@ python -m hypernets.examples.smoke_testing
 * [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
 * [HyperTS](https://github.com/DataCanvasIO/HyperTS): A full pipeline AutoML&AutoDL tool for time series datasets.
 * [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
-* [HyperBoard](https://github.com/DataCanvasIO/HyperBoard): A visualization toolkit for Hypernets.
+* [HyperBoard](https://github.com/DataCanvasIO/HyperBoard): A visualization tool for Hypernets.
 * [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
 
 
