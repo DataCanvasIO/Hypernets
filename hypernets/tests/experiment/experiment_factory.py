@@ -21,6 +21,8 @@ def _create_experiment(predefined_kwargs, maker=None, need_test=False, user_kwar
     df_test['Drifted'] = np.random.random(df_test.shape[0]) * 100
 
     def maker_(*args, **kwargs):
+        if 'random_state' not in kwargs.keys():
+            kwargs['random_state'] = 1234
         return make_experiment(PlainModel, *args, **kwargs)
 
     default_kwargs = dict(
