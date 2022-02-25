@@ -78,11 +78,13 @@ python -m hypernets.examples.smoke_testing
 * [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning (AutoML) framework.
 * [HyperGBM](https://github.com/DataCanvasIO/HyperGBM): A full pipeline AutoML tool integrated various GBM models.
 * [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
+* [HyperTS](https://github.com/DataCanvasIO/HyperTS): A full pipeline AutoML&AutoDL tool for time series datasets.
 * [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
+* [HyperBoard](https://github.com/DataCanvasIO/HyperBoard): A visualization toolkit for Hypernets.
 * [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
 
 
-![DataCanvas AutoML Toolkit](docs/source/images/datacanvas_automl_toolkit.png)
+![DataCanvas AutoML Toolkit](docs/source/images/DAT2.5.png)
 
 ## Documents
 * [Overview](https://hypernets.readthedocs.io/en/latest/overview.html)
