@@ -593,8 +593,7 @@ Here is an example of how to use these features in `jupyter notebook <https://ju
 
     experiment = make_experiment(PlainModel, df_train,
                                  target='target',
-                                 search_space=search_space,
-                                 report_render='excel')
+                                 search_space=search_space)
     experiment
 
 
