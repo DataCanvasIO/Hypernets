@@ -11,12 +11,12 @@ from hypernets.utils import const
 
 
 def _create_experiment(predefined_kwargs, maker=None, need_test=False, user_kwargs=None):
-
     df = dsutils.load_boston()
     df['Constant'] = [0 for i in range(df.shape[0])]
     df['Id'] = [i for i in range(df.shape[0])]
     target = 'target'
-    df_train, df_test = train_test_split(df, test_size=0.2)
+    df_train, df_test = train_test_split(df, test_size=0.2, random_state=123)
+    df_test.pop(target)
     df_train['Drifted'] = np.random.random(df_train.shape[0])
     df_test['Drifted'] = np.random.random(df_test.shape[0]) * 100
 
