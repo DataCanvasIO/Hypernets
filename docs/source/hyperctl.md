@@ -1,10 +1,11 @@
-# hyperctl
+# Hyperctl
 
-hyperctl is used to manage jobs.
+Hyperctl is a general tool for multi-job management, which includes but not limit to training, testing and comparison. It is packaged under Hypernets and intended to provide convenience to every developing stage. 
+
 
 **Get started**
 
-Install `hypernets` and type command `hyperctl` you shall see following outputs:
+After installing `hypernets`, you could see the following description by typing `hyperctl`, which includes four arguments 'run, generate, batch, job':
 ```shell
 
 $ hyperctl
@@ -24,7 +25,11 @@ optional arguments:
 
 ```
 
-Create a python script `~/job-script.py` to run job with following content:
+** Examples **
+
+1. Single job execution
+
+- First, create a python script `~/job-script.py` to run job with following content:
 ```python
 from hypernets import hyperctl
 
