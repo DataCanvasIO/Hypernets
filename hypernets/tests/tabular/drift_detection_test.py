@@ -20,19 +20,19 @@ class Test_drift_detection:
     def test_shift_score(self):
         df = load_bank().head(1000)
         selector = FeatureSelectorWithDriftDetection()
-        scores = selector._covariate_shift_score(df[:700], df[700:])
+        scores = selector._covariate_shift_score(df[:700], df[700:], shuffle=False)
         assert scores['id'] == 1.0
 
     def test_shift_score_with_matthews_corrcoef(self):
         df = load_bank().head(1000)
         selector = FeatureSelectorWithDriftDetection()
-        scores = selector._covariate_shift_score(df[:700], df[700:], scorer=matthews_corrcoef_scorer)
+        scores = selector._covariate_shift_score(df[:700], df[700:], scorer=matthews_corrcoef_scorer, shuffle=False)
         assert scores['id'] == 1.0
 
     def test_shift_score_cv(self):
         df = load_bank().head(1000)
         selector = FeatureSelectorWithDriftDetection()
-        scores = selector._covariate_shift_score(df[:700], df[700:], cv=5)
+        scores = selector._covariate_shift_score(df[:700], df[700:], cv=5, shuffle=False)
         assert scores['id'] >= 0.95
 
     def test_shufflesplit(self):

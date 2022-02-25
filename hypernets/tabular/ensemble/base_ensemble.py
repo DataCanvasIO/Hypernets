@@ -8,7 +8,9 @@ import pickle
 
 from sklearn.model_selection import StratifiedKFold
 
-from hypernets.utils import fs
+from hypernets.utils import fs, logging
+
+logger = logging.get_logger(__name__)
 
 
 class BaseEnsemble:
@@ -59,14 +61,18 @@ class BaseEnsemble:
     def fit(self, X, y, est_predictions=None):
         assert y is not None
         if est_predictions is not None:
+            logger.info('validate oof predictions')
             self._validate_predictions(X, y, est_predictions)
         else:
             assert X is not None
             if self.need_fit:
+                logger.info(f'get predictions, need_fit={self.need_fit}')
                 est_predictions = self._Xy2predicttions(X, y)
             else:
+                logger.info(f'get predictions, need_fit={self.need_fit}')
                 est_predictions = self._X2predictions(X)
 
+        logger.info('fit_predictions')
         self.fit_predictions(est_predictions, y)
 
     def _validate_predictions(self, X, y, est_predictions):

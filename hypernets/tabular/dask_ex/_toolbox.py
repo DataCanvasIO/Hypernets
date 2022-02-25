@@ -485,7 +485,7 @@ class DaskToolBox(ToolBox):
         return proba
 
     @staticmethod
-    def concat_df(dfs, axis=0, repartition=False, **kwargs):
+    def concat_df(dfs, axis=0, repartition=False, random_state=9527, **kwargs):
         if DaskToolBox.exist_dask_object(*dfs):
             dfs_orig = dfs
             dfs = [dd.from_dask_array(v) if DaskToolBox.is_dask_array(v) else v for v in dfs]
@@ -509,7 +509,7 @@ class DaskToolBox(ToolBox):
             if repartition:
                 df = df.shuffle(df.index, npartitions=dfs[0].npartitions)
         else:
-            df = ToolBox.concat_df(dfs, axis=axis, repartition=repartition, **kwargs)
+            df = ToolBox.concat_df(dfs, axis=axis, repartition=repartition, random_state=random_state, **kwargs)
 
         return df
 
