@@ -11,13 +11,14 @@ Hypernets is a general AutoML framework that can meet various needs such as feat
    :caption: Home:
 
    Overview<overview.md>
-   Quick-Start<quick_start.md>
+   Quick Start<quick_start.md>
    Search Space<search_space.md>
    Searchers<searchers.md>
    HyperModels<hypermodels.md>
    Neural Architecture Search<nas.md>
    Experiment<experiment.md>
    Hyperctl<hyperctl.md>
+   Release Notes<release_note_025.md>
    FAQ<faq.md>
 
 Indices and tables
