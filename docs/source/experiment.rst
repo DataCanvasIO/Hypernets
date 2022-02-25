@@ -598,7 +598,6 @@ Here is an example of how to use these features in `jupyter notebook <https://ju
     experiment
 
 
-Output:
 
 .. image:: images/notebook_experiment_config.png
    :width: 90%
