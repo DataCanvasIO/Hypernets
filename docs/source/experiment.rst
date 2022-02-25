@@ -508,8 +508,8 @@ The following codes sets the log level to 'INFO':
 Export experiment report
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-If you want to export the experiment report in Excel format after training, you can set `report_render` to `excel`.
-The sample code for opening the experiment report is as follows:
+If you want to export the experiment report in Excel format after training, you can set the argument as `report_render= 'excel'`.
+The sample codes for displaying the experiment report are shown as follows:
 
 .. code-block:: python
 
@@ -531,14 +531,14 @@ The sample code for opening the experiment report is as follows:
     estimator = experiment.run(max_trials=3)
     print(estimator)
 
-A excel report file named `report.xlsx` will be generated in the current directory, as follows:
+An excel report file named `report.xlsx` will be generated in the current directory. The report include the information of the engineering features, evaluation scores, resource usage and ensemble models, as well as the automatically generated plots. One example is shown below:
 
 .. image:: images/excel_experiment_report.png
    :width: 90%
    :alt: excel experiment report
 
 
-You can set report output file path by add param ``report_render_options``, here is the example code of how to set output report to ``/tmp/report.xlsx``:
+You can also change the file path of the output report by setting the argument ``report_render_options``, here is the example code of how to set output report to ``/tmp/report.xlsx``:
 
 .. code-block:: python
 
@@ -549,21 +549,24 @@ You can set report output file path by add param ``report_render_options``, here
     ...
 
 
-Running experiment in jupyter notebook
+
+Experiment visualization in jupyter notebook
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-Hypernets provides features to help you better use experiments in notebooks, including:
+Hypernets support two new features of experiment visualization in notebooks:
 
-1. show experiment configuration
-2. show experiment dataset information
+1. visualization of the experiment configurations
+2. visualization of the dataset information
 
-Note that these features is optional, make sure you are installing hypernets by the command:
+These features are optional tools and do not influence the experiment results.
+
+To install the notebook visualization tool, use the command:
 
 .. code-block:: shell
 
     pip install hypernets[notebook]
 
-If you do not installed the notebook widget, you can install it by command:
+If you have not installed the notebook widget, you can install it by command:
 
 .. code-block:: shell
 
@@ -572,8 +575,7 @@ If you do not installed the notebook widget, you can install it by command:
 
 Here is an example of how to use these features in `jupyter notebook <https://jupyter.org/>`_ :
 
-
-1. Import modules
+1. Import the required modules
 
 .. code-block:: python
 
@@ -584,7 +586,7 @@ Here is an example of how to use these features in `jupyter notebook <https://ju
     from hypernets.tabular.datasets import dsutils
 
 
-2. Build hypernets experiment and show configuration
+2. Create a hypernets experiment
 
 .. code-block:: python
 
@@ -596,14 +598,14 @@ Here is an example of how to use these features in `jupyter notebook <https://ju
                                  search_space=search_space)
     experiment
 
-
+3. The experiment configurations are automatically displayed, which provides a convenient reference for further modification.
 
 .. image:: images/notebook_experiment_config.png
    :width: 90%
    :alt: notebook experiment config
 
 
-3. Show experiment dataset information
+4. The dataset information can also be easily visualized by command:
 
 .. code-block:: python
 
