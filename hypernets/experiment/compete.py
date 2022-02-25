@@ -64,7 +64,7 @@ def _sample_by_classes(X, y, class_size, random_state=None, copy_data=True):
     dfs = [tb.train_test_split(part, train_size=class_size[c], random_state=random_state)[0]
            if c in class_size.keys() else part
            for c, part in parts.items()]
-    df = tb.concat_df(dfs, repartition=True)
+    df = tb.concat_df(dfs, repartition=True, random_state=random_state)
     if logger.is_info_enabled():
         logger.info(f'sample_by_classes: {tb.value_counts(df[name_y])}')
     y = df.pop(name_y)

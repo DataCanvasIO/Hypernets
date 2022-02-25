@@ -248,7 +248,7 @@ class ToolBox(metaclass=ToolboxMeta):
         return df.values
 
     @staticmethod
-    def concat_df(dfs, axis=0, repartition=False, **kwargs):
+    def concat_df(dfs, axis=0, repartition=False, random_state=9527, **kwargs):
         header = dfs[0]
         assert isinstance(header, (pd.DataFrame, pd.Series))
 
@@ -263,7 +263,7 @@ class ToolBox(metaclass=ToolboxMeta):
         dfs = [header] + [to_pd_type(df) for df in dfs[1:]]
         df = pd.concat(dfs, axis=axis, **kwargs)
         if repartition:
-            df = df.sample(frac=1.0)
+            df = df.sample(frac=1.0, random_state=random_state)
         return df
 
     @staticmethod

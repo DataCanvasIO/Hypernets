@@ -244,8 +244,7 @@ class DriftDetector:
     def _copy_data(X):
         return copy.deepcopy(X)
 
-    @staticmethod
-    def _train_test_merge(X_train, X_test):
+    def _train_test_merge(self, X_train, X_test, shuffle=True):
         from . import get_tool_box
 
         target_col = '__hypernets_tmp__target__'
@@ -259,7 +258,7 @@ class DriftDetector:
             X_test[target_col] = 1
 
         tb = get_tool_box(X_train, X_test)
-        X_merge = tb.concat_df([X_train, X_test], axis=0, repartition=True)
+        X_merge = tb.concat_df([X_train, X_test], axis=0, repartition=shuffle, random_state=self.random_state)
         y = X_merge.pop(target_col)
 
         X_train.pop(target_col)
@@ -381,7 +380,8 @@ class FeatureSelectorWithDriftDetection:
             round += 1
 
     def _covariate_shift_score(self, X_train, X_test, *,
-                               preprocessor=None, estimator=None, scorer=None, cv=None, copy_data=True):
+                               preprocessor=None, estimator=None, scorer=None, cv=None,
+                               shuffle=True, copy_data=True):
         # assert all(isinstance(x, (pd.DataFrame, dd.DataFrame)) for x in (X_train, X_test)), \
         #     'X_train and X_test must be a pandas or dask DataFrame.'
         assert set(X_train.columns.to_list()) == set(X_test.columns.to_list()), \
@@ -395,7 +395,7 @@ class FeatureSelectorWithDriftDetection:
 
         # Set target value
         logger.info('Set target value...')
-        X_merged, y = detector._train_test_merge(X_train, X_test)
+        X_merged, y = detector._train_test_merge(X_train, X_test, shuffle=shuffle)
 
         logger.info('Preprocessing...')
         # Preprocess data: imputing and scaling

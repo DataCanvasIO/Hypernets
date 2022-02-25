@@ -298,9 +298,9 @@ class CumlToolBox(ToolBox):
         return proba
 
     @staticmethod
-    def concat_df(dfs, axis=0, repartition=False, **kwargs):
+    def concat_df(dfs, axis=0, repartition=False, random_state=9527, **kwargs):
         if not any(map(CumlToolBox.is_cuml_object, dfs)):
-            return ToolBox.concat_df(dfs, axis=axis, repartition=repartition, **kwargs)
+            return ToolBox.concat_df(dfs, axis=axis, repartition=repartition, random_state=random_state, **kwargs)
 
         header = dfs[0]
         assert isinstance(header, (cudf.DataFrame, cudf.Series))
@@ -320,7 +320,7 @@ class CumlToolBox(ToolBox):
 
         df = cudf.concat(dfs, axis=axis, **kwargs)
         if repartition:
-            df = df.sample(frac=1.0)
+            df = df.sample(frac=1.0, random_state=random_state)
         return df
 
     @staticmethod
