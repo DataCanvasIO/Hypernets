@@ -22,6 +22,11 @@ class TabularCfg(Configurable):
              help='parallel settings except "n_jobs" setting for joblib task.'
              ).tag(config=True)
 
+    shift_variable_sample_limit = \
+        Int(10000, min=100,
+            help='maximum number to run shift_variable detection.'
+            ).tag(config=True)
+
     multi_collinearity_sample_limit = \
         Int(10000, min=100,
             help='maximum number to run multi collinearity.'

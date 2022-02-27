@@ -382,6 +382,8 @@ class FeatureSelectorWithDriftDetection:
     def _covariate_shift_score(self, X_train, X_test, *,
                                preprocessor=None, estimator=None, scorer=None, cv=None,
                                shuffle=True, copy_data=True):
+        from . import get_tool_box
+
         # assert all(isinstance(x, (pd.DataFrame, dd.DataFrame)) for x in (X_train, X_test)), \
         #     'X_train and X_test must be a pandas or dask DataFrame.'
         assert set(X_train.columns.to_list()) == set(X_test.columns.to_list()), \
@@ -393,6 +395,14 @@ class FeatureSelectorWithDriftDetection:
             X_train = detector._copy_data(X_train)
             X_test = detector._copy_data(X_test)
 
+        shift_variable_sample_limit = cfg.shift_variable_sample_limit
+        if len(X_train) > shift_variable_sample_limit:
+            logger.info(f'sample X_train to {shift_variable_sample_limit}')
+            X_train = get_tool_box(X_train).select_1d(X_train, np.arange(shift_variable_sample_limit))
+        if len(X_test) > shift_variable_sample_limit:
+            logger.info(f'sample X_test to {shift_variable_sample_limit}')
+            X_test = get_tool_box(X_test).select_1d(X_test, np.arange(shift_variable_sample_limit))
+
         # Set target value
         logger.info('Set target value...')
         X_merged, y = detector._train_test_merge(X_train, X_test, shuffle=shuffle)
@@ -400,7 +410,6 @@ class FeatureSelectorWithDriftDetection:
         logger.info('Preprocessing...')
         # Preprocess data: imputing and scaling
         if preprocessor is None:
-            from . import get_tool_box
             preprocessor = get_tool_box(X_merged).general_preprocessor(X_merged)
         X_merged = preprocessor.fit_transform(X_merged)
 
