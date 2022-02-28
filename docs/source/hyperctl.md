@@ -5,7 +5,7 @@ Hyperctl is a general tool for multi-job management, which includes but not limi
 
 **Get started**
 
-After installing `hypernets`, you could see the following description by typing `hyperctl`, which includes four arguments 'run, generate, batch, job':
+After installing `hypernets`, you could see the following description by typing `hyperctl`, which includes four arguments  `run`, `generate`, `batch`, `job':
 ```shell
 
 $ hyperctl
@@ -25,11 +25,11 @@ optional arguments:
 
 ```
 
-** Examples **
+**Examples**
 
 1. Single job execution
 
-- First, create a python script `~/job-script.py` to run job with following content:
+- First, create a job python script `~/job-script.py`:
 ```python
 from hypernets import hyperctl
 
@@ -38,7 +38,7 @@ assert params
 print(params)
 ```
 
-put the minimum jobs' specification config into a file `batch.json`:
+- You could get a list of parameters. Select the parameters you would like to configure and filled in the minimum jobs' specification config (e.g., `learning_rate`). Then you could get the `batch.json` file:
 ```json
 {
     "jobs": [
@@ -54,28 +54,28 @@ put the minimum jobs' specification config into a file `batch.json`:
 }
 ```
 
-run the job with command:
+- Run the job with command:
 ```shell
 hyperctl run --config ./batch.json
 ```
 
-**Generate jobs**
+2. Generate a series multi-job 'batch.json' file
 
-hyperctl can combine parameters to generate jobs in a batch. For example if your has several params and each params has 
-multiple choices like :
-```shell
-{
-  "learning_rate": [0.1, 0.2],
-  "max_depth": [3, 5]
-}
+When existing multiple parameters with multiple choices, Hyperctl can generate a multi-job file with all permutations. For instance, there are two parameters `"learning rate":[0.1, 0.2]` and `"max_depth": [3,5]`. The total permutations of parameter configurations is four. Hyperctl provides a `job-template.yml` file, from which it could automatically generate the 'batch.json' file.
+
+The `job-template.yml` includes the following contents.
 ```
-it shall generate jobs with params:
-- `{ "learning_rate": 0.1, "max_depth": 3 }`
-- `{ "learning_rate": 0.1, "max_depth": 5 }`
-- `{ "learning_rate": 0.2, "max_depth": 3 }`
-- `{ "learning_rate": 0.2, "max_depth": 5 }`
+name: eVqNV5Ut1   // the same as job configuration `name`
+version: "2.5"    // the same as job configuration `version`
+params:           // dict[str, list], required, value should be list 
+    param1: ["value1", "value2"]
+execution:        // the same as job configuration `jobs.execution`
+resource:         // the same as job configuration `jobs.resource`
+daemon:           // the same as job configuration `daemon`
+backend:          // the same as job configuration `backend`
+```
 
-To batch generate jobs you should write job template file `job-template.yml` with following content:
+Below is the example of how to generate the 'job-template.yml' and 'batch.json' files with two parameters:
 
 ```yaml
 params:
@@ -85,14 +85,15 @@ execution:
   command: python3 main.py
 ```
 
-run command to generate jobs specification config:
 ```shell
 hyperctl generate --template ./job-template.yml --output ./batch.json
 ```
 
-**Parallel jobs in remote machines**
 
-You can run jobs in remote machines via SSH. Configure the host's connections setting in remote `backend` options:
+3. Parallel jobs in remote machines
+
+Hyperctl also supports parallel jobs in remote machines by configuring the argument `backend`. An example of the running in remote machines via SSH in shown below.
+
 ```
 {
  "backend": {
@@ -112,10 +113,12 @@ You can run jobs in remote machines via SSH. Configure the host's connections se
 ```
 
 Note that the configuration item `daemon.host` should be accessed by remote machines declared in the configuration `backend.conf.machines`,
-otherwise, the task will fail because the daemon server cannot be accessed.
+Otherwise, the task will fail because the daemon server cannot be accessed.
 
 
-**Job configuration's description**
+4. Full job configuration
+
+The example below shows a full job configuration.
 ```
 {
     "jobs": [
@@ -151,14 +154,3 @@ otherwise, the task will fail because the daemon server cannot be accessed.
 }
 ```
 
-**Job template description**
-```
-name: eVqNV5Ut1 // the same as job configuration `name`
-version: "2.5" // the same as job configuration `version`
-params:  // dict[str, list], required, value should be list 
-    param1: ["value1", "value2"]
-execution: // the same as job configuration `jobs.execution`
-resource: // the same as job configuration `jobs.resource`
-daemon: // the same as job configuration `daemon`
-backend:  // the same as job configuration `backend`
-```
