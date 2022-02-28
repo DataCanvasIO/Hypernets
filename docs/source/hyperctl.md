@@ -27,7 +27,7 @@ optional arguments:
 
 **Examples**
 
-1. Single job execution
+EX1: Single job execution
 
 - First, create a job python script `~/job-script.py`:
 ```python
@@ -59,7 +59,7 @@ print(params)
 hyperctl run --config ./batch.json
 ```
 
-2. Generate a series multi-job 'batch.json' file
+EX2. Generate a series multi-job 'batch.json' file
 
 When existing multiple parameters with multiple choices, Hyperctl can generate a multi-job file with all permutations. For instance, there are two parameters `"learning rate":[0.1, 0.2]` and `"max_depth": [3,5]`. The total permutations of parameter configurations is four. Hyperctl provides a `job-template.yml` file, from which it could automatically generate the 'batch.json' file.
 
@@ -90,7 +90,7 @@ hyperctl generate --template ./job-template.yml --output ./batch.json
 ```
 
 
-3. Parallel jobs in remote machines
+EX3. Parallel jobs in remote machines
 
 Hyperctl also supports parallel jobs in remote machines by configuring the argument `backend`. An example of the running in remote machines via SSH in shown below.
 
@@ -116,7 +116,7 @@ Note that the configuration item `daemon.host` should be accessed by remote mach
 Otherwise, the task will fail because the daemon server cannot be accessed.
 
 
-4. Full job configuration
+EX4. Full job configuration
 
 The example below shows a full job configuration.
 ```
