@@ -109,6 +109,9 @@ Hyperctl also supports parallel jobs in remote machines by configuring the argum
             ]
         }
     }
+  "daemon": {
+      "host": "192.168.10.206",  // str, optional, http service host ip, you should use IP address that can be accessed in remote machines
+  }
 }
 ```
 
@@ -121,9 +124,10 @@ EX4. Full job configuration
 The example below shows a full job configuration.
 ```
 {
+    "name": "eVqNV5Ut1",  // str, optional, batch name, default is a new uuid, recommended that you specify one, with the specified {jobs.name} , the executed job can be skipped when the batch is re-executed
     "jobs": [
         {
-            "name": "aVqNV5Ut1",  // str, unique in batch, optional, if is null will generate a uuid as job name
+            "name": "aVqNV5Ut1",  // str, unique in batch, optional, if is null will generate a uuid as job name, recommended that you specify one, with the name of the batch name, the executed job can be skipped when the batch is re-executed
             "params": {  // dict, required
                 "learning_rate": 0.1,
                 "dataset": "path/d1.csv"
@@ -144,7 +148,6 @@ The example below shows a full job configuration.
         "type": "local", // str, one of "local,remote"
         "conf": {}  // 
     },
-    "name": "eVqNV5Ut1",  // str, optional, batch name, default is a new uuid 
     "daemon": {  // dict, optional, daemon process setting
         "host": "192.168.10.206",  // str, optional, default is localhosh, http service host ip, you should use IP address that can be accessed in remote machines if is remote backend
         "port": 8060,  // int, optional, default is 8060, http service port
@@ -153,4 +156,3 @@ The example below shows a full job configuration.
     "version": "2.5" // str, optional, default using the running hyperctl's version
 }
 ```
-

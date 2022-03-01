@@ -226,7 +226,7 @@ class Scheduler:
                 change_job_status(job, job.STATUS_RUNNING)
                 executor.run()
             except NoResourceException:
-                logger.info(f"no enough resource for job {job.name} , stop scheduling the remaining jobs")
+                logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
                 change_job_status(job, job.STATUS_FAILED)
@@ -389,6 +389,17 @@ def run_batch(config_dict, batches_data_dir=None):
 
     logger.info(f"batches_data_path: {batches_data_dir.absolute()}")
     logger.info(f"batch name: {batch.name}")
+
+    # check jobs status
+    for job in batch.jobs:
+        if job.status != job.STATUS_INIT:
+            if job.status == job.STATUS_RUNNING:
+                logger.warning(f"job '{job.name}' status is {job.status} in the begining,"
+                               f"it may have run and will not run again this time, "
+                               f"you can remove it's status file and working dir to retry the job")
+            else:
+                logger.info(f"job '{job.name}' status is {job.status} means it's finished, skip to run ")
+            continue
 
     # prepare batch data dir
     if batch.data_dir_path().exists():
@@ -569,12 +580,12 @@ def main():
         batch_subparsers = exec_parser.add_subparsers(dest="job_operation")
 
         job_list_parse = batch_subparsers.add_parser("list", help="list jobs")
-        job_list_parse.add_argument("-b", "--batch", help="batch name", default=None, required=True)
+        job_list_parse.add_argument("-b", "--batch-name", help="batch name", default=None, required=True)
         job_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
 
         def add_job_spec_args(parser_):
-            parser_.add_argument("-b", "--batch", help="batch name", default=None, required=True)
-            parser_.add_argument("-j", "--job", help="job name", default=None, required=True)
+            parser_.add_argument("-b", "--batch-name", help="batch name", default=None, required=True)
+            parser_.add_argument("-j", "--job-name", help="job name", default=None, required=True)
             parser_.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
 
         job_kill_parse = batch_subparsers.add_parser("kill", help="kill job")
