@@ -240,14 +240,16 @@ class CumlToolBox(ToolBox):
         assert len(arr) > 0
 
         if CumlToolBox.is_cudf_series(arr):
-            return arr.take(indices, keep_index=False)
+            # return arr.take(indices, keep_index=False)
+            return arr.take(indices).reset_index(drop=True)
 
         atype = type(arr[0]).__name__
         if atype.find('int') >= 0 or atype.find('float') >= 0:
             return cupy.take(cupy.array(arr), indices=cupy.array(indices), axis=axis)
         else:
             arr = cudf.from_pandas(pd.Series(arr))
-            return arr.take(indices, keep_index=False)
+            # return arr.take(indices, keep_index=False)
+            return arr.take(indices).reset_index(drop=True)
 
     @staticmethod
     def array_to_df(arr, *, columns=None, index=None, meta=None):
