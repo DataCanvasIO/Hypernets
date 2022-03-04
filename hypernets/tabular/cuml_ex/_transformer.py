@@ -2,6 +2,8 @@
 """
 
 """
+import inspect
+
 import cudf
 import cupy
 import numpy as np
@@ -201,7 +203,8 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
                 stat = np.array([0 if d.kind in num_kinds else 'missing_value' for d in X.dtypes])
         elif self.strategy == 'most_frequent':
             mode = X.mode(dropna=True, axis=0)
-            stat = mode.iloc[0].to_pandas().values
+            # stat = mode.iloc[0].to_pandas().values
+            stat = mode.head(1).to_pandas().values.flatten()
         elif self.strategy == 'mean':
             assert all(d.kind in num_kinds for d in X.dtypes), f'only numeric type support strategy {self.strategy}'
             stat = X.mean(axis=0, skipna=True).to_pandas().values
@@ -348,14 +351,19 @@ class SlimTargetEncoder(TargetEncoder, BaseEstimator):
         self.dtype = dtype
         self.output_2d = output_2d
 
-    def fit(self, X, y):
+    def fit(self, X, y, **kwargs):
         super().fit(X, y)
         self.train = None
         self.train_encode = None
         return self
 
-    def fit_transform(self, X, y):
-        Xt, _ = self._fit_transform(X, y)
+    def fit_transform(self, X, y, **kwargs):
+        sig = inspect.signature(self._fit_transform)
+        if 'fold_ids' in sig.parameters.keys():
+            Xt, _ = self._fit_transform(X, y, None)
+        else:
+            Xt, _ = self._fit_transform(X, y)
+
         self.train = None
         self.train_encode = None
         self._fitted = True

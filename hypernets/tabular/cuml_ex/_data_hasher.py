@@ -25,6 +25,9 @@ class CumlDataHasher(DataHasher):
         if yield_columns:
             yield ','.join(map(str, df.columns.tolist())).encode('utf-8')
 
-        hashed = df.hash_columns()
+        if hasattr(df, 'hash_columns'):
+            hashed = df.hash_columns()
+        else:
+            hashed = df.hash_values().values
         # hashed = cudf.DataFrame(hashed).T.hash_columns()
         yield cupy.asnumpy(hashed)

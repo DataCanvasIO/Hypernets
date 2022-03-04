@@ -106,6 +106,8 @@ def _recursive_proc(result_buf, proc_, children_pool, fn):
                 raise
             except InterruptedError:
                 raise
+            except psutil.NoSuchProcess:
+                pass
             except:
                 import traceback
                 traceback.print_exc()
