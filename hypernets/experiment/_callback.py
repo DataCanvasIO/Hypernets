@@ -16,6 +16,7 @@ import math
 from typing import Type
 
 import pandas as pd
+import numpy as np
 import joblib
 import psutil
 from sklearn import metrics as sk_metrics
@@ -426,12 +427,20 @@ class MLReportCallback(ExperimentCallback):
         exp.evaluation = {}
 
     def experiment_end(self, exp, elapsed):
-        # 1. Mock full experiment: Add evaluation
+
+        def as_array(array_data):
+            if hasattr(array_data, 'to_arrow'):  # fix cudf
+                return array_data.to_arrow().to_pylist()
+            elif hasattr(array_data, 'tolist'):
+                return array_data.tolist()
+            else:
+                return array_data
+
         confusion_matrix_result = None
         DIGITS = 4
         if exp.y_eval_pred is not None:
-            y_test = exp.y_eval
-            y_pred = exp.y_eval_pred
+            y_test = as_array(exp.y_eval)
+            y_pred = as_array(exp.y_eval_pred)
             if exp.task in [const.TASK_MULTICLASS, const.TASK_BINARY]:
                 evaluation_result = classification_report(y_test, y_pred, output_dict=True, digits=DIGITS)
                 labels = unique_labels(y_test, y_pred)
@@ -445,17 +454,11 @@ class MLReportCallback(ExperimentCallback):
                 neg_median_absolute_error = round(sk_metrics.median_absolute_error(y_true=y_test, y_pred=y_pred),
                                                   DIGITS)
                 r2 = round(sk_metrics.r2_score(y_true=y_test, y_pred=y_pred), DIGITS)
-                if (y_test >= 0).all() and (y_pred >= 0).all():
-                    neg_mean_squared_log_error = round(sk_metrics.mean_squared_log_error(y_true=y_test, y_pred=y_pred),
-                                                       DIGITS)
-                else:
-                    neg_mean_squared_log_error = None
                 evaluation_result = {
                     "explained_variance": explained_variance,
                     "neg_mean_absolute_error": neg_mean_absolute_error,
                     "neg_mean_squared_error": neg_mean_squared_error,
                     "rmse": rmse,
-                    "neg_mean_squared_log_error": neg_mean_squared_log_error,
                     "r2": r2,
                     "neg_median_absolute_error": neg_median_absolute_error
                 }

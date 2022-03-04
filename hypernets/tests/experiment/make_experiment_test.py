@@ -183,7 +183,6 @@ def test_regression_task_report():
     df['Id'] = [i for i in range(df.shape[0])]
 
     target = 'target'
-
     df_train, df_eval = train_test_split(df, test_size=0.2)
 
     df_train['Drifted'] = np.random.random(df_train.shape[0])
@@ -201,7 +200,7 @@ def test_regression_task_report():
                                                                enable_dt=False, enable_dtr=True),
                                  report_render='excel',
                                  report_render_options={'file_path': file_path})
-    estimator = experiment.run(max_trials=3)
+    estimator = experiment.run(max_trials=1)
     assert estimator is not None
     mlr_callback = None
     mle_callback = None

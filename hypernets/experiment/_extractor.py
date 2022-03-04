@@ -490,7 +490,7 @@ class FinalTrainStepExtractor(Extractor):
         return ['y']
 
     def _get_extension(self):
-        pass
+        return {}
 
 
 class EnsembleStepExtractor(Extractor):
