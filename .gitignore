@@ -141,5 +141,3 @@ logs/
 workdir/
 dask-worker-space/
 
-# widget
-hypernets/hn_widget/js/lib/experimentVis.js

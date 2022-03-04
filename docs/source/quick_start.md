@@ -24,7 +24,11 @@ Optional, to run Hypernets in JupyterLab notebooks, install Hypernets and Jupyte
 ```bash
 pip install hypernets[notebook]
 ```
-See more about [Hypernets jupyter notebook widget](https://github.com/DataCanvasIO/HyperBoard/tree/main/experiment-notebook-widget)
+
+* Optional, to support experiment visualization base on web, install with command:
+```bash
+pip install hypernets[board]
+```
 
 Optional, to run Hypernets in distributed Dask cluster, install Hypernets with command:
 ```bash

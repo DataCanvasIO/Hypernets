@@ -164,7 +164,7 @@ class Experiment(object):
             import experiment_notebook_widget
         except Exception as e:
             logger.error("No notebook visualization module detected, you can install by command:"
-                         "\"pip install experiment-notebook-widget\"")
+                         "\"pip install hyperboard-widget\"")
             return
         from experiment_notebook_widget.widget import DatasetSummary
         widget = DatasetSummary(self)
