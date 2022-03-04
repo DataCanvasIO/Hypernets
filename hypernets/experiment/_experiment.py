@@ -161,11 +161,11 @@ class Experiment(object):
 
     def plot_dataset(self):
         try:
-            import experiment_notebook_widget
+            import hyperboard_widget
         except Exception as e:
             logger.error("No notebook visualization module detected, you can install by command:"
                          "\"pip install hyperboard-widget\"")
             return
-        from experiment_notebook_widget.widget import DatasetSummary
+        from hyperboard_widget.widget import DatasetSummary
         widget = DatasetSummary(self)
         display(widget)
