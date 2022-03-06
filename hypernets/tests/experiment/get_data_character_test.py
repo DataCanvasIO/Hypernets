@@ -106,7 +106,7 @@ class Test_Get_character:
         assert mydict_compete['experimentType'] == 'compete'
         assert mydict_base['target']['taskType'] == 'binary'
         assert mydict_base['target']['freq'] is not None
-        assert mydict_base['target']['unique'] is 2
+        assert mydict_base['target']['unique'] == 2
         assert mydict_base['target']['mean'] is None
         assert mydict_base['target']['max'] is None
         assert mydict_base['target']['min'] is None
@@ -163,7 +163,7 @@ class Test_Get_character:
         assert mydict_base['target']['max'] is not None
         assert mydict_base['target']['min'] is not None
         assert mydict_base['target']['stdev'] is not None
-        assert mydict_base['target']['dataType'] is 'float'
+        assert mydict_base['target']['dataType'] == 'float'
         assert len(mydict_base['targetDistribution']) <= 10
         assert mydict_base['datasetShape']['X_train']
         assert mydict_base['datasetShape']['y_train']
