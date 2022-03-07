@@ -2069,7 +2069,7 @@ class CompeteExperiment(SteppedExperiment):
 
     def _repr_html_(self):
         try:
-            from hyperboard_widget.widget import ExperimentSummary
+            from hboard_widget.widget import ExperimentSummary
             from IPython.display import display
             display(ExperimentSummary(self))
         except:

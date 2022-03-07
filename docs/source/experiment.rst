@@ -570,7 +570,7 @@ If you have not installed the notebook widget, you can install it by command:
 
 .. code-block:: shell
 
-    pip install hyperboard-widget
+    pip install hboard-widget
 
 
 Here is an example of how to use these features in `jupyter notebook <https://jupyter.org/>`_ :
