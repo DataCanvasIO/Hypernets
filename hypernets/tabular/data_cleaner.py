@@ -234,7 +234,8 @@ class DataCleaner:
             int_cols = cs.column_int(X)
             if len(int_cols) > 0:
                 columns = [c for c in X.columns.to_list() if c not in int_cols]
-                X[columns] = X[columns].replace([np.inf, -np.inf], self.replace_inf_values)
+                if len(columns) > 0:
+                    X[columns] = X[columns].replace([np.inf, -np.inf], self.replace_inf_values)
             else:
                 X = X.replace([np.inf, -np.inf], self.replace_inf_values)
 
