@@ -14,7 +14,7 @@ class TestExcelReport:
 
     @staticmethod
     def create_prediction_stats_df():
-        return [('Test', 1000, 10000000)]
+        return (1000,2000)
 
     @staticmethod
     def create_dataset_meta():
@@ -101,7 +101,7 @@ class TestExcelReport:
                                          evaluation_metric=self.create_binary_metric_data(),
                                          confusion_matrix=self.create_confusion_matrix_data(),
                                          resource_usage=self.create_resource_monitor_df(),
-                                         prediction_stats=self.create_prediction_stats_df())
+                                         prediction_elapsed=self.create_prediction_stats_df())
         p = common_util.get_temp_file_path(prefix="report_excel_", suffix=".xlsx")
         print(p)
         ExcelReportRender(file_path=p).render(experiment_meta)

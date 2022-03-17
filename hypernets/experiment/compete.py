@@ -2010,6 +2010,8 @@ class CompeteExperiment(SteppedExperiment):
             _set_log_level(log_level)
 
         self.run_kwargs = kwargs
+
+        self.evaluation_ = None
         super(CompeteExperiment, self).__init__(steps,
                                                 hyper_model, X_train, y_train, X_eval=X_eval, y_eval=y_eval,
                                                 X_test=X_test, eval_size=eval_size, task=task,

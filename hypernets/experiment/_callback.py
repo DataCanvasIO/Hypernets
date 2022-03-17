@@ -290,78 +290,87 @@ class MLEvaluateCallback(ExperimentCallback):
     def __init__(self, evaluate_metrics='auto', evaluate_prediction_dir=None):
         self.evaluate_prediction_dir = evaluate_prediction_dir
 
-        self._eval_df_shape = None
-        self._eval_elapse = None
-
-    @staticmethod
-    def get_logger():
+    def experiment_end(self, exp, elapsed):
         from hypernets.utils import logging
         logger = logging.get_logger(__name__)
-        return logger
 
-    def experiment_start(self, exp):
-        """
-            exp.evaluation:
-                {
-                    'metrics': {
-                        'f1': 0.1,
-                    },
-                    "classification_report": {
-                        "0": {
-                            'f1': 0.1,
-                        }
-                    },
-                    "confusion_matrix": [[1,2], [3,4]],
-                    "timing": {
-                        'predict': 100,
-                        'predict_proba': 100
-                    }
-                }
-        Parameters
-        ----------
-        exp
+        if exp.y_eval is None or exp.X_eval is None:  # skip it there is eval_data
+            logger.warning("y_eval or X_eval is None, skip to evaluate")
+            return
 
-        Returns
-        -------
+        # predict X
+        t_predict_start = time.time()
+        y_eval_pred = exp.model_.predict(exp.X_eval)
+        predict_elapsed = time.time() - t_predict_start
+        if hasattr(exp.model_, 'predict_proba'):
+            t_predict_proba_start = time.time()
+            try:
+                y_eval_proba = exp.model_.predict_proba(exp.X_eval)
+            except Exception as e:
+                logger.exception(e)
+                y_eval_proba = None
+            finally:
+                predict_proba_elapsed = time.time() - t_predict_proba_start
+        else:
+            predict_proba_elapsed = None
+            y_eval_proba = None
 
-        """
-        # define attrs
-        exp.y_eval_proba = None
-        exp.y_eval_pred = None
-        exp.evaluation = {}
-
-    def to_prediction(self, y_score):
-        pass
-
-    def _persist(self, obj, obj_name, path):
-        path = os.path.abspath(path)
-        if path is not None:
+        def to_pkl(obj, path):
+            path = os.path.abspath(path)
+            assert path
             if os.path.exists(path):
-                self.get_logger().warning(f"persist path is already exists {path} ")
-            self.get_logger().info(f"persist {obj_name} to {path} ")
+                logger.warning(f"persist path is already exists and will be overwritten {path} ")
             with open(path, 'wb') as f:
                 joblib.dump(obj, f)
+            logger.info(f'persist predictions object to path {path}')
 
-    def experiment_end(self, exp, elapsed):
-        # Attach prediction
-        if exp.y_eval is not None and exp.X_eval is not None:
-            _t = time.time()
-            exp.y_eval_pred = exp.model_.predict(exp.X_eval)  # TODO: try to use proba
-            if hasattr(exp.model_, 'predict_proba'):
-                try:
-                    exp.y_eval_proba = exp.model_.predict_proba(exp.X_eval)
-                except Exception as e:
-                    self.get_logger().exception(e)
-            exp.evaluation['timing'] = {'predict': time.time() - _t, 'predict_proba': 0}
-        if self.evaluate_prediction_dir is not None:
-            write_dir = self.evaluate_prediction_dir
+        # persist predictions
+        write_dir = self.evaluate_prediction_dir
+        if write_dir is not None:
             if not os.path.exists(write_dir):
-                os.makedirs(write_dir)  # TODO: logger.info(f"Create prediction persist directory: {write_dir}")
-            persist_pred_path = os.path.join(self.evaluate_prediction_dir, 'predict.pkl')
-            persist_proba_path = os.path.join(self.evaluate_prediction_dir, 'predict_proba.pkl')
-            self._persist(exp.y_eval_proba, 'y_eval_proba', persist_pred_path)
-            self._persist(exp.y_eval_pred, 'y_eval_pred', persist_proba_path)
-        # TODO: add evaluation
+                logger.info(f"create prediction persist directory: {write_dir}")
+                os.makedirs(write_dir, exist_ok=True)
+
+            persist_pred_path = os.path.join(write_dir, 'predict.pkl')
+            to_pkl(y_eval_pred, persist_pred_path)
+            if y_eval_proba is not None:
+                persist_proba_path = os.path.join(write_dir, 'predict_proba.pkl')
+                to_pkl(y_eval_proba, persist_proba_path)
+
+        def as_list(array_data):  # make cu_array or numpy as to python list
+            if hasattr(array_data, 'to_arrow'):  # fix cudf
+                return array_data.to_arrow().to_pylist()
+            elif hasattr(array_data, 'tolist'):
+                return array_data.tolist()
+            else:
+                return array_data
+
+        #  evaluate model
+        DIGITS = 4
+        y_test = as_list(exp.y_eval)
+        y_pred = as_list(y_eval_pred)
+
+        classification_report_data = None
+        evaluation_metrics_data = None
+        confusion_matrix_data = None
+
+        if exp.task in [const.TASK_MULTICLASS, const.TASK_BINARY]:
+            classification_report_data = classification_report(y_test, y_pred, output_dict=True, digits=DIGITS)
+
+            labels = unique_labels(y_test, y_pred)
+            confusion_matrix_data = ConfusionMatrixMeta(confusion_matrix(y_test, y_pred, labels=labels), labels)
+        elif exp.task in [const.TASK_REGRESSION]:
+            from hypernets.tabular.metrics import calc_score
+            evaluation_metrics_data = calc_score(y_test, y_pred, y_proba=None, metrics=('mse', 'mae', 'rmse', 'r2'),
+                                                 task=const.TASK_REGRESSION, pos_label=None, classes=None, average=None)
+            evaluation_metrics_data['explained_variance'] = sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred)
+
+        exp.evaluation_ = {
+            'prediction_elapsed': (predict_elapsed,  predict_proba_elapsed),
+            'evaluation_metrics': evaluation_metrics_data,
+            'confusion_matrix': confusion_matrix_data,
+            'classification_report': classification_report_data
+        }
 
 
 class ResourceUsageMonitor(Thread):
@@ -421,55 +430,10 @@ class MLReportCallback(ExperimentCallback):
 
     def experiment_start(self, exp):
         self._rum.start_watch()
-        # define attrs
-        exp.y_eval_proba = None
-        exp.y_eval_pred = None
-        exp.evaluation = {}
 
     def experiment_end(self, exp, elapsed):
-
-        def as_array(array_data):
-            if hasattr(array_data, 'to_arrow'):  # fix cudf
-                return array_data.to_arrow().to_pylist()
-            elif hasattr(array_data, 'tolist'):
-                return array_data.tolist()
-            else:
-                return array_data
-
-        confusion_matrix_result = None
-        DIGITS = 4
-        if exp.y_eval_pred is not None:
-            y_test = as_array(exp.y_eval)
-            y_pred = as_array(exp.y_eval_pred)
-            if exp.task in [const.TASK_MULTICLASS, const.TASK_BINARY]:
-                evaluation_result = classification_report(y_test, y_pred, output_dict=True, digits=DIGITS)
-                labels = unique_labels(y_test, y_pred)
-                confusion_matrix_data = confusion_matrix(y_test, y_pred, labels=labels)
-                confusion_matrix_result = ConfusionMatrixMeta(confusion_matrix_data, labels)
-            elif exp.task in [const.TASK_REGRESSION]:
-                explained_variance = round(sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred), DIGITS)
-                neg_mean_absolute_error = round(sk_metrics.mean_absolute_error(y_true=y_test, y_pred=y_pred), DIGITS)
-                neg_mean_squared_error = round(sk_metrics.mean_squared_error(y_true=y_test, y_pred=y_pred), DIGITS)
-                rmse = round(math.sqrt(neg_mean_squared_error), DIGITS)
-                neg_median_absolute_error = round(sk_metrics.median_absolute_error(y_true=y_test, y_pred=y_pred),
-                                                  DIGITS)
-                r2 = round(sk_metrics.r2_score(y_true=y_test, y_pred=y_pred), DIGITS)
-                evaluation_result = {
-                    "explained_variance": explained_variance,
-                    "neg_mean_absolute_error": neg_mean_absolute_error,
-                    "neg_mean_squared_error": neg_mean_squared_error,
-                    "rmse": rmse,
-                    "r2": r2,
-                    "neg_median_absolute_error": neg_median_absolute_error
-                }
-            else:
-                evaluation_result = None
-        else:
-            evaluation_result = {}
-
-        # 2. get experiment meta and render to excel
-        self.experiment_meta_ = ExperimentExtractor(exp, evaluation_result,
-                                                    confusion_matrix_result, self._rum.data).extract()
+        # get experiment meta and render to excel
+        self.experiment_meta_ = ExperimentExtractor(exp, self._rum.data).extract()
         self.render.render(self.experiment_meta_)
 
     def experiment_break(self, exp, error):

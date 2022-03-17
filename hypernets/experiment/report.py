@@ -695,14 +695,7 @@ class ExcelReportRender(ReportRender):
         }
         self._render_2d_table(df, table_config, sheet_name)
 
-    def _write_prediction_stats(self, data):
-        """
-        Parameters
-        ----------
-        data: [ ({dataset}, {elapsed}, {rows}) ]  => [('Test', '1000', '100000')]
-        Returns
-        -------
-        """
+    def _write_prediction_stats(self, datasets: List[DatasetMeta], prediction_elapsed):
         sheet_name = "Prediction stats"
 
         table_config = {
@@ -729,9 +722,18 @@ class ExcelReportRender(ReportRender):
                 'render': lambda index, value, row: (value, self.theme.get_header_style())
             }
         }
-        df = pd.DataFrame(data=data, columns=['dataset', 'elapsed', 'rows'])
+        eval_data_rows = None
+        if datasets is not None:
+            for dataset in datasets:
+                if DatasetMeta.TYPE_EVAL == dataset.kind:
+                    eval_data_rows = dataset.shape[0]
 
-        self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
+        if eval_data_rows is not None and prediction_elapsed is not None:
+            df = pd.DataFrame(data=[[DatasetMeta.TYPE_EVAL, prediction_elapsed, eval_data_rows]],
+                              columns=['dataset', 'elapsed', 'rows'])
+            self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
+        else:
+            self.log_skip_sheet(sheet_name)
 
     def _write_classification_evaluation(self, report_dict, sheet_name):
         metrics_keys = ['precision', 'recall', 'f1-score', 'support']
@@ -757,8 +759,8 @@ class ExcelReportRender(ReportRender):
         }
         self._render_2d_table(df, table_config, sheet_name)
 
-    def _write_regression_evaluation(self, report_dict, sheet_name):
-        df = pd.DataFrame(data=report_dict.items(), columns=['metric', 'score'])
+    def _write_regression_evaluation(self, evaluation_metrics, sheet_name):
+        df = pd.DataFrame(data=evaluation_metrics.items(), columns=['metric', 'score'])
 
         table_config = {
             "columns": [
@@ -776,21 +778,30 @@ class ExcelReportRender(ReportRender):
         }
         self._render_2d_table(df, table_config, sheet_name)
 
-    def _write_evaluation(self, task, report_dict):
-        sheet_name = "Evaluation"
-        if task in [const.TASK_BINARY, const.TASK_MULTICLASS]:
-            self._write_classification_evaluation(report_dict, sheet_name)
-        elif task in [const.TASK_REGRESSION]:
-            self._write_regression_evaluation(report_dict, sheet_name)
-        else:
-            logger.warning(f'Unknown task type {task}, skip to create sheet "{sheet_name}" ')
-
     @staticmethod
     def _get_step_by_type(exp, step_cls):
         for s in exp.steps:
             if isinstance(s, step_cls):
                 return s
         return None
+
+    @staticmethod
+    def log_skip_sheet(name):
+        logger.info(f"Skip create {name} sheet because of empty data. ")
+
+    def _write_evaluation(self, task, classification_report, evaluation_metrics):
+        #  experiment_meta.classification_report
+        sheet_name = "Evaluation"
+        if task in [const.TASK_BINARY, const.TASK_MULTICLASS]:
+            if classification_report is not None:
+                self._write_classification_evaluation(classification_report, sheet_name)
+            else:
+                self.log_skip_sheet(sheet_name)
+        elif task in [const.TASK_REGRESSION]:
+            if evaluation_metrics is not None:
+                self._write_regression_evaluation(evaluation_metrics, sheet_name)
+        else:
+            logger.warning(f'Unknown task type {task}, skip to create sheet "{sheet_name}" ')
 
     def render(self, experiment_meta: ExperimentMeta, **kwargs):
         """Render report data into a excel file
@@ -805,34 +816,29 @@ class ExcelReportRender(ReportRender):
         -------
 
         """
-        def log_skip_sheet(name):
-            logger.info(f"Skip create {name} sheet because of empty data. ")
+
         if experiment_meta.datasets is not None:
             self._write_dataset_sheet(experiment_meta.datasets)
         else:
-            log_skip_sheet('datasets')
+            self.log_skip_sheet('datasets')
 
         self._write_feature_transformation(experiment_meta.steps)
 
-        if experiment_meta.evaluation_metric is not None:
-            self._write_evaluation(experiment_meta.task, experiment_meta.evaluation_metric)
-        else:
-            log_skip_sheet('evaluation')
+        # write evaluation
+        self._write_evaluation(experiment_meta.task,
+                               experiment_meta.classification_report, experiment_meta.evaluation_metrics)
 
         if experiment_meta.confusion_matrix is not None:  # Regression has no CM
             self._write_confusion_matrix(experiment_meta.confusion_matrix)
         else:
-            log_skip_sheet('confusion_matrix')
+            self.log_skip_sheet('confusion_matrix')
 
-        if experiment_meta.prediction_stats is not None:  # Regression has no CM
-            self._write_prediction_stats(experiment_meta.prediction_stats)
-        else:
-            log_skip_sheet('prediction_stats')
+        self._write_prediction_stats(experiment_meta.datasets, experiment_meta.prediction_elapsed[0])
 
         if experiment_meta.resource_usage is not None:
             self._write_resource_usage(experiment_meta.resource_usage)
         else:
-            log_skip_sheet('resource_usage')
+            self.log_skip_sheet('resource_usage')
 
         # write sheet by step
         for step in experiment_meta.steps:

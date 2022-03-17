@@ -88,6 +88,11 @@ class EarlyStoppingStatusMeta(BaseMeta):
 
 
 class DatasetMeta(BaseMeta):
+
+    TYPE_TRAIN = 'Train'
+    TYPE_TEST = 'Test'
+    TYPE_EVAL = 'Eval'
+
     def __init__(self, kind, task, shape, memory):
         self.kind = kind
         self.task = task
@@ -123,17 +128,19 @@ class ConfusionMatrixMeta(BaseMeta):
 
 class ExperimentMeta(BaseMeta):
 
-    def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta],
-                 evaluation_metric=None, confusion_matrix: ConfusionMatrixMeta = None,
-                 resource_usage=None, prediction_stats=None):
+    def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta], resource_usage=None,
+                 evaluation_metrics=None, classification_report=None,
+                 confusion_matrix: ConfusionMatrixMeta = None, prediction_elapsed=None):
 
         self.task = task
         self.datasets = datasets
         self.steps = steps
-        self.evaluation_metric = evaluation_metric
-        self.confusion_matrix = confusion_matrix
         self.resource_usage = resource_usage
-        self.prediction_stats = prediction_stats
+
+        self.evaluation_metrics = evaluation_metrics
+        self.confusion_matrix = confusion_matrix
+        self.classification_report = classification_report
+        self.prediction_elapsed = prediction_elapsed  # prediction_stats
 
     def to_dict(self):
         dict_data = self.__dict__
@@ -593,11 +600,8 @@ class PseudoStepExtractor(Extractor):
 
 class ExperimentExtractor:
 
-    def __init__(self, exp, evaluation_result=None, confusion_matrix_result=None,
-                 resource_usage=None):
+    def __init__(self, exp, resource_usage=None):
         self.exp = exp
-        self.evaluation_result = evaluation_result
-        self.confusion_matrix_result = confusion_matrix_result
         self.resource_usage = resource_usage
 
     extractors = {
@@ -650,31 +654,24 @@ class ExperimentExtractor:
             # self._get_dataset_meta(exp.X_train, 'Train', exp.task)
             meta_list.append(self._get_dataset_meta(df, type_name, task))
 
-    def is_evaluated(self):
-        return self.exp.X_eval is not None and self.exp.y_eval is not None and self.exp.y_eval_pred is not None
-
     def extract(self):
         exp = self.exp
         # datasets
         datasets_meta: List[DatasetMeta] = []
-        self._append_dataset_meta(datasets_meta, exp.X_train, 'Train',  exp.task)
-        self._append_dataset_meta(datasets_meta, exp.X_test, 'Test',  exp.task)
-        self._append_dataset_meta(datasets_meta, exp.X_eval, 'Eval',  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_train, DatasetMeta.TYPE_TRAIN,  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_test, DatasetMeta.TYPE_TEST,  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_eval, DatasetMeta.TYPE_EVAL,  exp.task)
 
         # steps
         steps_meta = [self.extract_step(i, step) for i, step in enumerate(exp.steps)]
 
         # prediction stats
-        if self.is_evaluated():
-            evaluation = exp.evaluation
-            elapsed = evaluation['timing']['predict']
-            rows = exp.X_eval.shape[0]
-            prediction_stats = [('Eval', elapsed, rows)]
+        if exp.evaluation_ is not None:
+            evaluation = exp.evaluation_
         else:
-            prediction_stats = None
+            evaluation = {}
+
         # FIXME: exp.hyper_model_.task
-        return ExperimentMeta(task=exp.hyper_model.task, datasets=datasets_meta, steps=steps_meta,
-                              evaluation_metric=self.evaluation_result,
-                              confusion_matrix=self.confusion_matrix_result,
-                              resource_usage=self.resource_usage,
-                              prediction_stats=prediction_stats)
+        return ExperimentMeta(task=exp.hyper_model.task, datasets=datasets_meta,
+                              steps=steps_meta, resource_usage=self.resource_usage,
+                              **evaluation)
