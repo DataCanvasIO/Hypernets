@@ -48,7 +48,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml "featuretools==${{ matrix.ft-version }}"
         pip install -q -r requirements.txt -r requirements-zhcn.txt
-        pip install -q woodwork<=0.13.0
+        pip install -q woodwork==0.13.0
         pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Test with pytest
