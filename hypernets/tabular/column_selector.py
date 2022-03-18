@@ -253,13 +253,17 @@ column_bool = ColumnSelector(dtype_include=['bool'])
 column_number = ColumnSelector(dtype_include='number')
 column_number_exclude_timedelta = ColumnSelector(dtype_include='number', dtype_exclude='timedelta')
 column_object_category_bool_int = ColumnSelector(
-    dtype_include=['object', 'category', 'bool', 'int16', 'int32', 'int64'])
+    dtype_include=['object', 'category', 'bool',
+                   'int', 'int8', 'int16', 'int32', 'int64',
+                   'uint', 'uint8', 'uint16', 'uint32', 'uint64'])
 
 column_timedelta = ColumnSelector(dtype_include='timedelta')
 column_datetimetz = ColumnSelector(dtype_include='datetimetz')
 column_datetime = ColumnSelector(dtype_include='datetime')
 column_all_datetime = ColumnSelector(dtype_include=['datetime', 'datetimetz'])
-column_int = ColumnSelector(dtype_include=['int16', 'int32', 'int64'])
+column_int = ColumnSelector(dtype_include=['int', 'int8', 'int16', 'int32', 'int64',
+                                           'uint', 'uint8', 'uint16', 'uint32', 'uint64'])
+column_float = ColumnSelector(dtype_include=['float', 'float32', 'float64'])
 column_exclude_datetime = ColumnSelector(
     dtype_exclude=['timedelta', 'datetime', 'datetimetz', 'period[M]', 'period[D]', 'period[Q]'])
 
