@@ -175,6 +175,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 
 	return data_character
 
+
 def get_x_data_character(X_train, get_step):
 
 	cnt_x_all = len(col_se.column_all(X_train))
@@ -215,3 +216,44 @@ def get_x_data_character(X_train, get_step):
 
 	return x_types
 
+
+def as_array(array_data):  # convert data to numpy.ndarray
+	from hypernets.utils import logging
+	logger = logging.get_logger(__name__)
+
+	def _is_numpy_ndarray(obj):
+		return isinstance(obj, np.ndarray)
+
+	def _is_pylist(obj):
+		return isinstance(obj, list)
+
+	def _is_pd_series(obj):
+		return isinstance(obj, pd.Series)
+
+	def _is_cudf_series(obj):
+		try:
+			import cudf
+			return isinstance(obj, cudf.Series)  #
+		except Exception:
+			return False
+
+	def _is_cupy_array(obj):
+		try:
+			import cupy
+			return isinstance(obj, cupy.ndarray)
+		except Exception:
+			return False
+
+	if _is_pd_series(array_data):
+		return array_data.values
+	elif _is_numpy_ndarray(array_data):
+		return array_data
+	elif _is_pylist(array_data):
+		return np.array(array_data)
+	elif _is_cudf_series(array_data):
+		return array_data.to_numpy()
+	elif _is_cupy_array(array_data):
+		return np.array(array_data.tolist())
+	else:
+		logger.warning(f"unseen data type {type(array_data)} convert to numpy ndarray")
+		return array_data

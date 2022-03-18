@@ -69,12 +69,12 @@ need_ssh = pytest.mark.skipif(not ssh_ready(), reason='ssh accounts not ready ')
 
 
 @need_ssh
-def test_connect_user():
+def test_connect_by_password_or_rsafile():
     ssh_pwd_configs = get_ssh_test_config(use_password=True, use_rsa_file=False)
-    ssh_rsa_configs = get_ssh_test_config(use_password=False, use_rsa_file=True)
+    # ssh_rsa_configs = get_ssh_test_config(use_password=False, use_rsa_file=True)  #
 
     ssh_configs = ssh_pwd_configs
-    ssh_configs.extend(ssh_rsa_configs)
+    # ssh_configs.extend(ssh_rsa_configs)
 
     for ssh_config in ssh_configs:
         client = ssh_utils.create_ssh_client(**ssh_config)

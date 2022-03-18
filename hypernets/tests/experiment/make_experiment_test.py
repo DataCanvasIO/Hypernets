@@ -119,7 +119,8 @@ def run_export_excel_report(maker, has_eval_data=True):
 
     if has_eval_data:
         assert mle_callback is not None
-        assert _experiment_meta.evaluation_metrics is not None
+        assert _experiment_meta.confusion_matrix is not None
+        assert _experiment_meta.classification_report is not None
         assert len(_experiment_meta.prediction_elapsed) == 2
         assert _experiment_meta.confusion_matrix.data.shape == (2, 2)  # binary classification
         assert len(_experiment_meta.datasets) == 3

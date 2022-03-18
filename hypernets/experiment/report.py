@@ -729,7 +729,7 @@ class ExcelReportRender(ReportRender):
                     eval_data_rows = dataset.shape[0]
 
         if eval_data_rows is not None and prediction_elapsed is not None:
-            df = pd.DataFrame(data=[[DatasetMeta.TYPE_EVAL, prediction_elapsed, eval_data_rows]],
+            df = pd.DataFrame(data=[[DatasetMeta.TYPE_EVAL, prediction_elapsed[0], eval_data_rows]],
                               columns=['dataset', 'elapsed', 'rows'])
             self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
         else:
@@ -833,7 +833,7 @@ class ExcelReportRender(ReportRender):
         else:
             self.log_skip_sheet('confusion_matrix')
 
-        self._write_prediction_stats(experiment_meta.datasets, experiment_meta.prediction_elapsed[0])
+        self._write_prediction_stats(experiment_meta.datasets, experiment_meta.prediction_elapsed)
 
         if experiment_meta.resource_usage is not None:
             self._write_resource_usage(experiment_meta.resource_usage)

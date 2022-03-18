@@ -66,7 +66,7 @@ class TestExcelReport:
         return s_meta
 
     @staticmethod
-    def create_binary_metric_data():
+    def create_classification_report():
         return {
             '0': {'precision': 0.8, 'recall': 0.8, 'f1-score': 0.8, 'support': 0.8},
             '1': {'precision': 0.8, 'recall': 0.8, 'f1-score': 0.8, 'support': 0.8},
@@ -98,7 +98,7 @@ class TestExcelReport:
         experiment_meta = ExperimentMeta(task=const.TASK_BINARY,
                                          datasets=self.create_dataset_meta(),
                                          steps=steps_meta,
-                                         evaluation_metric=self.create_binary_metric_data(),
+                                         classification_report=self.create_classification_report(),
                                          confusion_matrix=self.create_confusion_matrix_data(),
                                          resource_usage=self.create_resource_monitor_df(),
                                          prediction_elapsed=self.create_prediction_stats_df())

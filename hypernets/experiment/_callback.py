@@ -25,7 +25,7 @@ from sklearn.utils.multiclass import unique_labels
 from IPython.display import display, display_markdown
 
 from hypernets.tabular import get_tool_box
-from hypernets.utils import const
+from hypernets.utils import const, df_utils
 from hypernets.experiment import ExperimentExtractor
 from . import ExperimentCallback
 from .compete import StepNames
@@ -337,18 +337,10 @@ class MLEvaluateCallback(ExperimentCallback):
                 persist_proba_path = os.path.join(write_dir, 'predict_proba.pkl')
                 to_pkl(y_eval_proba, persist_proba_path)
 
-        def as_list(array_data):  # make cu_array or numpy as to python list
-            if hasattr(array_data, 'to_arrow'):  # fix cudf
-                return array_data.to_arrow().to_pylist()
-            elif hasattr(array_data, 'tolist'):
-                return array_data.tolist()
-            else:
-                return array_data
-
         #  evaluate model
         DIGITS = 4
-        y_test = as_list(exp.y_eval)
-        y_pred = as_list(y_eval_pred)
+        y_test = df_utils.as_array(exp.y_eval)
+        y_pred = df_utils.as_array(y_eval_pred)
 
         classification_report_data = None
         evaluation_metrics_data = None
