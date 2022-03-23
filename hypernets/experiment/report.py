@@ -627,10 +627,11 @@ class ExcelReportRender(ReportRender):
             sheet.merge_range(model_start_position, 1, model_end_position, 1, estimator['weight'], cell_format=merged_cf)
             sheet.merge_range(model_start_position, 2, model_end_position, 2, estimator['lift'], cell_format=merged_cf)
             model_start_position = model_end_position + 1
+            cv_enable = len(estimator['models']) > 1
             for _cv_fold, df_imps in enumerate(estimator['models']):
                 # cv_start_position
                 cv_end_position = len(df_imps) + cv_start_position - 1
-                sheet.merge_range(cv_start_position, 3, cv_end_position, 3, _cv_fold,
+                sheet.merge_range(cv_start_position, 3, cv_end_position, 3, _cv_fold if cv_enable else '-',
                                   cell_format=merged_cf)  # write index
                 cv_start_position = cv_end_position + 1
 
