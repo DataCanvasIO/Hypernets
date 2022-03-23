@@ -38,19 +38,25 @@ class TestExcelReport:
         ]
 
     @staticmethod
-    def create_ensemble_step_meta():
+    def create_ensemble_step_meta(cv=True):
         imps = {'Age': 0.3, 'Name': 0.2}
+
+        if cv:
+            models = [imps.copy(), imps.copy(), imps.copy()]
+        else:
+            models = [imps.copy()]
+
         m1 = {
             'index': 0,
             'weight': 0.2,
             'lift': 0.2,
-            'models': [imps.copy(), imps.copy(), imps.copy()]
+            'models': models
         }
         m2 = {
             'index': 1,
             'weight': 0.3,
             'lift': 0.1,
-            'models': [imps.copy(), imps.copy(), imps.copy()]
+            'models': models
         }
         extension = {
             'estimators': [m1, m2]
@@ -93,7 +99,7 @@ class TestExcelReport:
                           end_datetime=datetime.datetime.now())
         return s_meta
 
-    def test_render(self):
+    def run_render(self, cv):
         steps_meta = [self.create_data_clean_step_meta(), self.create_ensemble_step_meta()]
         experiment_meta = ExperimentMeta(task=const.TASK_BINARY,
                                          datasets=self.create_dataset_meta(),
@@ -106,6 +112,12 @@ class TestExcelReport:
         print(p)
         ExcelReportRender(file_path=p).render(experiment_meta)
         assert os.path.exists(p)
+
+    def test_enable_cv(self):
+        self.run_render(True)
+
+    def test_disable_cv(self):
+        self.run_render(False)
 
 
 class TestResourceUsageMonitor:

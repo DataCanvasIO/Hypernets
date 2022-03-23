@@ -41,6 +41,14 @@ def _create_experiment(predefined_kwargs, maker=None, need_test=False, user_kwar
     return maker(df_train, target=target, task=const.TASK_REGRESSION, **predefined_kwargs)
 
 
+def create_disable_cv_experiment(maker=None, **user_kwargs):
+    data_cleaner_args = {'drop_duplicated_columns': True}
+    exp_kwargs = dict(data_cleaner_args=data_cleaner_args,
+                      cv=False,
+                      drift_detection=False)
+    return _create_experiment(exp_kwargs, maker=maker, need_test=True, user_kwargs=user_kwargs)
+
+
 def create_data_clean_experiment(maker=None, **user_kwargs):
     data_cleaner_args = {'drop_duplicated_columns': True}
     exp_kwargs = dict(data_cleaner_args=data_cleaner_args,

@@ -510,15 +510,32 @@ class EnsembleStepExtractor(Extractor):
         return configuration
 
     def _get_extension(self):
-        # TODO: adapt for notebook
         ensemble = self.step.estimator_
 
-        def get_models(estimator_):    # FIXME: no cv
+        def is_cv_enable(estimator_):   # TODO: add a method/property to get cv status instead of here
             if hasattr(estimator_, 'cv_gbm_models_'):
-                return estimator_.cv_gbm_models_
-            if hasattr(estimator_, 'cv_models_'):
-                return estimator_.cv_models_
-            return []
+                return estimator_.cv_gbm_models_ is not None
+            elif hasattr(estimator_, 'cv_models_'):
+                return estimator_.cv_models_ is not None
+            else:
+                return False
+
+        def get_models(estimator_):    # TODO: add a method to get model in Estimator instead of here
+            if is_cv_enable(estimator_):
+                if hasattr(estimator_, 'cv_gbm_models_'):  # For HyperGBM
+                    return estimator_.cv_gbm_models_
+                elif hasattr(estimator_, 'cv_models_'):  # For PlainEstimator
+                    return estimator_.cv_models_
+                else:
+                    raise RuntimeError("cv is enable but there is no cv models detected")
+            else:
+                if hasattr(estimator_, 'gbm_model'):  # For HyperGBM
+                    assert estimator_.gbm_model
+                    return [estimator_.gbm_model]  # FIXME: `.gbm_model` way only works with hypergbm
+                elif hasattr(estimator_, 'model'):  # For PlainEstimator
+                    return [estimator_.model]
+                else:
+                    raise RuntimeError("there is no models detected")
 
         estimators = []
         for i, estimator in enumerate(ensemble.estimators):

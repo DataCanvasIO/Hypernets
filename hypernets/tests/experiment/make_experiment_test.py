@@ -83,14 +83,15 @@ def test_experiment_with_blood_full_features():
     assert step_names == [StepNames.DATA_CLEAN, StepNames.MULITICOLLINEARITY_DETECTION, 'estimator']
 
 
-def run_export_excel_report(maker, has_eval_data=True):
+def run_export_excel_report(maker, has_eval_data=True, str_label=True):
     df = dsutils.load_blood()
     df['Constant'] = [0 for i in range(df.shape[0])]
     df['Id'] = [i for i in range(df.shape[0])]
 
     target = 'Class'
     labels = ["no", "yes"]
-    df[target] = df[target].map(lambda v: labels[v])
+    if str_label:
+        df[target] = df[target].map(lambda v: labels[v])
 
     df_train, df_eval = train_test_split(df, test_size=0.2)
 
@@ -143,6 +144,24 @@ def test_str_render():
         return experiment
 
     run_export_excel_report(maker)
+
+
+def test_disable_cv_render():
+    def maker(df_train, target, df_eval, file_path):
+        experiment = make_experiment(PlainModel, df_train,
+                                     target=target,
+                                     eval_data=df_eval,
+                                     cv=False,
+                                     test_data=df_eval.copy(),
+                                     drift_detection_threshold=0.4,
+                                     drift_detection_min_features=3,
+                                     drift_detection_remove_size=0.5,
+                                     search_space=PlainSearchSpace(enable_lr=False, enable_nn=False),
+                                     report_render='excel',
+                                     report_render_options={'file_path': file_path})
+        return experiment
+
+    run_export_excel_report(maker, str_label=False)
 
 
 def test_obj_render():
