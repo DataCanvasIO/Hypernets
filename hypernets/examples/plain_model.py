@@ -269,7 +269,7 @@ class PlainEstimator(Estimator):
         tb_original = get_tool_box(X)
         X, = tb_original.to_local(X)
 
-        if self.cv_models_:
+        if self.cv_:
             if self.task == const.TASK_REGRESSION:
                 pred_sum = None
                 for n, est in enumerate(self.cv_models_):
@@ -351,6 +351,8 @@ class PlainEstimator(Estimator):
             predict = (proba[:, 1] > proba_threshold).astype('int32')
         else:
             predict = (proba > proba_threshold).astype('int32')
+        if self.classes_ is not None:
+            predict = get_tool_box(predict).take_array(self.classes_, predict)
         return predict
 
     def save(self, model_file):
