@@ -1630,7 +1630,7 @@ class CompeteExperiment(SteppedExperiment):
     def __init__(self, hyper_model, X_train, y_train, X_eval=None, y_eval=None, X_test=None,
                  eval_size=DEFAULT_EVAL_SIZE,
                  train_test_split_strategy=None,
-                 cv=True, num_folds=3,
+                 cv=None, num_folds=3,
                  task=None,
                  id=None,
                  callbacks=None,
@@ -1706,7 +1706,7 @@ class CompeteExperiment(SteppedExperiment):
         train_test_split_strategy : *'adversarial_validation'* or None, (default=None)
             Only valid when ``X_eval`` or ``y_eval`` is None. If None, use eval_size to split the dataset,
             otherwise use adversarial validation approach.
-        cv : bool, (default=True)
+        cv : bool, (default=True if X_eval is None, False if X_eval is not None)
             If True, use cross-validation instead of evaluation set reward to guide the search process
         num_folds : int, (default=3)
             Number of cross-validated folds, only valid when cv is true
@@ -1831,6 +1831,9 @@ class CompeteExperiment(SteppedExperiment):
         if random_state is None:
             random_state = np.random.randint(0, 65535)
         set_random_state(random_state)
+
+        if cv is None:
+            cv = X_eval is None
 
         tb = get_tool_box(X_train, y_train)
 
