@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import get_scorer
+from sklearn.metrics import get_scorer, make_scorer, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
@@ -39,6 +39,56 @@ def _create_experiment(predefined_kwargs, maker=None, need_test=False, user_kwar
     predefined_kwargs.update(user_kwargs)
 
     return maker(df_train, target=target, task=const.TASK_REGRESSION, **predefined_kwargs)
+
+
+def create_disable_cv_experiment(maker=None, **user_kwargs):
+    data_cleaner_args = {'drop_duplicated_columns': True}
+    exp_kwargs = dict(data_cleaner_args=data_cleaner_args,
+                      cv=False,
+                      drift_detection=False)
+    return _create_experiment(exp_kwargs, maker=maker, need_test=True, user_kwargs=user_kwargs)
+
+
+class MyRewardMetric:
+    __name__ = 'foo'
+
+    def __hash__(self):
+        return hash(self.__name__)
+
+    def __eq__(self, other):
+        return self.__name__ == str(other)
+
+    def __call__(self, y_true, y_preds):
+        return r2_score(y_true, y_preds)  # replace this line with yours
+
+
+def my_reward_metric_func(y_true, y_preds):
+    return r2_score(y_true, y_preds)  # replace this line with yours
+
+
+def create_custom_reward_metric_class_experiment(maker=None, **user_kwargs):
+
+    my_reward_metric = MyRewardMetric()
+    my_scorer = make_scorer(my_reward_metric, greater_is_better=True, needs_proba=False)
+
+    data_cleaner_args = {'drop_duplicated_columns': True}
+    exp_kwargs = dict(data_cleaner_args=data_cleaner_args,
+                      reward_metric=my_reward_metric,
+                      scorer=my_scorer,
+                      drift_detection=False)
+    return _create_experiment(exp_kwargs, maker=maker, need_test=True, user_kwargs=user_kwargs)
+
+
+def create_custom_reward_metric_func_experiment(maker=None, **user_kwargs):
+
+    my_scorer = make_scorer(my_reward_metric_func, greater_is_better=True, needs_proba=False)
+
+    data_cleaner_args = {'drop_duplicated_columns': True}
+    exp_kwargs = dict(data_cleaner_args=data_cleaner_args,
+                      reward_metric=my_reward_metric_func,
+                      scorer=my_scorer,
+                      drift_detection=False)
+    return _create_experiment(exp_kwargs, maker=maker, need_test=True, user_kwargs=user_kwargs)
 
 
 def create_data_clean_experiment(maker=None, **user_kwargs):

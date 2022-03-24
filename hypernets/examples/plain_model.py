@@ -177,7 +177,7 @@ class PlainEstimator(Estimator):
         self.model.fit(X, y, **kwargs)
         self.classes_ = getattr(self.model, 'classes_', None)
         self.cv_ = False
-        self.cv_models_ = []
+        self.cv_models_ = None
 
         return self
 

@@ -88,6 +88,11 @@ class EarlyStoppingStatusMeta(BaseMeta):
 
 
 class DatasetMeta(BaseMeta):
+
+    TYPE_TRAIN = 'Train'
+    TYPE_TEST = 'Test'
+    TYPE_EVAL = 'Eval'
+
     def __init__(self, kind, task, shape, memory):
         self.kind = kind
         self.task = task
@@ -123,17 +128,19 @@ class ConfusionMatrixMeta(BaseMeta):
 
 class ExperimentMeta(BaseMeta):
 
-    def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta],
-                 evaluation_metric=None, confusion_matrix: ConfusionMatrixMeta = None,
-                 resource_usage=None, prediction_stats=None):
+    def __init__(self, task, datasets: List[DatasetMeta], steps: List[StepMeta], resource_usage=None,
+                 evaluation_metrics=None, classification_report=None,
+                 confusion_matrix: ConfusionMatrixMeta = None, prediction_elapsed=None):
 
         self.task = task
         self.datasets = datasets
         self.steps = steps
-        self.evaluation_metric = evaluation_metric
-        self.confusion_matrix = confusion_matrix
         self.resource_usage = resource_usage
-        self.prediction_stats = prediction_stats
+
+        self.evaluation_metrics = evaluation_metrics
+        self.confusion_matrix = confusion_matrix
+        self.classification_report = classification_report
+        self.prediction_elapsed = prediction_elapsed  # prediction_stats
 
     def to_dict(self):
         dict_data = self.__dict__
@@ -503,15 +510,32 @@ class EnsembleStepExtractor(Extractor):
         return configuration
 
     def _get_extension(self):
-        # TODO: adapt for notebook
         ensemble = self.step.estimator_
 
-        def get_models(estimator_):    # FIXME: no cv
+        def is_cv_enable(estimator_):   # TODO: add a method/property to get cv status instead of here
             if hasattr(estimator_, 'cv_gbm_models_'):
-                return estimator_.cv_gbm_models_
-            if hasattr(estimator_, 'cv_models_'):
-                return estimator_.cv_models_
-            return []
+                return estimator_.cv_gbm_models_ is not None
+            elif hasattr(estimator_, 'cv_models_'):
+                return estimator_.cv_models_ is not None
+            else:
+                return False
+
+        def get_models(estimator_):    # TODO: add a method to get model in Estimator instead of here
+            if is_cv_enable(estimator_):
+                if hasattr(estimator_, 'cv_gbm_models_'):  # For HyperGBM
+                    return estimator_.cv_gbm_models_
+                elif hasattr(estimator_, 'cv_models_'):  # For PlainEstimator
+                    return estimator_.cv_models_
+                else:
+                    raise RuntimeError("cv is enable but there is no cv models detected")
+            else:
+                if hasattr(estimator_, 'gbm_model'):  # For HyperGBM
+                    assert estimator_.gbm_model
+                    return [estimator_.gbm_model]  # FIXME: `.gbm_model` way only works with hypergbm
+                elif hasattr(estimator_, 'model'):  # For PlainEstimator
+                    return [estimator_.model]
+                else:
+                    raise RuntimeError("there is no models detected")
 
         estimators = []
         for i, estimator in enumerate(ensemble.estimators):
@@ -593,11 +617,8 @@ class PseudoStepExtractor(Extractor):
 
 class ExperimentExtractor:
 
-    def __init__(self, exp, evaluation_result=None, confusion_matrix_result=None,
-                 resource_usage=None):
+    def __init__(self, exp, resource_usage=None):
         self.exp = exp
-        self.evaluation_result = evaluation_result
-        self.confusion_matrix_result = confusion_matrix_result
         self.resource_usage = resource_usage
 
     extractors = {
@@ -650,31 +671,24 @@ class ExperimentExtractor:
             # self._get_dataset_meta(exp.X_train, 'Train', exp.task)
             meta_list.append(self._get_dataset_meta(df, type_name, task))
 
-    def is_evaluated(self):
-        return self.exp.X_eval is not None and self.exp.y_eval is not None and self.exp.y_eval_pred is not None
-
     def extract(self):
         exp = self.exp
         # datasets
         datasets_meta: List[DatasetMeta] = []
-        self._append_dataset_meta(datasets_meta, exp.X_train, 'Train',  exp.task)
-        self._append_dataset_meta(datasets_meta, exp.X_test, 'Test',  exp.task)
-        self._append_dataset_meta(datasets_meta, exp.X_eval, 'Eval',  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_train, DatasetMeta.TYPE_TRAIN,  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_test, DatasetMeta.TYPE_TEST,  exp.task)
+        self._append_dataset_meta(datasets_meta, exp.X_eval, DatasetMeta.TYPE_EVAL,  exp.task)
 
         # steps
         steps_meta = [self.extract_step(i, step) for i, step in enumerate(exp.steps)]
 
         # prediction stats
-        if self.is_evaluated():
-            evaluation = exp.evaluation
-            elapsed = evaluation['timing']['predict']
-            rows = exp.X_eval.shape[0]
-            prediction_stats = [('Eval', elapsed, rows)]
+        if exp.evaluation_ is not None:
+            evaluation = exp.evaluation_
         else:
-            prediction_stats = None
+            evaluation = {}
+
         # FIXME: exp.hyper_model_.task
-        return ExperimentMeta(task=exp.hyper_model.task, datasets=datasets_meta, steps=steps_meta,
-                              evaluation_metric=self.evaluation_result,
-                              confusion_matrix=self.confusion_matrix_result,
-                              resource_usage=self.resource_usage,
-                              prediction_stats=prediction_stats)
+        return ExperimentMeta(task=exp.hyper_model.task, datasets=datasets_meta,
+                              steps=steps_meta, resource_usage=self.resource_usage,
+                              **evaluation)

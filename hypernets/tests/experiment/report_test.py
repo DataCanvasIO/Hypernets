@@ -14,7 +14,7 @@ class TestExcelReport:
 
     @staticmethod
     def create_prediction_stats_df():
-        return [('Test', 1000, 10000000)]
+        return (1000,2000)
 
     @staticmethod
     def create_dataset_meta():
@@ -38,19 +38,25 @@ class TestExcelReport:
         ]
 
     @staticmethod
-    def create_ensemble_step_meta():
+    def create_ensemble_step_meta(cv=True):
         imps = {'Age': 0.3, 'Name': 0.2}
+
+        if cv:
+            models = [imps.copy(), imps.copy(), imps.copy()]
+        else:
+            models = [imps.copy()]
+
         m1 = {
             'index': 0,
             'weight': 0.2,
             'lift': 0.2,
-            'models': [imps.copy(), imps.copy(), imps.copy()]
+            'models': models
         }
         m2 = {
             'index': 1,
             'weight': 0.3,
             'lift': 0.1,
-            'models': [imps.copy(), imps.copy(), imps.copy()]
+            'models': models
         }
         extension = {
             'estimators': [m1, m2]
@@ -66,7 +72,7 @@ class TestExcelReport:
         return s_meta
 
     @staticmethod
-    def create_binary_metric_data():
+    def create_classification_report():
         return {
             '0': {'precision': 0.8, 'recall': 0.8, 'f1-score': 0.8, 'support': 0.8},
             '1': {'precision': 0.8, 'recall': 0.8, 'f1-score': 0.8, 'support': 0.8},
@@ -93,19 +99,25 @@ class TestExcelReport:
                           end_datetime=datetime.datetime.now())
         return s_meta
 
-    def test_render(self):
+    def run_render(self, cv):
         steps_meta = [self.create_data_clean_step_meta(), self.create_ensemble_step_meta()]
         experiment_meta = ExperimentMeta(task=const.TASK_BINARY,
                                          datasets=self.create_dataset_meta(),
                                          steps=steps_meta,
-                                         evaluation_metric=self.create_binary_metric_data(),
+                                         classification_report=self.create_classification_report(),
                                          confusion_matrix=self.create_confusion_matrix_data(),
                                          resource_usage=self.create_resource_monitor_df(),
-                                         prediction_stats=self.create_prediction_stats_df())
+                                         prediction_elapsed=self.create_prediction_stats_df())
         p = common_util.get_temp_file_path(prefix="report_excel_", suffix=".xlsx")
         print(p)
         ExcelReportRender(file_path=p).render(experiment_meta)
         assert os.path.exists(p)
+
+    def test_enable_cv(self):
+        self.run_render(True)
+
+    def test_disable_cv(self):
+        self.run_render(False)
 
 
 class TestResourceUsageMonitor:

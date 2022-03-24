@@ -1,3 +1,6 @@
+from hypernets.utils import df_utils
+from hypernets.tabular.datasets import dsutils
+import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
 from hypernets.experiment import CompeteExperiment, Experiment
@@ -5,6 +8,30 @@ from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
 from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.tb_dask import if_dask_ready, is_dask_installed, setup_dask
+
+
+def test_as_array():
+    pd_df = dsutils.load_bank()
+    pd_series = pd_df['id']
+
+    assert isinstance(df_utils.as_array(pd_series), np.ndarray)
+    assert isinstance(df_utils.as_array(pd_series.values), np.ndarray)
+    assert isinstance(df_utils.as_array(pd_series.values.tolist()), np.ndarray)
+
+    installed_cudf = False
+    try:
+        import cudf
+        import cupy
+        installed_cudf = True
+    except Exception as e:
+        pass
+
+    if installed_cudf:
+        import cudf
+
+        cudf_series = cudf.from_pandas(pd_df)['id']
+        assert isinstance(df_utils.as_array(cudf_series), np.ndarray)
+        assert isinstance(df_utils.as_array(cudf_series.values), np.ndarray)
 
 
 class Test_Get_character:
