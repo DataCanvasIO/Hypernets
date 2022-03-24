@@ -14,6 +14,11 @@ class Estimator():
         self.task = task
         self.discriminator = discriminator
 
+        # fitted
+        self.model = None
+        self.cv_ = None
+        self.cv_models_ = None
+
     def set_discriminator(self, discriminator):
         self.discriminator = discriminator
 

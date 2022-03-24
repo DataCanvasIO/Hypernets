@@ -158,7 +158,7 @@ class PlainEstimator(Estimator):
 
         # fitted
         self.classes_ = None
-        self.cv_models_ = []
+        # self.cv_models_ = []
 
     def summary(self):
         pass
@@ -176,6 +176,7 @@ class PlainEstimator(Estimator):
         logger.info('fit model')
         self.model.fit(X, y, **kwargs)
         self.classes_ = getattr(self.model, 'classes_', None)
+        self.cv_ = False
         self.cv_models_ = []
 
         return self
@@ -246,6 +247,7 @@ class PlainEstimator(Estimator):
             cv_models.append(fold_model)
 
         self.classes_ = getattr(cv_models[0], 'classes_', None)
+        self.cv_ = True
         self.cv_models_ = cv_models
 
         # calc final score with mean
