@@ -352,7 +352,7 @@ class PlainEstimator(Estimator):
         else:
             predict = (proba > proba_threshold).astype('int32')
         if self.classes_ is not None:
-            predict = get_tool_box(predict).take_array(self.classes_, predict)
+            predict = get_tool_box(predict).take_array(self.classes_, predict, axis=0)
         return predict
 
     def save(self, model_file):
