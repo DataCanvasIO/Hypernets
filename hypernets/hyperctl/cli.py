@@ -1,3 +1,102 @@
+# -*- encoding: utf-8 -*-
+import argparse
+import codecs
+import itertools
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Optional, Awaitable
+
+import prettytable as pt
+import yaml
+from tornado import ioloop
+from tornado.ioloop import PeriodicCallback
+from tornado.log import app_log
+from tornado.web import RequestHandler, Finish, HTTPError, Application
+
+from hypernets import __version__ as current_version
+from hypernets.hyperctl import Context, set_context
+from hypernets.hyperctl import consts
+from hypernets.hyperctl import dao
+from hypernets.hyperctl import api
+from hypernets.hyperctl.batch import Batch, DaemonConf, BackendConf, load_batch
+from hypernets.hyperctl.batch import ShellJob
+from hypernets.hyperctl.dao import change_job_status
+from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
+from hypernets.hyperctl.executor import RemoteSSHExecutorManager, NoResourceException, SSHRemoteMachine, \
+    LocalExecutorManager, ShellExecutor
+from hypernets.utils import logging as hyn_logging, common as common_util
+from hypernets.hyperctl.schedule import get_batches_data_dir
+
+
+def run_generate_job_specs(template, output):
+    yaml_file = template
+    output_path = Path(output)
+    # 1. validation
+    # 1.1. checkout output
+    if output_path.exists():
+        raise FileExistsError(output)
+
+    # load file
+    config_dict = load_yaml(yaml_file)
+
+    # 1.3. check values should be array
+    assert "params" in config_dict
+    params = config_dict['params']
+    for k, v in params.items():
+        if not isinstance(v, list):
+            raise ValueError(f"Value of param '{k}' should be list")
+
+    # 1.4. check command exists
+    assert "execution" in config_dict
+    assert 'command' in config_dict['execution']
+
+    # 2. combine params to generate jobs
+    job_param_names = params.keys()
+    param_values = [params[_] for _ in job_param_names]
+
+    def make_job_dict(job_param_values):
+        job_params_dict = dict(zip(job_param_names, job_param_values))
+        job_dict = {
+            "name": common_util.generate_short_id(),
+            "params": job_params_dict,
+            "execution": config_dict['execution']
+        }
+        copy_item(config_dict, job_dict, 'resource')
+        return job_dict
+
+    jobs = [make_job_dict(_) for _ in itertools.product(*param_values)]
+
+    # 3. merge to bath spec
+    batch_spec = {
+        "jobs": jobs,
+        'name': config_dict.get('name', common_util.generate_short_id()),
+        "version": config_dict.get('version', current_version)
+    }
+
+    copy_item(config_dict, batch_spec, 'backend')
+    copy_item(config_dict, batch_spec, 'daemon')
+
+    # 4. write to file
+    os.makedirs(output_path.parent, exist_ok=True)
+    with open(output_path, 'w', newline='\n') as f:
+        f.write(json.dumps(batch_spec, indent=4))
+    return batch_spec
+
+
+def run_batch_from_config_file(config, batches_data_dir=None):
+    config_dict = load_json(config)
+    batch = prepare_batch(config_dict, batches_data_dir)
+    _start_api_server(batch)
+
+
+def load_batch_data_dir(batches_data_dir, batch_name):
+    spec_file_path = Path(batches_data_dir) / batch_name / Batch.FILE_SPEC
+    if not spec_file_path.exists():
+        raise RuntimeError(f"batch {batch_name} not exists ")
+    batch_spec_dict = load_json(spec_file_path)
+    return load_batch(batch_spec_dict, batches_data_dir)
 
 
 def run_show_jobs(batch_name, batches_data_dir=None):

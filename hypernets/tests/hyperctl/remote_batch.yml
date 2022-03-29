@@ -3,7 +3,7 @@ params:
     learning_rate: [0.1,0.5]
     dataset: ['path/d1.csv','path/d2.csv']
 execution:
-  command: python3 main.py
+  command: python3 cli.py
 resource:
   cpu: 2
   ram: 1024

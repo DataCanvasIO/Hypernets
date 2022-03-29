@@ -1,9 +1,10 @@
+# -*- encoding: utf-8 -*-
 import os
 from pathlib import Path
 
 import psutil
 
-from hypernets.utils import common as common_util
+from hypernets.hyperctl import consts
 
 
 class ExecutionConf:
@@ -204,4 +205,22 @@ class Batch:
             },
             "version": 2.5
         }
+
+
+def load_batch(batch_spec_dict, batches_data_dir):
+    batch_name = batch_spec_dict['name']
+    jobs_dict = batch_spec_dict['jobs']
+
+    default_daemon_conf = consts.default_daemon_conf()
+
+    user_daemon_conf = batch_spec_dict.get('daemon')
+    if user_daemon_conf is not None:
+        default_daemon_conf.update(user_daemon_conf)
+
+    backend_config = batch_spec_dict.get('backend', {})
+
+    batch = Batch(batch_name, batches_data_dir, BackendConf(**backend_config), DaemonConf(**default_daemon_conf))
+    for job_dict in jobs_dict:
+        batch.add_job(**job_dict)
+    return batch
 

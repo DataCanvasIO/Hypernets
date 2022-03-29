@@ -7,11 +7,13 @@ import pytest
 import time
 
 from hypernets.hyperctl import api, get_context
-from hypernets.hyperctl import schedule
+from hypernets.hyperctl import schedule, utils
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.utils import ssh_utils_test
 from hypernets.utils import is_os_windows
+from hypernets.utils.common import generate_short_id
+from hypernets.hyperctl.batch import BackendConf, DaemonConf
 
 skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows now')  # not generate run.bat now
 
@@ -49,7 +51,7 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
     # spec.json exists and is json file
     spec_file_path = batch.spec_file_path()
     assert batch.spec_file_path().exists()
-    assert schedule.load_json(spec_file_path)
+    assert utils.load_json(spec_file_path)
 
     # pid file exists
     pid_file_path = batch.pid_file_path()
@@ -59,24 +61,6 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
     for job in batch.jobs:
         job: ShellJob = job
         assert Path(job.status_file_path(status)).as_posix()
-
-
-def test_run_generate_job_specs():
-    batch_config_path = "hypernets/tests/hyperctl/remote-example.yml"
-    fd, fp = tempfile.mkstemp(prefix="jobs_spec_", suffix=".json")
-    os.close(fd)
-    os.remove(fp)
-
-    schedule.run_generate_job_specs(batch_config_path, fp)
-    fp_ = Path(fp)
-
-    assert fp_.exists()
-    jobs_spec = schedule.load_json(fp)
-    assert len(jobs_spec['jobs']) == 4
-    assert 'daemon' in jobs_spec
-    assert 'name' in jobs_spec
-    assert len(jobs_spec['backend']['conf']['machines']) == 2
-    os.remove(fp_)
 
 
 @ssh_utils_test.need_ssh
@@ -129,7 +113,7 @@ def test_run_remote():
 
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    schedule.run_batch_batch_config(config_dict, batches_data_dir)
+    schedule.run_batch_config(config_dict, batches_data_dir)
     executor_manager = get_context().executor_manager
     batch = get_context().batch
     assert isinstance(executor_manager, RemoteSSHExecutorManager)
@@ -189,7 +173,7 @@ def test_run_local():
     print("Config:")
     print(config_dict)
 
-    schedule.run_batch_batch_config(config_dict, batches_data_dir)
+    schedule.run_batch_config(config_dict, batches_data_dir)
 
     executor_manager = get_context().executor_manager
     assert isinstance(executor_manager, LocalExecutorManager)
@@ -240,7 +224,7 @@ def test_kill_local_job():
     print("Config:")
     print(config_dict)
 
-    schedule.run_batch_batch_config(config_dict, batches_data_dir)
+    schedule.run_batch_config(config_dict, batches_data_dir)
     batch = get_context().batch
     assert_batch_finished(get_context().batch, batch_name, [job_name], ShellJob.STATUS_FAILED)
     assert_local_job_finished(batch.jobs)
@@ -263,17 +247,31 @@ def test_run_local_minimum_conf():
         ],
         "daemon": {'exit_on_finish': True, 'port': 8063}
     }
-    print("Config:")
-    print(config_dict)
+    batch = schedule.run_batch_config(config_dict, batches_data_dir)
 
-    schedule.run_batch_batch_config(config_dict, batches_data_dir)
-
-    executor_manager = get_context().executor_manager
-    batch = get_context().batch
     batch_name = batch.name
     jobs_name = [j.name for j in batch.jobs]
 
-    assert isinstance(executor_manager, LocalExecutorManager)
+    assert_batch_finished(batch, batch_name, jobs_name, ShellJob.STATUS_SUCCEED)
+
+    assert_local_job_succeed(batch.jobs)
+
+
+@skip_if_windows
+def test_minimum_local_batch():
+
+    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+
+    batch = Batch(generate_short_id(), batches_data_dir,
+                  backend_conf=BackendConf(type='local'),
+                  daemon_conf=DaemonConf('localhost', 8063, exit_on_finish=True))
+    job_params = {"learning_rate": 0.1}
+    batch.add_job(name='job1', params=job_params, resource=None, execution={"command": "pwd"})
+
+    schedule.run_batch(batch, batches_data_dir)
+
+    batch_name = batch.name
+    jobs_name = [j.name for j in batch.jobs]
 
     assert_batch_finished(batch, batch_name, jobs_name, ShellJob.STATUS_SUCCEED)
 

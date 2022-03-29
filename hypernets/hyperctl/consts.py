@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 
 KEY_DATA_DIR = 'data_dir'
 
@@ -28,3 +30,14 @@ def default_daemon_conf():
         "host": HOST_LOCALHOST
     }
 
+
+def default_batches_data_dir(batches_data_dir):
+    if batches_data_dir is None:
+        bdd_env = os.environ.get(KEY_ENV_BATCHES_DATA_DIR)
+        if bdd_env is None:
+            bdd_default = Path("~/hyperctl-batches-data-dir").expanduser().as_posix()
+            return bdd_default
+        else:
+            return bdd_env
+    else:
+        return batches_data_dir

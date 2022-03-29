@@ -315,13 +315,21 @@ class LocalExecutorManager(ExecutorManager):
         self.release_executor(executor)
 
 
-def create_executor_manager(backend_conf, daemon_portal):  # instance factory
+def create_executor_manager(backend_conf, daemon_conf):  # instance factory
     backend_type = backend_conf.type
     if backend_type == 'remote':
         remote_backend_config = backend_conf.conf
         machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]
-        return RemoteSSHExecutorManager(machines, daemon_portal)
+        # check remote host setting
+        daemon_host = daemon_conf.host
+        # only warning for remote backend
+        if consts.HOST_LOCALHOST == daemon_host:
+            logger.warning("recommended that set IP address that can be accessed in remote machines, "
+                           "but now it's \"localhost\", and the task executed on the remote machines "
+                           "may fail because it can't get information from the daemon server,"
+                           " you can set it in `daemon.host` ")
+        return RemoteSSHExecutorManager(machines, daemon_conf.portal)
     elif backend_type == 'local':
-        return LocalExecutorManager(daemon_portal)
+        return LocalExecutorManager(daemon_conf.portal)
     else:
         raise ValueError(f"unknown backend {backend_type}")

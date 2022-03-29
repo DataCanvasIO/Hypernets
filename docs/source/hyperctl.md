@@ -47,7 +47,7 @@ print(params)
                 "learning_rate": 0.1
             },
             "execution": {
-                "command": "python ~/job-script.py"
+                "command": "python ~/plain_job_script.py"
             }
         }
     ]
@@ -82,7 +82,7 @@ params:
     learning_rate: [0.1,0.2]
     max_depth: [3, 5]
 execution:
-  command: python3 main.py
+  command: python3 cli.py
 ```
 
 ```shell
