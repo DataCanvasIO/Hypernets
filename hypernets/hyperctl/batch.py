@@ -96,6 +96,14 @@ class DaemonConf:
         return f"http://{self.host}:{self.port}"
 
 
+class BackendConf:
+    def __init__(self, type='local', conf=None):
+        self.type = type
+        if conf is None:
+            conf = {}
+        self.conf = conf
+
+
 class Batch:
 
     FILE_SPEC = "spec.json"
@@ -105,11 +113,12 @@ class Batch:
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, batches_data_dir, daemon_conf: DaemonConf):
+    def __init__(self, name, batches_data_dir, backend_conf: BackendConf,  daemon_conf: DaemonConf):
         self.name = name
         self.batches_data_dir = batches_data_dir
 
         self.daemon_conf = daemon_conf
+        self.backend_conf = backend_conf
 
         #
         self.jobs = []
@@ -173,3 +182,20 @@ class Batch:
             ShellJob.STATUS_SUCCEED: cnt(ShellJob.STATUS_SUCCEED),
             ShellJob.STATUS_RUNNING: cnt(ShellJob.STATUS_RUNNING),
         }
+
+    def to_config(self):
+
+        return {
+            "jobs": [],
+            "backend": {
+                "type": "local",
+                "conf": {}
+            },
+            "name": "eVqNV5Ut1",
+            "daemon": {
+                "port": 8060,
+                "exit_on_finish": False
+            },
+            "version": 2.5
+        }
+

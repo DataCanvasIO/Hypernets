@@ -6,8 +6,8 @@ import _thread
 import pytest
 import time
 
-from hypernets.hyperctl import runtime, get_context
-from hypernets.hyperctl import daemon
+from hypernets.hyperctl import api, get_context
+from hypernets.hyperctl import schedule
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.utils import ssh_utils_test
@@ -49,7 +49,7 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
     # spec.json exists and is json file
     spec_file_path = batch.spec_file_path()
     assert batch.spec_file_path().exists()
-    assert daemon.load_json(spec_file_path)
+    assert schedule.load_json(spec_file_path)
 
     # pid file exists
     pid_file_path = batch.pid_file_path()
@@ -67,11 +67,11 @@ def test_run_generate_job_specs():
     os.close(fd)
     os.remove(fp)
 
-    daemon.run_generate_job_specs(batch_config_path, fp)
+    schedule.run_generate_job_specs(batch_config_path, fp)
     fp_ = Path(fp)
 
     assert fp_.exists()
-    jobs_spec = daemon.load_json(fp)
+    jobs_spec = schedule.load_json(fp)
     assert len(jobs_spec['jobs']) == 4
     assert 'daemon' in jobs_spec
     assert 'name' in jobs_spec
@@ -129,7 +129,7 @@ def test_run_remote():
 
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    daemon.run_batch(config_dict, batches_data_dir)
+    schedule.run_batch_batch_config(config_dict, batches_data_dir)
     executor_manager = get_context().executor_manager
     batch = get_context().batch
     assert isinstance(executor_manager, RemoteSSHExecutorManager)
@@ -189,7 +189,7 @@ def test_run_local():
     print("Config:")
     print(config_dict)
 
-    daemon.run_batch(config_dict, batches_data_dir)
+    schedule.run_batch_batch_config(config_dict, batches_data_dir)
 
     executor_manager = get_context().executor_manager
     assert isinstance(executor_manager, LocalExecutorManager)
@@ -233,14 +233,14 @@ def test_kill_local_job():
 
     def send_kill_request():
         time.sleep(6)
-        runtime.kill_job(f'http://localhost:{daemon_port}', job_name)
+        api.kill_job(f'http://localhost:{daemon_port}', job_name)
 
     _thread.start_new_thread(send_kill_request, ())
 
     print("Config:")
     print(config_dict)
 
-    daemon.run_batch(config_dict, batches_data_dir)
+    schedule.run_batch_batch_config(config_dict, batches_data_dir)
     batch = get_context().batch
     assert_batch_finished(get_context().batch, batch_name, [job_name], ShellJob.STATUS_FAILED)
     assert_local_job_finished(batch.jobs)
@@ -266,7 +266,7 @@ def test_run_local_minimum_conf():
     print("Config:")
     print(config_dict)
 
-    daemon.run_batch(config_dict, batches_data_dir)
+    schedule.run_batch_batch_config(config_dict, batches_data_dir)
 
     executor_manager = get_context().executor_manager
     batch = get_context().batch

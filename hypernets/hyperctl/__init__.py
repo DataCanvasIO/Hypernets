@@ -1,6 +1,6 @@
 from typing import Optional
 
-from .runtime import get_job_params
+from .api import get_job_params
 
 
 class Context:
