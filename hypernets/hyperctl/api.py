@@ -31,7 +31,7 @@ def get_job(job_name, daemon_portal):
 
 def _get_job_name_and_damon_portal():
     job_name = os.getenv(consts.KEY_ENV_JOB_NAME)
-    daemon_portal = os.getenv(consts.KEY_ENV_DAEMON_PORTAL)
+    daemon_portal = f"{os.getenv(consts.KEY_ENV_DAEMON_PORTAL)}/hyperctl"
 
     assert job_name
     assert daemon_portal
