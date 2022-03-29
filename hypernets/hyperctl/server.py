@@ -103,12 +103,15 @@ class IndexHandler(BaseHandler):
 class JobHandler(BaseHandler):
 
     def get(self, job_name, **kwargs):
-        job = dao.get_job_by_name(job_name)
+        job = self.batch.get_job_by_name(job_name)
         if job is None:
             self.response({"msg": "resource not found"}, RestCode.Exception)
         else:
             ret_dict = job.to_dict()
             return self.response(ret_dict)
+
+    def initialize(self, batch: Batch):
+        self.batch = batch
 
 
 class JobOperationHandler(BaseHandler):
@@ -123,7 +126,7 @@ class JobOperationHandler(BaseHandler):
             raise ValueError(f"unknown operation {operation} ")
 
         # checkout job
-        job: ShellJob = dao.get_job_by_name(job_name)
+        job: ShellJob = self.batch.get_job_by_name(job_name)
         if job is None:
             raise ValueError(f'job {job_name} does not exists ')
 
@@ -134,7 +137,7 @@ class JobOperationHandler(BaseHandler):
                 raise RuntimeError(f"job {job_name} in not in {job.STATUS_RUNNING} status but is {job.status} ")
 
             # find executor and close
-            em: RemoteSSHExecutorManager = get_context().executor_manager
+            em: RemoteSSHExecutorManager = self.executor_manager
             executor = em.get_executor(job)
             logger.debug(f"find executor {executor} of job {job_name}")
             if executor is not None:
@@ -145,14 +148,21 @@ class JobOperationHandler(BaseHandler):
             else:
                 raise ValueError(f"no executor found for job {job.name}")
 
+    def initialize(self, batch: Batch, executor_manager):
+        self.batch = batch
+        self.executor_manager = executor_manager
+
 
 class JobListHandler(BaseHandler):
 
     def get(self, *args, **kwargs):
         jobs_dict = []
-        for job in dao.get_jobs():
+        for job in self.batch.jobs():
             jobs_dict.append(job.to_dict())
         self.response({"jobs": jobs_dict})
+
+    def initialize(self, batch: Batch):
+        self.batch = batch
 
 
 def create_batch_manage_webapp():

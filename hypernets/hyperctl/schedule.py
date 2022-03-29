@@ -16,7 +16,7 @@ from tornado.log import app_log
 from tornado.web import RequestHandler, Finish, HTTPError, Application
 
 from hypernets import __version__ as current_version
-from hypernets.hyperctl import Context, set_context, get_context
+from hypernets.hyperctl import Context, set_context
 from hypernets.hyperctl import consts
 from hypernets.hyperctl import dao
 from hypernets.hyperctl import api
@@ -32,8 +32,10 @@ logger = hyn_logging.getLogger(__name__)
 
 class Scheduler:
 
-    def __init__(self, exit_on_finish, interval):
+    def __init__(self, batch, exit_on_finish, interval, executor_manager):
+        self.batch = batch
         self.exit_on_finish = exit_on_finish
+        self.executor_manager = executor_manager
         self._timer = PeriodicCallback(self.schedule, interval)
 
     def start(self):
@@ -79,14 +81,11 @@ class Scheduler:
                 pass
 
     def schedule(self):
-        c = get_context()
-        executor_manager = c.executor_manager
-        jobs = c.batch.jobs
-
+        jobs = self.batch.jobs
         # check all jobs finished
-        job_finished = c.batch.is_finished()
+        job_finished = self.batch.is_finished()
         if job_finished:
-            batch_summary = json.dumps(c.batch.summary())
+            batch_summary = json.dumps(self.batch.summary())
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)
             self._timer.stop()  # stop the timer
             if self.exit_on_finish:
@@ -94,8 +93,8 @@ class Scheduler:
                 ioloop.IOLoop.instance().stop()
             return
 
-        self._check_executors(executor_manager)
-        self._dispatch_jobs(executor_manager, jobs)
+        self._check_executors(self.executor_manager)
+        self._dispatch_jobs(self.executor_manager, jobs)
 
 
 def load_yaml(file_path):
@@ -204,8 +203,7 @@ def load_batch_data_dir(batches_data_dir, batch_name):
 
 def _run_batch(batch: Batch, batches_data_dir=None):
     prepare_batch(batch, batches_data_dir)
-    # start scheduler
-    Scheduler(batch.daemon_conf.exit_on_finish, 5000).start()
+
 
     # create web app
     logger.info(f"start daemon server at: {batch.daemon_conf.portal}")
@@ -220,6 +218,14 @@ def prepare_batch(batch: Batch, batches_data_dir=None):
 
     logger.info(f"batches_data_path: {batches_data_dir.absolute()}")
     logger.info(f"batch name: {batch.name}")
+
+    # check remote host setting
+    daemon_host = batch.daemon_conf.host
+    if consts.HOST_LOCALHOST == daemon_host:
+        logger.warning("recommended that set IP address that can be accessed in remote machines, "
+                       "but now it's \"localhost\", and the task executed on the remote machines "
+                       "may fail because it can't get information from the daemon server,"
+                       " you can set it in `daemon.host` ")
 
     # check jobs status
     for job in batch.jobs:
@@ -245,16 +251,11 @@ def prepare_batch(batch: Batch, batches_data_dir=None):
         json.dump(batch.to_config(), f, indent=4)
 
     # create executor manager
-    backend_type = batch.backend_conf.type
-    if backend_type == 'remote':
-        remote_backend_config = batch.backend_conf.conf
-        machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]
-        executor_manager = RemoteSSHExecutorManager(machines)
-    elif backend_type == 'local':
-        executor_manager = LocalExecutorManager()
-    else:
-        raise ValueError(f"unknown backend {backend_type}")
-
+    from hypernets.hyperctl.executor import create_executor_manager
+    executor_manager = create_executor_manager(batch.backend_conf, batch.daemon_conf.portal)
+    # start scheduler
+    # Scheduler(batch, batch.daemon_conf.exit_on_finish, 5000, ).start()
+    Scheduler(batch, batch.daemon_conf.exit_on_finish, 5000, executor_manager).start()
     # set context
     c = Context(executor_manager, batch)
     set_context(c)

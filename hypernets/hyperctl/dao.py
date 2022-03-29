@@ -1,20 +1,6 @@
 import os
-from pathlib import Path
 
-from hypernets.hyperctl import get_context
 from hypernets.hyperctl.batch import ShellJob
-
-
-def get_job_by_name(job_name):
-    for job in get_context().batch.jobs:
-
-        if job.name == job_name:
-            return job
-    return None
-
-
-def get_jobs():
-    return get_context().batch.jobs
 
 
 def change_job_status(job: ShellJob, next_status):

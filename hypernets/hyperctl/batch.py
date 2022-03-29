@@ -169,6 +169,12 @@ class Batch:
     def _filter_jobs(self, status):
         return list(filter(lambda j: j.status == status, self.jobs))
 
+    def get_job_by_name(self, job_name):
+        for job in self.jobs:
+            if job.name == job_name:
+                return job
+        return None
+
     def summary(self):
         def cnt(status):
             return len(self._filter_jobs(status))

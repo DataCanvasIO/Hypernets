@@ -7,7 +7,7 @@ from typing import List
 
 from paramiko import SFTPClient
 
-from hypernets.hyperctl import consts, get_context
+from hypernets.hyperctl import consts
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.hyperctl.dao import change_job_status
 from hypernets.utils import logging as hyn_logging
@@ -22,8 +22,9 @@ class NoResourceException(Exception):
 
 class ShellExecutor:
 
-    def __init__(self, job: ShellJob):
+    def __init__(self, job: ShellJob, daemon_portal):
         self.job = job
+        self.daemon_portal = daemon_portal
 
     def run(self):
         pass
@@ -47,7 +48,7 @@ class ShellExecutor:
             consts.KEY_ENV_JOB_NAME: self.job.name,
             consts.KEY_ENV_JOB_EXECUTION_WORKING_DIR: self.job.execution.working_dir,  # default value
             consts.KEY_TEMPLATE_COMMAND: self.job.execution.command,
-            consts.KEY_ENV_DAEMON_PORTAL: get_context().batch.daemon_conf.portal,
+            consts.KEY_ENV_DAEMON_PORTAL: self.daemon_portal,
         }
 
         run_shell = str(consts.RUN_SH_TEMPLATE)
@@ -77,14 +78,6 @@ class RemoteShellExecutor(ShellExecutor):
         self._remote_process = None
 
     def run(self):
-        # check remote host setting
-        daemon_host = get_context().batch.daemon_conf.host
-        if consts.HOST_LOCALHOST == daemon_host:
-            logger.warning("recommended that set IP address that can be accessed in remote machines, "
-                           "but now it's \"localhost\", and the task executed on the remote machines "
-                           "may fail because it can't get information from the daemon server,"
-                           " you can set it in `daemon.host` ")
-
         # create remote data dir
         execution_data_dir = Path(self.job.execution.data_dir).as_posix()
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
@@ -149,8 +142,8 @@ class RemoteShellExecutor(ShellExecutor):
 
 class LocalShellExecutor(ShellExecutor):
 
-    def __init__(self, job: ShellJob):
-        super(LocalShellExecutor, self).__init__(job)
+    def __init__(self, job: ShellJob, daemon_portal):
+        super(LocalShellExecutor, self).__init__(job, daemon_portal)
         self._process = None
 
     def run(self):
@@ -234,7 +227,8 @@ class SSHRemoteMachine:
 
 class ExecutorManager:
 
-    def __init__(self):
+    def __init__(self, daemon_portal):
+        self.daemon_portal = daemon_portal
         self._waiting_queue = []
 
     def allocated_executors(self):
@@ -261,8 +255,8 @@ class ExecutorManager:
 
 class RemoteSSHExecutorManager(ExecutorManager):
 
-    def __init__(self, machines: List[SSHRemoteMachine]):
-        super(RemoteSSHExecutorManager, self).__init__()
+    def __init__(self, machines: List[SSHRemoteMachine], daemon_portal):
+        super(RemoteSSHExecutorManager, self).__init__(daemon_portal)
         self.machines = machines
 
         self._executors_map = {}
@@ -295,8 +289,8 @@ class RemoteSSHExecutorManager(ExecutorManager):
 
 class LocalExecutorManager(ExecutorManager):
 
-    def __init__(self):
-        super(LocalExecutorManager, self).__init__()
+    def __init__(self, daemon_portal):
+        super(LocalExecutorManager, self).__init__(daemon_portal)
         self._allocated_executors = []
         self._is_busy = False
 
@@ -305,7 +299,7 @@ class LocalExecutorManager(ExecutorManager):
 
     def alloc_executor(self, job):
         if not self._is_busy:
-            executor = LocalShellExecutor(job)
+            executor = LocalShellExecutor(job, self.daemon_portal)
             self._allocated_executors.append(executor)
             self._waiting_queue.append(executor)
             self._is_busy = True
@@ -319,3 +313,15 @@ class LocalExecutorManager(ExecutorManager):
 
     def kill_executor(self, executor):
         self.release_executor(executor)
+
+
+def create_executor_manager(backend_conf, daemon_portal):  # instance factory
+    backend_type = backend_conf.type
+    if backend_type == 'remote':
+        remote_backend_config = backend_conf.conf
+        machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]
+        return RemoteSSHExecutorManager(machines, daemon_portal)
+    elif backend_type == 'local':
+        return LocalExecutorManager(daemon_portal)
+    else:
+        raise ValueError(f"unknown backend {backend_type}")
