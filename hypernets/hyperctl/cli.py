@@ -1,33 +1,19 @@
 # -*- encoding: utf-8 -*-
 import argparse
-import codecs
 import itertools
 import json
 import os
-import sys
 from pathlib import Path
-from typing import Optional, Awaitable
 
 import prettytable as pt
-import yaml
-from tornado import ioloop
-from tornado.ioloop import PeriodicCallback
-from tornado.log import app_log
-from tornado.web import RequestHandler, Finish, HTTPError, Application
 
 from hypernets import __version__ as current_version
-from hypernets.hyperctl import Context, set_context
-from hypernets.hyperctl import consts
-from hypernets.hyperctl import dao
 from hypernets.hyperctl import api
-from hypernets.hyperctl.batch import Batch, DaemonConf, BackendConf, load_batch
-from hypernets.hyperctl.batch import ShellJob
-from hypernets.hyperctl.dao import change_job_status
+from hypernets.hyperctl import consts
+from hypernets.hyperctl.batch import Batch, load_batch
+from hypernets.hyperctl.schedule import get_batches_data_dir  # FIXME
 from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
-from hypernets.hyperctl.executor import RemoteSSHExecutorManager, NoResourceException, SSHRemoteMachine, \
-    LocalExecutorManager, ShellExecutor
 from hypernets.utils import logging as hyn_logging, common as common_util
-from hypernets.hyperctl.schedule import get_batches_data_dir
 
 
 def run_generate_job_specs(template, output):

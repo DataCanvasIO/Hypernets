@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import psutil
-
+from typing import Dict
 from hypernets.hyperctl import consts
 
 
@@ -12,6 +12,13 @@ class ExecutionConf:
         self.command = command
         self.data_dir = data_dir
         self.working_dir = working_dir
+
+    def to_config(self):
+        return {
+            "command": self.command,
+            "data_dir": self.data_dir,
+            "working_dir": self.working_dir
+        }
 
 
 class ShellJob:
@@ -85,6 +92,14 @@ class ShellJob:
         del ret_dict['batch']
         return ret_dict
 
+    def to_config(self):
+        return {
+            "name": self.name,
+            "params": self.params,
+            "resource": self.resource,
+            "execution": self.execution.to_config()
+        }
+
 
 class DaemonConf:
     def __init__(self, host, port, exit_on_finish=False):
@@ -96,13 +111,26 @@ class DaemonConf:
     def portal(self):
         return f"http://{self.host}:{self.port}"
 
+    def to_config(self):
+        return {
+            "host": self.host,
+            "port": self.port,
+            "exit_on_finish": self.exit_on_finish
+        }
+
 
 class BackendConf:
-    def __init__(self, type='local', conf=None):
+    def __init__(self, type = 'local', conf: Dict = None):
         self.type = type
         if conf is None:
             conf = {}
         self.conf = conf
+
+    def to_config(self):
+        return {
+            "type": self.type,
+            "conf": self.conf
+        }
 
 
 class Batch:
@@ -191,18 +219,15 @@ class Batch:
         }
 
     def to_config(self):
+        jobs_config = []
+        for job in self.jobs:
+            jobs_config.append(job.to_config())
 
         return {
-            "jobs": [],
-            "backend": {
-                "type": "local",
-                "conf": {}
-            },
-            "name": "eVqNV5Ut1",
-            "daemon": {
-                "port": 8060,
-                "exit_on_finish": False
-            },
+            "jobs": jobs_config,
+            "backend": self.backend_conf.to_config(),
+            "name": self.name,
+            "daemon": self.daemon_conf.to_config(),
             "version": 2.5
         }
 
@@ -224,3 +249,26 @@ def load_batch(batch_spec_dict, batches_data_dir):
         batch.add_job(**job_dict)
     return batch
 
+
+def change_job_status(job: ShellJob, next_status):
+    current_status = job.status
+    target_status_file = job.status_file_path(next_status)
+    if next_status == job.STATUS_INIT:
+        raise ValueError(f"can not change to {next_status} ")
+
+    elif next_status == job.STATUS_RUNNING:
+        if current_status != job.STATUS_INIT:
+            raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
+
+    elif next_status in job.FINAL_STATUS:
+        if current_status != job.STATUS_RUNNING:
+            raise ValueError(f"only job in {job.STATUS_RUNNING} can change to "
+                             f"{next_status} but now is {current_status}")
+        # delete running status file
+        running_status_file = job.status_file_path(job.STATUS_RUNNING)
+        os.remove(running_status_file)
+    else:
+        raise ValueError(f"unknown status {next_status}")
+
+    with open(target_status_file, 'w') as f:
+        pass

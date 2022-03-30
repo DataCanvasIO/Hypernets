@@ -1,17 +1,8 @@
 import os
-import sys
 import tempfile
 from pathlib import Path
-import _thread
-import pytest
-import time
 
-from hypernets.hyperctl import api, get_context
 from hypernets.hyperctl import cli, utils
-from hypernets.hyperctl.batch import ShellJob, Batch
-from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
-from hypernets.tests.utils import ssh_utils_test
-from hypernets.utils import is_os_windows
 
 
 def test_run_generate_job_specs():

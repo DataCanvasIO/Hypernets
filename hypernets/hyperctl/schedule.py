@@ -8,7 +8,6 @@ from tornado.ioloop import PeriodicCallback
 
 from hypernets.hyperctl.batch import Batch, load_batch
 from hypernets.hyperctl.batch import ShellJob
-from hypernets.hyperctl.dao import change_job_status
 from hypernets.hyperctl.executor import NoResourceException, ShellExecutor
 from hypernets.utils import logging as hyn_logging, common as common_util
 
@@ -27,6 +26,30 @@ class Scheduler:
         self._timer.start()
 
     @staticmethod
+    def change_job_status(job: ShellJob, next_status):
+        current_status = job.status
+        target_status_file = job.status_file_path(next_status)
+        if next_status == job.STATUS_INIT:
+            raise ValueError(f"can not change to {next_status} ")
+
+        elif next_status == job.STATUS_RUNNING:
+            if current_status != job.STATUS_INIT:
+                raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
+
+        elif next_status in job.FINAL_STATUS:
+            if current_status != job.STATUS_RUNNING:
+                raise ValueError(f"only job in {job.STATUS_RUNNING} can change to "
+                                 f"{next_status} but now is {current_status}")
+            # delete running status file
+            running_status_file = job.status_file_path(job.STATUS_RUNNING)
+            os.remove(running_status_file)
+        else:
+            raise ValueError(f"unknown status {next_status}")
+
+        with open(target_status_file, 'w') as f:
+            pass
+
+    @staticmethod
     def _check_executors(executor_manager):
         finished = []
         for executor in executor_manager.waiting_executors():
@@ -38,7 +61,7 @@ class Scheduler:
             executor_status = finished_executor.status()
             job = finished_executor.job
             logger.info(f"job {job.name} finished with status {executor_status}")
-            change_job_status(job, finished_executor.status())
+            Scheduler.change_job_status(job, finished_executor.status())
             executor_manager.release_executor(finished_executor)
 
     @staticmethod
@@ -53,13 +76,13 @@ class Scheduler:
                 process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
                 logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir} ')
                 # os.makedirs(job.job_data_dir, exist_ok=True)
-                change_job_status(job, job.STATUS_RUNNING)
+                Scheduler.change_job_status(job, job.STATUS_RUNNING)
                 executor.run()
             except NoResourceException:
                 logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
-                change_job_status(job, job.STATUS_FAILED)
+                Scheduler.change_job_status(job, job.STATUS_FAILED)
                 logger.exception(f"failed to run job '{job.name}' ", e)
                 continue
             finally:
@@ -160,5 +183,5 @@ def run_batch_config(config_dict, batches_data_dir):
     prepare_batch(batch, batches_data_dir)
 
     _start_api_server(batch)
-
+    # TODO: check return
     return batch

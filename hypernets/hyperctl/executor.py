@@ -9,7 +9,6 @@ from paramiko import SFTPClient
 
 from hypernets.hyperctl import consts
 from hypernets.hyperctl.batch import ShellJob
-from hypernets.hyperctl.dao import change_job_status
 from hypernets.utils import logging as hyn_logging
 from hypernets.utils import ssh_utils
 

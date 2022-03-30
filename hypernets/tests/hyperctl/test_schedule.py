@@ -1,19 +1,19 @@
-import os
+import _thread
 import sys
 import tempfile
-from pathlib import Path
-import _thread
-import pytest
 import time
+from pathlib import Path
 
-from hypernets.hyperctl import api, get_context
+import pytest
+
+from hypernets.hyperctl import api
 from hypernets.hyperctl import schedule, utils
+from hypernets.hyperctl.batch import BackendConf, DaemonConf
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.utils import ssh_utils_test
 from hypernets.utils import is_os_windows
 from hypernets.utils.common import generate_short_id
-from hypernets.hyperctl.batch import BackendConf, DaemonConf
 
 skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows now')  # not generate run.bat now
 
@@ -113,11 +113,11 @@ def test_run_remote():
 
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    schedule.run_batch_config(config_dict, batches_data_dir)
-    executor_manager = get_context().executor_manager
-    batch = get_context().batch
-    assert isinstance(executor_manager, RemoteSSHExecutorManager)
-    assert len(executor_manager.machines) == 2
+    batch = schedule.run_batch_config(config_dict, batches_data_dir)
+    # executor_manager = get_context().executor_manager
+    # batch = get_context().batch
+    # TODO assert isinstance(executor_manager, RemoteSSHExecutorManager)
+    # TODO assert len(executor_manager.machines) == 2
 
     assert_batch_finished(batch, batch_name, [job1_name, job2_name], ShellJob.STATUS_SUCCEED)
 
@@ -170,15 +170,12 @@ def test_run_local():
         "version": 2.5
     }
 
-    print("Config:")
-    print(config_dict)
+    batch = schedule.run_batch_config(config_dict, batches_data_dir)
 
-    schedule.run_batch_config(config_dict, batches_data_dir)
+    # executor_manager = get_context().executor_manager
+    # assert isinstance(executor_manager, LocalExecutorManager)
 
-    executor_manager = get_context().executor_manager
-    assert isinstance(executor_manager, LocalExecutorManager)
-
-    assert_batch_finished(get_context().batch, batch_name, [job_name0, job_name1], ShellJob.STATUS_SUCCEED)
+    assert_batch_finished(batch, batch_name, [job_name0, job_name1], ShellJob.STATUS_SUCCEED)
 
 
 @skip_if_windows
@@ -224,9 +221,9 @@ def test_kill_local_job():
     print("Config:")
     print(config_dict)
 
-    schedule.run_batch_config(config_dict, batches_data_dir)
-    batch = get_context().batch
-    assert_batch_finished(get_context().batch, batch_name, [job_name], ShellJob.STATUS_FAILED)
+    batch = schedule.run_batch_config(config_dict, batches_data_dir)
+    # batch = get_context().batch
+    assert_batch_finished(batch, batch_name, [job_name], ShellJob.STATUS_FAILED)
     assert_local_job_finished(batch.jobs)
 
 

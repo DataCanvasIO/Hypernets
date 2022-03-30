@@ -1,31 +1,16 @@
 # -*- encoding: utf-8 -*-
-import argparse
-import codecs
-import itertools
 import json
-import os
 import sys
-from pathlib import Path
 from typing import Optional, Awaitable
 
-import prettytable as pt
-import yaml
-from tornado import ioloop
-from tornado.ioloop import PeriodicCallback
 from tornado.log import app_log
 from tornado.web import RequestHandler, Finish, HTTPError, Application
 
-from hypernets import __version__ as current_version
-from hypernets.hyperctl import Context, set_context, get_context
-from hypernets.hyperctl import consts
 from hypernets.hyperctl import dao
-from hypernets.hyperctl import api
-from hypernets.hyperctl.batch import Batch, DaemonConf
+from hypernets.hyperctl.batch import Batch
 from hypernets.hyperctl.batch import ShellJob
-from hypernets.hyperctl.dao import change_job_status
-from hypernets.hyperctl.executor import RemoteSSHExecutorManager, NoResourceException, SSHRemoteMachine, \
-    LocalExecutorManager, ShellExecutor
-from hypernets.utils import logging as hyn_logging, common as common_util
+from hypernets.hyperctl.executor import RemoteSSHExecutorManager
+from hypernets.utils import logging as hyn_logging
 
 logger = hyn_logging.getLogger(__name__)
 
@@ -97,7 +82,7 @@ class BaseHandler(RequestHandler):
 class IndexHandler(BaseHandler):
 
     def get(self, *args, **kwargs):
-        return self.finish("It's working.")
+        return self.finish("Welcome to hyperctl.")
 
 
 class JobHandler(BaseHandler):
@@ -143,7 +128,8 @@ class JobOperationHandler(BaseHandler):
             if executor is not None:
                 em.kill_executor(executor)
                 logger.debug(f"write failed status file for {job_name}")
-                dao.change_job_status(job, job.STATUS_FAILED)
+                # FIXME: update to modify status in Scheduler
+                # dao.change_job_status(job, job.STATUS_FAILED)
                 self.response({"msg": f"{job.name} killed"})
             else:
                 raise ValueError(f"no executor found for job {job.name}")
