@@ -11,7 +11,7 @@ from hypernets import __version__ as current_version
 from hypernets.hyperctl import api
 from hypernets.hyperctl import consts
 from hypernets.hyperctl.batch import Batch, load_batch
-from hypernets.hyperctl.schedule import get_batches_data_dir  # FIXME
+from hypernets.hyperctl.scheduler import get_batches_data_dir  # FIXME
 from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
 from hypernets.utils import logging as hyn_logging, common as common_util
 
@@ -91,7 +91,7 @@ def run_show_jobs(batch_name, batches_data_dir=None):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    daemon_portal = batch.daemon_conf.portal
+    daemon_portal = batch.server_conf.portal
 
     jobs_dict = api.list_jobs(daemon_portal)
 
@@ -109,7 +109,7 @@ def run_kill_job(batch_name, job_name, batches_data_dir=None):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    daemon_portal = batch.daemon_conf.portal
+    daemon_portal = batch.server_conf.portal
 
     jobs_dict = api.kill_job(daemon_portal, job_name)
     print("Killed")
@@ -121,7 +121,7 @@ def show_job(batch_name, job_name, batches_data_dir=None):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    daemon_portal = batch.daemon_conf.portal
+    daemon_portal = batch.server_conf.portal
 
     job_dict = api.get_job(job_name, daemon_portal)
     job_desc = json.dumps(job_dict, indent=4)

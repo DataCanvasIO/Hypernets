@@ -35,8 +35,9 @@
         "conf": {}
     },
     "name": "eVqNV5Ut1",
-    "daemon": {
-        "port": 8060,
+    "server": {
+        "host": "localhost",
+        "port":8060,
         "exit_on_finish": false
     },
     "version": 2.5

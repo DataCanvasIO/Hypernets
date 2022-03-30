@@ -107,9 +107,9 @@ class Scheduler:
 
 def _start_api_server(batch: Batch):
     # create web app
-    logger.info(f"start daemon server at: {batch.daemon_conf.portal}")
+    logger.info(f"start daemon server at: {batch.server_conf.portal}")
     from hypernets.hyperctl.server import create_batch_manage_webapp
-    create_batch_manage_webapp().listen(batch.daemon_conf.port)
+    create_batch_manage_webapp().listen(batch.server_conf.port)
 
     # run io loop
     ioloop.IOLoop.instance().start()
@@ -152,10 +152,10 @@ def prepare_batch(batch: Batch, batches_data_dir):
 
     # create executor manager
     from hypernets.hyperctl.executor import create_executor_manager
-    executor_manager = create_executor_manager(batch.backend_conf, batch.daemon_conf)
+    executor_manager = create_executor_manager(batch.backend_conf, batch.server_conf)
 
     # start scheduler
-    Scheduler(batch, batch.daemon_conf.exit_on_finish, 5000, executor_manager).start()
+    Scheduler(batch, batch.server_conf.exit_on_finish, 5000, executor_manager).start()
 
     # write pid file
     with open(batch.pid_file_path(), 'w', newline='\n') as f:

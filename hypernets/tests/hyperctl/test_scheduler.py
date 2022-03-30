@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from hypernets.hyperctl import api
-from hypernets.hyperctl import schedule, utils
-from hypernets.hyperctl.batch import BackendConf, DaemonConf
+from hypernets.hyperctl import scheduler, utils
+from hypernets.hyperctl.batch import BackendConf, ServerConf
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.utils import ssh_utils_test
@@ -113,7 +113,7 @@ def test_run_remote():
 
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    batch = schedule.run_batch_config(config_dict, batches_data_dir)
+    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
     # executor_manager = get_context().executor_manager
     # batch = get_context().batch
     # TODO assert isinstance(executor_manager, RemoteSSHExecutorManager)
@@ -170,7 +170,7 @@ def test_run_local():
         "version": 2.5
     }
 
-    batch = schedule.run_batch_config(config_dict, batches_data_dir)
+    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
 
     # executor_manager = get_context().executor_manager
     # assert isinstance(executor_manager, LocalExecutorManager)
@@ -221,7 +221,7 @@ def test_kill_local_job():
     print("Config:")
     print(config_dict)
 
-    batch = schedule.run_batch_config(config_dict, batches_data_dir)
+    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
     # batch = get_context().batch
     assert_batch_finished(batch, batch_name, [job_name], ShellJob.STATUS_FAILED)
     assert_local_job_finished(batch.jobs)
@@ -244,7 +244,7 @@ def test_run_local_minimum_conf():
         ],
         "daemon": {'exit_on_finish': True, 'port': 8063}
     }
-    batch = schedule.run_batch_config(config_dict, batches_data_dir)
+    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
 
     batch_name = batch.name
     jobs_name = [j.name for j in batch.jobs]
@@ -261,11 +261,11 @@ def test_minimum_local_batch():
 
     batch = Batch(generate_short_id(), batches_data_dir,
                   backend_conf=BackendConf(type='local'),
-                  daemon_conf=DaemonConf('localhost', 8063, exit_on_finish=True))
+                  server_conf=ServerConf('localhost', 8063, exit_on_finish=True))
     job_params = {"learning_rate": 0.1}
     batch.add_job(name='job1', params=job_params, resource=None, execution={"command": "pwd"})
 
-    schedule.run_batch(batch, batches_data_dir)
+    scheduler.run_batch(batch, batches_data_dir)
 
     batch_name = batch.name
     jobs_name = [j.name for j in batch.jobs]

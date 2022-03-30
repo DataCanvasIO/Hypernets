@@ -6,7 +6,6 @@ from typing import Optional, Awaitable
 from tornado.log import app_log
 from tornado.web import RequestHandler, Finish, HTTPError, Application
 
-from hypernets.hyperctl import dao
 from hypernets.hyperctl.batch import Batch
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.hyperctl.executor import RemoteSSHExecutorManager

@@ -33,15 +33,7 @@ class ShellJob:
         self.name = name
         self.params = params
         self.resource = resource
-
-        if execution is None:
-            execution = {}
-        if execution.get('data_dir') is None:
-            execution['data_dir'] = (batch.data_dir_path() / self.name).as_posix()
-        if execution.get('working_dir') is None:
-            execution['working_dir'] = execution['data_dir']
-        self.execution = ExecutionConf(**execution)
-
+        self.execution = execution
         self.batch = batch
 
     @property
@@ -101,7 +93,7 @@ class ShellJob:
         }
 
 
-class DaemonConf:
+class ServerConf:  # API server conf
     def __init__(self, host, port, exit_on_finish=False):
         self.host = host
         self.port = port
@@ -142,11 +134,11 @@ class Batch:
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, batches_data_dir, backend_conf: BackendConf,  daemon_conf: DaemonConf):
+    def __init__(self, name, batches_data_dir, backend_conf: BackendConf, server_conf: ServerConf):
         self.name = name
         self.batches_data_dir = batches_data_dir
 
-        self.daemon_conf = daemon_conf
+        self.server_conf = server_conf
         self.backend_conf = backend_conf
 
         #
@@ -211,7 +203,7 @@ class Batch:
             "name": self.name,
             'status': self.status(),
             'total': len(self.jobs),
-            'portal': self.daemon_conf.portal,
+            'portal': self.server_conf.portal,
             ShellJob.STATUS_FAILED: cnt(ShellJob.STATUS_FAILED),
             ShellJob.STATUS_INIT: cnt(ShellJob.STATUS_INIT),
             ShellJob.STATUS_SUCCEED: cnt(ShellJob.STATUS_SUCCEED),
@@ -227,7 +219,7 @@ class Batch:
             "jobs": jobs_config,
             "backend": self.backend_conf.to_config(),
             "name": self.name,
-            "daemon": self.daemon_conf.to_config(),
+            "daemon": self.server_conf.to_config(),
             "version": 2.5
         }
 
@@ -244,8 +236,14 @@ def load_batch(batch_spec_dict, batches_data_dir):
 
     backend_config = batch_spec_dict.get('backend', {})
 
-    batch = Batch(batch_name, batches_data_dir, BackendConf(**backend_config), DaemonConf(**default_daemon_conf))
+    batch = Batch(batch_name, batches_data_dir, BackendConf(**backend_config), ServerConf(**default_daemon_conf))
     for job_dict in jobs_dict:
+        execution_conf = job_dict.get('execution', {})
+        if execution_conf.get('data_dir') is None:
+            execution_conf['data_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
+        if execution_conf.get('working_dir') is None:
+            execution_conf['working_dir'] = execution_conf['data_dir']
+        job_dict['execution'] = ExecutionConf(**execution_conf)
         batch.add_job(**job_dict)
     return batch
 
