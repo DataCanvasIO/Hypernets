@@ -150,11 +150,12 @@ class JobListHandler(BaseHandler):
         self.batch = batch
 
 
-def create_batch_manage_webapp():
+def create_batch_manage_webapp(batch, executor_manager):
     application = Application([
-        (r'/hyperctl/api/job/(?P<job_name>.+)/(?P<operation>.+)', JobOperationHandler),
-        (r'/hyperctl/api/job/(?P<job_name>.+)', JobHandler),
-        (r'/hyperctl/api/job', JobListHandler),
+        (r'/hyperctl/api/job/(?P<job_name>.+)/(?P<operation>.+)',
+         JobOperationHandler, dict(batch=batch, executor_manager=executor_manager)),
+        (r'/hyperctl/api/job/(?P<job_name>.+)', JobHandler, dict(batch=batch)),
+        (r'/hyperctl/api/job', JobListHandler, dict(batch=batch)),
         (r'/hyperctl', IndexHandler)
     ])
     return application

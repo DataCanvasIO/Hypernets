@@ -11,7 +11,7 @@ from hypernets.hyperctl import scheduler, utils
 from hypernets.hyperctl.batch import BackendConf, ServerConf, ExecutionConf
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
-from hypernets.tests.hyperctl.batch_factory import create_minimum_batch
+from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch
 from hypernets.tests.utils import ssh_utils_test
 from hypernets.utils import is_os_windows
 from hypernets.utils.common import generate_short_id
@@ -58,10 +58,10 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
     pid_file_path = batch.pid_file_path()
     assert pid_file_path.exists()
 
-    # job succeed
+    # assert job status
     for job in batch.jobs:
         job: ShellJob = job
-        assert Path(job.status_file_path(status)).as_posix()
+        assert Path(job.status_file_path(status)).exists()
 
 
 @ssh_utils_test.need_ssh
@@ -123,119 +123,37 @@ def test_run_remote():
     assert_batch_finished(batch, batch_name, [job1_name, job2_name], ShellJob.STATUS_SUCCEED)
 
 
+
+@skip_if_windows
+def test_run_minimum_local_batch():
+    batch = create_minimum_batch()
+    scheduler.run_batch(batch)
+    assert_batch_finished(batch, batch.name, [batch.jobs[0].name], ShellJob.STATUS_SUCCEED)
+    assert_local_job_succeed(batch.jobs)
+
+
 @skip_if_windows
 def test_run_local():
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-    job1_name = "eVqNV5Uo0"
-    job2_name = "eVqNV5Uo1"
-    batch_name = "eVqNV5Ut"
-    local_example_script = Path("hypernets/tests/hyperctl/plain_job_script.py").absolute()
-    config_dict = {
-        "jobs": [
-            {
-                "name": job1_name,
-                "params": {
-                    "learning_rate": 0.1
-                },
-                "resource": {
-                    "cpu": 2
-                },
-                "execution": {
-                    "command": f"{sys.executable} {local_example_script}",
-                    "working_dir": "/tmp"
-                }
-            }, {
-                "name": job2_name,
-                "params": {
-                    "learning_rate": 0.1
-                },
-                "resource": {
-                    "cpu": 2
-                },
-                "execution": {
-                    "command": f"{sys.executable} {local_example_script}",
-                    "working_dir": "/tmp",
-                }
-            }
-        ],
-        "backend": {
-            "type": "local",
-            "conf": {}
-        },
-        "name": batch_name,
-        "server": {
-            "port": 8061,
-            "exit_on_finish": True
-        }
-    }
-
-    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
-
+    batch = create_local_batch()
     # executor_manager = get_context().executor_manager
     # assert isinstance(executor_manager, LocalExecutorManager)
-
-    assert_batch_finished(batch, batch_name, [job1_name, job2_name], ShellJob.STATUS_SUCCEED)
+    scheduler.run_batch(batch)
+    assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
+    assert_local_job_succeed(batch.jobs)
 
 
 @skip_if_windows
 def test_kill_local_job():
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-    job_name = "eVqNV5Uo0"
-    batch_name = "eVqNV5Ut"
-    daemon_port = 8062
-
-    config_dict = {
-        "jobs": [
-            {
-                "name": job_name,
-                "params": {
-                    "learning_rate": 0.1
-                },
-                "resource": {
-                },
-                "execution": {
-                    "command": "sleep 8",
-                    "working_dir": "/tmp"
-                }
-            }
-        ],
-        "backend": {
-            "type": "local",
-            "conf": {}
-        },
-        "name": batch_name,
-        "daemon": {
-            "port": daemon_port,
-            "exit_on_finish": True
-        },
-        "version": 2.5
-    }
+    batch = create_minimum_batch(command='sleep 60; echo "finished">&2')
+    job_name = batch.jobs[0].name
 
     def send_kill_request():
-        time.sleep(6)
-        api.kill_job(f'http://localhost:{daemon_port}', job_name)
+        time.sleep(3)
+        api.kill_job(f'http://localhost:{8063}', job_name)
 
     _thread.start_new_thread(send_kill_request, ())
 
-    print("Config:")
-    print(config_dict)
-
-    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
-    # batch = get_context().batch
-    assert_batch_finished(batch, batch_name, [job_name], ShellJob.STATUS_FAILED)
-    assert_local_job_finished(batch.jobs)
-
-
-@skip_if_windows
-def test_run_minimum_local_batch():
-
-    batch = create_minimum_batch()
-
     scheduler.run_batch(batch)
 
-    batch_name = batch.name
-    jobs_name = [j.name for j in batch.jobs]
-
-    assert_batch_finished(batch, batch_name, jobs_name, ShellJob.STATUS_SUCCEED)
-
-    assert_local_job_succeed(batch.jobs)
+    assert_batch_finished(batch, batch.name, [job_name], ShellJob.STATUS_FAILED)
+    assert_local_job_finished(batch.jobs)

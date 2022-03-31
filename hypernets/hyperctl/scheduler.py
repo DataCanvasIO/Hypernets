@@ -105,23 +105,22 @@ class Scheduler:
         self._dispatch_jobs(self.executor_manager, jobs)
 
 
-def _start_api_server(batch: Batch):
+def _start_api_server(batch: Batch, executor_manager):
     # create web app
-    logger.info(f"start api server server at: {batch.server_conf.portal}")
+    logger.info(f"start api server at: {batch.server_conf.portal}")
     from hypernets.hyperctl.server import create_batch_manage_webapp
-    create_batch_manage_webapp().listen(batch.server_conf.port)
+    create_batch_manage_webapp(batch, executor_manager).listen(batch.server_conf.port)
 
     # run io loop
     ioloop.IOLoop.instance().start()
 
 
 def run_batch(batch: Batch):
-    prepare_batch(batch)
+    scheduler = prepare_batch(batch)
+    _start_api_server(batch, scheduler.executor_manager)
 
-    _start_api_server(batch)
 
-
-def prepare_batch(batch: Batch):
+def prepare_batch(batch: Batch) -> Scheduler:
     batches_data_dir = batch.batches_data_dir
     batches_data_dir = Path(batches_data_dir)
     logger.info(f"batches_data_path: {batches_data_dir.absolute()}")
@@ -154,12 +153,14 @@ def prepare_batch(batch: Batch):
     from hypernets.hyperctl.executor import create_executor_manager
     executor_manager = create_executor_manager(batch.backend_conf, batch.server_conf)
 
-    # start scheduler
-    Scheduler(batch, batch.server_conf.exit_on_finish, 5000, executor_manager).start()
-
+    # create scheduler
+    scheduler = Scheduler(batch, batch.server_conf.exit_on_finish, 5000, executor_manager)
+    scheduler.start()
     # write pid file
     with open(batch.pid_file_path(), 'w', newline='\n') as f:
         f.write(str(os.getpid()))
+
+    return scheduler
 
 
 def run_batch_config(config_dict, batches_data_dir):
