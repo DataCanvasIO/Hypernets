@@ -144,16 +144,14 @@ def test_run_local():
 
 @skip_if_windows
 def test_kill_local_job():
-    batch = create_minimum_batch(command='sleep 60; echo "finished">&2')
+    batch = create_minimum_batch(command='sleep 8; echo "finished"')
     job_name = batch.jobs[0].name
 
     def send_kill_request():
-        time.sleep(3)
-        api.kill_job(f'http://localhost:{8063}', job_name)
+        time.sleep(6)
+        api.kill_job(f'http://localhost:{8063}/hyperctl', job_name)
 
     _thread.start_new_thread(send_kill_request, ())
-
     scheduler.run_batch(batch)
-
     assert_batch_finished(batch, batch.name, [job_name], ShellJob.STATUS_FAILED)
-    assert_local_job_finished(batch.jobs)
+    time.sleep(1)

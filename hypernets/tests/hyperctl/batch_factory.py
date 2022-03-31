@@ -25,7 +25,7 @@ def create_minimum_batch(command="pwd"):
                   backend_conf=BackendConf(type='local'),
                   server_conf=ServerConf('localhost', 8063, exit_on_finish=True))
 
-    data_dir = (Path(batches_data_dir)/"job1").absolute().as_posix()
+    data_dir = (Path(batches_data_dir)/ batch.name / "job1").absolute().as_posix()
 
     execution_conf = ExecutionConf(command=command, data_dir=data_dir, working_dir=data_dir)
 

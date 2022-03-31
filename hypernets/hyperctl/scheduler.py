@@ -14,7 +14,7 @@ from hypernets.utils import logging as hyn_logging, common as common_util
 logger = hyn_logging.getLogger(__name__)
 
 
-class Scheduler:
+class JobScheduler:
 
     def __init__(self, batch, exit_on_finish, interval, executor_manager):
         self.batch = batch
@@ -24,6 +24,29 @@ class Scheduler:
 
     def start(self):
         self._timer.start()
+
+    def kill_job(self, job_name):
+        # checkout job
+        job: ShellJob = self.batch.get_job_by_name(job_name)
+        if job is None:
+            raise ValueError(f'job {job_name} does not exists ')
+
+        logger.info(f"trying kill job {job_name}, it's status is {job.status} ")
+
+        # check job status
+        if job.status != job.STATUS_RUNNING:
+            raise RuntimeError(f"job {job_name} in not in {job.STATUS_RUNNING} status but is {job.status} ")
+
+        # find executor and kill
+        em = self.executor_manager
+        executor = em.get_executor(job)
+        logger.info(f"find executor {executor} of job {job_name}")
+        if executor is not None:
+            em.kill_executor(executor)
+            logger.info(f"write failed status file for {job_name}")
+            self.change_job_status(job, job.STATUS_FAILED)
+        else:
+            raise ValueError(f"no executor found for job {job.name}")
 
     @staticmethod
     def change_job_status(job: ShellJob, next_status):
@@ -61,7 +84,7 @@ class Scheduler:
             executor_status = finished_executor.status()
             job = finished_executor.job
             logger.info(f"job {job.name} finished with status {executor_status}")
-            Scheduler.change_job_status(job, finished_executor.status())
+            JobScheduler.change_job_status(job, finished_executor.status())
             executor_manager.release_executor(finished_executor)
 
     @staticmethod
@@ -76,13 +99,13 @@ class Scheduler:
                 process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
                 logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir} ')
                 # os.makedirs(job.job_data_dir, exist_ok=True)
-                Scheduler.change_job_status(job, job.STATUS_RUNNING)
+                JobScheduler.change_job_status(job, job.STATUS_RUNNING)
                 executor.run()
             except NoResourceException:
                 logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
-                Scheduler.change_job_status(job, job.STATUS_FAILED)
+                JobScheduler.change_job_status(job, job.STATUS_FAILED)
                 logger.exception(f"failed to run job '{job.name}' ", e)
                 continue
             finally:
@@ -105,22 +128,22 @@ class Scheduler:
         self._dispatch_jobs(self.executor_manager, jobs)
 
 
-def _start_api_server(batch: Batch, executor_manager):
+def _start_api_server(batch: Batch, job_scheduler):
     # create web app
     logger.info(f"start api server at: {batch.server_conf.portal}")
     from hypernets.hyperctl.server import create_batch_manage_webapp
-    create_batch_manage_webapp(batch, executor_manager).listen(batch.server_conf.port)
+    create_batch_manage_webapp(batch, job_scheduler).listen(batch.server_conf.port)
 
     # run io loop
     ioloop.IOLoop.instance().start()
 
 
 def run_batch(batch: Batch):
-    scheduler = prepare_batch(batch)
-    _start_api_server(batch, scheduler.executor_manager)
+    job_scheduler = prepare_batch(batch)
+    _start_api_server(batch, job_scheduler)
 
 
-def prepare_batch(batch: Batch) -> Scheduler:
+def prepare_batch(batch: Batch) -> JobScheduler:
     batches_data_dir = batch.batches_data_dir
     batches_data_dir = Path(batches_data_dir)
     logger.info(f"batches_data_path: {batches_data_dir.absolute()}")
@@ -154,13 +177,13 @@ def prepare_batch(batch: Batch) -> Scheduler:
     executor_manager = create_executor_manager(batch.backend_conf, batch.server_conf)
 
     # create scheduler
-    scheduler = Scheduler(batch, batch.server_conf.exit_on_finish, 5000, executor_manager)
-    scheduler.start()
+    job_scheduler = JobScheduler(batch, batch.server_conf.exit_on_finish, 5000, executor_manager)
+    job_scheduler.start()
     # write pid file
     with open(batch.pid_file_path(), 'w', newline='\n') as f:
         f.write(str(os.getpid()))
 
-    return scheduler
+    return job_scheduler
 
 
 def run_batch_config(config_dict, batches_data_dir):

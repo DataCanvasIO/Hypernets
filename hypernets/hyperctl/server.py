@@ -9,6 +9,7 @@ from tornado.web import RequestHandler, Finish, HTTPError, Application
 from hypernets.hyperctl.batch import Batch
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.hyperctl.executor import RemoteSSHExecutorManager
+from hypernets.hyperctl.scheduler import JobScheduler
 from hypernets.utils import logging as hyn_logging
 
 logger = hyn_logging.getLogger(__name__)
@@ -103,39 +104,16 @@ class JobOperationHandler(BaseHandler):
     OPT_KILL = 'kill'
 
     def post(self, job_name, operation, **kwargs):
-        # job_name
-        # request_body = self.get_request_as_dict()
-
-        if operation not in [self.OPT_KILL]:
+        # kill job
+        if operation == self.OPT_KILL:
+            self.job_scheduler.kill_job(job_name)
+            self.response({"msg": f"{job_name} killed"})
+        else:
             raise ValueError(f"unknown operation {operation} ")
 
-        # checkout job
-        job: ShellJob = self.batch.get_job_by_name(job_name)
-        if job is None:
-            raise ValueError(f'job {job_name} does not exists ')
-
-        if operation == self.OPT_KILL:  # do kill
-            logger.debug(f"trying kill job {job_name}, it's status is {job.status} ")
-            # check job status
-            if job.status != job.STATUS_RUNNING:
-                raise RuntimeError(f"job {job_name} in not in {job.STATUS_RUNNING} status but is {job.status} ")
-
-            # find executor and close
-            em: RemoteSSHExecutorManager = self.executor_manager
-            executor = em.get_executor(job)
-            logger.debug(f"find executor {executor} of job {job_name}")
-            if executor is not None:
-                em.kill_executor(executor)
-                logger.debug(f"write failed status file for {job_name}")
-                # FIXME: update to modify status in Scheduler
-                # dao.change_job_status(job, job.STATUS_FAILED)
-                self.response({"msg": f"{job.name} killed"})
-            else:
-                raise ValueError(f"no executor found for job {job.name}")
-
-    def initialize(self, batch: Batch, executor_manager):
+    def initialize(self, batch: Batch, job_scheduler: JobScheduler):
         self.batch = batch
-        self.executor_manager = executor_manager
+        self.job_scheduler = job_scheduler
 
 
 class JobListHandler(BaseHandler):
@@ -150,10 +128,10 @@ class JobListHandler(BaseHandler):
         self.batch = batch
 
 
-def create_batch_manage_webapp(batch, executor_manager):
+def create_batch_manage_webapp(batch, job_scheduler):
     application = Application([
         (r'/hyperctl/api/job/(?P<job_name>.+)/(?P<operation>.+)',
-         JobOperationHandler, dict(batch=batch, executor_manager=executor_manager)),
+         JobOperationHandler, dict(batch=batch, job_scheduler=job_scheduler)),
         (r'/hyperctl/api/job/(?P<job_name>.+)', JobHandler, dict(batch=batch)),
         (r'/hyperctl/api/job', JobListHandler, dict(batch=batch)),
         (r'/hyperctl', IndexHandler)

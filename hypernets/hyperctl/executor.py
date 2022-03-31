@@ -1,4 +1,5 @@
 import os
+import time
 import subprocess
 import tempfile
 from multiprocessing import cpu_count
@@ -70,7 +71,7 @@ class ShellExecutor:
 
 class RemoteShellExecutor(ShellExecutor):
     def __init__(self, job: ShellJob, connection):
-        super(RemoteShellExecutor, self).__init__(job)
+        super(RemoteShellExecutor, self).__init__(job)  # FIXME
         self.connections = connection
 
         self._command_ssh_client = None
@@ -174,8 +175,15 @@ class LocalShellExecutor(ShellExecutor):
             try:
                 self._process.kill()
                 self._process.terminate()
+                logger.info(f"kill pid {self._process.pid}")
             except Exception as e:
                 logger.exception("kill job exception", e)
+            process_ret_code = self._process.poll()
+            while process_ret_code is None:
+                time.sleep(1)
+                process_ret_code = self._process.poll()
+            logger.info(f"pid exit with code {process_ret_code}")
+
         else:
             logger.warning(f"current executor is not running or closed ")
 
@@ -276,7 +284,7 @@ class RemoteSSHExecutorManager(ExecutorManager):
         raise NoResourceException
 
     def kill_executor(self, executor):
-        self.release_executor(executor)
+        self.release_executor(executor) # TODO check
 
     def release_executor(self, executor):
         machine = self._executors_map.get(executor)
@@ -310,8 +318,9 @@ class LocalExecutorManager(ExecutorManager):
         self._waiting_queue.remove(executor)
         executor.close()
 
-    def kill_executor(self, executor):
+    def kill_executor(self, executor: LocalShellExecutor):
         self.release_executor(executor)
+        executor.kill()
 
 
 def create_executor_manager(backend_conf, server_conf):  # instance factory
