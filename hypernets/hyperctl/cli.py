@@ -62,7 +62,7 @@ def run_generate_job_specs(template, output):
     }
 
     copy_item(config_dict, batch_spec, 'backend')
-    copy_item(config_dict, batch_spec, 'daemon')
+    copy_item(config_dict, batch_spec, 'server')
 
     # 4. write to file
     os.makedirs(output_path.parent, exist_ok=True)
@@ -91,9 +91,9 @@ def run_show_jobs(batch_name, batches_data_dir=None):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    daemon_portal = batch.server_conf.portal
+    api_server_portal = batch.server_conf.portal
 
-    jobs_dict = api.list_jobs(daemon_portal)
+    jobs_dict = api.list_jobs(api_server_portal)
 
     headers = ['name', 'status']
     tb = pt.PrettyTable(headers)
@@ -109,9 +109,9 @@ def run_kill_job(batch_name, job_name, batches_data_dir=None):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    daemon_portal = batch.server_conf.portal
+    api_server_portal = batch.server_conf.portal
 
-    jobs_dict = api.kill_job(daemon_portal, job_name)
+    jobs_dict = api.kill_job(api_server_portal, job_name)
     print("Killed")
 
 
@@ -121,9 +121,9 @@ def show_job(batch_name, job_name, batches_data_dir=None):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    daemon_portal = batch.server_conf.portal
+    api_server_portal = batch.server_conf.portal
 
-    job_dict = api.get_job(job_name, daemon_portal)
+    job_dict = api.get_job(job_name, api_server_portal)
     job_desc = json.dumps(job_dict, indent=4)
     print(job_desc)
 

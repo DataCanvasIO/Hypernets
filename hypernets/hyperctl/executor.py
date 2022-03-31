@@ -21,9 +21,9 @@ class NoResourceException(Exception):
 
 class ShellExecutor:
 
-    def __init__(self, job: ShellJob, daemon_portal):
+    def __init__(self, job: ShellJob, api_server_portal):
         self.job = job
-        self.daemon_portal = daemon_portal
+        self.api_server_portal = api_server_portal
 
     def run(self):
         pass
@@ -47,7 +47,7 @@ class ShellExecutor:
             consts.KEY_ENV_JOB_NAME: self.job.name,
             consts.KEY_ENV_JOB_EXECUTION_WORKING_DIR: self.job.execution.working_dir,  # default value
             consts.KEY_TEMPLATE_COMMAND: self.job.execution.command,
-            consts.KEY_ENV_DAEMON_PORTAL: self.daemon_portal,
+            consts.KEY_ENV_SERVER_PORTAL: self.api_server_portal,
         }
 
         run_shell = str(consts.RUN_SH_TEMPLATE)
@@ -141,8 +141,8 @@ class RemoteShellExecutor(ShellExecutor):
 
 class LocalShellExecutor(ShellExecutor):
 
-    def __init__(self, job: ShellJob, daemon_portal):
-        super(LocalShellExecutor, self).__init__(job, daemon_portal)
+    def __init__(self, job: ShellJob, api_server_portal):
+        super(LocalShellExecutor, self).__init__(job, api_server_portal)
         self._process = None
 
     def run(self):
@@ -226,8 +226,8 @@ class SSHRemoteMachine:
 
 class ExecutorManager:
 
-    def __init__(self, daemon_portal):
-        self.daemon_portal = daemon_portal
+    def __init__(self, api_server_portal):
+        self.api_server_portal = api_server_portal
         self._waiting_queue = []
 
     def allocated_executors(self):
@@ -254,8 +254,8 @@ class ExecutorManager:
 
 class RemoteSSHExecutorManager(ExecutorManager):
 
-    def __init__(self, machines: List[SSHRemoteMachine], daemon_portal):
-        super(RemoteSSHExecutorManager, self).__init__(daemon_portal)
+    def __init__(self, machines: List[SSHRemoteMachine], api_server_portal):
+        super(RemoteSSHExecutorManager, self).__init__(api_server_portal)
         self.machines = machines
 
         self._executors_map = {}
@@ -288,8 +288,8 @@ class RemoteSSHExecutorManager(ExecutorManager):
 
 class LocalExecutorManager(ExecutorManager):
 
-    def __init__(self, daemon_portal):
-        super(LocalExecutorManager, self).__init__(daemon_portal)
+    def __init__(self, api_server_portal):
+        super(LocalExecutorManager, self).__init__(api_server_portal)
         self._allocated_executors = []
         self._is_busy = False
 
@@ -298,7 +298,7 @@ class LocalExecutorManager(ExecutorManager):
 
     def alloc_executor(self, job):
         if not self._is_busy:
-            executor = LocalShellExecutor(job, self.daemon_portal)
+            executor = LocalShellExecutor(job, self.api_server_portal)
             self._allocated_executors.append(executor)
             self._waiting_queue.append(executor)
             self._is_busy = True
@@ -314,21 +314,21 @@ class LocalExecutorManager(ExecutorManager):
         self.release_executor(executor)
 
 
-def create_executor_manager(backend_conf, daemon_conf):  # instance factory
+def create_executor_manager(backend_conf, server_conf):  # instance factory
     backend_type = backend_conf.type
     if backend_type == 'remote':
         remote_backend_config = backend_conf.conf
         machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]
         # check remote host setting
-        daemon_host = daemon_conf.host
+        server_host = server_conf.host
         # only warning for remote backend
-        if consts.HOST_LOCALHOST == daemon_host:
+        if consts.HOST_LOCALHOST == server_host:
             logger.warning("recommended that set IP address that can be accessed in remote machines, "
                            "but now it's \"localhost\", and the task executed on the remote machines "
-                           "may fail because it can't get information from the daemon server,"
-                           " you can set it in `daemon.host` ")
-        return RemoteSSHExecutorManager(machines, daemon_conf.portal)
+                           "may fail because it can't get information from the api server server,"
+                           " you can set it in `server.host` ")
+        return RemoteSSHExecutorManager(machines, server_conf.portal)
     elif backend_type == 'local':
-        return LocalExecutorManager(daemon_conf.portal)
+        return LocalExecutorManager(server_conf.portal)
     else:
         raise ValueError(f"unknown backend {backend_type}")

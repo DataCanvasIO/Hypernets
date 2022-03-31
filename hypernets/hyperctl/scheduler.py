@@ -107,7 +107,7 @@ class Scheduler:
 
 def _start_api_server(batch: Batch):
     # create web app
-    logger.info(f"start daemon server at: {batch.server_conf.portal}")
+    logger.info(f"start api server server at: {batch.server_conf.portal}")
     from hypernets.hyperctl.server import create_batch_manage_webapp
     create_batch_manage_webapp().listen(batch.server_conf.port)
 
@@ -115,14 +115,14 @@ def _start_api_server(batch: Batch):
     ioloop.IOLoop.instance().start()
 
 
-def run_batch(batch: Batch, batches_data_dir):
-    prepare_batch(batch, batches_data_dir)
+def run_batch(batch: Batch):
+    prepare_batch(batch)
 
     _start_api_server(batch)
 
 
-def prepare_batch(batch: Batch, batches_data_dir):
-
+def prepare_batch(batch: Batch):
+    batches_data_dir = batch.batches_data_dir
     batches_data_dir = Path(batches_data_dir)
     logger.info(f"batches_data_path: {batches_data_dir.absolute()}")
     logger.info(f"batch name: {batch.name}")
@@ -180,7 +180,7 @@ def run_batch_config(config_dict, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
 
     batch = load_batch(config_dict, batches_data_dir)
-    prepare_batch(batch, batches_data_dir)
+    prepare_batch(batch)
 
     _start_api_server(batch)
     # TODO: check return

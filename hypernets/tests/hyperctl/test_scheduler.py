@@ -8,9 +8,10 @@ import pytest
 
 from hypernets.hyperctl import api
 from hypernets.hyperctl import scheduler, utils
-from hypernets.hyperctl.batch import BackendConf, ServerConf
+from hypernets.hyperctl.batch import BackendConf, ServerConf, ExecutionConf
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
+from hypernets.tests.hyperctl.batch_factory import create_minimum_batch
 from hypernets.tests.utils import ssh_utils_test
 from hypernets.utils import is_os_windows
 from hypernets.utils.common import generate_short_id
@@ -125,15 +126,14 @@ def test_run_remote():
 @skip_if_windows
 def test_run_local():
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-    job_name0 = "eVqNV5Uo0"
-    job_name1 = "eVqNV5Uo1"
+    job1_name = "eVqNV5Uo0"
+    job2_name = "eVqNV5Uo1"
     batch_name = "eVqNV5Ut"
-    local_example_script = Path("hypernets/tests/hyperctl/local-example-script.py").absolute()
-    print(local_example_script)
+    local_example_script = Path("hypernets/tests/hyperctl/plain_job_script.py").absolute()
     config_dict = {
         "jobs": [
             {
-                "name": job_name0,
+                "name": job1_name,
                 "params": {
                     "learning_rate": 0.1
                 },
@@ -145,7 +145,7 @@ def test_run_local():
                     "working_dir": "/tmp"
                 }
             }, {
-                "name": job_name1,
+                "name": job2_name,
                 "params": {
                     "learning_rate": 0.1
                 },
@@ -163,11 +163,10 @@ def test_run_local():
             "conf": {}
         },
         "name": batch_name,
-        "daemon": {
+        "server": {
             "port": 8061,
             "exit_on_finish": True
-        },
-        "version": 2.5
+        }
     }
 
     batch = scheduler.run_batch_config(config_dict, batches_data_dir)
@@ -175,7 +174,7 @@ def test_run_local():
     # executor_manager = get_context().executor_manager
     # assert isinstance(executor_manager, LocalExecutorManager)
 
-    assert_batch_finished(batch, batch_name, [job_name0, job_name1], ShellJob.STATUS_SUCCEED)
+    assert_batch_finished(batch, batch_name, [job1_name, job2_name], ShellJob.STATUS_SUCCEED)
 
 
 @skip_if_windows
@@ -228,44 +227,11 @@ def test_kill_local_job():
 
 
 @skip_if_windows
-def test_run_local_minimum_conf():
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+def test_run_minimum_local_batch():
 
-    config_dict = {
-        "jobs": [
-            {
-                "params": {
-                    "learning_rate": 0.1
-                },
-                "execution": {
-                    "command": "pwd"
-                }
-            }
-        ],
-        "daemon": {'exit_on_finish': True, 'port': 8063}
-    }
-    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
+    batch = create_minimum_batch()
 
-    batch_name = batch.name
-    jobs_name = [j.name for j in batch.jobs]
-
-    assert_batch_finished(batch, batch_name, jobs_name, ShellJob.STATUS_SUCCEED)
-
-    assert_local_job_succeed(batch.jobs)
-
-
-@skip_if_windows
-def test_minimum_local_batch():
-
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-
-    batch = Batch(generate_short_id(), batches_data_dir,
-                  backend_conf=BackendConf(type='local'),
-                  server_conf=ServerConf('localhost', 8063, exit_on_finish=True))
-    job_params = {"learning_rate": 0.1}
-    batch.add_job(name='job1', params=job_params, resource=None, execution={"command": "pwd"})
-
-    scheduler.run_batch(batch, batches_data_dir)
+    scheduler.run_batch(batch)
 
     batch_name = batch.name
     jobs_name = [j.name for j in batch.jobs]

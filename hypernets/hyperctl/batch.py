@@ -5,6 +5,7 @@ from pathlib import Path
 import psutil
 from typing import Dict
 from hypernets.hyperctl import consts
+from hypernets import __version__ as hyn_version
 
 
 class ExecutionConf:
@@ -29,7 +30,7 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, resource, execution, batch):
+    def __init__(self, name, params, resource, execution: ExecutionConf, batch):
         self.name = name
         self.params = params
         self.resource = resource
@@ -94,7 +95,7 @@ class ShellJob:
 
 
 class ServerConf:  # API server conf
-    def __init__(self, host, port, exit_on_finish=False):
+    def __init__(self, host="localhost", port=8060, exit_on_finish=False):
         self.host = host
         self.port = port
         self.exit_on_finish = exit_on_finish
@@ -128,7 +129,7 @@ class BackendConf:
 class Batch:
 
     FILE_SPEC = "spec.json"
-    FILE_PID = "daemon.pid"
+    FILE_PID = "server.pid"
 
     STATUS_NOT_START = "NOT_START"
     STATUS_RUNNING = "RUNNING"
@@ -219,8 +220,8 @@ class Batch:
             "jobs": jobs_config,
             "backend": self.backend_conf.to_config(),
             "name": self.name,
-            "daemon": self.server_conf.to_config(),
-            "version": 2.5
+            "server": self.server_conf.to_config(),
+            "version": hyn_version
         }
 
 
@@ -228,15 +229,10 @@ def load_batch(batch_spec_dict, batches_data_dir):
     batch_name = batch_spec_dict['name']
     jobs_dict = batch_spec_dict['jobs']
 
-    default_daemon_conf = consts.default_daemon_conf()
+    server_config_dict = batch_spec_dict.get('server', {})
+    backend_config_dict = batch_spec_dict.get('backend', {})
 
-    user_daemon_conf = batch_spec_dict.get('daemon')
-    if user_daemon_conf is not None:
-        default_daemon_conf.update(user_daemon_conf)
-
-    backend_config = batch_spec_dict.get('backend', {})
-
-    batch = Batch(batch_name, batches_data_dir, BackendConf(**backend_config), ServerConf(**default_daemon_conf))
+    batch = Batch(batch_name, batches_data_dir, BackendConf(**backend_config_dict), ServerConf(**server_config_dict))
     for job_dict in jobs_dict:
         execution_conf = job_dict.get('execution', {})
         if execution_conf.get('data_dir') is None:
