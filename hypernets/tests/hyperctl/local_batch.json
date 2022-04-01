@@ -1,32 +1,20 @@
 {
     "jobs": [
         {
-            "name": "eVqNV5U1",
+            "name": "job1",
             "params": {
-                "learning_rate": 0.1,
-                "dataset": "path/d1.csv"
-            },
-            "resource": {
-                "cpu": 2
+                "learning_rate": 0.1
             },
             "execution": {
-                "command": "sleep 3",
-                "working_dir": "/tmp",
-                "data_dir": "/tmp/hyperctl-batch-data"
+                "command": "sleep 100;echo \"finished\""
             }
         },{
-            "name": "eVqNV5U2",
+            "name": "job2",
             "params": {
-                "learning_rate": 0.1,
-                "dataset": "path/d1.csv"
-            },
-            "resource": {
-                "cpu": 2
+                "learning_rate": 0.2
             },
             "execution": {
-                "command": "sleep 3",
-                "working_dir": "/tmp",
-                "data_dir": "/tmp/hyperctl-batch-data"
+                "command": "sleep 100;echo \"finished\""
             }
         }
     ],
@@ -34,11 +22,10 @@
         "type": "local",
         "conf": {}
     },
-    "name": "eVqNV5Ut1",
+    "name": "local-batch-example",
     "server": {
         "host": "localhost",
         "port":8060,
         "exit_on_finish": false
-    },
-    "version": 2.5
+    }
 }

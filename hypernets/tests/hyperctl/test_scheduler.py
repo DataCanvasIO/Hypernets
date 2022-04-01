@@ -99,7 +99,7 @@ def test_kill_local_job():
 
     def send_kill_request():
         time.sleep(6)
-        api.kill_job(f'http://localhost:{8063}/hyperctl', job_name)
+        api.kill_job(f'http://localhost:{8063}', job_name)
 
     _thread.start_new_thread(send_kill_request, ())
     scheduler.run_batch(batch)

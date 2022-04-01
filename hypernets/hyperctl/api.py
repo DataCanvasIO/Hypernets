@@ -24,14 +24,14 @@ def _fetch_url(url, method='get'):
 
 
 def get_job(job_name, api_server_portal):
-    url_get_job = f"{api_server_portal}/api/job/{job_name}"
+    url_get_job = f"{api_server_portal}/hyperctl/api/job/{job_name}"
     data = _fetch_url(url_get_job)
     return data
 
 
 def _get_job_name_and_damon_portal():
     job_name = os.getenv(consts.KEY_ENV_JOB_NAME)
-    api_server_portal = f"{os.getenv(consts.KEY_ENV_SERVER_PORTAL)}/hyperctl"
+    api_server_portal = f"{os.getenv(consts.KEY_ENV_SERVER_PORTAL)}"
 
     assert job_name
     assert api_server_portal
@@ -53,12 +53,13 @@ def list_jobs(api_server_portal):
     # if api_server_portal is None:
     #     api_server_portal = os.getenv(consts.KEY_ENV_api_server_portal)
     assert api_server_portal
-    url_get_jobs = f"{api_server_portal}/api/job"
+    url_get_jobs = f"{api_server_portal}/hyperctl/api/job"
     data = _fetch_url(url_get_jobs)
     return data['jobs']
 
 
 def kill_job(api_server_portal, job_name):
-    url_kill_job = f"{api_server_portal}/api/job/{job_name}/kill"
+    url_kill_job = f"{api_server_portal}/hyperctl/api/job/{job_name}/kill"
     data = _fetch_url(url_kill_job, method='post')
     return data
+

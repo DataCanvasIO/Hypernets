@@ -9,6 +9,7 @@ from tornado.ioloop import PeriodicCallback
 from hypernets.hyperctl.batch import Batch, load_batch
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.hyperctl.executor import NoResourceException, ShellExecutor
+from hypernets.hyperctl.utils import load_json
 from hypernets.utils import logging as hyn_logging, common as common_util
 
 logger = hyn_logging.getLogger(__name__)

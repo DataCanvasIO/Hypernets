@@ -11,9 +11,18 @@ from hypernets import __version__ as current_version
 from hypernets.hyperctl import api
 from hypernets.hyperctl import consts
 from hypernets.hyperctl.batch import Batch, load_batch
-from hypernets.hyperctl.scheduler import get_batches_data_dir  # FIXME
+from hypernets.hyperctl.scheduler import run_batch_config
 from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
 from hypernets.utils import logging as hyn_logging, common as common_util
+
+
+def get_default_batches_data_dir():
+    bdd_env = os.environ.get(consts.KEY_ENV_BATCHES_DATA_DIR)
+    if bdd_env is None:
+        bdd_default = Path("~/hyperctl-batches-data-dir").expanduser().as_posix()
+        return bdd_default
+    else:
+        return bdd_env
 
 
 def run_generate_job_specs(template, output):
@@ -71,12 +80,6 @@ def run_generate_job_specs(template, output):
     return batch_spec
 
 
-def run_batch_from_config_file(config, batches_data_dir=None):
-    config_dict = load_json(config)
-    batch = prepare_batch(config_dict, batches_data_dir)
-    _start_api_server(batch)
-
-
 def load_batch_data_dir(batches_data_dir, batch_name):
     spec_file_path = Path(batches_data_dir) / batch_name / Batch.FILE_SPEC
     if not spec_file_path.exists():
@@ -85,8 +88,8 @@ def load_batch_data_dir(batches_data_dir, batch_name):
     return load_batch(batch_spec_dict, batches_data_dir)
 
 
-def run_show_jobs(batch_name, batches_data_dir=None):
-    batches_data_dir = Path(get_batches_data_dir(batches_data_dir))
+def run_show_jobs(batch_name, batches_data_dir):
+    batches_data_dir = Path(batches_data_dir)
     batch = load_batch_data_dir(batches_data_dir, batch_name)
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
@@ -103,8 +106,8 @@ def run_show_jobs(batch_name, batches_data_dir=None):
     print(tb)
 
 
-def run_kill_job(batch_name, job_name, batches_data_dir=None):
-    batches_data_dir = Path(get_batches_data_dir(batches_data_dir))
+def run_kill_job(batch_name, job_name, batches_data_dir):
+    batches_data_dir = Path(batches_data_dir)
     batch = load_batch_data_dir(batches_data_dir, batch_name)
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
@@ -115,8 +118,8 @@ def run_kill_job(batch_name, job_name, batches_data_dir=None):
     print("Killed")
 
 
-def show_job(batch_name, job_name, batches_data_dir=None):
-    batches_data_dir = Path(get_batches_data_dir(batches_data_dir))
+def show_job(batch_name, job_name, batches_data_dir):
+    batches_data_dir = Path(batches_data_dir)
     batch = load_batch_data_dir(batches_data_dir, batch_name)
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
@@ -128,18 +131,13 @@ def show_job(batch_name, job_name, batches_data_dir=None):
     print(job_desc)
 
 
-def run_show_batches(batches_data_dir=None):
-    """
-    Parameters
-    ----------
-    batches_data_dir
-        if not spec, get from environment , if is None default value is '~/hyperctl-batches'
+def run_batch_config_file(config, batches_data_dir):
+    config_dict = load_json(config)
+    run_batch_config(config_dict, batches_data_dir)
 
-    Returns
-    -------
 
-    """
-    batches_data_dir = Path(get_batches_data_dir(batches_data_dir))
+def run_show_batches(batches_data_dir):
+    batches_data_dir = Path(batches_data_dir)
 
     if not batches_data_dir.exists():
         print("null")
@@ -169,9 +167,23 @@ def run_show_batches(batches_data_dir=None):
         tb.add_row(row)
     print(tb)
 
+
 def main():
+    """
+    Examples:
+        cd hypernets/tests/hyperctl/
+        hyperctl run --config ./local_batch.json
+        hyperctl batch list
+        hyperctl job list --batch-name=local-batch-example
+        hyperctl job describe --job-name=job1 --batch-name=local-batch-example
+        hyperctl job kill --job-name=job1 --batch-name=local-batch-example
+        hyperctl job kill --job-name=job2 --batch-name=local-batch-example
+        hyperctl batch list
+    :return:
+    """
 
     bdd_help = f"batches data dir, default get from environment variable {consts.KEY_ENV_BATCHES_DATA_DIR}"
+    default_batches_data_dir = get_default_batches_data_dir()
 
     def setup_global_args(global_parser):
         # console output
@@ -192,7 +204,8 @@ def main():
         exec_parser = operation_parser.add_parser("batch", help="batch operations")
         batch_subparsers = exec_parser.add_subparsers(dest="batch_operation")
         batch_list_parse = batch_subparsers.add_parser("list", help="list batches")
-        batch_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+        batch_list_parse.add_argument("--batches-data-dir", help=bdd_help,
+                                      default=default_batches_data_dir, required=False)
 
     def setup_job_parser(operation_parser):
 
@@ -202,12 +215,14 @@ def main():
 
         job_list_parse = batch_subparsers.add_parser("list", help="list jobs")
         job_list_parse.add_argument("-b", "--batch-name", help="batch name", default=None, required=True)
-        job_list_parse.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+        job_list_parse.add_argument("--batches-data-dir", help=bdd_help,
+                                    default=default_batches_data_dir, required=True)
 
         def add_job_spec_args(parser_):
             parser_.add_argument("-b", "--batch-name", help="batch name", default=None, required=True)
             parser_.add_argument("-j", "--job-name", help="job name", default=None, required=True)
-            parser_.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+            parser_.add_argument("--batches-data-dir", help=bdd_help, default=default_batches_data_dir,
+                                 required=False)
 
         job_kill_parse = batch_subparsers.add_parser("kill", help="kill job")
         add_job_spec_args(job_kill_parse)
@@ -218,7 +233,8 @@ def main():
     def setup_run_parser(operation_parser):
         exec_parser = operation_parser.add_parser("run", help="run jobs")
         exec_parser.add_argument("-c", "--config", help="specific jobs json file", default=None, required=True)
-        exec_parser.add_argument("--batches-data-dir", help=bdd_help, default=None, required=False)
+        exec_parser.add_argument("--batches-data-dir", help=bdd_help, default=default_batches_data_dir,
+                                 required=False)
 
     def setup_generate_parser(operation_parser):
         exec_parser = operation_parser.add_parser("generate", help="generate specific jobs json file ")
@@ -248,7 +264,7 @@ def main():
     operation = kwargs.pop('operation')
 
     if operation == 'run':
-        run_batch_from_config_file(**kwargs)
+        run_batch_config_file(**kwargs)
     elif operation == 'generate':
         run_generate_job_specs(**kwargs)
     elif operation == 'batch':
