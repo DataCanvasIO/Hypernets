@@ -109,14 +109,14 @@ Hyperctl also supports parallel jobs in remote machines by configuring the argum
             ]
         }
     }
-  "daemon": {
+  "server": {
       "host": "192.168.10.206",  // str, optional, http service host ip, you should use IP address that can be accessed in remote machines
   }
 }
 ```
 
-Note that the configuration item `daemon.host` should be accessed by remote machines declared in the configuration `backend.conf.machines`,
-Otherwise, the task will fail because the daemon server cannot be accessed.
+Note that the configuration item `server.host` should be accessed by remote machines declared in the configuration `backend.conf.machines`,
+Otherwise, the task will fail because the api server cannot be accessed.
 
 
 EX4. Full job configuration
@@ -148,7 +148,7 @@ The example below shows a full job configuration.
         "type": "local", // str, one of "local,remote"
         "conf": {}  // 
     },
-    "daemon": {  // dict, optional, daemon process setting
+    "server": {  // dict, optional, api server process setting
         "host": "192.168.10.206",  // str, optional, default is localhosh, http service host ip, you should use IP address that can be accessed in remote machines if is remote backend
         "port": 8060,  // int, optional, default is 8060, http service port
         "exit_on_finish": false  // boolean, optional , default is false, whether to exit the process when all jobs are finished
