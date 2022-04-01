@@ -34,14 +34,17 @@ def create_minimum_batch(command="pwd"):
     return batch
 
 
-def create_local_batch():
+def _create_local_batch(backend=None):
+    if backend is None:
+        backend = BackendConf(type='local')
+
     job1_name = "job1"
     job2_name = "job2"
     daemon_port = 8062
 
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
     batch = Batch("local-batch", batches_data_dir,
-                  backend_conf=BackendConf(type='local'),
+                  backend_conf=backend,
                   server_conf=ServerConf('localhost', daemon_port, exit_on_finish=True))
 
     job1_data_dir = (Path(batches_data_dir)/ job1_name).absolute().as_posix()
@@ -61,3 +64,15 @@ def create_local_batch():
                                           data_dir=job2_data_dir,
                                           working_dir=job2_data_dir))
     return batch
+
+
+def create_local_batch():
+    return _create_local_batch()
+
+
+def create_remote_batch():
+
+    backend_conf = BackendConf(type='remote', conf={
+        "machines": [ssh_utils_test.load_ssh_psw_config()]
+    })
+    return _create_local_batch(backend_conf)

@@ -11,7 +11,7 @@ from hypernets.hyperctl import scheduler, utils
 from hypernets.hyperctl.batch import BackendConf, ServerConf, ExecutionConf
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
-from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch
+from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch, create_remote_batch
 from hypernets.tests.utils import ssh_utils_test
 from hypernets.utils import is_os_windows
 from hypernets.utils.common import generate_short_id
@@ -64,64 +64,15 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
         assert Path(job.status_file_path(status)).exists()
 
 
-@ssh_utils_test.need_ssh
+@ssh_utils_test.need_psw_auth_ssh
 def test_run_remote():
-    job1_name = "eVqNV5Uo1"
-    job2_name = "eVqNV5Uo2"
-    batch_name = "eVqNV5Ut"
-    jobs_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-jobs")
-    config_dict = {
-        "jobs": [
-            {
-                "name": job1_name,
-                "params": {
-                    "learning_rate": 0.1
-                },
-                "resource": {
-                },
-                "execution": {
-                    "command": "sleep 3",
-                    "working_dir": "/tmp",
-                    "data_dir": jobs_data_dir
-                }
-            }, {
-                "name": job2_name,
-                "params": {
-                    "learning_rate": 0.1
-                },
-                "resource": {
-                },
-                "execution": {
-                    "command": "sleep 3",
-                    "working_dir": "/tmp",
-                    "data_dir": jobs_data_dir
-                }
-            }
-        ],
-        "backend": {
-            "type": "remote",
-            "conf": {
-                "machines": ssh_utils_test.get_ssh_test_config(use_password=True, use_rsa_file=False)
-            }
-        },
-        "name": batch_name,
-        "daemon": {
-            "port": 8060,
-            "exit_on_finish": True
-        },
-        "version": 2.5
-    }
+    batch = create_remote_batch()
 
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+    job_scheduler = scheduler.run_batch(batch)
+    assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
+    assert len(job_scheduler.executor_manager.machines) == 2
 
-    batch = scheduler.run_batch_config(config_dict, batches_data_dir)
-    # executor_manager = get_context().executor_manager
-    # batch = get_context().batch
-    # TODO assert isinstance(executor_manager, RemoteSSHExecutorManager)
-    # TODO assert len(executor_manager.machines) == 2
-
-    assert_batch_finished(batch, batch_name, [job1_name, job2_name], ShellJob.STATUS_SUCCEED)
-
+    assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
 
 
 @skip_if_windows

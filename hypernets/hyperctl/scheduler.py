@@ -204,8 +204,8 @@ def run_batch_config(config_dict, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
 
     batch = load_batch(config_dict, batches_data_dir)
-    prepare_batch(batch)
+    job_scheduler = prepare_batch(batch)
 
-    _start_api_server(batch)
+    _start_api_server(batch, job_scheduler)
     # TODO: check return
-    return batch
+    return batch, job_scheduler
