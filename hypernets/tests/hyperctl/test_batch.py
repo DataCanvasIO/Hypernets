@@ -1,20 +1,8 @@
-import _thread
-import sys
 import tempfile
-import time
 from pathlib import Path
 
-import pytest
-
-from hypernets.hyperctl import api
-from hypernets.hyperctl import scheduler, utils
-from hypernets.hyperctl.batch import BackendConf, ServerConf, ExecutionConf
-from hypernets.hyperctl.batch import ShellJob, Batch, load_batch
-from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
-from hypernets.tests.hyperctl.batch_factory import create_minimum_batch
-from hypernets.tests.utils import ssh_utils_test
-from hypernets.utils import is_os_windows
-from hypernets.utils.common import generate_short_id
+from hypernets.hyperctl.batch import ShellJob, load_batch
+from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch
 
 
 def test_batch_to_config():
@@ -114,4 +102,12 @@ def test_load_local_batch_from_config():
     assert batch.server_conf.port == 18060
     assert batch.server_conf.exit_on_finish is False
 
+
+def test_get_job_by_name():
+    batch = create_local_batch()
+    req_job_name = "job2"
+    job = batch.get_job_by_name(req_job_name)
+    assert job.name == req_job_name
+    assert job.status == ShellJob.STATUS_INIT
+    assert job.params['learning_rate'] == 0.2
 

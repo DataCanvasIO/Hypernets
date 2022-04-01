@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import psutil
-from typing import Dict
+from typing import Dict, Optional
 from hypernets.hyperctl import consts
 from hypernets import __version__ as hyn_version
 
@@ -191,7 +191,7 @@ class Batch:
     def _filter_jobs(self, status):
         return list(filter(lambda j: j.status == status, self.jobs))
 
-    def get_job_by_name(self, job_name):
+    def get_job_by_name(self, job_name) -> Optional[ShellJob]:
         for job in self.jobs:
             if job.name == job_name:
                 return job

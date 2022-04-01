@@ -141,6 +141,7 @@ def _start_api_server(batch: Batch, job_scheduler):
 def run_batch(batch: Batch):
     job_scheduler = prepare_batch(batch)
     _start_api_server(batch, job_scheduler)
+    return job_scheduler
 
 
 def prepare_batch(batch: Batch) -> JobScheduler:
@@ -207,5 +208,4 @@ def run_batch_config(config_dict, batches_data_dir):
     job_scheduler = prepare_batch(batch)
 
     _start_api_server(batch, job_scheduler)
-    # TODO: check return
     return batch, job_scheduler

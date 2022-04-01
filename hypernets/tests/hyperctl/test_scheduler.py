@@ -70,7 +70,7 @@ def test_run_remote():
 
     job_scheduler = scheduler.run_batch(batch)
     assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
-    assert len(job_scheduler.executor_manager.machines) == 2
+    assert len(job_scheduler.executor_manager.machines) == 1
 
     assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
 
@@ -84,11 +84,10 @@ def test_run_minimum_local_batch():
 
 
 @skip_if_windows
-def test_run_local():
+def test_run_local_batch():
     batch = create_local_batch()
-    # executor_manager = get_context().executor_manager
-    # assert isinstance(executor_manager, LocalExecutorManager)
-    scheduler.run_batch(batch)
+    job_scheduler = scheduler.run_batch(batch)
+    assert isinstance(job_scheduler.executor_manager, LocalExecutorManager)
     assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
     assert_local_job_succeed(batch.jobs)
 

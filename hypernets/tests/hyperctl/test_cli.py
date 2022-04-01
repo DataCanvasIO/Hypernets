@@ -21,3 +21,4 @@ def test_run_generate_job_specs():
     assert 'name' in jobs_spec
     assert len(jobs_spec['backend']['conf']['machines']) == 2
     os.remove(fp_)
+

@@ -70,8 +70,8 @@ class ShellExecutor:
 
 
 class RemoteShellExecutor(ShellExecutor):
-    def __init__(self, job: ShellJob, connection):
-        super(RemoteShellExecutor, self).__init__(job)  # FIXME
+    def __init__(self, job: ShellJob, api_server_portal, connection):
+        super(RemoteShellExecutor, self).__init__(job, api_server_portal)
         self.connections = connection
 
         self._command_ssh_client = None
@@ -202,9 +202,8 @@ class SSHRemoteMachine:
         with ssh_utils.ssh_client(**connection) as client:
             assert client
             logger.info(f"test connection to host {connection['hostname']} successfully")
-
+        # Note: requires unix server, does not support windows now
         self.connection = connection
-        # TODO: requires unix server, does not support windows now
 
         self._usage = (0, 0, 0)
 
@@ -277,14 +276,14 @@ class RemoteSSHExecutorManager(ExecutorManager):
                 ret = machine.alloc(-1, -1, -1)  # lock resource
                 if ret:
                     logger.debug(f'allocated resource on {machine.hostname} for job {job.name} ')
-                    executor = RemoteShellExecutor(job, machine.connection)
+                    executor = RemoteShellExecutor(job, self.api_server_portal, machine.connection)
                     self._executors_map[executor] = machine
                     self._waiting_queue.append(executor)
                     return executor
         raise NoResourceException
 
     def kill_executor(self, executor):
-        self.release_executor(executor) # TODO check
+        self.release_executor(executor)
 
     def release_executor(self, executor):
         machine = self._executors_map.get(executor)
