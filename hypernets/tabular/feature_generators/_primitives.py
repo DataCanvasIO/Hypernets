@@ -104,6 +104,11 @@ class TfidfPrimitive(primitives.TransformPrimitive):
     commutative = True
     compatibility = [primitives.Library.PANDAS, primitives.Library.DASK]
 
+    def __init__(self):
+        super().__init__()
+
+        self.encoder_ = None
+
     @property
     def number_output_features(self):
         return cfg.tfidf_primitive_output_feature_count
@@ -116,13 +121,16 @@ class TfidfPrimitive(primitives.TransformPrimitive):
         return self.fn_pd_or_dask
 
     def fn_pd_or_dask(self, x1):
-        from hypernets.tabular import get_tool_box
+        if self.encoder_ is None:
+            from hypernets.tabular import get_tool_box
+            tfs = get_tool_box(x1).transformers
+            encoder = make_pipeline(tfs['LocalizedTfidfVectorizer'](max_features=self.tfidf_max_features),
+                                    tfs['TruncatedSVD'](n_components=self.number_output_features))
+            xt = encoder.fit_transform(x1)
+            self.encoder_ = encoder
+        else:
+            xt = self.encoder_.transform(x1)
 
-        tfs = get_tool_box(x1).transformers
-        p = make_pipeline(tfs['LocalizedTfidfVectorizer'](max_features=self.tfidf_max_features),
-                          tfs['TruncatedSVD'](n_components=self.number_output_features))
-
-        xt = p.fit_transform(x1)
         if hasattr(xt, 'iloc'):
             result = [xt.iloc[:, i] for i in range(xt.shape[1])]
         else:
