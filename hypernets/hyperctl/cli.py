@@ -10,10 +10,15 @@ import prettytable as pt
 from hypernets import __version__ as current_version
 from hypernets.hyperctl import api
 from hypernets.hyperctl import consts
-from hypernets.hyperctl.batch import Batch, load_batch
-from hypernets.hyperctl.scheduler import run_batch_config
-from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
+from hypernets.hyperctl.batch import Batch, ShellJob
+from hypernets.hyperctl.appliation import BatchApplication
+from hypernets.hyperctl.utils import load_yaml, load_json, copy_item, http_portal
 from hypernets.utils import logging as hyn_logging, common as common_util
+from hypernets.utils import logging
+
+logging.set_level('DEBUG')
+
+logger = logging.getLogger(__name__)
 
 
 def get_default_batches_data_dir():
@@ -23,6 +28,26 @@ def get_default_batches_data_dir():
         return bdd_default
     else:
         return bdd_env
+
+
+def run_batch_config(config_dict, batches_data_dir):
+    # add batch name
+    batch_name = config_dict.get('name')
+    if batch_name is None:
+        batch_name = common_util.generate_short_id()
+        logger.debug(f"generated batch name {batch_name}")
+
+    # add job name
+    jobs_dict = config_dict['jobs']
+    for job_dict in jobs_dict:
+        if job_dict.get('name') is None:
+            job_name = common_util.generate_short_id()
+            logger.debug(f"generated job name {job_name}")
+            job_dict['name'] = job_name
+
+    app = BatchApplication.load(config_dict, batches_data_dir)
+
+    app.start()
 
 
 def run_generate_job_specs(template, output):
@@ -80,17 +105,18 @@ def run_generate_job_specs(template, output):
     return batch_spec
 
 
-def load_batch_data_dir(batches_data_dir, batch_name):
-    spec_file_path = Path(batches_data_dir) / batch_name / Batch.FILE_SPEC
+def _load_batch_data_dir(batches_data_dir, batch_name):
+    spec_file_path = Path(batches_data_dir) / batch_name / Batch.FILE_CONFIG
     if not spec_file_path.exists():
-        raise RuntimeError(f"batch {batch_name} not exists ")
+        raise RuntimeError(f"batch {batch_name} not exists")
+
     batch_spec_dict = load_json(spec_file_path)
-    return load_batch(batch_spec_dict, batches_data_dir)
+    return BatchApplication.load(batch_spec_dict, batches_data_dir)
 
 
 def run_show_jobs(batch_name, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
-    batch = load_batch_data_dir(batches_data_dir, batch_name)
+    batch = _load_batch_data_dir(batches_data_dir, batch_name)
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
@@ -108,7 +134,7 @@ def run_show_jobs(batch_name, batches_data_dir):
 
 def run_kill_job(batch_name, job_name, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
-    batch = load_batch_data_dir(batches_data_dir, batch_name)
+    batch = _load_batch_data_dir(batches_data_dir, batch_name)
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
@@ -120,7 +146,7 @@ def run_kill_job(batch_name, job_name, batches_data_dir):
 
 def show_job(batch_name, job_name, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
-    batch = load_batch_data_dir(batches_data_dir, batch_name)
+    batch = _load_batch_data_dir(batches_data_dir, batch_name)
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
@@ -150,9 +176,9 @@ def run_show_batches(batches_data_dir):
     for filename in os.listdir(batches_data_dir):
         if (Path(batches_data_dir)/filename).is_dir():
             batches_name.append(filename)
-            batch = load_batch_data_dir(batches_data_dir, filename)
+            batch_app = _load_batch_data_dir(batches_data_dir, filename)
 
-            batch_summary = batch.summary()
+            batch_summary = batch_app.summary_batch()
             batches_summary.append(batch_summary)
 
     if len(batches_summary) == 0:

@@ -4,9 +4,11 @@ from pathlib import Path
 
 from hypernets.hyperctl import cli, utils
 
+SRC_DIR = Path(__file__).parent
+
 
 def test_run_generate_job_specs():
-    batch_config_path = "hypernets/tests/hyperctl/remote_batch.yml"
+    batch_config_path = (SRC_DIR / "remote_batch.yml").as_posix()
     fd, fp = tempfile.mkstemp(prefix="jobs_spec_", suffix=".json")
     os.close(fd)
     os.remove(fp)
@@ -17,7 +19,7 @@ def test_run_generate_job_specs():
     assert fp_.exists()
     jobs_spec = utils.load_json(fp)
     assert len(jobs_spec['jobs']) == 4
-    assert 'daemon' in jobs_spec
+    assert 'server' in jobs_spec
     assert 'name' in jobs_spec
     assert len(jobs_spec['backend']['conf']['machines']) == 2
     os.remove(fp_)

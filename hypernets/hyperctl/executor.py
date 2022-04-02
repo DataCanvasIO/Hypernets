@@ -9,9 +9,11 @@ from typing import List
 from paramiko import SFTPClient
 
 from hypernets.hyperctl import consts
+from hypernets.hyperctl.utils import http_portal
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.utils import logging as hyn_logging
 from hypernets.utils import ssh_utils
+
 
 logger = hyn_logging.get_logger(__name__)
 
@@ -198,10 +200,6 @@ class SSHRemoteMachine:
 
     def __init__(self, connection):
 
-        # check connections
-        with ssh_utils.ssh_client(**connection) as client:
-            assert client
-            logger.info(f"test connection to host {connection['hostname']} successfully")
         # Note: requires unix server, does not support windows now
         self.connection = connection
 
@@ -214,6 +212,12 @@ class SSHRemoteMachine:
             return True
         else:
             return False
+
+    def test_connection(self):
+        # check connections
+        with ssh_utils.ssh_client(**self.connection) as client:
+            assert client
+            logger.info(f"test connection to host {self.connection['hostname']} successfully")
 
     @staticmethod
     def total_resources():
@@ -258,13 +262,18 @@ class ExecutorManager:
                 return e
         return None
 
+    def prepare(self):
+        pass
+
+    # def to_config(self):
+    #     raise NotImplemented
+
 
 class RemoteSSHExecutorManager(ExecutorManager):
 
     def __init__(self, machines: List[SSHRemoteMachine], api_server_portal):
         super(RemoteSSHExecutorManager, self).__init__(api_server_portal)
         self.machines = machines
-
         self._executors_map = {}
 
     def allocated_executors(self):
@@ -291,6 +300,10 @@ class RemoteSSHExecutorManager(ExecutorManager):
         machine.release(executor.job.resource)
         self._waiting_queue.remove(executor)
         executor.close()
+
+    def prepare(self):
+        for machine in self.machines:
+            machine.test_connection()
 
 
 class LocalExecutorManager(ExecutorManager):
@@ -322,21 +335,19 @@ class LocalExecutorManager(ExecutorManager):
         executor.kill()
 
 
-def create_executor_manager(backend_conf, server_conf):  # instance factory
-    backend_type = backend_conf.type
+def create_executor_manager(backend_type, backend_conf, server_host, server_port):  # instance factory
+    server_portal = http_portal(server_port, server_port)
     if backend_type == 'remote':
-        remote_backend_config = backend_conf.conf
+        remote_backend_config = backend_conf
         machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]
-        # check remote host setting
-        server_host = server_conf.host
-        # only warning for remote backend
+        # check remote host setting, only warning for remote backend
         if consts.HOST_LOCALHOST == server_host:
             logger.warning("recommended that set IP address that can be accessed in remote machines, "
                            "but now it's \"localhost\", and the task executed on the remote machines "
                            "may fail because it can't get information from the api server server,"
                            " you can set it in `server.host` ")
-        return RemoteSSHExecutorManager(machines, server_conf.portal)
+        return RemoteSSHExecutorManager(machines, server_portal)
     elif backend_type == 'local':
-        return LocalExecutorManager(server_conf.portal)
+        return LocalExecutorManager(server_portal)
     else:
         raise ValueError(f"unknown backend {backend_type}")

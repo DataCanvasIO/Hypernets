@@ -8,7 +8,7 @@ resource:
   cpu: 2
   ram: 1024
   gpu: 1
-daemon:
+server:
   port: 8060
 backend:
   type: remote

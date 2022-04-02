@@ -18,3 +18,7 @@ def copy_item(src, dest, key):
     v = src.get(key)
     if v is not None:
         dest[key] = v
+
+
+def http_portal(host, port):
+    return f"http://{host}:{port}"

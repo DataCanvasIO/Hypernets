@@ -1,4 +1,5 @@
 {
+    "name": "local-batch-example",
     "jobs": [
         {
             "name": "job1",
@@ -22,10 +23,12 @@
         "type": "local",
         "conf": {}
     },
-    "name": "local-batch-example",
+    "scheduler": {
+        "interval": 5000,
+        "exit_on_finish": false
+    },
     "server": {
         "host": "localhost",
-        "port":8060,
-        "exit_on_finish": false
+        "port": 8060
     }
 }

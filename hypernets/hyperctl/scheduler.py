@@ -6,24 +6,30 @@ from pathlib import Path
 from tornado import ioloop
 from tornado.ioloop import PeriodicCallback
 
-from hypernets.hyperctl.batch import Batch, load_batch
+from hypernets.hyperctl.batch import Batch
 from hypernets.hyperctl.batch import ShellJob
-from hypernets.hyperctl.executor import NoResourceException, ShellExecutor
-from hypernets.hyperctl.utils import load_json
+from hypernets.hyperctl.executor import NoResourceException, ShellExecutor, ExecutorManager
+from hypernets.hyperctl.utils import load_json, http_portal
 from hypernets.utils import logging as hyn_logging, common as common_util
+from hypernets import __version__ as hyn_version
 
 logger = hyn_logging.getLogger(__name__)
 
 
 class JobScheduler:
 
-    def __init__(self, batch, exit_on_finish, interval, executor_manager):
+    def __init__(self, batch, exit_on_finish, interval, executor_manager: ExecutorManager):
         self.batch = batch
         self.exit_on_finish = exit_on_finish
         self.executor_manager = executor_manager
         self._timer = PeriodicCallback(self.schedule, interval)
 
+    @property
+    def interval(self):
+        return self._timer.callback_time
+
     def start(self):
+        self.executor_manager.prepare()
         self._timer.start()
 
     def kill_job(self, job_name):
@@ -121,92 +127,9 @@ class JobScheduler:
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)
             self._timer.stop()  # stop the timer
             if self.exit_on_finish:
-                logger.info("stop ioloop")
+                logger.info("exited ioloop")
                 ioloop.IOLoop.instance().stop()
             return
 
         self._check_executors(self.executor_manager)
         self._dispatch_jobs(self.executor_manager, jobs)
-
-
-def _start_api_server(batch: Batch, job_scheduler):
-    # create web app
-    logger.info(f"start api server at: {batch.server_conf.portal}")
-    from hypernets.hyperctl.server import create_batch_manage_webapp
-    create_batch_manage_webapp(batch, job_scheduler).listen(batch.server_conf.port)
-
-    # run io loop
-    ioloop.IOLoop.instance().start()
-
-
-def run_batch(batch: Batch):
-    job_scheduler = prepare_batch(batch)
-    _start_api_server(batch, job_scheduler)
-    return job_scheduler
-
-
-def prepare_batch(batch: Batch) -> JobScheduler:
-    batches_data_dir = batch.batches_data_dir
-    batches_data_dir = Path(batches_data_dir)
-    logger.info(f"batches_data_path: {batches_data_dir.absolute()}")
-    logger.info(f"batch name: {batch.name}")
-
-    # check jobs status
-    for job in batch.jobs:
-        if job.status != job.STATUS_INIT:
-            if job.status == job.STATUS_RUNNING:
-                logger.warning(f"job '{job.name}' status is {job.status} in the begining,"
-                               f"it may have run and will not run again this time, "
-                               f"you can remove it's status file and working dir to retry the job")
-            else:
-                logger.info(f"job '{job.name}' status is {job.status} means it's finished, skip to run ")
-            continue
-
-    # prepare batch data dir
-    if batch.data_dir_path().exists():
-        logger.info(f"batch {batch.name} already exists, run again")
-    else:
-        os.makedirs(batch.data_dir_path(), exist_ok=True)
-
-    # write batch config
-    batch_spec_file_path = batch.spec_file_path()
-
-    with open(batch_spec_file_path, 'w', newline='\n') as f:
-        json.dump(batch.to_config(), f, indent=4)
-
-    # create executor manager
-    from hypernets.hyperctl.executor import create_executor_manager
-    executor_manager = create_executor_manager(batch.backend_conf, batch.server_conf)
-
-    # create scheduler
-    job_scheduler = JobScheduler(batch, batch.server_conf.exit_on_finish, 5000, executor_manager)
-    job_scheduler.start()
-    # write pid file
-    with open(batch.pid_file_path(), 'w', newline='\n') as f:
-        f.write(str(os.getpid()))
-
-    return job_scheduler
-
-
-def run_batch_config(config_dict, batches_data_dir):
-    # add batch name
-    if config_dict.get('name') is None:
-        batch_name = common_util.generate_short_id()
-        logger.debug(f"generated batch name {batch_name}")
-        config_dict['name'] = batch_name
-
-    # add job name
-    jobs_dict = config_dict['jobs']
-    for job_dict in jobs_dict:
-        if job_dict.get('name') is None:
-            job_name = common_util.generate_short_id()
-            logger.debug(f"generated job name {job_name}")
-            job_dict['name'] = job_name
-
-    batches_data_dir = Path(batches_data_dir)
-
-    batch = load_batch(config_dict, batches_data_dir)
-    job_scheduler = prepare_batch(batch)
-
-    _start_api_server(batch, job_scheduler)
-    return batch, job_scheduler

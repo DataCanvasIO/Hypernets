@@ -1,11 +1,16 @@
 # -*- encoding: utf-8 -*-
+# -*- encoding: utf-8 -*-
 import os
 from pathlib import Path
+from typing import Dict, Optional
 
 import psutil
-from typing import Dict, Optional
-from hypernets.hyperctl import consts
-from hypernets import __version__ as hyn_version
+
+from hypernets.utils import logging
+
+logging.set_level('DEBUG')
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionConf:
@@ -128,21 +133,17 @@ class BackendConf:
 
 class Batch:
 
-    FILE_SPEC = "spec.json"
+    FILE_CONFIG = "config.json"
     FILE_PID = "server.pid"
 
     STATUS_NOT_START = "NOT_START"
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, batches_data_dir, backend_conf: BackendConf, server_conf: ServerConf):
+    def __init__(self, name, batches_data_dir: str):
         self.name = name
-        self.batches_data_dir = batches_data_dir
+        self.batches_data_dir = Path(batches_data_dir)
 
-        self.server_conf = server_conf
-        self.backend_conf = backend_conf
-
-        #
         self.jobs = []
 
     def add_job(self, **kwargs):
@@ -171,8 +172,8 @@ class Batch:
         exists_status = set([job.status for job in self.jobs])
         return exists_status.issubset(set(ShellJob.FINAL_STATUS))
 
-    def spec_file_path(self):
-        return self.data_dir_path() / self.FILE_SPEC
+    def config_file_path(self):
+        return self.data_dir_path() / self.FILE_CONFIG
 
     def pid_file_path(self):
         return self.data_dir_path() / self.FILE_PID
@@ -188,9 +189,6 @@ class Batch:
     def data_dir_path(self):
         return Path(self.batches_data_dir) / self.name
 
-    def _filter_jobs(self, status):
-        return list(filter(lambda j: j.status == status, self.jobs))
-
     def get_job_by_name(self, job_name) -> Optional[ShellJob]:
         for job in self.jobs:
             if job.name == job_name:
@@ -198,51 +196,23 @@ class Batch:
         return None
 
     def summary(self):
+        batch = self
+
+        def _filter_jobs(status):
+            return list(filter(lambda j: j.status == status, batch.jobs))
+
         def cnt(status):
-            return len(self._filter_jobs(status))
+            return len(_filter_jobs(status))
+
         return {
-            "name": self.name,
-            'status': self.status(),
-            'total': len(self.jobs),
-            'portal': self.server_conf.portal,
+            "name": batch.name,
+            'status': batch.status(),
+            'total': len(batch.jobs),
             ShellJob.STATUS_FAILED: cnt(ShellJob.STATUS_FAILED),
             ShellJob.STATUS_INIT: cnt(ShellJob.STATUS_INIT),
             ShellJob.STATUS_SUCCEED: cnt(ShellJob.STATUS_SUCCEED),
             ShellJob.STATUS_RUNNING: cnt(ShellJob.STATUS_RUNNING),
         }
-
-    def to_config(self):
-        jobs_config = []
-        for job in self.jobs:
-            jobs_config.append(job.to_config())
-
-        return {
-            "jobs": jobs_config,
-            "backend": self.backend_conf.to_config(),
-            "name": self.name,
-            "server": self.server_conf.to_config(),
-            "version": hyn_version
-        }
-
-
-def load_batch(batch_spec_dict, batches_data_dir):
-    batch_name = batch_spec_dict['name']
-    jobs_dict = batch_spec_dict['jobs']
-
-    server_config_dict = batch_spec_dict.get('server', {})
-    backend_config_dict = batch_spec_dict.get('backend', {})
-
-    batch = Batch(batch_name, batches_data_dir, BackendConf(**backend_config_dict), ServerConf(**server_config_dict))
-    for job_dict in jobs_dict:
-        execution_conf = job_dict.get('execution', {})
-        if execution_conf.get('data_dir') is None:
-            execution_conf['data_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
-        if execution_conf.get('working_dir') is None:
-            execution_conf['working_dir'] = execution_conf['data_dir']
-        job_dict['execution'] = ExecutionConf(**execution_conf)
-        batch.add_job(**job_dict)
-    return batch
-
 
 def change_job_status(job: ShellJob, next_status):
     current_status = job.status
@@ -266,3 +236,4 @@ def change_job_status(job: ShellJob, next_status):
 
     with open(target_status_file, 'w') as f:
         pass
+
