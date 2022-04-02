@@ -148,11 +148,15 @@ The example below shows a full job configuration.
         "type": "local", // str, one of "local,remote"
         "conf": {}  // 
     },
-    "server": {  // dict, optional, api server process setting
+    "server": {  // dict, optional, api server setting
         "host": "192.168.10.206",  // str, optional, default is localhosh, http service host ip, you should use IP address that can be accessed in remote machines if is remote backend
         "port": 8060,  // int, optional, default is 8060, http service port
+        
+    },
+    "scheduler": { // dict, optional, scheduler settting
+        "interval": 5,  // int, optional, check jobs interval, default check job status every 5 seconds
         "exit_on_finish": false  // boolean, optional , default is false, whether to exit the process when all jobs are finished
     },
-    "version": "2.5" // str, optional, default using the running hyperctl's version
+    "version": "0.2.5.3" // str, optional, default using the running hyperctl's version
 }
 ```
