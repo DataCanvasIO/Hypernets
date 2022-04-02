@@ -10,6 +10,7 @@ from hypernets.hyperctl.batch import Batch
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.hyperctl.executor import RemoteSSHExecutorManager
 from hypernets.hyperctl.scheduler import JobScheduler
+from hypernets.hyperctl.utils import http_portal
 from hypernets.utils import logging as hyn_logging
 
 logger = hyn_logging.getLogger(__name__)
@@ -120,7 +121,7 @@ class JobListHandler(BaseHandler):
 
     def get(self, *args, **kwargs):
         jobs_dict = []
-        for job in self.batch.jobs():
+        for job in self.batch.jobs:
             jobs_dict.append(job.to_dict())
         self.response({"jobs": jobs_dict})
 
@@ -128,12 +129,25 @@ class JobListHandler(BaseHandler):
         self.batch = batch
 
 
-def create_batch_manage_webapp(batch, job_scheduler):
-    application = Application([
+class HyperctlWebApplication(Application):
+
+    def __init__(self, host="localhost", port=8060, **kwargs):
+        self.host = host
+        self.port = port
+        super().__init__(**kwargs)
+
+    @property
+    def portal(self):
+        return http_portal(self.host, self.port)
+
+
+def create_batch_manage_webapp(server_host, server_port, batch, job_scheduler) -> HyperctlWebApplication:
+    handlers = [
         (r'/hyperctl/api/job/(?P<job_name>.+)/(?P<operation>.+)',
          JobOperationHandler, dict(batch=batch, job_scheduler=job_scheduler)),
         (r'/hyperctl/api/job/(?P<job_name>.+)', JobHandler, dict(batch=batch)),
         (r'/hyperctl/api/job', JobListHandler, dict(batch=batch)),
         (r'/hyperctl', IndexHandler)
-    ])
+    ]
+    application = HyperctlWebApplication(host=server_host, port=server_port, handlers=handlers)
     return application

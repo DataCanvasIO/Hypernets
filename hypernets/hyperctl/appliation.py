@@ -27,7 +27,9 @@ class BatchApplication:
                  scheduler_exit_on_finish=False,
                  scheduler_interval=5000,
                  backend_type='local',
-                 backend_conf=None):
+                 backend_conf=None,
+                 version=None,
+                 **kwargs):
 
         self.batch = batch
 
@@ -35,21 +37,13 @@ class BatchApplication:
                                                                  server_host, server_port,
                                                                  scheduler_exit_on_finish,
                                                                  scheduler_interval)
-        self.http_server = self._create_api_server(server_host, server_port, self.job_scheduler)
-
-        self.server_host = server_host
-        self.server_port = server_port
+        # create http server
+        self.http_server = create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
     def _create_scheduler(self, backend_type, backend_conf, server_host, server_port,
                           scheduler_exit_on_finish, scheduler_interval):
         executor_manager = create_executor_manager(backend_type, backend_conf, server_host, server_port)
         return JobScheduler(self.batch, scheduler_exit_on_finish, scheduler_interval, executor_manager)
-
-    def _create_api_server(self, server_host, server_port, job_scheduler):
-        # create web app
-        server_portal = http_portal(server_host, server_port)
-        logger.info(f"start api server at: {server_portal}")
-        return create_batch_manage_webapp(self, job_scheduler).listen(server_port)
 
     def start(self):
 
@@ -86,7 +80,11 @@ class BatchApplication:
 
         # prepare to start scheduler and web http
         self.job_scheduler.start()
-        self.http_server.start()
+
+        # start web server
+        server_portal = http_portal(self.server_host, self.server_port)
+        logger.info(f"start api server at: {server_portal}")
+        self.http_server.listen(self.server_port).start()
 
         # run in io loop
         ioloop.IOLoop.instance().start()
@@ -150,3 +148,11 @@ class BatchApplication:
         app = BatchApplication(batch, **batch_spec_dict)
 
         return app
+
+    @property
+    def server_host(self):
+        return self.http_server.host
+
+    @property
+    def server_port(self):
+        return self.http_server.port

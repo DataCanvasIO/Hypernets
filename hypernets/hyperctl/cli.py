@@ -10,11 +10,11 @@ import prettytable as pt
 from hypernets import __version__ as current_version
 from hypernets.hyperctl import api
 from hypernets.hyperctl import consts
-from hypernets.hyperctl.batch import Batch, ShellJob
 from hypernets.hyperctl.appliation import BatchApplication
-from hypernets.hyperctl.utils import load_yaml, load_json, copy_item, http_portal
-from hypernets.utils import logging as hyn_logging, common as common_util
+from hypernets.hyperctl.batch import Batch
+from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
 from hypernets.utils import logging
+from hypernets.utils import logging as hyn_logging, common as common_util
 
 logging.set_level('DEBUG')
 
@@ -105,7 +105,7 @@ def run_generate_job_specs(template, output):
     return batch_spec
 
 
-def _load_batch_data_dir(batches_data_dir, batch_name):
+def _load_batch_data_dir(batches_data_dir: str, batch_name) -> BatchApplication:
     spec_file_path = Path(batches_data_dir) / batch_name / Batch.FILE_CONFIG
     if not spec_file_path.exists():
         raise RuntimeError(f"batch {batch_name} not exists")
@@ -115,12 +115,12 @@ def _load_batch_data_dir(batches_data_dir, batch_name):
 
 
 def run_show_jobs(batch_name, batches_data_dir):
-    batches_data_dir = Path(batches_data_dir)
-    batch = _load_batch_data_dir(batches_data_dir, batch_name)
+    batch_app = _load_batch_data_dir(batches_data_dir, batch_name)
+    batch = batch_app.batch
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    api_server_portal = batch.server_conf.portal
+    api_server_portal = batch_app.http_server.portal
 
     jobs_dict = api.list_jobs(api_server_portal)
 
@@ -134,23 +134,25 @@ def run_show_jobs(batch_name, batches_data_dir):
 
 def run_kill_job(batch_name, job_name, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
-    batch = _load_batch_data_dir(batches_data_dir, batch_name)
+    batch_app = _load_batch_data_dir(batches_data_dir, batch_name)
+    batch = batch_app.batch
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    api_server_portal = batch.server_conf.portal
+    api_server_portal = batch_app.http_server.portal
 
     jobs_dict = api.kill_job(api_server_portal, job_name)
-    print("Killed")
+    print(json.dumps(jobs_dict))
 
 
 def show_job(batch_name, job_name, batches_data_dir):
     batches_data_dir = Path(batches_data_dir)
-    batch = _load_batch_data_dir(batches_data_dir, batch_name)
+    batch_app = _load_batch_data_dir(batches_data_dir, batch_name)
+    batch = batch_app.batch
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    api_server_portal = batch.server_conf.portal
+    api_server_portal = batch_app.http_server.portal
 
     job_dict = api.get_job(job_name, api_server_portal)
     job_desc = json.dumps(job_dict, indent=4)
@@ -242,7 +244,7 @@ def main():
         job_list_parse = batch_subparsers.add_parser("list", help="list jobs")
         job_list_parse.add_argument("-b", "--batch-name", help="batch name", default=None, required=True)
         job_list_parse.add_argument("--batches-data-dir", help=bdd_help,
-                                    default=default_batches_data_dir, required=True)
+                                    default=default_batches_data_dir, required=False)
 
         def add_job_spec_args(parser_):
             parser_.add_argument("-b", "--batch-name", help="batch name", default=None, required=True)
