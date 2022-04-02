@@ -84,7 +84,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'hyperctl = hypernets.hyperctl.daemon:main',
+            'hyperctl = hypernets.hyperctl.cli:main',
         ]
     },
     zip_safe=False,

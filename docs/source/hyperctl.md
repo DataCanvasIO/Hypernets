@@ -46,9 +46,7 @@ print(params)
             "params": {
                 "learning_rate": 0.1
             },
-            "execution": {
-                "command": "python ~/job-script.py"
-            }
+          "command": "python ~/plain_job_script.py"
         }
     ]
 }
@@ -69,8 +67,10 @@ name: eVqNV5Ut1   // the same as job configuration `name`
 version: "2.5"    // the same as job configuration `version`
 params:           // dict[str, list], required, value should be list 
     param1: ["value1", "value2"]
-execution:        // the same as job configuration `jobs.execution`
 resource:         // the same as job configuration `jobs.resource`
+command:         // the same as job configuration `jobs.command`
+working_dir:         // the same as job configuration `jobs.working_dir`
+output_dir:         // the same as job configuration `jobs.output_dir`
 daemon:           // the same as job configuration `daemon`
 backend:          // the same as job configuration `backend`
 ```
@@ -81,8 +81,7 @@ Below is the example of how to generate the 'job-template.yml' and 'batch.json' 
 params:
     learning_rate: [0.1,0.2]
     max_depth: [3, 5]
-execution:
-  command: python3 main.py
+command: python3 cli.py
 ```
 
 ```shell
@@ -109,14 +108,14 @@ Hyperctl also supports parallel jobs in remote machines by configuring the argum
             ]
         }
     }
-  "daemon": {
+  "server": {
       "host": "192.168.10.206",  // str, optional, http service host ip, you should use IP address that can be accessed in remote machines
   }
 }
 ```
 
-Note that the configuration item `daemon.host` should be accessed by remote machines declared in the configuration `backend.conf.machines`,
-Otherwise, the task will fail because the daemon server cannot be accessed.
+Note that the configuration item `server.host` should be accessed by remote machines declared in the configuration `backend.conf.machines`,
+Otherwise, the task will fail because the api server cannot be accessed.
 
 
 EX4. Full job configuration
@@ -137,22 +136,23 @@ The example below shows a full job configuration.
                 "ram": 1024,
                 "gpu": 1
             },
-            "execution": {
-                "command": "sleep 3", // str, required, command to the the job, if execute a file, recommend use absolute path or path relative to {execution.working_dir}
-                "working_dir": "/tmp", // str, optional, default is execution.data_dir,  working dir to run the command
-                "data_dir": "/tmp/hyperctl-batch-data/aVqNV5Ut1"  // str, optional, default is {batch_data_dir}/{job_name}, the directory to write job's output data
-            }
+            "command": "sleep 3", // str, required, command to the the job, if execute a file, recommend use absolute path or path relative to {execution.working_dir}
+            "working_dir": "/tmp", // str, optional, default is execution.data_dir,  working dir to run the command
+            "output_dir": "/tmp/hyperctl-batch-data/aVqNV5Ut1"  // str, optional, default is {batch_data_dir}/{job_name}, the directory to write job's output data
         }
     ],
     "backend": { // dict, optional, default is local backend, is where the jobs running on. 
         "type": "local", // str, one of "local,remote"
         "conf": {}  // 
     },
-    "daemon": {  // dict, optional, daemon process setting
+    "server": {  // dict, optional, api server setting
         "host": "192.168.10.206",  // str, optional, default is localhosh, http service host ip, you should use IP address that can be accessed in remote machines if is remote backend
         "port": 8060,  // int, optional, default is 8060, http service port
+    },
+    "scheduler": { // dict, optional, scheduler settting
+        "interval": 5,  // int, optional, check jobs interval, default check job status every 5 seconds
         "exit_on_finish": false  // boolean, optional , default is false, whether to exit the process when all jobs are finished
     },
-    "version": "2.5" // str, optional, default using the running hyperctl's version
+    "version": "0.2.5.3" // str, optional, default using the running hyperctl's version
 }
 ```

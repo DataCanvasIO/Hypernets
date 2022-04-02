@@ -1,9 +1,16 @@
+# -*- encoding: utf-8 -*-
+# -*- encoding: utf-8 -*-
 import os
 from pathlib import Path
+from typing import Dict, Optional
 
 import psutil
 
-from hypernets.utils import common as common_util
+from hypernets.utils import logging
+
+logging.set_level('DEBUG')
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionConf:
@@ -11,6 +18,13 @@ class ExecutionConf:
         self.command = command
         self.data_dir = data_dir
         self.working_dir = working_dir
+
+    def to_config(self):
+        return {
+            "command": self.command,
+            "data_dir": self.data_dir,
+            "working_dir": self.working_dir
+        }
 
 
 class ShellJob:
@@ -21,18 +35,13 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, resource, execution, batch):
+    def __init__(self, name, params, resource, command, output_dir, working_dir, batch):
         self.name = name
         self.params = params
         self.resource = resource
-
-        if execution is None:
-            execution = {}
-        if execution.get('data_dir') is None:
-            execution['data_dir'] = (batch.data_dir_path() / self.name).as_posix()
-        if execution.get('working_dir') is None:
-            execution['working_dir'] = execution['data_dir']
-        self.execution = ExecutionConf(**execution)
+        self.command = command
+        self.output_dir = output_dir
+        self.working_dir = working_dir
 
         self.batch = batch
 
@@ -42,7 +51,7 @@ class ShellJob:
 
     @property
     def job_data_dir(self):
-        return Path(self.execution.data_dir).as_posix()
+        return Path(self.output_dir).as_posix()
 
     @property
     def run_file_path(self):
@@ -78,15 +87,25 @@ class ShellJob:
             return self.STATUS_INIT
 
     def to_dict(self):
-        ret_dict = self.__dict__.copy()
-        ret_dict['status'] = self.status
-        ret_dict['execution'] = self.execution.__dict__.copy()
-        del ret_dict['batch']
-        return ret_dict
+        import copy
+        config_dict = copy.copy(self.to_config())
+        config_dict['status'] = self.status
+        del config_dict['batch']
+        return config_dict
+
+    def to_config(self):
+        return {
+            "name": self.name,
+            "params": self.params,
+            "resource": self.resource,
+            "command": self.command,
+            "output_dir": self.output_dir,
+            "working_dir": self.working_dir
+        }
 
 
-class DaemonConf:
-    def __init__(self, host, port, exit_on_finish=False):
+class ServerConf:  # API server conf
+    def __init__(self, host="localhost", port=8060, exit_on_finish=False):
         self.host = host
         self.port = port
         self.exit_on_finish = exit_on_finish
@@ -95,23 +114,41 @@ class DaemonConf:
     def portal(self):
         return f"http://{self.host}:{self.port}"
 
+    def to_config(self):
+        return {
+            "host": self.host,
+            "port": self.port,
+            "exit_on_finish": self.exit_on_finish
+        }
+
+
+class BackendConf:
+    def __init__(self, type = 'local', conf: Dict = None):
+        self.type = type
+        if conf is None:
+            conf = {}
+        self.conf = conf
+
+    def to_config(self):
+        return {
+            "type": self.type,
+            "conf": self.conf
+        }
+
 
 class Batch:
 
-    FILE_SPEC = "spec.json"
-    FILE_PID = "daemon.pid"
+    FILE_CONFIG = "config.json"
+    FILE_PID = "server.pid"
 
     STATUS_NOT_START = "NOT_START"
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, batches_data_dir, daemon_conf: DaemonConf):
+    def __init__(self, name, batches_data_dir: str):
         self.name = name
-        self.batches_data_dir = batches_data_dir
+        self.batches_data_dir = Path(batches_data_dir)
 
-        self.daemon_conf = daemon_conf
-
-        #
         self.jobs = []
 
     def add_job(self, **kwargs):
@@ -140,8 +177,8 @@ class Batch:
         exists_status = set([job.status for job in self.jobs])
         return exists_status.issubset(set(ShellJob.FINAL_STATUS))
 
-    def spec_file_path(self):
-        return self.data_dir_path() / self.FILE_SPEC
+    def config_file_path(self):
+        return self.data_dir_path() / self.FILE_CONFIG
 
     def pid_file_path(self):
         return self.data_dir_path() / self.FILE_PID
@@ -157,19 +194,51 @@ class Batch:
     def data_dir_path(self):
         return Path(self.batches_data_dir) / self.name
 
-    def _filter_jobs(self, status):
-        return list(filter(lambda j: j.status == status, self.jobs))
+    def get_job_by_name(self, job_name) -> Optional[ShellJob]:
+        for job in self.jobs:
+            if job.name == job_name:
+                return job
+        return None
 
     def summary(self):
+        batch = self
+
+        def _filter_jobs(status):
+            return list(filter(lambda j: j.status == status, batch.jobs))
+
         def cnt(status):
-            return len(self._filter_jobs(status))
+            return len(_filter_jobs(status))
+
         return {
-            "name": self.name,
-            'status': self.status(),
-            'total': len(self.jobs),
-            'portal': self.daemon_conf.portal,
+            "name": batch.name,
+            'status': batch.status(),
+            'total': len(batch.jobs),
             ShellJob.STATUS_FAILED: cnt(ShellJob.STATUS_FAILED),
             ShellJob.STATUS_INIT: cnt(ShellJob.STATUS_INIT),
             ShellJob.STATUS_SUCCEED: cnt(ShellJob.STATUS_SUCCEED),
             ShellJob.STATUS_RUNNING: cnt(ShellJob.STATUS_RUNNING),
         }
+
+def change_job_status(job: ShellJob, next_status):
+    current_status = job.status
+    target_status_file = job.status_file_path(next_status)
+    if next_status == job.STATUS_INIT:
+        raise ValueError(f"can not change to {next_status} ")
+
+    elif next_status == job.STATUS_RUNNING:
+        if current_status != job.STATUS_INIT:
+            raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
+
+    elif next_status in job.FINAL_STATUS:
+        if current_status != job.STATUS_RUNNING:
+            raise ValueError(f"only job in {job.STATUS_RUNNING} can change to "
+                             f"{next_status} but now is {current_status}")
+        # delete running status file
+        running_status_file = job.status_file_path(job.STATUS_RUNNING)
+        os.remove(running_status_file)
+    else:
+        raise ValueError(f"unknown status {next_status}")
+
+    with open(target_status_file, 'w') as f:
+        pass
+

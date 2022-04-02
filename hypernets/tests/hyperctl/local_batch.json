@@ -1,0 +1,30 @@
+{
+    "name": "local-batch-example",
+    "jobs": [
+        {
+            "name": "job1",
+            "params": {
+                "learning_rate": 0.1
+            },
+            "command": "sleep 100;echo \"finished\""
+        },{
+            "name": "job2",
+            "params": {
+                "learning_rate": 0.2
+            },
+            "command": "sleep 100;echo \"finished\""
+        }
+    ],
+    "backend": {
+        "type": "local",
+        "conf": {}
+    },
+    "scheduler": {
+        "interval": 5000,
+        "exit_on_finish": false
+    },
+    "server": {
+        "host": "localhost",
+        "port": 8060
+    }
+}
