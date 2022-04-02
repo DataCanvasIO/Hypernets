@@ -2,7 +2,6 @@ import os
 import tempfile
 from pathlib import Path
 
-from hypernets.hyperctl.batch import ExecutionConf
 from hypernets.hyperctl.batch import Batch
 from hypernets.tests.utils import ssh_utils_test
 
@@ -15,10 +14,8 @@ def create_minimum_batch(command="pwd"):
 
     data_dir = (Path(batches_data_dir)/ batch.name / "job1").absolute().as_posix()
 
-    execution_conf = ExecutionConf(command=command, data_dir=data_dir, working_dir=data_dir)
-
     job_params = {"learning_rate": 0.1}
-    batch.add_job(name='job1', params=job_params, resource=None, execution=execution_conf)
+    batch.add_job(name='job1', params=job_params, resource=None, command=command, output_dir=data_dir, working_dir=data_dir)
 
     return batch
 
@@ -35,16 +32,17 @@ def _create_local_batch(batch_name):
 
     batch.add_job(name=job1_name,
                   params={"learning_rate": 0.1},
-                  execution=ExecutionConf(command=f"ls -l",
-                                          data_dir=job1_data_dir,
-                                          working_dir=job1_data_dir))
+                  command=f"ls -l",
+                  output_dir=job1_data_dir,
+                  working_dir=job1_data_dir)
 
     job2_data_dir = (Path(batches_data_dir) / job2_name).absolute().as_posix()
     batch.add_job(name=job2_name,
                   params={"learning_rate": 0.2},
-                  execution=ExecutionConf(command=f"ls -l",
-                                          data_dir=job2_data_dir,
-                                          working_dir=job2_data_dir))
+                  command=f"ls -l",
+                  output_dir=job2_data_dir,
+                  working_dir=job2_data_dir)
+
     return batch
 
 

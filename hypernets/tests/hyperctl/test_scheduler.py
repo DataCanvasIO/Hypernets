@@ -19,11 +19,11 @@ skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows 
 def assert_local_job_finished(jobs):
     rets = []
     for job in jobs:
-        job_execution_data_dir = job.execution.data_dir
+        job_output_dir = job.output_dir
         # stdout is not None but stderr is None
-        stdout = Path(job_execution_data_dir) / "stdout"
-        stderr = Path(job_execution_data_dir) / "stderr"
-        run_sh = Path(job_execution_data_dir) / "run.sh"
+        stdout = Path(job_output_dir) / "stdout"
+        stderr = Path(job_output_dir) / "stderr"
+        run_sh = Path(job_output_dir) / "run.sh"
         assert stdout.exists()
         assert stderr.exists()
         assert run_sh.exists()

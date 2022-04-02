@@ -48,8 +48,8 @@ class ShellExecutor:
         vars = {
             consts.KEY_ENV_JOB_DATA_DIR: self.job.job_data_dir,
             consts.KEY_ENV_JOB_NAME: self.job.name,
-            consts.KEY_ENV_JOB_EXECUTION_WORKING_DIR: self.job.execution.working_dir,  # default value
-            consts.KEY_TEMPLATE_COMMAND: self.job.execution.command,
+            consts.KEY_ENV_JOB_WORKING_DIR: self.job.working_dir,  # default value
+            consts.KEY_TEMPLATE_COMMAND: self.job.command,
             consts.KEY_ENV_SERVER_PORTAL: self.api_server_portal,
         }
 
@@ -81,10 +81,10 @@ class RemoteShellExecutor(ShellExecutor):
 
     def run(self):
         # create remote data dir
-        execution_data_dir = Path(self.job.execution.data_dir).as_posix()
+        output_dir = Path(self.job.output_dir).as_posix()
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f"create remote job data dir {execution_data_dir} ")
-            ssh_utils.makedirs(sftp_client, execution_data_dir)
+            logger.debug(f"create remote job output dir {output_dir} ")
+            ssh_utils.makedirs(sftp_client, output_dir)
 
         # create run shell file
         fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')

@@ -63,14 +63,18 @@ def run_generate_job_specs(template, output):
 
     # 1.3. check values should be array
     assert "params" in config_dict
+
+
     params = config_dict['params']
     for k, v in params.items():
         if not isinstance(v, list):
             raise ValueError(f"Value of param '{k}' should be list")
 
     # 1.4. check command exists
-    assert "execution" in config_dict
-    assert 'command' in config_dict['execution']
+    assert "command" in config_dict
+
+    # assert "output_dir" in config_dict
+    # assert "working_dir" in config_dict
 
     # 2. combine params to generate jobs
     job_param_names = params.keys()
@@ -80,10 +84,11 @@ def run_generate_job_specs(template, output):
         job_params_dict = dict(zip(job_param_names, job_param_values))
         job_dict = {
             "name": common_util.generate_short_id(),
-            "params": job_params_dict,
-            "execution": config_dict['execution']
+            "params": job_params_dict
         }
         copy_item(config_dict, job_dict, 'resource')
+        copy_item(config_dict, job_dict, 'output_dir')
+        copy_item(config_dict, job_dict, 'working_dir')
         return job_dict
 
     jobs = [make_job_dict(_) for _ in itertools.product(*param_values)]
@@ -95,8 +100,9 @@ def run_generate_job_specs(template, output):
         "version": config_dict.get('version', current_version)
     }
 
-    copy_item(config_dict, batch_spec, 'backend')
     copy_item(config_dict, batch_spec, 'server')
+    copy_item(config_dict, batch_spec, 'scheduler')
+    copy_item(config_dict, batch_spec, 'backend')
 
     # 4. write to file
     os.makedirs(output_path.parent, exist_ok=True)

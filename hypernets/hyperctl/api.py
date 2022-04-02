@@ -45,7 +45,7 @@ def get_job_params():
 
 
 def get_job_working_dir():
-    job_working_dir = os.getenv(consts.KEY_ENV_JOB_EXECUTION_WORKING_DIR)
+    job_working_dir = os.getenv(consts.KEY_ENV_JOB_WORKING_DIR)
     return job_working_dir
 
 

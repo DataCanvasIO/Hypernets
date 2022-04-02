@@ -1,15 +1,22 @@
-version: 2.5
 params:
     learning_rate: [0.1,0.5]
     dataset: ['path/d1.csv','path/d2.csv']
-execution:
-  command: python3 cli.py
+
+command: python3 cli.py
+working_dir: /tmp/code
+
 resource:
   cpu: 2
   ram: 1024
   gpu: 1
+
 server:
   port: 8060
+
+scheduler:
+    interval: 1
+    exit_on_finish: True
+
 backend:
   type: remote
   conf:

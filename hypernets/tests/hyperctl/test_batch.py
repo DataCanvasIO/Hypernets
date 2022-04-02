@@ -27,10 +27,10 @@ def test_batch_to_config():
 
     assert job_config['name'] == 'job1'
     assert job_config['params']["learning_rate"] == 0.1
-    execution_conf_dict = job_config['execution']
-    assert execution_conf_dict['command'] == 'pwd'
-    assert execution_conf_dict['data_dir']
-    assert execution_conf_dict['working_dir']
+
+    assert job_config['command'] == 'pwd'
+    assert job_config['output_dir']
+    assert job_config['working_dir']
 
     # 3.2 TODO check backend
     # backend_config = batch_config_dict['backend']
@@ -61,19 +61,15 @@ def test_load_local_batch_config():
                 "params": {
                     "learning_rate": 0.1
                 },
-                "execution": {
-                    "command": "pwd"
-                }
+                "command": "pwd"
             }, {
                 "name": "job2",
                 "params": {
                     "learning_rate": 0.2
                 },
-                "execution": {
-                    "command": "sleep 3",
-                    "working_dir": job2_data_dir,
-                    "data_dir": job2_data_dir,
-                }
+                "command": "sleep 3",
+                "working_dir": job2_data_dir,
+                "output_dir": job2_data_dir,
             }
         ],
         "backend": {
@@ -102,17 +98,17 @@ def test_load_local_batch_config():
     assert isinstance(job1, ShellJob)
     assert job1.name == "job1"
     assert job1.params['learning_rate'] == 0.1
-    assert job1.execution.command == "pwd"
-    assert job1.execution.data_dir == (Path(batches_data_dir) / "local_batch_test" / "job1").absolute().as_posix()
-    assert job1.execution.working_dir == (Path(batches_data_dir) / "local_batch_test" / "job1").absolute().as_posix()
+    assert job1.command == "pwd"
+    assert job1.output_dir == (Path(batches_data_dir) / "local_batch_test" / "job1").absolute().as_posix()
+    assert job1.working_dir == (Path(batches_data_dir) / "local_batch_test" / "job1").absolute().as_posix()
 
     job2: ShellJob = jobs[1]
     assert isinstance(job2, ShellJob)
     assert job2.name == "job2"
     assert job2.params['learning_rate'] == 0.2
-    assert job2.execution.command == "sleep 3"
-    assert job2.execution.data_dir == job2_data_dir
-    assert job2.execution.working_dir == job2_data_dir
+    assert job2.command == "sleep 3"
+    assert job2.output_dir == job2_data_dir
+    assert job2.working_dir == job2_data_dir
 
     # check backend
     assert isinstance(batch_app.job_scheduler.executor_manager, LocalExecutorManager)
@@ -137,19 +133,15 @@ def test_load_remote_batch_config():
                 "params": {
                     "learning_rate": 0.1
                 },
-                "execution": {
-                    "command": "pwd"
-                }
+                "command": "pwd"
             }, {
                 "name": "job2",
                 "params": {
                     "learning_rate": 0.2
                 },
-                "execution": {
-                    "command": "sleep 3",
-                    "working_dir": job2_data_dir,
-                    "data_dir": job2_data_dir,
-                }
+                "command": "sleep 3",
+                "working_dir": job2_data_dir,
+                "output_dir": job2_data_dir,
             }
         ],
         "backend": {

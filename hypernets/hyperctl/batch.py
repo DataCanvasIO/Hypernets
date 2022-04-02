@@ -35,11 +35,14 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, resource, execution: ExecutionConf, batch):
+    def __init__(self, name, params, resource, command, output_dir, working_dir, batch):
         self.name = name
         self.params = params
         self.resource = resource
-        self.execution = execution
+        self.command = command
+        self.output_dir = output_dir
+        self.working_dir = working_dir
+
         self.batch = batch
 
     @property
@@ -48,7 +51,7 @@ class ShellJob:
 
     @property
     def job_data_dir(self):
-        return Path(self.execution.data_dir).as_posix()
+        return Path(self.output_dir).as_posix()
 
     @property
     def run_file_path(self):
@@ -84,18 +87,20 @@ class ShellJob:
             return self.STATUS_INIT
 
     def to_dict(self):
-        ret_dict = self.__dict__.copy()
-        ret_dict['status'] = self.status
-        ret_dict['execution'] = self.execution.__dict__.copy()
-        del ret_dict['batch']
-        return ret_dict
+        import copy
+        config_dict = copy.copy(self.to_config())
+        config_dict['status'] = self.status
+        del config_dict['batch']
+        return config_dict
 
     def to_config(self):
         return {
             "name": self.name,
             "params": self.params,
             "resource": self.resource,
-            "execution": self.execution.to_config()
+            "command": self.command,
+            "output_dir": self.output_dir,
+            "working_dir": self.working_dir
         }
 
 

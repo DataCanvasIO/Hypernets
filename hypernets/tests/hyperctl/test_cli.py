@@ -8,7 +8,7 @@ SRC_DIR = Path(__file__).parent
 
 
 def test_run_generate_job_specs():
-    batch_config_path = (SRC_DIR / "remote_batch.yml").as_posix()
+    batch_config_path = (SRC_DIR / "job_template.yml").as_posix()
     fd, fp = tempfile.mkstemp(prefix="jobs_spec_", suffix=".json")
     os.close(fd)
     os.remove(fp)
@@ -23,4 +23,3 @@ def test_run_generate_job_specs():
     assert 'name' in jobs_spec
     assert len(jobs_spec['backend']['conf']['machines']) == 2
     os.remove(fp_)
-

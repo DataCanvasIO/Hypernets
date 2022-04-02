@@ -7,7 +7,7 @@ import psutil
 from tornado import ioloop
 
 from hypernets import __version__ as hyn_version
-from hypernets.hyperctl.batch import Batch, ShellJob, ExecutionConf
+from hypernets.hyperctl.batch import Batch, ShellJob
 from hypernets.hyperctl.executor import create_executor_manager
 from hypernets.hyperctl.scheduler import JobScheduler
 from hypernets.hyperctl.server import create_batch_manage_webapp
@@ -132,12 +132,11 @@ class BatchApplication:
 
         batch = Batch(batch_name, batches_data_dir)
         for job_dict in jobs_dict:
-            execution_conf = job_dict.get('execution', {})
-            if execution_conf.get('data_dir') is None:
-                execution_conf['data_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
-            if execution_conf.get('working_dir') is None:
-                execution_conf['working_dir'] = execution_conf['data_dir']
-            job_dict['execution'] = ExecutionConf(**execution_conf)
+
+            if job_dict.get('output_dir') is None:
+                job_dict['output_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
+            if job_dict.get('working_dir') is None:
+                job_dict['working_dir'] = job_dict['output_dir']
             batch.add_job(**job_dict)
 
         flat_args("server")

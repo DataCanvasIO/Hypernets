@@ -1,0 +1,47 @@
+{
+    "name": "local-batch-example",
+    "jobs": [
+        {
+            "name": "job1",
+            "params": {
+                "learning_rate": 0.1
+            },
+            "execution": {
+                "command": "sleep 100;echo \"finished\""
+            }
+        },{
+            "name": "job2",
+            "params": {
+                "learning_rate": 0.2
+            },
+            "execution": {
+                "command": "sleep 100;echo \"finished\""
+            }
+        }
+    ],
+    "backend": {
+        "type": "remote",
+        "conf": {
+            "machines": [
+                {
+                    "hostname": "host1",
+                    "username": "hyperctl",
+                    "password": "hyperctl"
+                },
+                {
+                    "hostname": "host2",
+                    "username": "hyperctl",
+                    "password": "hyperctl"
+                }
+            ]
+        }
+    },
+    "scheduler": {
+        "interval": 5000,
+        "exit_on_finish": false
+    },
+    "server": {
+        "host": "localhost",
+        "port": 8060
+    }
+}
