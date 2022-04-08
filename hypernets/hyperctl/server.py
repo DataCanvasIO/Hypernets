@@ -142,6 +142,12 @@ class HyperctlWebApplication(Application):
 
 
 def create_batch_manage_webapp(server_host, server_port, batch, job_scheduler) -> HyperctlWebApplication:
+    handlers = create_hyperctl_handlers(batch, job_scheduler)
+    application = HyperctlWebApplication(host=server_host, port=server_port, handlers=handlers)
+    return application
+
+
+def create_hyperctl_handlers(batch, job_scheduler):
     handlers = [
         (r'/hyperctl/api/job/(?P<job_name>.+)/(?P<operation>.+)',
          JobOperationHandler, dict(batch=batch, job_scheduler=job_scheduler)),
@@ -149,5 +155,4 @@ def create_batch_manage_webapp(server_host, server_port, batch, job_scheduler) -
         (r'/hyperctl/api/job', JobListHandler, dict(batch=batch)),
         (r'/hyperctl', IndexHandler)
     ]
-    application = HyperctlWebApplication(host=server_host, port=server_port, handlers=handlers)
-    return application
+    return handlers
