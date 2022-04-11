@@ -90,7 +90,6 @@ class ShellJob:
         import copy
         config_dict = copy.copy(self.to_config())
         config_dict['status'] = self.status
-        del config_dict['batch']
         return config_dict
 
     def to_config(self):

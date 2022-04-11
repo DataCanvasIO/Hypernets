@@ -336,7 +336,7 @@ class LocalExecutorManager(ExecutorManager):
 
 
 def create_executor_manager(backend_type, backend_conf, server_host, server_port):  # instance factory
-    server_portal = http_portal(server_port, server_port)
+    server_portal = http_portal(server_host, server_port)
     if backend_type == 'remote':
         remote_backend_config = backend_conf
         machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]

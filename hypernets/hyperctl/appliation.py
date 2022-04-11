@@ -38,7 +38,10 @@ class BatchApplication:
                                                                  scheduler_exit_on_finish,
                                                                  scheduler_interval)
         # create http server
-        self.http_server = create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
+        self.http_server = self._create_web_app(server_host, server_port, batch)
+
+    def _create_web_app(self, server_host, server_port, batch):
+        return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
     def _create_scheduler(self, backend_type, backend_conf, server_host, server_port,
                           scheduler_exit_on_finish, scheduler_interval):
