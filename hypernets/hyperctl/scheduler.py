@@ -1,28 +1,28 @@
 # -*- encoding: utf-8 -*-
 import json
 import os
-from pathlib import Path
+import time
 
 from tornado import ioloop
 from tornado.ioloop import PeriodicCallback
 
-from hypernets.hyperctl.batch import Batch
 from hypernets.hyperctl.batch import ShellJob
+from hypernets.hyperctl.callbacks import BatchCallback
 from hypernets.hyperctl.executor import NoResourceException, ShellExecutor, ExecutorManager
-from hypernets.hyperctl.utils import load_json, http_portal
-from hypernets.utils import logging as hyn_logging, common as common_util
-from hypernets import __version__ as hyn_version
+from hypernets.utils import logging as hyn_logging
 
 logger = hyn_logging.getLogger(__name__)
 
 
 class JobScheduler:
+    """a FIFO scheduler"""
 
-    def __init__(self, batch, exit_on_finish, interval, executor_manager: ExecutorManager):
+    def __init__(self, batch, exit_on_finish, interval, executor_manager: ExecutorManager, callbacks=None):
         self.batch = batch
         self.exit_on_finish = exit_on_finish
         self.executor_manager = executor_manager
-        self._timer = PeriodicCallback(self.schedule, interval)
+        self.callbacks = callbacks if callbacks is not None else []
+        self._timer = PeriodicCallback(self.attempt_scheduling, interval)
 
     @property
     def interval(self):
@@ -31,6 +31,10 @@ class JobScheduler:
     def start(self):
         self.executor_manager.prepare()
         self._timer.start()
+        self.batch.start_time = time.time()
+
+        for callback in self.callbacks:
+            callback.on_start(self.batch)
 
     def kill_job(self, job_name):
         # checkout job
@@ -79,8 +83,7 @@ class JobScheduler:
         with open(target_status_file, 'w') as f:
             pass
 
-    @staticmethod
-    def _check_executors(executor_manager):
+    def _release_executors(self, executor_manager):
         finished = []
         for executor in executor_manager.waiting_executors():
             executor: ShellExecutor = executor
@@ -92,10 +95,21 @@ class JobScheduler:
             job = finished_executor.job
             logger.info(f"job {job.name} finished with status {executor_status}")
             JobScheduler.change_job_status(job, finished_executor.status())
+            job.end_time = time.time()  # update end time
             executor_manager.release_executor(finished_executor)
+            self._handle_job_finished(job, finished_executor, job.elapsed)
 
-    @staticmethod
-    def _dispatch_jobs(executor_manager, jobs):
+    def _handle_job_start(self, job, executor):
+        for callback in self.callbacks:
+            callback: BatchCallback = callback
+            callback.on_job_start(self.batch, job, executor)
+
+    def _handle_job_finished(self, job, executor, elapsed):
+        for callback in self.callbacks:
+            callback: BatchCallback = callback
+            callback.on_job_finish(self.batch, job, executor, elapsed)
+
+    def _run_jobs(self, executor_manager, jobs):
         for job in jobs:
             if job.status != job.STATUS_INIT:
                 # logger.debug(f"job '{job.name}' status is {job.status}, skip run")
@@ -103,8 +117,10 @@ class JobScheduler:
             try:
                 logger.debug(f'trying to alloc resource for job {job.name}')
                 executor = executor_manager.alloc_executor(job)
+                job.start_time = time.time()  # update start time
+                self._handle_job_start(job, executor)
                 process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
-                logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir} ')
+                logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir}')
                 # os.makedirs(job.job_data_dir, exist_ok=True)
                 JobScheduler.change_job_status(job, job.STATUS_RUNNING)
                 executor.run()
@@ -112,24 +128,32 @@ class JobScheduler:
                 logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
-                JobScheduler.change_job_status(job, job.STATUS_FAILED)
+                JobScheduler.change_job_status(job, job.STATUS_FAILED)  # TODO on job break
                 logger.exception(f"failed to run job '{job.name}' ", e)
                 continue
             finally:
                 pass
 
-    def schedule(self):
+    def _handle_on_finished(self):
+        for callback in self.callbacks:
+            callback: BatchCallback = callback
+            callback.on_finish(self.batch, self.batch.elapsed)
+
+    def attempt_scheduling(self):  # attempt_scheduling
         jobs = self.batch.jobs
+
         # check all jobs finished
         job_finished = self.batch.is_finished()
         if job_finished:
+            self.batch.end_time = time.time()
             batch_summary = json.dumps(self.batch.summary())
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)
             self._timer.stop()  # stop the timer
             if self.exit_on_finish:
                 logger.info("exited ioloop")
                 ioloop.IOLoop.instance().stop()
+            self._handle_on_finished()
             return
 
-        self._check_executors(self.executor_manager)
-        self._dispatch_jobs(self.executor_manager, jobs)
+        self._release_executors(self.executor_manager)
+        self._run_jobs(self.executor_manager, jobs)

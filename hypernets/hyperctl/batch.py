@@ -45,6 +45,9 @@ class ShellJob:
 
         self.batch = batch
 
+        self.start_time = None
+        self.end_time = None
+
     @property
     def batch_data_dir(self):
         return self.batch.data_dir_path()
@@ -102,6 +105,13 @@ class ShellJob:
             "working_dir": self.working_dir
         }
 
+    @property
+    def elapsed(self):
+        if self.start_time is not None and self.end_time is not None:
+            return self.end_time - self.start_time
+        else:
+            return None
+
 
 class ServerConf:  # API server conf
     def __init__(self, host="localhost", port=8060, exit_on_finish=False):
@@ -149,6 +159,9 @@ class Batch:
         self.batches_data_dir = Path(batches_data_dir)
 
         self.jobs = []
+
+        self.start_time = None
+        self.end_time = None
 
     def add_job(self, **kwargs):
         kwargs['batch'] = self
@@ -198,6 +211,13 @@ class Batch:
             if job.name == job_name:
                 return job
         return None
+
+    @property
+    def elapsed(self):
+        if self.start_time is not None and self.end_time is not None:
+            return self.end_time - self.start_time
+        else:
+            return None
 
     def summary(self):
         batch = self
