@@ -8,6 +8,7 @@ from hypernets.hyperctl import api
 from hypernets.hyperctl import scheduler, utils
 from hypernets.hyperctl.appliation import BatchApplication
 from hypernets.hyperctl.batch import ShellJob, Batch
+from hypernets.hyperctl.callbacks import ConsoleCallback
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch, create_remote_batch
 from hypernets.tests.utils import ssh_utils_test
@@ -84,9 +85,11 @@ def test_run_remote():
 @skip_if_windows
 def test_run_minimum_local_batch():
     batch = create_minimum_batch()
+    scheduler_callbacks = []
     app = BatchApplication(batch, server_port=8061,
                            scheduler_exit_on_finish=True,
-                           scheduler_interval=1)
+                           scheduler_interval=1,
+                           scheduler_callbacks=[ConsoleCallback()])
     app.start()
     assert_batch_finished(batch, batch.name, [batch.jobs[0].name], ShellJob.STATUS_SUCCEED)
     assert_local_job_succeed(batch.jobs)

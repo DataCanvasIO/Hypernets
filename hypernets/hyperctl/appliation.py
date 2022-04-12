@@ -26,6 +26,7 @@ class BatchApplication:
                  server_port=8060,
                  scheduler_exit_on_finish=False,
                  scheduler_interval=5000,
+                 scheduler_callbacks=None,
                  backend_type='local',
                  backend_conf=None,
                  version=None,
@@ -36,7 +37,7 @@ class BatchApplication:
         self.job_scheduler:JobScheduler = self._create_scheduler(backend_type, backend_conf,
                                                                  server_host, server_port,
                                                                  scheduler_exit_on_finish,
-                                                                 scheduler_interval)
+                                                                 scheduler_interval, scheduler_callbacks)
         # create http server
         self.http_server = self._create_web_app(server_host, server_port, batch)
 
@@ -44,9 +45,10 @@ class BatchApplication:
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
     def _create_scheduler(self, backend_type, backend_conf, server_host, server_port,
-                          scheduler_exit_on_finish, scheduler_interval):
+                          scheduler_exit_on_finish, scheduler_interval, scheduler_callbacks):
         executor_manager = create_executor_manager(backend_type, backend_conf, server_host, server_port)
-        return JobScheduler(self.batch, scheduler_exit_on_finish, scheduler_interval, executor_manager)
+        return JobScheduler(self.batch, scheduler_exit_on_finish,
+                            scheduler_interval, executor_manager, callbacks=scheduler_callbacks)
 
     def start(self):
 

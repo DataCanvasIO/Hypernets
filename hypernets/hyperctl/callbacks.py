@@ -11,7 +11,7 @@ class BatchCallback:
     def on_job_finish(self, batch, job, executor, elapsed: float):
         pass
 
-    def on_job_break(self):  # TODO
+    def on_job_break(self, batch, job, executor, elapsed: float):  # TODO
         pass
 
     def on_finish(self, batch, elapsed: float):
@@ -21,16 +21,16 @@ class BatchCallback:
 class ConsoleCallback(BatchCallback):
 
     def on_start(self, batch):
-        print(batch)
+        print("on_start")
 
     def on_job_start(self, batch, job, executor):
-        pass
+        print("on_job_start")
 
     def on_job_finish(self, batch, job, executor, elapsed: float):
-        pass
+        print("on_job_finish")
 
-    def on_job_break(self):
-        pass
+    def on_job_break(self, batch, job, executor, elapsed: float):
+        print("on_job_break")
 
     def on_finish(self, batch, elapsed: float):
-        pass
+        print("on_finish")
