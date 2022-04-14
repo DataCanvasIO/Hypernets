@@ -41,6 +41,8 @@ class BatchApplication:
         # create http server
         self.http_server = self._create_web_app(server_host, server_port, batch)
 
+        self._io_loop_instance = None
+
     def _create_web_app(self, server_host, server_port, batch):
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
@@ -83,16 +85,19 @@ class BatchApplication:
         with open(self.batch.pid_file_path(), 'w', newline='\n') as f:
             f.write(str(os.getpid()))
 
-        # prepare to start scheduler and web http
-        self.job_scheduler.start()
-
         # start web server
         server_portal = http_portal(self.server_host, self.server_port)
         logger.info(f"start api server at: {server_portal}")
         self.http_server.listen(self.server_port).start()
 
-        # run in io loop
-        ioloop.IOLoop.instance().start()
+        # start scheduler
+        self.job_scheduler.start()
+
+    def stop(self):
+        if self.job_scheduler is not None:
+            self.job_scheduler.stop()
+        else:
+            raise RuntimeError("Not started yet")
 
     def to_config(self):
         jobs_config = []

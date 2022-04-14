@@ -22,6 +22,9 @@ class JobScheduler:
         self.exit_on_finish = exit_on_finish
         self.executor_manager = executor_manager
         self.callbacks = callbacks if callbacks is not None else []
+
+        self._io_loop_instance = None
+
         self._timer = PeriodicCallback(self.attempt_scheduling, interval)
 
     @property
@@ -35,6 +38,16 @@ class JobScheduler:
 
         for callback in self.callbacks:
             callback.on_start(self.batch)
+
+        # run in io loop
+        self._io_loop_instance = ioloop.IOLoop.instance()
+        self._io_loop_instance.start()
+
+    def stop(self):
+        if self._io_loop_instance is not None:
+            self._io_loop_instance.stop()
+        else:
+            raise RuntimeError("Not started yet")
 
     def kill_job(self, job_name):
         # checkout job
@@ -151,7 +164,7 @@ class JobScheduler:
             self._timer.stop()  # stop the timer
             if self.exit_on_finish:
                 logger.info("exited ioloop")
-                ioloop.IOLoop.instance().stop()
+                self.stop()
             self._handle_on_finished()
             return
 
