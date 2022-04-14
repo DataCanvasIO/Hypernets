@@ -1,4 +1,3 @@
-import _thread
 import time
 import threading
 
@@ -16,6 +15,21 @@ from hypernets.tests.utils import ssh_utils_test
 from hypernets.utils import is_os_windows
 
 skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows now')  # not generate run.bat now
+
+
+class BatchRunner(threading.Thread):
+
+    def __init__(self, batch_app):
+        super(BatchRunner, self).__init__()
+        self.batch_app = batch_app
+
+    def run(self) -> None:
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        self.batch_app.start()
+
+    def stop(self):
+        self.batch_app.stop()
 
 
 def assert_local_job_finished(jobs):
@@ -114,32 +128,15 @@ def test_kill_local_job():
     job_name = batch.jobs[0].name
     server_port = 8063
 
-    def send_kill_request():
-        time.sleep(2)
-        api.kill_job(f'http://localhost:{server_port}', job_name)
-
-    _thread.start_new_thread(send_kill_request, ())
-
     app = BatchApplication(batch, server_port=server_port,
                            scheduler_exit_on_finish=True,
                            scheduler_interval=1)
-    app.start()
+    runner = BatchRunner(app)
+    runner.start()
+    time.sleep(2)
+    api.kill_job(f'http://localhost:{server_port}', job_name)
+    time.sleep(1)
     assert_batch_finished(batch, batch.name, [job_name], ShellJob.STATUS_FAILED)
-
-
-class BatchRunner(threading.Thread):
-
-    def __init__(self, batch_app):
-        super(BatchRunner, self).__init__()
-        self.batch_app = batch_app
-
-    def run(self) -> None:
-        new_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(new_loop)
-        self.batch_app.start()
-
-    def stop(self):
-        self.batch_app.stop()
 
 
 def test_stop_scheduler():
@@ -152,7 +149,7 @@ def test_stop_scheduler():
     time.sleep(2)  # wait for starting
     assert runner.is_alive()
     runner.stop()
-    time.sleep(2)
+    time.sleep(1)
     assert not runner.is_alive()
 
 # if __name__ == '__main__':
