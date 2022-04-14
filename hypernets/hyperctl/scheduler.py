@@ -41,11 +41,15 @@ class JobScheduler:
 
         # run in io loop
         self._io_loop_instance = ioloop.IOLoop.instance()
+        logger.info('starting io loop')
         self._io_loop_instance.start()
+        logger.info('exited io loop')
 
     def stop(self):
         if self._io_loop_instance is not None:
-            self._io_loop_instance.stop()
+            self._io_loop_instance.add_callback(self._io_loop_instance.stop)  # let ioloop stop itself
+            # self._io_loop_instance.stop() # This is not work for another Thread to stop the ioloop
+            logger.info("add a stop callback to ioloop")
         else:
             raise RuntimeError("Not started yet")
 
@@ -163,7 +167,7 @@ class JobScheduler:
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)
             self._timer.stop()  # stop the timer
             if self.exit_on_finish:
-                logger.info("exited ioloop")
+
                 self.stop()
             self._handle_on_finished()
             return

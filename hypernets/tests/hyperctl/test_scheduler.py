@@ -1,9 +1,10 @@
 import _thread
 import time
+import threading
+
 from pathlib import Path
-
 import pytest
-
+import asyncio
 from hypernets.hyperctl import api
 from hypernets.hyperctl import scheduler, utils
 from hypernets.hyperctl.appliation import BatchApplication
@@ -125,6 +126,34 @@ def test_kill_local_job():
     app.start()
     assert_batch_finished(batch, batch.name, [job_name], ShellJob.STATUS_FAILED)
 
+
+class BatchRunner(threading.Thread):
+
+    def __init__(self, batch_app):
+        super(BatchRunner, self).__init__()
+        self.batch_app = batch_app
+
+    def run(self) -> None:
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        self.batch_app.start()
+
+    def stop(self):
+        self.batch_app.stop()
+
+
+def test_stop_scheduler():
+    batch = create_minimum_batch()
+    app = BatchApplication(batch, server_port=8086,
+                           scheduler_exit_on_finish=False,
+                           scheduler_interval=1)
+    runner = BatchRunner(app)
+    runner.start()
+    time.sleep(2)  # wait for starting
+    assert runner.is_alive()
+    runner.stop()
+    time.sleep(2)
+    assert not runner.is_alive()
 
 # if __name__ == '__main__':
 #     test_run_remote()

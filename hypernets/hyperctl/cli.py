@@ -126,7 +126,7 @@ def run_show_jobs(batch_name, batches_data_dir):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    api_server_portal = batch_app.http_server.portal
+    api_server_portal = batch_app.web_app.portal
 
     jobs_dict = api.list_jobs(api_server_portal)
 
@@ -145,7 +145,7 @@ def run_kill_job(batch_name, job_name, batches_data_dir):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    api_server_portal = batch_app.http_server.portal
+    api_server_portal = batch_app.web_app.portal
 
     jobs_dict = api.kill_job(api_server_portal, job_name)
     print(json.dumps(jobs_dict))
@@ -158,7 +158,7 @@ def show_job(batch_name, job_name, batches_data_dir):
     if batch.STATUS_RUNNING != batch.status():
         raise RuntimeError("batch is not running")
 
-    api_server_portal = batch_app.http_server.portal
+    api_server_portal = batch_app.web_app.portal
 
     job_dict = api.get_job(job_name, api_server_portal)
     job_desc = json.dumps(job_dict, indent=4)

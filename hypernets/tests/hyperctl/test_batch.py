@@ -90,8 +90,8 @@ def test_load_local_batch_config():
     batch_app = BatchApplication.load(local_batch, batches_data_dir)
 
     # 2. assert batch
-    assert batch_app.batch.name == "local_batch_test"
-    jobs = batch_app.batch.jobs
+    assert batch_app.batch_app.name == "local_batch_test"
+    jobs = batch_app.batch_app.jobs
 
     assert len(jobs) == 2
     job1: ShellJob = jobs[0]

@@ -38,10 +38,11 @@ class BatchApplication:
                                                                  server_host, server_port,
                                                                  scheduler_exit_on_finish,
                                                                  scheduler_interval, scheduler_callbacks)
-        # create http server
-        self.http_server = self._create_web_app(server_host, server_port, batch)
+        # create web app
+        self.web_app = self._create_web_app(server_host, server_port, batch)
 
         self._io_loop_instance = None
+        self._http_server = None
 
     def _create_web_app(self, server_host, server_port, batch):
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
@@ -86,18 +87,23 @@ class BatchApplication:
             f.write(str(os.getpid()))
 
         # start web server
+        self._http_server = self.web_app.listen(self.server_port)
+        self._http_server.start()
         server_portal = http_portal(self.server_host, self.server_port)
-        logger.info(f"start api server at: {server_portal}")
-        self.http_server.listen(self.server_port).start()
+        logger.info(f"api server is ready to run at: {server_portal}")
 
         # start scheduler
         self.job_scheduler.start()
 
     def stop(self):
-        if self.job_scheduler is not None:
-            self.job_scheduler.stop()
-        else:
-            raise RuntimeError("Not started yet")
+        if self.job_scheduler is None:
+            raise RuntimeError("job_scheduler is None, maybe not started yet")
+        if self._http_server is None:
+            raise RuntimeError("_http_server is None, maybe not started yet")
+
+        self.job_scheduler.stop()
+        self._http_server.stop()
+        logger.info(f"stopped api server")
 
     def to_config(self):
         jobs_config = []
@@ -160,8 +166,8 @@ class BatchApplication:
 
     @property
     def server_host(self):
-        return self.http_server.host
+        return self.web_app.host
 
     @property
     def server_port(self):
-        return self.http_server.port
+        return self.web_app.port
