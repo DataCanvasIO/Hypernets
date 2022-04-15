@@ -1,31 +1,14 @@
-import json
 import os
 
-import requests
-
-from hypernets.hyperctl import consts
+from hypernets.hyperctl import consts,utils
 from hypernets.utils import logging as hyn_logging
 
 logger = hyn_logging.get_logger(__name__)
 
 
-def _fetch_url(url, method='get'):
-    logger.debug(f"http {method} to {url}")
-    http_method = getattr(requests, method)
-    resp = http_method(url)
-    txt_resp = resp.text
-    logger.debug(f"response text: \n{txt_resp}")
-    json_resp = json.loads(txt_resp)
-    code = json_resp['code']
-    if code == 0:
-        return json_resp['data']
-    else:
-        raise RuntimeError(txt_resp)
-
-
 def get_job(job_name, api_server_portal):
     url_get_job = f"{api_server_portal}/hyperctl/api/job/{job_name}"
-    data = _fetch_url(url_get_job)
+    data = utils.get_request(url_get_job)
     return data
 
 
@@ -54,12 +37,11 @@ def list_jobs(api_server_portal):
     #     api_server_portal = os.getenv(consts.KEY_ENV_api_server_portal)
     assert api_server_portal
     url_get_jobs = f"{api_server_portal}/hyperctl/api/job"
-    data = _fetch_url(url_get_jobs)
+    data = utils.get_request(url_get_jobs)
     return data['jobs']
 
 
 def kill_job(api_server_portal, job_name):
     url_kill_job = f"{api_server_portal}/hyperctl/api/job/{job_name}/kill"
-    data = _fetch_url(url_kill_job, method='post')
+    data = utils.post_request(url_kill_job, request_data=None)
     return data
-

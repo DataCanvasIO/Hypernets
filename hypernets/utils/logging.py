@@ -20,7 +20,7 @@ from logging import INFO
 from logging import WARN
 
 # settings
-_log_level = DEBUG
+_log_level = INFO
 
 _name2level = {
     'FATAL': FATAL,
