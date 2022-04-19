@@ -30,9 +30,11 @@ def _is_all_values_not_none(dict_data):
 
 
 need_psw_auth_ssh = pytest.mark.skipif(not _is_all_values_not_none(load_ssh_psw_config()),
-                                       reason='password authentication ssh account not ready ')
+                                       reason='password authentication ssh account not ready,'
+                                              ' please set ssh account in environment')
 need_rsa_auth_ssh = pytest.mark.skipif(not _is_all_values_not_none(load_ssh_rsa_config()),
-                                       reason='rsa file authentication ssh account not ready ')
+                                       reason='rsa file authentication ssh account not ready,'
+                                              ' please set ssh account in environment ')
 
 
 @need_psw_auth_ssh
