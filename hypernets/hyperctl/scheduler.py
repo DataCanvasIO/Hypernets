@@ -27,14 +27,34 @@ class JobScheduler:
 
         self._timer = PeriodicCallback(self.attempt_scheduling, interval)
 
+        self._n_skipped = 0
+        self._n_allocated = 0
+
+    @property
+    def n_skipped(self):
+        return self._n_skipped
+
+    @property
+    def n_allocated(self):
+        return self._n_allocated
+
     @property
     def interval(self):
         return self._timer.callback_time
+
+    def stats_finished_jobs(self):
+        for job in self.batch.jobs:
+            if job.status in ShellJob.FINAL_STATUS:
+                logger.info(f"job '{job.name}' status is {job.status}, skip run")
+                self._n_skipped = self.n_skipped + 1
 
     def start(self):
         self.executor_manager.prepare()
         self._timer.start()
         self.batch.start_time = time.time()
+
+        # stats finished jobs
+        self.stats_finished_jobs()
 
         for callback in self.callbacks:
             callback.on_start(self.batch)
@@ -129,11 +149,12 @@ class JobScheduler:
     def _run_jobs(self, executor_manager, jobs):
         for job in jobs:
             if job.status != job.STATUS_INIT:
-                # logger.debug(f"job '{job.name}' status is {job.status}, skip run")
+                # logger.warning(f"job '{job.name}' status is {job.status}, skip run")
                 continue
             try:
                 logger.debug(f'trying to alloc resource for job {job.name}')
                 executor = executor_manager.alloc_executor(job)
+                self._n_allocated = self.n_allocated + 1
                 job.start_time = time.time()  # update start time
                 self._handle_job_start(job, executor)
                 process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"

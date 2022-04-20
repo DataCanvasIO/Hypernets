@@ -8,8 +8,10 @@ from hypernets.tests.utils import ssh_utils_test
 SRC_DIR = os.path.dirname(__file__)
 
 
-def create_minimum_batch(command="pwd"):
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+def create_minimum_batch(command="pwd", batches_data_dir=None):
+    if batches_data_dir is None:
+        batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+
     batch = Batch("minimum-batch", batches_data_dir)
 
     data_dir = (Path(batches_data_dir)/ batch.name / "job1").absolute().as_posix()

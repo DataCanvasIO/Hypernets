@@ -1,3 +1,4 @@
+import tempfile
 import time
 import threading
 
@@ -139,6 +140,7 @@ def test_kill_local_job():
     assert_batch_finished(batch, batch.name, [job_name], ShellJob.STATUS_FAILED)
 
 
+@skip_if_windows
 def test_stop_scheduler():
     batch = create_minimum_batch()
     app = BatchApplication(batch, server_port=8086,
@@ -152,5 +154,40 @@ def test_stop_scheduler():
     time.sleep(1)
     assert not runner.is_alive()
 
+
+def create_batch_app(batches_data_dir):
+
+    batch = create_minimum_batch(batches_data_dir=batches_data_dir)
+
+    app = BatchApplication(batch, server_port=8086,
+                           scheduler_exit_on_finish=True,
+                           scheduler_interval=1)
+
+    return app
+
+
+def test_run_base_previous_batch():
+    # run a batch
+    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+    app1 = create_batch_app(batches_data_dir)
+    app1.start()
+    app1._http_server.stop()  # release port
+
+    scheduler1 = app1.job_scheduler
+    assert scheduler1.n_allocated == len(app1.batch.jobs)
+    assert scheduler1.n_skipped == 0
+
+    # run the bach again
+    app2 = create_batch_app(batches_data_dir)
+    app2.start()
+    app2._http_server.stop()
+    scheduler2 = app2.job_scheduler
+
+    # all ran jobs should not run again
+    assert scheduler2.n_allocated == 0
+    assert scheduler2.n_skipped == len(app1.batch.jobs)
+
+
 # if __name__ == '__main__':
 #     test_run_remote()
+#
