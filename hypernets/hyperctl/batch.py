@@ -35,7 +35,7 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, resource, command, output_dir, working_dir, batch):
+    def __init__(self, name, params, resource, command, output_dir, working_dir, assets, batch):
         self.name = name
         self.params = params
         self.resource = resource
@@ -44,9 +44,18 @@ class ShellJob:
         self.working_dir = working_dir
 
         self.batch = batch
+        self.assets = assets
 
         self.start_time = None
         self.end_time = None
+
+        self._status = ShellJob.STATUS_INIT
+
+    def set_status(self, status):
+        self._status = status
+
+    def status(self):
+        return self._status
 
     @property
     def batch_data_dir(self):
@@ -63,6 +72,10 @@ class ShellJob:
     def status_file_path(self, status):
         return (Path(self.batch_data_dir) / f"{self.name}.{status}").as_posix()
 
+    @property
+    def resources_path(self):
+        return Path(self.job_data_dir) / "resources"  # resources should be copied to working dir
+
     def final_status_files(self):
         return self._status_files([self.STATUS_FAILED, self.STATUS_SUCCEED])
 
@@ -71,23 +84,6 @@ class ShellJob:
 
     def _status_files(self, statuses):
         return {status: f"{self.name}.{status}" for status in statuses}
-
-    @property
-    def status(self):
-        exists_statuses = []
-        for status_value, status_file in self.status_files().items():
-            abs_status_file = os.path.join(self.batch_data_dir, status_file)
-            if os.path.exists(abs_status_file):
-                exists_statuses.append((status_value, status_file))
-
-        status_len = len(exists_statuses)
-        if status_len > 1:
-            files_msg = ",".join(map(lambda _: _[1], exists_statuses))
-            raise ValueError(f"Invalid status, multiple status files exists: {files_msg}")
-        elif status_len == 1:
-            return exists_statuses[0][0]
-        else:  # no status file
-            return self.STATUS_INIT
 
     def to_dict(self):
         import copy
@@ -102,7 +98,8 @@ class ShellJob:
             "resource": self.resource,
             "command": self.command,
             "output_dir": self.output_dir,
-            "working_dir": self.working_dir
+            "working_dir": self.working_dir,
+            "assets": self.assets
         }
 
     @property

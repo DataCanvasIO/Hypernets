@@ -79,6 +79,12 @@ class RemoteShellExecutor(ShellExecutor):
         self._command_ssh_client = None
         self._remote_process = None
 
+    def prepare_assets(self):
+        # upload resource to working dir
+        for asset in self.job.assets:
+            Path(asset).absolute().as_posix()  # upload to
+        pass
+
     def run(self):
         # create remote data dir
         output_dir = Path(self.job.output_dir).as_posix()
@@ -96,7 +102,7 @@ class RemoteShellExecutor(ShellExecutor):
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
             logger.debug(f'upload {run_file} to {self.job.run_file_path}')
             sftp_client: SFTPClient = sftp_client
-            ssh_utils.copy_from_local_to_remote(sftp_client, run_file, self.job.run_file_path)
+            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file_path)
 
         # execute command in async
         self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)

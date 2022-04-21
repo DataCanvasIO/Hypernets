@@ -102,23 +102,19 @@ class JobScheduler:
         target_status_file = job.status_file_path(next_status)
         if next_status == job.STATUS_INIT:
             raise ValueError(f"can not change to {next_status} ")
-
         elif next_status == job.STATUS_RUNNING:
             if current_status != job.STATUS_INIT:
                 raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
-
+            job.set_status(next_status)
         elif next_status in job.FINAL_STATUS:
             if current_status != job.STATUS_RUNNING:
                 raise ValueError(f"only job in {job.STATUS_RUNNING} can change to "
                                  f"{next_status} but now is {current_status}")
-            # delete running status file
-            running_status_file = job.status_file_path(job.STATUS_RUNNING)
-            os.remove(running_status_file)
+            job.set_status(next_status)
+            with open(target_status_file, 'w') as f:
+                pass
         else:
             raise ValueError(f"unknown status {next_status}")
-
-        with open(target_status_file, 'w') as f:
-            pass
 
     def _release_executors(self, executor_manager):
         finished = []

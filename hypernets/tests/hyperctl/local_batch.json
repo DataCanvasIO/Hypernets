@@ -6,7 +6,11 @@
             "params": {
                 "learning_rate": 0.1
             },
-            "command": "sleep 100;echo \"finished\""
+            "command": "sleep 100;echo \"finished\"",
+            "resources":[
+                "/tmp/file-a",
+                "/tmp/dir-a"
+            ]
         },{
             "name": "job2",
             "params": {
