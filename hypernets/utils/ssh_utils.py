@@ -2,8 +2,11 @@ import paramiko
 import contextlib
 import os
 from pathlib import Path
+from hypernets.utils import logging as hyn_logging
 
 from paramiko import SFTPClient, SSHClient
+
+logger = hyn_logging.get_logger(__name__)
 
 
 def create_ssh_client(hostname,  username, port=22, password=None, ssh_rsa_file=None, passphrase=None) -> SSHClient:
@@ -67,7 +70,41 @@ def makedirs(sftp: SFTPClient, remote_dir):
         sftp.mkdir(remote_dir)
 
 
-def copy_from_local_to_remote(sftp: SFTPClient, local_path, remote_path):
+def upload_file(sftp: SFTPClient, local_path, remote_path):
+    """Copy local file to remote. if remote dir is not exists should create it.
+    :param sftp:
+    :param local_path: a file
+    :param remote_path: a file path, is not exists and included file name
+    :return:
+    """
     p = Path(remote_path).parent.as_posix()
     makedirs(sftp, p)
     sftp.put(local_path, remote_path)
+
+
+def upload_dir(sftp: SFTPClient, local_dir, remote_dir):
+    """ Recursive upload local dir to remote
+    :param sftp:
+    :param local_dir: a local dir
+    :param remote_dir: a not exists path in remote server
+    :return:
+    """
+    # TODO local_dir is dir
+    # TODO remote_dir not exists
+    local_dir_path = Path(local_dir)
+    remote_destination_dir_path = Path(remote_dir).absolute() / local_dir_path.name
+
+    for walk_root, ds, fs in os.walk(local_dir_path):
+        relative_walk_root_path = Path(walk_root).relative_to(local_dir_path)
+        remote_walk_root = remote_destination_dir_path / relative_walk_root_path  # is a dir
+        # create remote dir even is empty dir
+        makedirs(sftp, remote_walk_root.as_posix())
+        logger.debug(f"create remote fold {remote_walk_root.absolute()}")
+
+        # upload files
+        for f in fs:
+            remote_file = (remote_walk_root / f).as_posix()
+            local_file = (Path(walk_root) / f).as_posix()
+            upload_file(sftp, local_file, remote_file)
+            logger.debug(f"uploaded local file {local_file} to remote {remote_file}")
+
