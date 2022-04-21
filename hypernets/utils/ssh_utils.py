@@ -89,10 +89,14 @@ def upload_dir(sftp: SFTPClient, local_dir, remote_dir):
     :param remote_dir: a not exists path in remote server
     :return:
     """
-    # TODO local_dir is dir
-    # TODO remote_dir not exists
+
     local_dir_path = Path(local_dir)
+    assert local_dir_path.exists() and local_dir_path.is_dir(), f"input local_dir {local_dir} should be a exists dir"
+
     remote_destination_dir_path = Path(remote_dir).absolute() / local_dir_path.name
+    remote_destination_dir = remote_destination_dir_path.as_posix()
+
+    assert not exists(sftp, remote_destination_dir), f"remote file {remote_destination_dir} path already existed "
 
     for walk_root, ds, fs in os.walk(local_dir_path):
         relative_walk_root_path = Path(walk_root).relative_to(local_dir_path)

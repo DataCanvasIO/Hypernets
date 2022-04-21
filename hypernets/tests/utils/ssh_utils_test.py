@@ -96,7 +96,8 @@ def test_exec():
 
 
 @need_psw_auth_ssh
-class TestUpload:
+class BaseUpload:
+
     def setup_class(self):
         """Create files:
         test-dir/
@@ -134,6 +135,24 @@ class TestUpload:
 
         self.ssh_config = load_ssh_psw_config()
 
+    def upload_dir(self):
+        with ssh_utils.sftp_client(**self.ssh_config) as client:
+            # check file in remote
+            p1 = common_util.generate_short_id()
+            p2 = common_util.generate_short_id()
+            remote_dir_path = (Path("/tmp") / p1 / p2)
+            remote_dir = remote_dir_path.as_posix()
+
+            ssh_utils.upload_dir(client, self.data_dir, remote_dir)
+            return remote_dir
+
+    def teardown_class(self):
+        pass
+
+
+@need_psw_auth_ssh
+class TestUpload(BaseUpload):
+
     def test_upload_file(self):
         # check file in remote
         p1 = common_util.generate_short_id()
@@ -154,15 +173,9 @@ class TestUpload:
             assert ssh_utils.exists(client, remote_file)
 
     def test_upload_dir(self):
+        remote_dir = self.upload_dir()
         with ssh_utils.sftp_client(**self.ssh_config) as client:
-            # check file in remote
-            p1 = common_util.generate_short_id()
-            p2 = common_util.generate_short_id()
-            remote_dir_path = (Path("/tmp") / p1 / p2)
-            remote_dir = remote_dir_path.as_posix()
-
-            ssh_utils.upload_dir(client, self.data_dir, remote_dir)
-
+            remote_dir_path = Path(remote_dir)
             assert ssh_utils.exists(client, remote_dir)
             remote_destination_dir_path = remote_dir_path / self.data_dir.name
             print("remote_destination_dir_path")
@@ -173,5 +186,3 @@ class TestUpload:
             assert ssh_utils.exists(client, (remote_destination_dir_path / "sub_dir").as_posix())
             assert ssh_utils.exists(client, (remote_destination_dir_path / "sub_dir" / "b.txt").as_posix())
 
-    def teardown_class(self):
-        pass
