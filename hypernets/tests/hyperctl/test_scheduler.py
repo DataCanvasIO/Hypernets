@@ -122,7 +122,7 @@ class TestRunRemoteWithAssets(BaseUpload):
         backend_conf = {
             "machines": [ssh_utils_test.load_ssh_psw_config()]
         }
-        app = BatchApplication(batch, server_port=8088,
+        app = BatchApplication(batch, server_port=8089,
                                backend_type='remote',
                                backend_conf=backend_conf,
                                scheduler_exit_on_finish=True,

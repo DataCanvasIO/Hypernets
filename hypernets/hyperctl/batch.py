@@ -47,7 +47,7 @@ class ShellJob:
         else:
             self.working_dir = working_dir
 
-        self.assets = assets
+        self.assets = [] if assets is None else assets
 
         self.start_time = None
         self.end_time = None

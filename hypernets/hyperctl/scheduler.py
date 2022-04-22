@@ -135,38 +135,55 @@ class JobScheduler:
             executor_manager.release_executor(finished_executor)
             self._handle_job_finished(job, finished_executor, job.elapsed)
 
-    def _handle_job_start(self, job, executor):
+    def _handle_callbacks(self, func):
         for callback in self.callbacks:
-            callback: BatchCallback = callback
+            try:
+                callback: BatchCallback = callback
+                func(callback)
+            except Exception as e:
+                logger.warning("handle callback failed", e)
+
+    def _handle_job_start(self, job, executor):
+        def f(callback):
             callback.on_job_start(self.batch, job, executor)
+        self._handle_callbacks(f)
 
     def _handle_job_finished(self, job, executor, elapsed):
-        for callback in self.callbacks:
-            callback: BatchCallback = callback
+        def f(callback):
             callback.on_job_finish(self.batch, job, executor, elapsed)
+        self._handle_callbacks(f)
 
     def _run_jobs(self, executor_manager, jobs):
         for job in jobs:
             if job.status != job.STATUS_INIT:
                 # logger.warning(f"job '{job.name}' status is {job.status}, skip run")
                 continue
+
+            logger.debug(f'trying to alloc resource for job {job.name}')
             try:
-                logger.debug(f'trying to alloc resource for job {job.name}')
                 executor = executor_manager.alloc_executor(job)
-                self._n_allocated = self.n_allocated + 1
-                job.start_time = time.time()  # update start time
-                self._handle_job_start(job, executor)
-                process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
-                logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir}')
-                # os.makedirs(job.job_data_dir, exist_ok=True)
-                self._change_job_status(job, job.STATUS_RUNNING)
-                executor.run()
             except NoResourceException:
                 logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
+                # skip the job, and do not clean the executor
                 self._change_job_status(job, job.STATUS_FAILED)  # TODO on job break
+                logger.exception(f"failed to alloc resource for job '{job.name}' ", e)
+                continue
+
+            self._n_allocated = self.n_allocated + 1
+            job.start_time = time.time()  # update start time
+            self._handle_job_start(job, executor)
+            process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
+            logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir}')
+            self._change_job_status(job, job.STATUS_RUNNING)
+
+            try:
+                executor.run()
+            except Exception as e:
                 logger.exception(f"failed to run job '{job.name}' ", e)
+                self._change_job_status(job, job.STATUS_FAILED)  # TODO on job break
+                executor_manager.release_executor(executor)
                 continue
             finally:
                 pass

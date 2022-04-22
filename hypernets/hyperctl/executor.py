@@ -84,6 +84,8 @@ class RemoteShellExecutor(ShellExecutor):
         return self.connections.get('hostname')
 
     def prepare_assets(self):
+        if len(self.job.assets) == 0:
+            return
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
             for asset in self.job.assets:
                 asset_path = Path(asset).absolute()
@@ -292,6 +294,7 @@ class RemoteSSHExecutorManager(ExecutorManager):
                 if ret:
                     logger.debug(f'allocated resource on {machine.hostname} for job {job.name} ')
                     executor = RemoteShellExecutor(job, self.api_server_portal, machine.connection)
+                    # DOT NOT push anything to `_executors_map` or `_waiting_queue` if exception
                     self._executors_map[executor] = machine
                     self._waiting_queue.append(executor)
                     return executor
