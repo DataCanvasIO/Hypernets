@@ -79,27 +79,32 @@ class RemoteShellExecutor(ShellExecutor):
         self._command_ssh_client = None
         self._remote_process = None
 
+    @property
+    def remote_hostname(self):
+        return self.connections.get('hostname')
+
     def prepare_assets(self):
-        # upload resource to working dir
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f"create remote job output dir {output_dir} ")
-            ssh_utils.makedirs(sftp_client, output_dir)
             for asset in self.job.assets:
-                # 将文件一个个上传
-                sftp_client.upload_dir(asset)
-
-
-
-
-                Path(asset).absolute().as_posix()  # upload to
-            pass
+                asset_path = Path(asset).absolute()
+                asset_file = asset_path.as_posix()
+                if not asset_path.exists():
+                    logger.warning(f"local dir {asset_path} not exists, skip to upload")
+                    continue
+                if asset_path.is_dir():
+                    ssh_utils.upload_dir(sftp_client, asset_file, self.job.resources_path.as_posix())
+                else:
+                    ssh_utils.upload_file(sftp_client, asset_file, self.job.resources_path.as_posix())
 
     def run(self):
-        # create remote data dir
         output_dir = Path(self.job.output_dir).as_posix()
+        logger.debug(f"create remote data dir {output_dir}")
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
             logger.debug(f"create remote job output dir {output_dir} ")
             ssh_utils.makedirs(sftp_client, output_dir)
+
+        logger.debug(f"prepare to upload assert to {self.remote_hostname}")
+        self.prepare_assets()
 
         # create run shell file
         fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')

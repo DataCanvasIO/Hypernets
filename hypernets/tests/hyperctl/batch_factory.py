@@ -22,7 +22,7 @@ def create_minimum_batch(command="pwd", batches_data_dir=None):
     return batch
 
 
-def _create_local_batch(batch_name):
+def _create_local_batch(batch_name, job_asserts=None):
 
     job1_name = "job1"
     job2_name = "job2"
@@ -36,7 +36,8 @@ def _create_local_batch(batch_name):
                   params={"learning_rate": 0.1},
                   command=f"ls -l",
                   output_dir=job1_data_dir,
-                  working_dir=job1_data_dir)
+                  working_dir=job1_data_dir,
+                  assets=job_asserts)
 
     job2_data_dir = (Path(batches_data_dir) / job2_name).absolute().as_posix()
     batch.add_job(name=job2_name,
@@ -48,9 +49,9 @@ def _create_local_batch(batch_name):
     return batch
 
 
-def create_local_batch():
-    return _create_local_batch("local-batch")
+def create_local_batch(job_asserts=None):
+    return _create_local_batch("local-batch", job_asserts)
 
 
-def create_remote_batch():
-    return _create_local_batch(batch_name="remote-batch")
+def create_remote_batch(job_asserts=None):
+    return _create_local_batch(batch_name="remote-batch", job_asserts=job_asserts)

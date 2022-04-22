@@ -13,6 +13,7 @@ from hypernets.hyperctl.callbacks import ConsoleCallback
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch, create_remote_batch
 from hypernets.tests.utils import ssh_utils_test
+from hypernets.tests.utils.ssh_utils_test import BaseUpload
 from hypernets.utils import is_os_windows
 
 skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows now')  # not generate run.bat now
@@ -96,6 +97,42 @@ def test_run_remote():
     assert len(job_scheduler.executor_manager.machines) == 1
 
     assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
+
+
+@ssh_utils_test.need_psw_auth_ssh
+class TestRunRemoteWithAssets(BaseUpload):
+
+    def test_run_batch(self):
+        # create a batch with assets
+        job1_name = "job1"
+        batch_name = "test_run_batch"
+        batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+        batch = Batch(batch_name, batches_data_dir)
+
+        job1_data_dir = (batch.data_dir_path() / job1_name).absolute().as_posix()
+        job_asserts = [self.data_dir.as_posix()]
+
+        batch.add_job(name=job1_name,
+                      params={"learning_rate": 0.1},
+                      command=f"cat resources/{self.data_dir.name}/sub_dir/b.txt",  # read files in remote
+                      output_dir=job1_data_dir,
+                      working_dir=job1_data_dir,
+                      assets=job_asserts)
+
+        backend_conf = {
+            "machines": [ssh_utils_test.load_ssh_psw_config()]
+        }
+        app = BatchApplication(batch, server_port=8088,
+                               backend_type='remote',
+                               backend_conf=backend_conf,
+                               scheduler_exit_on_finish=True,
+                               scheduler_interval=1)
+        app.start()
+        job_scheduler = app.job_scheduler
+        assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
+        assert len(job_scheduler.executor_manager.machines) == 1
+
+        assert_batch_finished(batch, batch.name, [batch.jobs[0].name], ShellJob.STATUS_SUCCEED)
 
 
 @skip_if_windows

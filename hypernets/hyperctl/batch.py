@@ -72,10 +72,6 @@ class ShellJob:
     def resources_path(self):
         return Path(self.job_data_dir) / "resources"  # resources should be copied to working dir
 
-    def final_status_files(self):
-        return self._status_files([self.STATUS_FAILED, self.STATUS_SUCCEED])
-
-
     def to_dict(self):
         import copy
         config_dict = copy.copy(self.to_config())
@@ -186,7 +182,6 @@ class Batch:
                 'cpu': -1,
                 'mem': -1
             }
-            kwargs['assets'] = None
         self.jobs.append(ShellJob(**kwargs))
 
     def status(self):
