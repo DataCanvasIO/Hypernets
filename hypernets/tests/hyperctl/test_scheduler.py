@@ -177,8 +177,10 @@ def test_run_base_previous_batch():
     assert scheduler1.n_allocated == len(app1.batch.jobs)
     assert scheduler1.n_skipped == 0
 
-    # run the bach again
-    app2 = create_batch_app(batches_data_dir)
+    # run the bach base on previous batch
+    app2 = BatchApplication.load(app1.to_config(), batches_data_dir=batches_data_dir)
+
+    # app2 = create_batch_app(batches_data_dir)
     app2.start()
     app2._http_server.stop()
     scheduler2 = app2.job_scheduler

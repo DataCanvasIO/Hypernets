@@ -75,11 +75,6 @@ class ShellJob:
     def final_status_files(self):
         return self._status_files([self.STATUS_FAILED, self.STATUS_SUCCEED])
 
-    def status_files(self):
-        return self._status_files([self.STATUS_FAILED, self.STATUS_SUCCEED, self.STATUS_RUNNING])
-
-    def _status_files(self, statuses):
-        return {status: f"{self.name}.{status}" for status in statuses}
 
     def to_dict(self):
         import copy
@@ -159,8 +154,27 @@ class Batch:
     def job_status_file_path(self, job_name, status):
         return (self.batch_data_dir_path / f"{job_name}.{status}").as_posix()
 
+    def status_files(self):
+        return self._status_files([ShellJob.STATUS_FAILED, ShellJob.STATUS_SUCCEED, ShellJob.STATUS_RUNNING])
+
+    def _status_files(self, statuses):
+        return {status: f"{self.name}.{status}" for status in statuses}
+
     def load_job_status(self, job_name):
-        pass
+        exists_statuses = []
+        for status_value, status_file in self.status_files().items():
+            abs_status_file = self.job_status_file_path(job_name, status_value)
+            if os.path.exists(abs_status_file):
+                exists_statuses.append((status_value, status_file))
+
+        status_len = len(exists_statuses)
+        if status_len > 1:
+            files_msg = ",".join(map(lambda _: _[1], exists_statuses))
+            raise ValueError(f"Invalid status, multiple status files exists: {files_msg}")
+        elif status_len == 1:
+            return exists_statuses[0][0]
+        else:  # no status file
+            return ShellJob.STATUS_INIT
 
     @property
     def batch_data_dir_path(self):

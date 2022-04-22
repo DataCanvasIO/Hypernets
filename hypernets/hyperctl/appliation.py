@@ -34,10 +34,11 @@ class BatchApplication:
 
         self.batch = batch
 
-        self.job_scheduler:JobScheduler = self._create_scheduler(backend_type, backend_conf,
-                                                                 server_host, server_port,
-                                                                 scheduler_exit_on_finish,
-                                                                 scheduler_interval, scheduler_callbacks)
+        self.job_scheduler: JobScheduler = self._create_scheduler(backend_type, backend_conf,
+                                                                  server_host, server_port,
+                                                                  scheduler_exit_on_finish,
+                                                                  scheduler_interval,
+                                                                  scheduler_callbacks)
         # create web app
         self.web_app = self._create_web_app(server_host, server_port, batch)
 
@@ -143,9 +144,6 @@ class BatchApplication:
                 sub_init_kwargs = {f"{config_key}_{k}": v for k, v in sub_config.items()}
                 batch_spec_dict.update(sub_init_kwargs)
 
-        def get_job_status(job):
-            pass
-
         batch_name = batch_spec_dict.pop('name')
         jobs_dict = batch_spec_dict.pop('jobs')
 
@@ -154,10 +152,11 @@ class BatchApplication:
 
             if job_dict.get('output_dir') is None:
                 job_dict['output_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
-            if job_dict.get('working_dir') is None:
-                job_dict['working_dir'] = job_dict['output_dir']
 
-            batch.add_job(**job_dict)
+            job = ShellJob(**job_dict)
+            job.set_status(batch.load_job_status(job_name=job.name))
+            batch.jobs.append(job)
+            # batch.add_job(**job_dict)
 
         flat_args("server")
         flat_args("scheduler")
