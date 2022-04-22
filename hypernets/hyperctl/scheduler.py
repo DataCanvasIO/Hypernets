@@ -6,7 +6,7 @@ import time
 from tornado import ioloop
 from tornado.ioloop import PeriodicCallback
 
-from hypernets.hyperctl.batch import ShellJob
+from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.callbacks import BatchCallback
 from hypernets.hyperctl.executor import NoResourceException, ShellExecutor, ExecutorManager
 from hypernets.utils import logging as hyn_logging
@@ -92,14 +92,17 @@ class JobScheduler:
         if executor is not None:
             em.kill_executor(executor)
             logger.info(f"write failed status file for {job_name}")
-            self.change_job_status(job, job.STATUS_FAILED)
+            self._change_job_status(job, job.STATUS_FAILED)
         else:
             raise ValueError(f"no executor found for job {job.name}")
 
+    def _change_job_status(self, job: ShellJob, next_status):
+        self.change_job_status(self.batch, job, next_status)
+
     @staticmethod
-    def change_job_status(job: ShellJob, next_status):
+    def change_job_status(batch: Batch, job: ShellJob, next_status):
         current_status = job.status
-        target_status_file = job.status_file_path(next_status)
+        target_status_file = batch.job_status_file_path(job_name=job.name, status=next_status)
         if next_status == job.STATUS_INIT:
             raise ValueError(f"can not change to {next_status} ")
         elif next_status == job.STATUS_RUNNING:
@@ -127,7 +130,7 @@ class JobScheduler:
             executor_status = finished_executor.status()
             job = finished_executor.job
             logger.info(f"job {job.name} finished with status {executor_status}")
-            JobScheduler.change_job_status(job, finished_executor.status())
+            self._change_job_status(job, finished_executor.status())
             job.end_time = time.time()  # update end time
             executor_manager.release_executor(finished_executor)
             self._handle_job_finished(job, finished_executor, job.elapsed)
@@ -156,13 +159,13 @@ class JobScheduler:
                 process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
                 logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir}')
                 # os.makedirs(job.job_data_dir, exist_ok=True)
-                JobScheduler.change_job_status(job, job.STATUS_RUNNING)
+                self._change_job_status(job, job.STATUS_RUNNING)
                 executor.run()
             except NoResourceException:
                 logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
-                JobScheduler.change_job_status(job, job.STATUS_FAILED)  # TODO on job break
+                self._change_job_status(job, job.STATUS_FAILED)  # TODO on job break
                 logger.exception(f"failed to run job '{job.name}' ", e)
                 continue
             finally:

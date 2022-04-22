@@ -75,7 +75,7 @@ def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  stat
     # assert job status
     for job in batch.jobs:
         job: ShellJob = job
-        assert Path(job.status_file_path(status)).exists()
+        Path(batch.job_status_file_path(job_name=job.name, status=status)).exists()
 
 
 @ssh_utils_test.need_psw_auth_ssh

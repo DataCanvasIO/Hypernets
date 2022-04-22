@@ -143,6 +143,9 @@ class BatchApplication:
                 sub_init_kwargs = {f"{config_key}_{k}": v for k, v in sub_config.items()}
                 batch_spec_dict.update(sub_init_kwargs)
 
+        def get_job_status(job):
+            pass
+
         batch_name = batch_spec_dict.pop('name')
         jobs_dict = batch_spec_dict.pop('jobs')
 
@@ -153,6 +156,7 @@ class BatchApplication:
                 job_dict['output_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
             if job_dict.get('working_dir') is None:
                 job_dict['working_dir'] = job_dict['output_dir']
+
             batch.add_job(**job_dict)
 
         flat_args("server")

@@ -81,9 +81,18 @@ class RemoteShellExecutor(ShellExecutor):
 
     def prepare_assets(self):
         # upload resource to working dir
-        for asset in self.job.assets:
-            Path(asset).absolute().as_posix()  # upload to
-        pass
+        with ssh_utils.sftp_client(**self.connections) as sftp_client:
+            logger.debug(f"create remote job output dir {output_dir} ")
+            ssh_utils.makedirs(sftp_client, output_dir)
+            for asset in self.job.assets:
+                # 将文件一个个上传
+                sftp_client.upload_dir(asset)
+
+
+
+
+                Path(asset).absolute().as_posix()  # upload to
+            pass
 
     def run(self):
         # create remote data dir
@@ -109,20 +118,6 @@ class RemoteShellExecutor(ShellExecutor):
         command = f'sh {self.job.run_file_path}'
         logger.debug(f'execute command {command}')
         self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
-
-    def on_finished(self):
-        # write status file
-        status = self.status()
-        logger.info(f"job {self.job.name} finished with status {status}")
-        if status in ShellJob.FINAL_STATUS:
-            status_file_path = self.job.status_file_path(status)
-            the_dir = Path(status_file_path).parent
-            the_dir.mkdir(exist_ok=True)
-            with open(self.job.status_file_path(status), 'w'):
-                pass
-        # close resource
-        if self._command_ssh_client is not None:
-            self._command_ssh_client.close()
 
     def status(self):
         if self._remote_process is not None:

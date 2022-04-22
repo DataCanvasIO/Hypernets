@@ -35,31 +35,30 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, resource, command, output_dir, working_dir, assets, batch):
+    def __init__(self, name, params, command, output_dir, working_dir=None, assets=None, resource=None):
         self.name = name
         self.params = params
         self.resource = resource
         self.command = command
         self.output_dir = output_dir
-        self.working_dir = working_dir
 
-        self.batch = batch
+        if working_dir is None:
+            self.working_dir = output_dir
+        else:
+            self.working_dir = working_dir
+
         self.assets = assets
 
         self.start_time = None
         self.end_time = None
-
         self._status = ShellJob.STATUS_INIT
 
     def set_status(self, status):
         self._status = status
 
+    @property
     def status(self):
         return self._status
-
-    @property
-    def batch_data_dir(self):
-        return self.batch.data_dir_path()
 
     @property
     def job_data_dir(self):
@@ -68,9 +67,6 @@ class ShellJob:
     @property
     def run_file_path(self):
         return (Path(self.job_data_dir) / "run.sh").as_posix()
-
-    def status_file_path(self, status):
-        return (Path(self.batch_data_dir) / f"{self.name}.{status}").as_posix()
 
     @property
     def resources_path(self):
@@ -160,13 +156,23 @@ class Batch:
         self.start_time = None
         self.end_time = None
 
+    def job_status_file_path(self, job_name, status):
+        return (self.batch_data_dir_path / f"{job_name}.{status}").as_posix()
+
+    def load_job_status(self, job_name):
+        pass
+
+    @property
+    def batch_data_dir_path(self):
+        return Path(self.batches_data_dir) / self.name
+
     def add_job(self, **kwargs):
-        kwargs['batch'] = self
         if kwargs.get('resource') is None:
             kwargs['resource'] = {
                 'cpu': -1,
                 'mem': -1
             }
+            kwargs['assets'] = None
         self.jobs.append(ShellJob(**kwargs))
 
     def status(self):
@@ -234,27 +240,4 @@ class Batch:
             ShellJob.STATUS_SUCCEED: cnt(ShellJob.STATUS_SUCCEED),
             ShellJob.STATUS_RUNNING: cnt(ShellJob.STATUS_RUNNING),
         }
-
-def change_job_status(job: ShellJob, next_status):
-    current_status = job.status
-    target_status_file = job.status_file_path(next_status)
-    if next_status == job.STATUS_INIT:
-        raise ValueError(f"can not change to {next_status} ")
-
-    elif next_status == job.STATUS_RUNNING:
-        if current_status != job.STATUS_INIT:
-            raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
-
-    elif next_status in job.FINAL_STATUS:
-        if current_status != job.STATUS_RUNNING:
-            raise ValueError(f"only job in {job.STATUS_RUNNING} can change to "
-                             f"{next_status} but now is {current_status}")
-        # delete running status file
-        running_status_file = job.status_file_path(job.STATUS_RUNNING)
-        os.remove(running_status_file)
-    else:
-        raise ValueError(f"unknown status {next_status}")
-
-    with open(target_status_file, 'w') as f:
-        pass
 
