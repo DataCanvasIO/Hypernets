@@ -14,7 +14,7 @@ from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorM
 from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch, create_remote_batch
 from hypernets.tests.utils import ssh_utils_test
 from hypernets.tests.utils.ssh_utils_test import BaseUpload
-from hypernets.utils import is_os_windows
+from hypernets.utils import is_os_windows, ssh_utils
 
 skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows now')  # not generate run.bat now
 
@@ -109,7 +109,8 @@ class TestRunRemoteWithAssets(BaseUpload):
         batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
         batch = Batch(batch_name, batches_data_dir)
 
-        job1_data_dir = (batch.data_dir_path() / job1_name).absolute().as_posix()
+        job1_data_dir_path = (batch.data_dir_path() / job1_name).absolute()
+        job1_data_dir = job1_data_dir_path.as_posix()
         job_asserts = [self.data_dir.as_posix()]
 
         batch.add_job(name=job1_name,
@@ -120,8 +121,9 @@ class TestRunRemoteWithAssets(BaseUpload):
                       assets=job_asserts)
 
         backend_conf = {
-            "machines": [ssh_utils_test.load_ssh_psw_config()]
+            "machines": [self.ssh_config]
         }
+
         app = BatchApplication(batch, server_port=8089,
                                backend_type='remote',
                                backend_conf=backend_conf,
@@ -133,6 +135,14 @@ class TestRunRemoteWithAssets(BaseUpload):
         assert len(job_scheduler.executor_manager.machines) == 1
 
         assert_batch_finished(batch, batch.name, [batch.jobs[0].name], ShellJob.STATUS_SUCCEED)
+
+        # check assets in remote
+        with ssh_utils.sftp_client(**self.ssh_config) as client:
+            remote_assert_path = job1_data_dir_path / "resources" / self.data_dir.name
+
+            ssh_utils.exists(client, (remote_assert_path / "empty_dir").as_posix())
+            ssh_utils.exists(client, (remote_assert_path / "a.txt").as_posix())
+            ssh_utils.exists( client, (remote_assert_path / "sub_dir" / "b.txt").as_posix())
 
 
 @skip_if_windows

@@ -96,7 +96,7 @@ class RemoteShellExecutor(ShellExecutor):
                 if asset_path.is_dir():
                     ssh_utils.upload_dir(sftp_client, asset_file, self.job.resources_path.as_posix())
                 else:
-                    ssh_utils.upload_file(sftp_client, asset_file, self.job.resources_path.as_posix())
+                    ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
 
     def run(self):
         output_dir = Path(self.job.output_dir).as_posix()
