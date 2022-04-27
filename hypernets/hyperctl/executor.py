@@ -13,6 +13,7 @@ from hypernets.hyperctl.utils import http_portal
 from hypernets.hyperctl.batch import ShellJob
 from hypernets.utils import logging as hyn_logging
 from hypernets.utils import ssh_utils
+import shutil
 
 
 logger = hyn_logging.get_logger(__name__)
@@ -156,11 +157,32 @@ class LocalShellExecutor(ShellExecutor):
         super(LocalShellExecutor, self).__init__(job, api_server_portal)
         self._process = None
 
+    def prepare_assets(self):
+        if len(self.job.assets) == 0:
+            return
+        else:
+            if not self.job.resources_path.exists():
+                os.makedirs(self.job.resources_path, exist_ok=True)
+
+        for asset in self.job.assets:
+            asset_path = Path(asset).absolute()
+            asset_file = asset_path.as_posix()
+            if not asset_path.exists():
+                logger.warning(f"local dir {asset_path} not exists, skip to copy")
+                continue
+            if asset_path.is_dir():
+                shutil.copytree(asset_file, self.job.resources_path.as_posix())
+            else:
+                shutil.copyfile(asset_file, (self.job.resources_path / asset_path.name).as_posix())
+
     def run(self):
         # prepare data dir
         job_data_dir = Path(self.job.job_data_dir)
+
         if not job_data_dir.exists():
             os.makedirs(job_data_dir, exist_ok=True)
+
+        self.prepare_assets()
 
         # create shell file & write to local
         self._write_run_shell_script(self.job.run_file_path)

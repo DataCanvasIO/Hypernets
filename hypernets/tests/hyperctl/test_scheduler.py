@@ -59,10 +59,13 @@ def assert_local_job_succeed(jobs):
             assert len(f.read()) == 0
 
 
-def assert_batch_finished(batch: Batch, input_batch_name, input_jobs_name,  status):
+def assert_batch_finished(batch: Batch, status, input_batch_name=None, input_jobs_name=None):
 
-    assert batch.name == input_batch_name
-    assert set([job.name for job in batch.jobs]) == set(input_jobs_name)
+    if input_batch_name is not None:
+        assert batch.name == input_batch_name
+
+    if input_jobs_name is not None:
+        assert set([job.name for job in batch.jobs]) == set(input_jobs_name)
 
     # spec.json exists and is json file
     spec_file_path = batch.config_file_path()
@@ -96,7 +99,7 @@ def test_run_remote():
     assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
     assert len(job_scheduler.executor_manager.machines) == 1
 
-    assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
+    assert_batch_finished(batch, ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name, batch.jobs[1].name])
 
 
 @ssh_utils_test.need_psw_auth_ssh
@@ -134,7 +137,7 @@ class TestRunRemoteWithAssets(BaseUpload):
         assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
         assert len(job_scheduler.executor_manager.machines) == 1
 
-        assert_batch_finished(batch, batch.name, [batch.jobs[0].name], ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(batch,ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name])
 
         # check assets in remote
         with ssh_utils.sftp_client(**self.ssh_config) as client:
@@ -154,7 +157,7 @@ def test_run_minimum_local_batch():
                            scheduler_interval=1,
                            scheduler_callbacks=[ConsoleCallback()])
     app.start()
-    assert_batch_finished(batch, batch.name, [batch.jobs[0].name], ShellJob.STATUS_SUCCEED)
+    assert_batch_finished(batch, ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name])
     assert_local_job_succeed(batch.jobs)
 
 
@@ -166,7 +169,7 @@ def test_run_local_batch():
                            scheduler_interval=1)
     app.start()
     assert isinstance(app.job_scheduler.executor_manager, LocalExecutorManager)
-    assert_batch_finished(batch, batch.name, [batch.jobs[0].name, batch.jobs[1].name], ShellJob.STATUS_SUCCEED)
+    assert_batch_finished(batch, ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name, batch.jobs[1].name])
     assert_local_job_succeed(batch.jobs)
 
 
@@ -184,7 +187,7 @@ def test_kill_local_job():
     time.sleep(2)
     api.kill_job(f'http://localhost:{server_port}', job_name)
     time.sleep(1)
-    assert_batch_finished(batch, batch.name, [job_name], ShellJob.STATUS_FAILED)
+    assert_batch_finished(batch, ShellJob.STATUS_FAILED, batch.name, [job_name])
 
 
 @skip_if_windows
