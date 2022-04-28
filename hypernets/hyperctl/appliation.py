@@ -42,7 +42,6 @@ class BatchApplication:
         # create web app
         self.web_app = self._create_web_app(server_host, server_port, batch)
 
-        self._io_loop_instance = None
         self._http_server = None
 
     def _create_web_app(self, server_host, server_port, batch):
@@ -89,7 +88,7 @@ class BatchApplication:
 
         # start web server
         self._http_server = self.web_app.listen(self.server_port)
-        self._http_server.start()
+        # self._http_server.start()
         server_portal = http_portal(self.server_host, self.server_port)
         logger.info(f"api server is ready to run at: {server_portal}")
 

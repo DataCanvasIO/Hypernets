@@ -3,8 +3,9 @@ import json
 import os
 import time
 
-from tornado import ioloop
+import tornado
 from tornado.ioloop import PeriodicCallback
+
 
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.callbacks import BatchCallback
@@ -60,7 +61,7 @@ class JobScheduler:
             callback.on_start(self.batch)
 
         # run in io loop
-        self._io_loop_instance = ioloop.IOLoop.instance()
+        self._io_loop_instance = tornado.ioloop.IOLoop.instance()
         logger.info('starting io loop')
         self._io_loop_instance.start()
         logger.info('exited io loop')
