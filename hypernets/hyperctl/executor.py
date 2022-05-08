@@ -106,7 +106,7 @@ class RemoteShellExecutor(ShellExecutor):
             logger.debug(f"create remote job output dir {output_dir} ")
             ssh_utils.makedirs(sftp_client, output_dir)
 
-        logger.debug(f"prepare to upload assert to {self.remote_hostname}")
+        logger.debug(f"prepare to upload assets to {self.remote_hostname}")
         self.prepare_assets()
 
         # create run shell file
