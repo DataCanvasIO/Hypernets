@@ -29,9 +29,9 @@ class MetaLearner(object):
         features = self.extract_features_and_labels(space_signature)
         x = []
         y = []
-        for features, label in features:
+        for feature, label in features:
             if label != 0:
-                x.append(features)
+                x.append(feature)
                 y.append(label)
 
         store_history = self.store_history.get(space_signature)
