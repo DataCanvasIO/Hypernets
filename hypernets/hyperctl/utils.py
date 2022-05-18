@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 import yaml
@@ -6,12 +7,19 @@ import requests
 
 
 def load_yaml(file_path):
+
+    if not Path(file_path).exists():
+        raise FileNotFoundError(file_path)
+
     with open(file_path, 'r') as f:
         content = f.read()
     return yaml.load(content, Loader=yaml.CLoader)
 
 
 def load_json(file_path):
+    if not Path(file_path).exists():
+        raise FileNotFoundError(file_path)
+
     with open(file_path, 'r') as f:
         content = f.read()
     return json.loads(content)
