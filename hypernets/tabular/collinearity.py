@@ -10,7 +10,6 @@ from collections import defaultdict
 import numpy as np
 from scipy.cluster import hierarchy
 from scipy.stats import spearmanr
-from sklearn.impute import SimpleImputer
 
 from hypernets.core import randint
 from hypernets.tabular import sklearn_ex as skex
@@ -55,14 +54,16 @@ class MultiCollinearityDetector:
 
     def _corr(self, X, method=None):
         if method is None or method == 'spearman':
-            Xt = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit_transform(X)
+            Xt = skex.SafeSimpleImputer(missing_values=np.nan, strategy='most_frequent') \
+                .fit_transform(X)
             corr = spearmanr(Xt).correlation
         else:
             from . import get_tool_box
             Xt = X.copy()
             cols = get_tool_box(X).column_selector.column_number_exclude_timedelta(X)
             if cols:
-                Xt[cols] = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit_transform(Xt[cols])
+                Xt[cols] = skex.SafeSimpleImputer(missing_values=np.nan, strategy='most_frequent') \
+                    .fit_transform(Xt[cols])
             Xt = skex.SafeOrdinalEncoder().fit_transform(Xt)
             corr = Xt.corr(method=method).values
 
