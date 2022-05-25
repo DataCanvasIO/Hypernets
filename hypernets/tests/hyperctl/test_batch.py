@@ -149,14 +149,18 @@ def test_load_remote_batch_config():
             "conf": {
                 "machines": [
                     {
-                        "hostname": "host1",
-                        "username": "hyperctl",
-                        "password": "hyperctl"
+                        "connection": {
+                            "hostname": "host1",
+                            "username": "hyperctl",
+                            "password": "hyperctl"
+                        }
                     },
                     {
-                        "hostname": "host2",
-                        "username": "hyperctl",
-                        "password": "hyperctl"
+                        "connection": {
+                            "hostname": "host2",
+                            "username": "hyperctl",
+                            "password": "hyperctl"
+                        }
                     }
                 ]
             }

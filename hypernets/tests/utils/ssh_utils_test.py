@@ -95,10 +95,10 @@ def test_exec():
         assert len(hosts) > 0
 
 
-@need_psw_auth_ssh
 class BaseUpload:
 
-    def setup_class(self):
+    @classmethod
+    def setup_class(cls):
         """Create files:
         test-dir/
         |-- a.txt
@@ -111,29 +111,29 @@ class BaseUpload:
         # create a folder
         test_dir_path = Path(tempfile.mkdtemp(prefix="ssh-util-tests"))
 
-        self.data_dir = test_dir_path
+        cls.data_dir = test_dir_path
         print("local test dir ")
         print(test_dir_path)
 
         # create a file
-        self.file_a = (test_dir_path / "a.txt").as_posix()
-        with open(self.file_a, 'w') as f:
+        cls.file_a = (test_dir_path / "a.txt").as_posix()
+        with open(cls.file_a, 'w') as f:
             f.write("this is a")
 
         # create empty_dir
-        self.file_subdir = (test_dir_path / "empty_dir").as_posix()
-        os.makedirs(self.file_subdir)
+        cls.file_subdir = (test_dir_path / "empty_dir").as_posix()
+        os.makedirs(cls.file_subdir)
 
         # create sub-dir
-        self.file_subdir = (test_dir_path / "sub_dir").as_posix()
-        os.makedirs(self.file_subdir)
+        cls.file_subdir = (test_dir_path / "sub_dir").as_posix()
+        os.makedirs(cls.file_subdir)
 
         # create a file in sub-dir
-        self.file_in_sub_dir = (Path(self.file_subdir) / "b.txt").as_posix()
-        with open(self.file_in_sub_dir, 'w') as f:
+        cls.file_in_sub_dir = (Path(cls.file_subdir) / "b.txt").as_posix()
+        with open(cls.file_in_sub_dir, 'w') as f:
             f.write("this is b")
 
-        self.ssh_config = load_ssh_psw_config()
+        cls.ssh_config = load_ssh_psw_config()
 
     def upload_dir(self):
         with ssh_utils.sftp_client(**self.ssh_config) as client:
@@ -146,8 +146,6 @@ class BaseUpload:
             ssh_utils.upload_dir(client, self.data_dir, remote_dir)
             return remote_dir
 
-    def teardown_class(self):
-        pass
 
 
 @need_psw_auth_ssh

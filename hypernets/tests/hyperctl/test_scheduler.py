@@ -11,9 +11,10 @@ from hypernets.hyperctl.appliation import BatchApplication
 from hypernets.hyperctl.batch import ShellJob, Batch
 from hypernets.hyperctl.callbacks import ConsoleCallback
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
+from hypernets.tests.hyperctl import batch_factory
 from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch, create_remote_batch
 from hypernets.tests.utils import ssh_utils_test
-from hypernets.tests.utils.ssh_utils_test import BaseUpload
+from hypernets.tests.utils.ssh_utils_test import BaseUpload, load_ssh_psw_config
 from hypernets.utils import is_os_windows, ssh_utils
 
 skip_if_windows = pytest.mark.skipif(is_os_windows, reason='not test on windows now')  # not generate run.bat now
@@ -32,6 +33,26 @@ class BatchRunner(threading.Thread):
 
     def stop(self):
         self.batch_app.stop()
+
+
+class BaseBatchAppTest:
+
+    app = None
+
+    @classmethod
+    def setup_class(cls):
+        # clear ioloop
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
+    @classmethod
+    def teardown_class(cls):
+        if cls.app is not None:
+            batch = cls.app.batch
+            assert_batch_finished(batch, ShellJob.STATUS_SUCCEED)
+            cls.app.stop()
+        # release resources
+        asyncio.get_event_loop().stop()
+        asyncio.get_event_loop().close()
 
 
 def assert_local_job_finished(jobs):
@@ -82,64 +103,68 @@ def assert_batch_finished(batch: Batch, status, input_batch_name=None, input_job
         assert Path(batch.job_status_file_path(job_name=job.name, status=status)).exists()
 
 
-@ssh_utils_test.need_psw_auth_ssh
-def test_run_remote():
-    batch = create_remote_batch()
-
-    backend_conf = {
-        "machines": [ssh_utils_test.load_ssh_psw_config()]
+def create_remote_backend_conf():
+    return {
+        "machines": [{"connection": load_ssh_psw_config()}]
     }
-    app = BatchApplication(batch, server_port=8088,
-                           backend_type='remote',
-                           backend_conf=backend_conf,
-                           scheduler_exit_on_finish=True,
-                           scheduler_interval=1)
-    app.start()
-    job_scheduler = app.job_scheduler
-    assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
-    assert len(job_scheduler.executor_manager.machines) == 1
-
-    assert_batch_finished(batch, ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name, batch.jobs[1].name])
 
 
+@skip_if_windows
 @ssh_utils_test.need_psw_auth_ssh
-class TestRunRemoteWithAssets(BaseUpload):
+class TestRemoteBatch(BaseBatchAppTest):
 
-    def test_run_batch(self):
-        # create a batch with assets
-        job1_name = "job1"
-        batch_name = "test_run_batch"
-        batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-        batch = Batch(batch_name, batches_data_dir)
+    @classmethod
+    def setup_class(cls):
+        super(TestRemoteBatch, cls).setup_class()
+        batch = create_remote_batch()
 
-        job1_data_dir_path = (batch.data_dir_path() / job1_name).absolute()
-        job1_data_dir = job1_data_dir_path.as_posix()
-        job_asserts = [self.data_dir.as_posix()]
-
-        batch.add_job(name=job1_name,
-                      params={"learning_rate": 0.1},
-                      command=f"cat resources/{self.data_dir.name}/sub_dir/b.txt",  # read files in remote
-                      output_dir=job1_data_dir,
-                      working_dir=job1_data_dir,
-                      assets=job_asserts)
-
-        backend_conf = {
-            "machines": [self.ssh_config]
-        }
-
-        app = BatchApplication(batch, server_port=8089,
+        backend_conf = create_remote_backend_conf()
+        app = BatchApplication(batch, server_port=8088,
                                backend_type='remote',
                                backend_conf=backend_conf,
                                scheduler_exit_on_finish=True,
                                scheduler_interval=1)
+        cls.app = app
+
+    def test_run_batch(self):
+        app = self.app
         app.start()
         job_scheduler = app.job_scheduler
         assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
         assert len(job_scheduler.executor_manager.machines) == 1
 
-        assert_batch_finished(batch,ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name])
+
+@ssh_utils_test.need_psw_auth_ssh
+class TestRunRemoteWithAssets(BaseUpload):
+
+    @classmethod
+    def setup_class(cls):
+        super(TestRunRemoteWithAssets, cls).setup_class()
+        # clear ioloop
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
+        # create a batch with assets
+        batch = batch_factory.create_assets_batch(cls.data_dir)
+        backend_conf = create_remote_backend_conf()
+        app = BatchApplication(batch, server_port=8089,
+                               backend_type='remote',
+                               backend_conf=backend_conf,
+                               scheduler_exit_on_finish=True,
+                               scheduler_interval=1)
+        cls.app = app
+
+    def test_run_batch(self):
+        app = self.app
+        batch = app.batch
+        app.start()
+        job_scheduler = app.job_scheduler
+        assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
+        assert len(job_scheduler.executor_manager.machines) == 1
+
+        assert_batch_finished(batch,ShellJob.STATUS_SUCCEED)
 
         # check assets in remote
+        job1_data_dir_path = Path(batch.jobs[0].output_dir)
         with ssh_utils.sftp_client(**self.ssh_config) as client:
             remote_assert_path = job1_data_dir_path / "resources" / self.data_dir.name
 
@@ -147,62 +172,123 @@ class TestRunRemoteWithAssets(BaseUpload):
             ssh_utils.exists(client, (remote_assert_path / "a.txt").as_posix())
             ssh_utils.exists( client, (remote_assert_path / "sub_dir" / "b.txt").as_posix())
 
+    @classmethod
+    def teardown_class(cls):
+        if cls.app is not None:
+            cls.app.stop()
 
-@skip_if_windows
-def test_run_minimum_local_batch():
-    batch = create_minimum_batch()
-    scheduler_callbacks = []
-    app = BatchApplication(batch, server_port=8061,
-                           scheduler_exit_on_finish=True,
-                           scheduler_interval=1,
-                           scheduler_callbacks=[ConsoleCallback()])
-    app.start()
-    assert_batch_finished(batch, ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name])
-    assert_local_job_succeed(batch.jobs)
+        # release resources
+        asyncio.get_event_loop().stop()
+        asyncio.get_event_loop().close()
 
 
 @skip_if_windows
-def test_run_local_batch():
-    batch = create_local_batch()
-    app = BatchApplication(batch, server_port=8082,
-                           scheduler_exit_on_finish=True,
-                           scheduler_interval=1)
-    app.start()
-    assert isinstance(app.job_scheduler.executor_manager, LocalExecutorManager)
-    assert_batch_finished(batch, ShellJob.STATUS_SUCCEED, batch.name, [batch.jobs[0].name, batch.jobs[1].name])
-    assert_local_job_succeed(batch.jobs)
+class TestMinimumLocalBatch(BaseBatchAppTest):
+
+    @classmethod
+    def setup_class(cls):
+        super(TestMinimumLocalBatch, cls).setup_class()
+        batch = create_minimum_batch()
+        app = BatchApplication(batch, server_port=8061,
+                               scheduler_exit_on_finish=True,
+                               scheduler_interval=1,
+                               scheduler_callbacks=[ConsoleCallback()])
+        cls.app = app
+
+    def test_run_batch(self):
+        app = self.app
+        app.start()
+        batch = app.batch
+        assert_batch_finished(batch, ShellJob.STATUS_SUCCEED)
+        assert_local_job_succeed(batch.jobs)
 
 
 @skip_if_windows
-def test_kill_local_job():
-    batch = create_minimum_batch(command='sleep 6; echo "finished"')
-    job_name = batch.jobs[0].name
-    server_port = 8063
+class TestLocaBatch(BaseBatchAppTest):
+    @classmethod
+    def setup_class(cls):
+        super(TestLocaBatch, cls).setup_class()
+        batch = create_local_batch()
+        app = BatchApplication(batch, server_port=8082,
+                               scheduler_exit_on_finish=True,
+                               scheduler_interval=1)
+        cls.app = app
 
-    app = BatchApplication(batch, server_port=server_port,
-                           scheduler_exit_on_finish=True,
-                           scheduler_interval=1)
-    runner = BatchRunner(app)
-    runner.start()
-    time.sleep(2)
-    api.kill_job(f'http://localhost:{server_port}', job_name)
-    time.sleep(1)
-    assert_batch_finished(batch, ShellJob.STATUS_FAILED, batch.name, [job_name])
+    def test_run_batch(self):
+        app = self.app
+        app.start()
+        batch = app.batch
+        assert isinstance(app.job_scheduler.executor_manager, LocalExecutorManager)
+        assert_batch_finished(batch, ShellJob.STATUS_SUCCEED)
+        assert_local_job_succeed(batch.jobs)
 
 
 @skip_if_windows
-def test_stop_scheduler():
-    batch = create_minimum_batch()
-    app = BatchApplication(batch, server_port=8086,
-                           scheduler_exit_on_finish=False,
-                           scheduler_interval=1)
-    runner = BatchRunner(app)
-    runner.start()
-    time.sleep(2)  # wait for starting
-    assert runner.is_alive()
-    runner.stop()
-    time.sleep(1)
-    assert not runner.is_alive()
+class TestKillLocalJob(BaseBatchAppTest):
+
+    @classmethod
+    def setup_class(cls):
+        super(TestKillLocalJob, cls).setup_class()
+        batch = create_minimum_batch(command='sleep 6; echo "finished"')
+
+        server_port = 8063
+        cls.server_port = server_port
+
+        app = BatchApplication(batch, server_port=server_port,
+                               scheduler_exit_on_finish=True,
+                               scheduler_interval=1)
+        runner = BatchRunner(app)
+        cls.app = app
+        cls.runner = runner
+        runner.start()
+
+    def test_run_batch(self):
+        job_name = self.app.batch.jobs[0].name
+        time.sleep(2)
+        api.kill_job(f'http://localhost:{self.server_port}', job_name)
+        time.sleep(1)
+
+    @classmethod
+    def teardown_class(cls):
+        if cls.app is not None:
+            batch = cls.app.batch
+            assert_batch_finished(batch, ShellJob.STATUS_FAILED)
+            cls.app.stop()
+
+        if cls.runner is not None:
+            cls.runner.stop()
+        # release resources
+        asyncio.get_event_loop().stop()
+        asyncio.get_event_loop().close()
+
+
+
+@skip_if_windows
+class TestStopScheduler(BaseBatchAppTest):
+    @classmethod
+    def setup_class(cls):
+        super(TestStopScheduler, cls).setup_class()
+        batch = create_minimum_batch()
+        app = BatchApplication(batch, server_port=8086,
+                               scheduler_exit_on_finish=False,
+                               scheduler_interval=1)
+        runner = BatchRunner(app)
+        runner.start()
+        cls.runner = runner
+        time.sleep(2)  # wait for starting
+
+    def run_stop_scheduler(self):
+        runner = self.runner
+        assert runner.is_alive()
+        runner.stop()
+        time.sleep(1)
+        assert not runner.is_alive()
+
+    @classmethod
+    def teardown_class(cls):
+        if cls.runner is not None:
+            cls.runner.stop()
+        super(TestStopScheduler, cls).teardown_class()
 
 
 def create_batch_app(batches_data_dir):
@@ -216,30 +302,85 @@ def create_batch_app(batches_data_dir):
     return app
 
 
-def test_run_base_previous_batch():
-    # run a batch
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-    app1 = create_batch_app(batches_data_dir)
-    app1.start()
-    app1._http_server.stop()  # release port
+class TestRunBasePreviousBatch(BaseBatchAppTest):
 
-    scheduler1 = app1.job_scheduler
-    assert scheduler1.n_allocated == len(app1.batch.jobs)
-    assert scheduler1.n_skipped == 0
+    @classmethod
+    def setup_class(cls):
+        super(TestRunBasePreviousBatch, cls).setup_class()
 
-    # run the bach base on previous batch
-    app2 = BatchApplication.load(app1.to_config(), batches_data_dir=batches_data_dir)
+        # run a batch
+        batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+        app1 = create_batch_app(batches_data_dir)
 
-    # app2 = create_batch_app(batches_data_dir)
-    app2.start()
-    app2._http_server.stop()
-    scheduler2 = app2.job_scheduler
+        app1.start()
+        app1._http_server.stop()  # release port
+        cls.app1 = app1
+        scheduler1 = app1.job_scheduler
+        assert scheduler1.n_allocated == len(app1.batch.jobs)
+        assert scheduler1.n_skipped == 0
 
-    # all ran jobs should not run again
-    assert scheduler2.n_allocated == 0
-    assert scheduler2.n_skipped == len(app1.batch.jobs)
+    def test_run_batch(self):
+        app1 = self.app1
+        # run the bach base on previous batch
+        app2 = BatchApplication.load(app1.to_config(), batches_data_dir=app1.batch.batches_data_dir)
+
+        # app2 = create_batch_app(batches_data_dir)
+        app2.start()
+        app2._http_server.stop()
+        scheduler2 = app2.job_scheduler
+
+        # all ran jobs should not run again
+        assert scheduler2.n_allocated == 0
+        assert scheduler2.n_skipped == len(app1.batch.jobs)
 
 
-# if __name__ == '__main__':
-#     test_run_remote()
-#
+@skip_if_windows
+class TestLocalHostEnv(BaseBatchAppTest):
+
+    @classmethod
+    def setup_class(cls):
+        super(TestLocalHostEnv, cls).setup_class()
+
+        batch = batch_factory.create_assert_env_batch()
+        app = BatchApplication(batch, server_port=8088,
+                               scheduler_exit_on_finish=True,
+                               backend_type='local',
+                               backend_conf=dict(environments={"hyn_test_conda_home": "/home/hyperctl/miniconda3"}),
+                               scheduler_interval=1)
+        cls.app = app
+
+    def test_run_batch(self):
+        app = self.app
+
+        self.app.start()
+        assert isinstance(app.job_scheduler.executor_manager, LocalExecutorManager)
+        assert_batch_finished(app.batch, ShellJob.STATUS_SUCCEED)
+
+
+@skip_if_windows
+@ssh_utils_test.need_psw_auth_ssh
+class TestRemoteHostEnv(BaseBatchAppTest):
+
+    @classmethod
+    def setup_class(cls):
+        super(TestRemoteHostEnv, cls).setup_class()
+        backend_conf = {
+            "machines": [{
+                'connection':  load_ssh_psw_config(),
+                'environments': {"hyn_test_conda_home": "/home/hyperctl/miniconda3"}
+            }]
+        }
+        batch = batch_factory.create_assert_env_batch()
+        app = BatchApplication(batch, server_port=8089,
+                               scheduler_exit_on_finish=True,
+                               backend_type='remote',
+                               backend_conf=backend_conf,
+                               scheduler_interval=1)
+        cls.app = app
+
+    def test_run_batch(self):
+        app = self.app
+
+        self.app.start()
+        assert isinstance(app.job_scheduler.executor_manager, RemoteSSHExecutorManager)
+        assert_batch_finished(app.batch, ShellJob.STATUS_SUCCEED)

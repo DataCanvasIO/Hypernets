@@ -21,9 +21,11 @@ backend:
   type: remote
   conf:
     machines:
-      - hostname: host1
-        username: hyperctl
-        ssh_rsa_file: ~/.ssh/id_rsa
-      - hostname: host2
-        username: hyperctl
-        password: hyperctl
+      - connection:
+            hostname: host1
+            username: hyperctl
+            ssh_rsa_file: ~/.ssh/id_rsa
+      - connection:
+            hostname: host2
+            username: hyperctl
+            password: hyperctl
