@@ -10,7 +10,7 @@ from functools import partial
 import numpy as np
 import pandas as pd
 import psutil
-from sklearn import model_selection as sk_ms, preprocessing as sk_pre, impute as sk_imp, \
+from sklearn import model_selection as sk_ms, preprocessing as sk_pre, \
     decomposition as sk_dec, utils as sk_utils, inspection, pipeline
 
 from hypernets.core import randint
@@ -684,7 +684,7 @@ class ToolBox(metaclass=ToolboxMeta):
 
 _predefined_transformers = dict(
     Pipeline=pipeline.Pipeline,
-    SimpleImputer=sk_imp.SimpleImputer,
+    # SimpleImputer=sk_imp.SimpleImputer,  # replaced with sklearn_ex SafeSimpleImputer
     StandardScaler=sk_pre.StandardScaler,
     MinMaxScaler=sk_pre.MinMaxScaler,
     MaxAbsScaler=sk_pre.MaxAbsScaler,

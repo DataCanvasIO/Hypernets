@@ -4,7 +4,7 @@
 """
 
 import numpy as np
-from sklearn import impute, preprocessing as sk_pre, decomposition
+from sklearn import preprocessing as sk_pre, decomposition
 
 from hypernets.tabular import feature_generators
 from hypernets.tabular import sklearn_ex
@@ -306,7 +306,7 @@ class SimpleImputer(HyperTransformer):
         if force_output_as_float is True:
             HyperTransformer.__init__(self, sklearn_ex.FloatOutputImputer, space, name, **kwargs)
         else:
-            HyperTransformer.__init__(self, impute.SimpleImputer, space, name, **kwargs)
+            HyperTransformer.__init__(self, sklearn_ex.SafeSimpleImputer, space, name, **kwargs)
 
 
 class PCA(HyperTransformer):

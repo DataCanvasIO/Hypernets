@@ -59,7 +59,7 @@ def to_repr(obj, excludes=None):
     except Exception as e:
         if logger.is_info_enabled():
             logger.info(e)
-        return f'{e} <to_repr>: {obj}'
+        return f'{type(e).__name__}:{e}, at <to_repr>: {type(obj).__name__}'
 
 
 def combinations(n, m_max, m_min=1):

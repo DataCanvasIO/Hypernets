@@ -123,6 +123,40 @@ class ConstantImputer(BaseEstimator, TransformerMixin):
         return X
 
 
+@tb_transformer(pd.DataFrame, name='SimpleImputer')
+class SafeSimpleImputer(SimpleImputer):
+    """
+    passthrough bool columns
+    """
+
+    def fit(self, X, y=None, ):
+        if isinstance(X, pd.DataFrame):
+            bool_cols = X.select_dtypes(include='bool').columns.tolist()
+            if bool_cols:
+                df_notbool = X.select_dtypes(exclude='bool')
+                if df_notbool.shape[1] > 0:
+                    super().fit(df_notbool, y=y)
+                self.bool_cols_ = bool_cols
+            else:
+                super().fit(X, y=y)
+        else:
+            super().fit(X, y=y)
+
+        return self
+
+    def transform(self, X):
+        bool_cols = getattr(self, 'bool_cols_', None)
+        if bool_cols is not None:
+            assert isinstance(X, pd.DataFrame)
+            not_bools = [c for c in X.columns.tolist() if c not in bool_cols]
+            Xt = super().transform(X[not_bools])
+            X = X.copy()
+            X[not_bools] = Xt
+            return X if isinstance(Xt, pd.DataFrame) else X.values
+        else:
+            return super().transform(X)
+
+
 @tb_transformer(pd.DataFrame)
 class SafeLabelEncoder(LabelEncoder):
     def transform(self, y):
