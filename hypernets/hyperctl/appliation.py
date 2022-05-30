@@ -54,9 +54,8 @@ class BatchApplication:
                             scheduler_interval, executor_manager, callbacks=scheduler_callbacks)
 
     def start(self):
-
-        logger.info(f"batches_data_path: {self.batch.working_dir_path.absolute()}")
         logger.info(f"batch name: {self.batch.name}")
+        logger.info(f"batch working dir: {self.batch.working_dir_path.absolute()}")
 
         # check jobs status
         for job in self.batch.jobs:
