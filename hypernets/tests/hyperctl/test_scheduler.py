@@ -322,7 +322,7 @@ class TestRunBasePreviousBatch(BaseBatchAppTest):
     def test_run_batch(self):
         app1 = self.app1
         # run the bach base on previous batch
-        app2 = BatchApplication.load(app1.to_config(), batches_data_dir=app1.batch.batches_data_dir)
+        app2 = BatchApplication.load(app1.to_config(), batch_working_dir=app1.batch.working_dir_path)
 
         # app2 = create_batch_app(batches_data_dir)
         app2.start()

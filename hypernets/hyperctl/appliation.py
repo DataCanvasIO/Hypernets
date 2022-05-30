@@ -55,7 +55,7 @@ class BatchApplication:
 
     def start(self):
 
-        logger.info(f"batches_data_path: {self.batch.batches_data_dir.absolute()}")
+        logger.info(f"batches_data_path: {self.batch.working_dir_path.absolute()}")
         logger.info(f"batch name: {self.batch.name}")
 
         # check jobs status
@@ -70,10 +70,10 @@ class BatchApplication:
                 continue
 
         # prepare batch data dir
-        if self.batch.data_dir_path().exists():
+        if self.batch.working_dir_path.exists():
             logger.info(f"batch {self.batch.name} already exists, run again")
         else:
-            os.makedirs(self.batch.data_dir_path(), exist_ok=True)
+            os.makedirs(self.batch.working_dir_path, exist_ok=True)
 
         # write batch config
         batch_config_file_path = self.batch.config_file_path()
@@ -133,7 +133,7 @@ class BatchApplication:
         return batch_summary
 
     @staticmethod
-    def load(batch_spec_dict: Dict, batches_data_dir):
+    def load(batch_spec_dict: Dict, batch_working_dir):
 
         batch_spec_dict = copy.copy(batch_spec_dict)
 
@@ -146,11 +146,11 @@ class BatchApplication:
         batch_name = batch_spec_dict.pop('name')
         jobs_dict = batch_spec_dict.pop('jobs')
 
-        batch = Batch(batch_name, batches_data_dir)
+        batch = Batch(batch_name, working_dir=batch_working_dir)
         for job_dict in jobs_dict:
 
             if job_dict.get('output_dir') is None:
-                job_dict['output_dir'] = (batch.data_dir_path() / job_dict['name']).as_posix()
+                job_dict['output_dir'] = (batch.working_dir_path / job_dict['name']).as_posix()
 
             job = ShellJob(**job_dict)
             job.set_status(batch.load_job_status(job_name=job.name))
