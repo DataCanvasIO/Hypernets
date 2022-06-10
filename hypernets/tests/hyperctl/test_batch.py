@@ -85,9 +85,9 @@ def test_load_local_batch_config():
             "port": 18060
         }
     }
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+    batch_working_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    batch_app = BatchApplication.load(local_batch, batches_data_dir)
+    batch_app = BatchApplication.load(local_batch, batch_working_dir)
 
     # 2. assert batch
     assert batch_app.batch.name == "local_batch_test"
@@ -99,8 +99,8 @@ def test_load_local_batch_config():
     assert job1.name == "job1"
     assert job1.params['learning_rate'] == 0.1
     assert job1.command == "pwd"
-    assert job1.output_dir == (Path(batches_data_dir) / "local_batch_test" / "job1").absolute().as_posix()
-    assert job1.working_dir == (Path(batches_data_dir) / "local_batch_test" / "job1").absolute().as_posix()
+    assert job1.output_dir == (Path(batch_working_dir) / "job1").absolute().as_posix()
+    assert job1.working_dir == (Path(batch_working_dir) / "job1").absolute().as_posix()
 
     job2: ShellJob = jobs[1]
     assert isinstance(job2, ShellJob)
@@ -149,14 +149,18 @@ def test_load_remote_batch_config():
             "conf": {
                 "machines": [
                     {
-                        "hostname": "host1",
-                        "username": "hyperctl",
-                        "password": "hyperctl"
+                        "connection": {
+                            "hostname": "host1",
+                            "username": "hyperctl",
+                            "password": "hyperctl"
+                        }
                     },
                     {
-                        "hostname": "host2",
-                        "username": "hyperctl",
-                        "password": "hyperctl"
+                        "connection": {
+                            "hostname": "host2",
+                            "username": "hyperctl",
+                            "password": "hyperctl"
+                        }
                     }
                 ]
             }

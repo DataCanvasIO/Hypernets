@@ -25,9 +25,10 @@ class NoResourceException(Exception):
 
 class ShellExecutor:
 
-    def __init__(self, job: ShellJob, api_server_portal):
+    def __init__(self, job: ShellJob, api_server_portal, environments=None):
         self.job = job
         self.api_server_portal = api_server_portal
+        self.environments = environments
 
     def run(self):
         pass
@@ -45,6 +46,7 @@ class ShellExecutor:
         raise NotImplemented
 
     def _make_run_shell_content(self):
+
         # default http://localhost:8060
         vars = {
             consts.KEY_ENV_JOB_DATA_DIR: self.job.job_data_dir,
@@ -57,6 +59,14 @@ class ShellExecutor:
         run_shell = str(consts.RUN_SH_TEMPLATE)
         for k, v in vars.items():
             run_shell = run_shell.replace(f"#{k}#", v)
+
+        export_custom_envs_command = ""
+        if self.environments is not None:
+            for k, v in self.environments.items():
+                export_command = f"export {k}=\"{v}\"\n"
+                export_custom_envs_command = export_custom_envs_command + export_command
+
+        run_shell = run_shell.replace(f"#{consts.P_HOST_ENV}", export_custom_envs_command)
 
         return run_shell
 
@@ -72,89 +82,10 @@ class ShellExecutor:
             f.write(shell_content)
 
 
-class RemoteShellExecutor(ShellExecutor):
-    def __init__(self, job: ShellJob, api_server_portal, connection):
-        super(RemoteShellExecutor, self).__init__(job, api_server_portal)
-        self.connections = connection
-
-        self._command_ssh_client = None
-        self._remote_process = None
-
-    @property
-    def remote_hostname(self):
-        return self.connections.get('hostname')
-
-    def prepare_assets(self):
-        if len(self.job.assets) == 0:
-            return
-        with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            for asset in self.job.assets:
-                asset_path = Path(asset).absolute()
-                asset_file = asset_path.as_posix()
-                if not asset_path.exists():
-                    logger.warning(f"local dir {asset_path} not exists, skip to upload")
-                    continue
-                if asset_path.is_dir():
-                    ssh_utils.upload_dir(sftp_client, asset_file, self.job.resources_path.as_posix())
-                else:
-                    ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
-
-    def run(self):
-        output_dir = Path(self.job.output_dir).as_posix()
-        logger.debug(f"create remote data dir {output_dir}")
-        with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f"create remote job output dir {output_dir} ")
-            ssh_utils.makedirs(sftp_client, output_dir)
-
-        logger.debug(f"prepare to upload assert to {self.remote_hostname}")
-        self.prepare_assets()
-
-        # create run shell file
-        fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
-        os.close(fd_run_file)
-
-        self._write_run_shell_script(run_file)
-
-        # copy file to remote
-        with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f'upload {run_file} to {self.job.run_file_path}')
-            sftp_client: SFTPClient = sftp_client
-            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file_path)
-
-        # execute command in async
-        self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
-        command = f'sh {self.job.run_file_path}'
-        logger.debug(f'execute command {command}')
-        self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
-
-    def status(self):
-        if self._remote_process is not None:
-            stdout = self._remote_process[1]
-            if stdout.channel.exit_status_ready():
-                ret_code = stdout.channel.recv_exit_status()
-                return ShellJob.STATUS_SUCCEED if ret_code == 0 else ShellJob.STATUS_FAILED
-            else:
-                return ShellJob.STATUS_RUNNING
-        else:
-            return ShellJob.STATUS_INIT
-
-    def finished(self):
-        return self.status() in ShellJob.FINAL_STATUS
-
-    def kill(self):
-        self.close()
-
-    def close(self):
-        if self._command_ssh_client is not None:
-            self._command_ssh_client.close()
-        else:
-            logger.warning(f"current executor is not running or closed ")
-
-
 class LocalShellExecutor(ShellExecutor):
 
-    def __init__(self, job: ShellJob, api_server_portal):
-        super(LocalShellExecutor, self).__init__(job, api_server_portal)
+    def __init__(self, *args, **kwargs):
+        super(LocalShellExecutor, self).__init__(*args, **kwargs)
         self._process = None
 
     def prepare_assets(self):
@@ -228,10 +159,11 @@ class LocalShellExecutor(ShellExecutor):
 
 class SSHRemoteMachine:
 
-    def __init__(self, connection):
+    def __init__(self, connection, environments=None):
 
         # Note: requires unix server, does not support windows now
         self.connection = connection
+        self.environments = environments
 
         self._usage = (0, 0, 0)
 
@@ -247,7 +179,7 @@ class SSHRemoteMachine:
         # check connections
         with ssh_utils.ssh_client(**self.connection) as client:
             assert client
-            logger.info(f"test connection to host {self.connection['hostname']} successfully")
+            logger.info(f"test connection to host {self.hostname} successfully")
 
     @staticmethod
     def total_resources():
@@ -263,6 +195,84 @@ class SSHRemoteMachine:
     @property
     def hostname(self):
         return self.connection['hostname']
+
+class RemoteShellExecutor(ShellExecutor):
+    def __init__(self, job: ShellJob, api_server_portal, machine: SSHRemoteMachine):
+        super(RemoteShellExecutor, self).__init__(job, api_server_portal, environments=machine.environments)
+        self.machine = machine
+
+        self._command_ssh_client = None
+        self._remote_process = None
+
+    @property
+    def connections(self):
+        return self.machine.connection
+
+    def prepare_assets(self):
+        if len(self.job.assets) == 0:
+            return
+        with ssh_utils.sftp_client(**self.connections) as sftp_client:
+            for asset in self.job.assets:
+                asset_path = Path(asset).absolute()
+                asset_file = asset_path.as_posix()
+                if not asset_path.exists():
+                    logger.warning(f"local dir {asset_path} not exists, skip to upload")
+                    continue
+                if asset_path.is_dir():
+                    ssh_utils.upload_dir(sftp_client, asset_file, self.job.resources_path.as_posix())
+                else:
+                    ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
+
+    def run(self):
+        output_dir = Path(self.job.output_dir).as_posix()
+        logger.debug(f"create remote data dir {output_dir}")
+        with ssh_utils.sftp_client(**self.connections) as sftp_client:
+            logger.debug(f"create remote job output dir {output_dir} ")
+            ssh_utils.makedirs(sftp_client, output_dir)
+
+        logger.debug(f"prepare to upload assets to {self.machine.hostname}")
+        self.prepare_assets()
+
+        # create run shell file
+        fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
+        os.close(fd_run_file)
+
+        self._write_run_shell_script(run_file)
+
+        # copy file to remote
+        with ssh_utils.sftp_client(**self.connections) as sftp_client:
+            logger.debug(f'upload {run_file} to {self.job.run_file_path}')
+            sftp_client: SFTPClient = sftp_client
+            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file_path)
+
+        # execute command in async
+        self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
+        command = f'sh {self.job.run_file_path}'
+        logger.debug(f'execute command {command}')
+        self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
+
+    def status(self):
+        if self._remote_process is not None:
+            stdout = self._remote_process[1]
+            if stdout.channel.exit_status_ready():
+                ret_code = stdout.channel.recv_exit_status()
+                return ShellJob.STATUS_SUCCEED if ret_code == 0 else ShellJob.STATUS_FAILED
+            else:
+                return ShellJob.STATUS_RUNNING
+        else:
+            return ShellJob.STATUS_INIT
+
+    def finished(self):
+        return self.status() in ShellJob.FINAL_STATUS
+
+    def kill(self):
+        self.close()
+
+    def close(self):
+        if self._command_ssh_client is not None:
+            self._command_ssh_client.close()
+        else:
+            logger.warning(f"current executor is not running or closed ")
 
 
 class ExecutorManager:
@@ -301,8 +311,9 @@ class ExecutorManager:
 
 class RemoteSSHExecutorManager(ExecutorManager):
 
-    def __init__(self, machines: List[SSHRemoteMachine], api_server_portal):
+    def __init__(self, api_server_portal, machines: List[SSHRemoteMachine]):
         super(RemoteSSHExecutorManager, self).__init__(api_server_portal)
+
         self.machines = machines
         self._executors_map = {}
 
@@ -314,8 +325,8 @@ class RemoteSSHExecutorManager(ExecutorManager):
             if machine.usage == (0, 0, 0):
                 ret = machine.alloc(-1, -1, -1)  # lock resource
                 if ret:
-                    logger.debug(f'allocated resource on {machine.hostname} for job {job.name} ')
-                    executor = RemoteShellExecutor(job, self.api_server_portal, machine.connection)
+                    logger.info(f'allocated resource on {machine.hostname} for job {job.name} ')
+                    executor = RemoteShellExecutor(job, self.api_server_portal, machine)
                     # DOT NOT push anything to `_executors_map` or `_waiting_queue` if exception
                     self._executors_map[executor] = machine
                     self._waiting_queue.append(executor)
@@ -339,8 +350,10 @@ class RemoteSSHExecutorManager(ExecutorManager):
 
 class LocalExecutorManager(ExecutorManager):
 
-    def __init__(self, api_server_portal):
+    def __init__(self, api_server_portal, environments=None):
         super(LocalExecutorManager, self).__init__(api_server_portal)
+        self.environments = environments
+
         self._allocated_executors = []
         self._is_busy = False
 
@@ -349,7 +362,7 @@ class LocalExecutorManager(ExecutorManager):
 
     def alloc_executor(self, job):
         if not self._is_busy:
-            executor = LocalShellExecutor(job, self.api_server_portal)
+            executor = LocalShellExecutor(job, self.api_server_portal, environments=self.environments)
             self._allocated_executors.append(executor)
             self._waiting_queue.append(executor)
             self._is_busy = True
@@ -367,18 +380,18 @@ class LocalExecutorManager(ExecutorManager):
 
 
 def create_executor_manager(backend_type, backend_conf, server_host, server_port):  # instance factory
+    backend_conf = backend_conf if backend_conf is not None else {}
     server_portal = http_portal(server_host, server_port)
     if backend_type == 'remote':
-        remote_backend_config = backend_conf
-        machines = [SSHRemoteMachine(_) for _ in remote_backend_config['machines']]
+        machines = [SSHRemoteMachine(**_) for _ in backend_conf['machines']]
         # check remote host setting, only warning for remote backend
         if consts.HOST_LOCALHOST == server_host:
             logger.warning("recommended that set IP address that can be accessed in remote machines, "
                            "but now it's \"localhost\", and the task executed on the remote machines "
                            "may fail because it can't get information from the api server server,"
                            " you can set it in `server.host` ")
-        return RemoteSSHExecutorManager(machines, server_portal)
+        return RemoteSSHExecutorManager(server_portal, machines)
     elif backend_type == 'local':
-        return LocalExecutorManager(server_portal)
+        return LocalExecutorManager(server_portal, environments=backend_conf.get('environments'))
     else:
         raise ValueError(f"unknown backend {backend_type}")

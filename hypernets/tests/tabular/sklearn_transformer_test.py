@@ -46,7 +46,8 @@ class Test_Transformer():
     def test_func_transformer(self):
         dfm = DataFrameMapper(
             [(column_object_category_bool, [
-                SimpleImputer(strategy='constant'),
+                # SimpleImputer(strategy='constant'),
+                skex.SafeSimpleImputer(strategy='constant'),
                 skex.MultiLabelEncoder(),
             ]
               ),
@@ -74,7 +75,8 @@ class Test_Transformer():
 
         dfm = DataFrameMapper(
             [(column_number_exclude_timedelta, PCA(2)),
-             (column_object_category_bool, [SimpleImputer(strategy='constant'), OneHotEncoder()]),
+             # (column_object_category_bool, [SimpleImputer(strategy='constant'), OneHotEncoder()]),
+             (column_object_category_bool, [skex.SafeSimpleImputer(strategy='constant'), OneHotEncoder()]),
              (column_number_exclude_timedelta, PolynomialFeatures(2)),
              ], input_df=True, df_out=True
         )

@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-# -*- encoding: utf-8 -*-
 import os
 from pathlib import Path
 from typing import Dict, Optional
@@ -8,7 +7,6 @@ import psutil
 
 from hypernets.utils import logging
 
-logging.set_level('DEBUG')
 
 logger = logging.getLogger(__name__)
 
@@ -138,9 +136,9 @@ class Batch:
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, batches_data_dir: str):
+    def __init__(self, name, working_dir: str):
         self.name = name
-        self.batches_data_dir = Path(batches_data_dir)
+        self.working_dir_path = Path(working_dir)
 
         self.jobs = []
 
@@ -148,7 +146,7 @@ class Batch:
         self.end_time = None
 
     def job_status_file_path(self, job_name, status):
-        return (self.batch_data_dir_path / f"{job_name}.{status}").as_posix()
+        return (self.working_dir_path / f"{job_name}.{status}").as_posix()
 
     def status_files(self):
         return self._status_files([ShellJob.STATUS_FAILED, ShellJob.STATUS_SUCCEED, ShellJob.STATUS_RUNNING])
@@ -171,10 +169,6 @@ class Batch:
             return exists_statuses[0][0]
         else:  # no status file
             return ShellJob.STATUS_INIT
-
-    @property
-    def batch_data_dir_path(self):
-        return Path(self.batches_data_dir) / self.name
 
     def add_job(self, **kwargs):
         if kwargs.get('resource') is None:
@@ -202,10 +196,10 @@ class Batch:
         return exists_status.issubset(set(ShellJob.FINAL_STATUS))
 
     def config_file_path(self):
-        return self.data_dir_path() / self.FILE_CONFIG
+        return self.working_dir_path / self.FILE_CONFIG
 
     def pid_file_path(self):
-        return self.data_dir_path() / self.FILE_PID
+        return self.working_dir_path / self.FILE_PID
 
     def pid(self):
         pid_file_path = self.pid_file_path()
@@ -214,9 +208,6 @@ class Batch:
                 return int(f.read())
         else:
             return None
-
-    def data_dir_path(self):
-        return Path(self.batches_data_dir) / self.name
 
     def get_job_by_name(self, job_name) -> Optional[ShellJob]:
         for job in self.jobs:

@@ -24,14 +24,18 @@
         "conf": {
             "machines": [
                 {
-                    "hostname": "host1",
-                    "username": "hyperctl",
-                    "password": "hyperctl"
+                    "connection": {
+                        "hostname": "host1",
+                        "username": "hyperctl",
+                        "password": "hyperctl"
+                    }
                 },
                 {
-                    "hostname": "host2",
-                    "username": "hyperctl",
-                    "password": "hyperctl"
+                     "connection":{
+                        "hostname": "host2",
+                        "username": "hyperctl",
+                        "password": "hyperctl"
+                    }
                 }
             ]
         }

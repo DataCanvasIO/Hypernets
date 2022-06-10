@@ -14,7 +14,7 @@ from cuml.feature_extraction.text import TfidfVectorizer
 from cuml.pipeline import Pipeline
 from cuml.preprocessing import SimpleImputer, LabelEncoder, OneHotEncoder, TargetEncoder, \
     StandardScaler, MaxAbsScaler, MinMaxScaler, RobustScaler
-from sklearn import preprocessing as sk_pre, impute as sk_imp, decomposition as sk_dec
+from sklearn import preprocessing as sk_pre, decomposition as sk_dec
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
@@ -175,8 +175,9 @@ class LocalizableTruncatedSVD(TruncatedSVD, Localizable):
 @tb_transformer(cudf.DataFrame, name='SimpleImputer')
 class LocalizableSimpleImputer(SimpleImputer, Localizable):
     def as_local(self):
-        target = sk_imp.SimpleImputer(missing_values=self.missing_values, strategy=self.strategy,
-                                      fill_value=self.fill_value, copy=self.copy, add_indicator=self.add_indicator)
+        target = sk_ex.SafeSimpleImputer(missing_values=self.missing_values, strategy=self.strategy,
+                                         fill_value=self.fill_value, copy=self.copy,
+                                         add_indicator=self.add_indicator)
         copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_', 'n_features_in_')  # 'indicator_', )
 
         ss = target.statistics_
@@ -252,6 +253,14 @@ class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
                                       drop=self.drop, sparse=self.sparse,
                                       dtype=self.dtype, handle_unknown=self.handle_unknown)
         copy_attrs_as_local(self, target, 'categories_', 'drop_idx_')
+
+        try:
+            if hasattr(target, '_compute_n_features_outs'):
+                target._infrequent_enabled = False
+                target._n_features_outs = target._compute_n_features_outs()
+        except:
+            pass
+
         return target
 
     def __repr__(self):

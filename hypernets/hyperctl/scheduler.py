@@ -159,12 +159,11 @@ class JobScheduler:
             if job.status != job.STATUS_INIT:
                 # logger.warning(f"job '{job.name}' status is {job.status}, skip run")
                 continue
-
-            logger.debug(f'trying to alloc resource for job {job.name}')
+            # logger.debug(f'trying to alloc resource for job {job.name}')
             try:
                 executor = executor_manager.alloc_executor(job)
             except NoResourceException:
-                logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
+                # logger.debug(f"no enough resource for job {job.name} , wait for resource to continue ...")
                 break
             except Exception as e:
                 # skip the job, and do not clean the executor
