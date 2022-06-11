@@ -11,7 +11,8 @@ import psutil
 from joblib import Parallel, delayed
 from sklearn import metrics as sk_metrics
 
-from hypernets.utils import const, logging, is_os_windows
+from hypernets.utils import const, logging
+from .cfg import TabularCfg as cfg
 
 logger = logging.get_logger(__name__)
 
@@ -282,7 +283,13 @@ def _detect_task(estimator, y):
     return task, classes
 
 
-def _load_and_run(estimator, fn_name, df):
+def _load_and_run(estimator, fn_name, df, log_level):
+    if log_level is not None:
+        import warnings
+
+        warnings.filterwarnings('ignore')
+        logging.set_level(log_level)
+
     if isinstance(estimator, str):
         logger.info(f'load estimator {estimator}')
         with open(estimator, 'rb') as f:
@@ -301,15 +308,18 @@ def _call_predict(estimator, fn_name, df, n_jobs=1):
     if n_jobs > 1:
         batch_size = math.ceil(df.shape[0] / n_jobs)
         df_parts = [df[i:i + batch_size].copy() for i in range(df.index.start, df.index.stop, batch_size)]
-        options = dict(backend='multiprocessing') if is_os_windows else dict(prefer='processes')
-        pss = Parallel(n_jobs=n_jobs, **options)(delayed(_load_and_run)(estimator, fn_name, x) for x in df_parts)
+        log_level = logging.get_level()
+        options = cfg.joblib_options
+        pss = Parallel(n_jobs=n_jobs, **options)(delayed(_load_and_run)(
+            estimator, fn_name, x, log_level
+        ) for x in df_parts)
 
         if len(pss[0].shape) > 1:
             result = np.vstack(pss)
         else:
             result = np.hstack(pss)
     else:
-        result = _load_and_run(estimator, fn_name, df)
+        result = _load_and_run(estimator, fn_name, df, None)
 
     return result
 
