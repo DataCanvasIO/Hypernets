@@ -115,7 +115,6 @@ def run_export_excel_report(maker, has_eval_data=True, str_label=True):
     _experiment_meta: ExperimentMeta = mlr_callback.experiment_meta_
 
     assert len(_experiment_meta.resource_usage) > 0
-    assert len(_experiment_meta.steps) == 5
     assert os.path.exists(file_path)
 
     if has_eval_data:
@@ -127,6 +126,7 @@ def run_export_excel_report(maker, has_eval_data=True, str_label=True):
         assert len(_experiment_meta.datasets) == 3
     else:
         assert len(_experiment_meta.datasets) == 2
+    return _experiment_meta
 
 
 def test_str_render():
@@ -162,6 +162,26 @@ def test_disable_cv_render():
         return experiment
 
     run_export_excel_report(maker, str_label=False)
+
+
+def test_report_with_pseudo():
+    def maker(df_train, target, df_eval, file_path):
+        experiment = make_experiment(PlainModel, df_train,
+                                     target=target,
+                                     eval_data=df_eval,
+                                     cv=False,
+                                     test_data=df_eval.copy(),
+                                     drift_detection_threshold=0.4,
+                                     drift_detection_min_features=3,
+                                     drift_detection_remove_size=0.5,
+                                     search_space=PlainSearchSpace(enable_lr=False, enable_nn=False),
+                                     pseudo_labeling=True,
+                                     report_render='excel',
+                                     report_render_options={'file_path': file_path})
+        return experiment
+
+    experiment_meta = run_export_excel_report(maker, str_label=False)
+    assert len(experiment_meta.steps) == 8
 
 
 def test_obj_render():

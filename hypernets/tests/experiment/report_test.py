@@ -99,8 +99,27 @@ class TestExcelReport:
                           end_datetime=datetime.datetime.now())
         return s_meta
 
+    @staticmethod
+    def create_pseudo_step_meta():
+        extension = {
+            "probabilityDensity": {},
+            "samples": {"yes": 100, "no": 2000},
+            "selectedLabel": "yes"
+        }
+        s_meta = StepMeta(index=0,
+                          name=StepNames.PSEUDO_LABELING,
+                          type=StepType.PseudoLabeling,
+                          status=StepMeta.STATUS_FINISH,
+                          configuration={},
+                          extension=extension,
+                          start_datetime=datetime.datetime.now(),
+                          end_datetime=datetime.datetime.now())
+        return s_meta
+
     def run_render(self, cv):
-        steps_meta = [self.create_data_clean_step_meta(), self.create_ensemble_step_meta()]
+        steps_meta = [self.create_data_clean_step_meta(),
+                      self.create_pseudo_step_meta(), self.create_ensemble_step_meta()]
+
         experiment_meta = ExperimentMeta(task=const.TASK_BINARY,
                                          datasets=self.create_dataset_meta(),
                                          steps=steps_meta,
@@ -108,6 +127,7 @@ class TestExcelReport:
                                          confusion_matrix=self.create_confusion_matrix_data(),
                                          resource_usage=self.create_resource_monitor_df(),
                                          prediction_elapsed=self.create_prediction_stats_df())
+
         p = common_util.get_temp_file_path(prefix="report_excel_", suffix=".xlsx")
         print(p)
         ExcelReportRender(file_path=p).render(experiment_meta)
@@ -118,6 +138,8 @@ class TestExcelReport:
 
     def test_disable_cv(self):
         self.run_render(False)
+
+
 
 
 class TestResourceUsageMonitor:

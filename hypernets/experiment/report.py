@@ -191,8 +191,8 @@ class ExcelReportRender(ReportRender):
         """
         Parameters
         ----------
-        file_path: str, optional, default is './report.xlsx'
-            The excel report file path, if exists will be overwritten
+        file_path: str, optional
+            The excel report file path, default is './report.xlsx', if exists will be overwritten
         """
         super(ExcelReportRender, self).__init__(file_path=file_path)
 
@@ -560,7 +560,7 @@ class ExcelReportRender(ReportRender):
         -------
 
         """
-        sheet_name = "Ensemble"
+        sheet_name = step.name
 
         estimators = step.extension['estimators']
         if estimators is None or len(estimators) < 1:
@@ -676,10 +676,12 @@ class ExcelReportRender(ReportRender):
 
         sheet.insert_chart('O1', chart_model)
 
-    def _write_pseudo_labeling(self, label_stats):
-        sheet_name = "pseduo_labeling"
-        df = pd.DataFrame(data=label_stats)
-
+    def _write_pseudo_labeling(self, step_meta):
+        label_stats: dict = step_meta.extension['samples']
+        sheet_name = "pseudo_labeling"
+        labels = list(label_stats.keys())
+        samples = [label_stats[l] for l in labels ]
+        df = pd.DataFrame(data={'label': labels, 'samples': samples})
         table_config = {
             "columns": [
                 {
