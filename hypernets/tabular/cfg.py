@@ -3,7 +3,8 @@ import sys as sys_
 from hypernets.conf import configure, Configurable, Int, String, Bool, Float, Enum, Dict
 
 if sys_.platform.find('win') == 0:
-    _joblib_default_options = dict(backend='multiprocessing')
+    # _joblib_default_options = dict(backend='multiprocessing')
+    _joblib_default_options = dict(prefer='processes')
 else:
     _joblib_default_options = dict(prefer='processes')
 

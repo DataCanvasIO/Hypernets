@@ -39,8 +39,14 @@ class FeatureSelectionCallback:
         pass
 
 
-def _shift_score(X, y, scorer, cv):
+def _shift_score(X, y, scorer, cv, log_level):
     from . import get_tool_box
+
+    if log_level is not None:
+        import warnings
+
+        warnings.filterwarnings('ignore')
+        logging.set_level(log_level)
 
     tb = get_tool_box(X, y)
     model = tb.general_estimator(X, y, task=const.TASK_BINARY)
@@ -424,13 +430,14 @@ class FeatureSelectorWithDriftDetection:
             scores = {}
             for c in X_merged.columns:
                 x = X_merged[[c]]
-                score = _shift_score(x, y, scorer, cv)
+                score = _shift_score(x, y, scorer, cv, None)
                 logger.info(f'column:{c}, score:{score}')
                 scores[c] = score
         else:
+            log_level = logging.get_level()
             col_parts = [X_merged[[c]] for c in X_merged.columns]
             pss = Parallel(n_jobs=cfg.joblib_njobs, **cfg.joblib_options)(
-                delayed(_shift_score)(x, y, scorer, cv) for x in col_parts
+                delayed(_shift_score)(x, y, scorer, cv, log_level) for x in col_parts
             )
             scores = {k: v for k, v in zip(X_merged.columns.to_list(), pss)}
             logger.info(f'scores: {scores}')

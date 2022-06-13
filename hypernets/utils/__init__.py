@@ -4,6 +4,10 @@ __author__ = 'yangjian'
 
 """
 import sys as sys_
+try:
+    from packaging.version import Version
+except ModuleNotFoundError:
+    from distutils.version import LooseVersion as Version
 
 is_os_windows = sys_.platform.find('win') == 0
 is_os_darwin = sys_.platform.find('darwin') == 0

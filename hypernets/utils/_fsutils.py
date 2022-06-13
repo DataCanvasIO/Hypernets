@@ -11,7 +11,7 @@ import fsspec
 from fsspec.implementations.local import LocalFileSystem as FsSpecLocalFileSystem
 
 from hypernets.conf import Configurable, configure, Unicode
-from . import logging, is_os_windows
+from . import logging, is_os_windows, Version
 
 logger = logging.get_logger(__name__)
 
@@ -286,11 +286,9 @@ class S3FileSystemAdapter(FileSystemAdapter):
 
     @property
     def fn_r(self):
-        from distutils.version import LooseVersion
         import s3fs
-        ver = LooseVersion(s3fs.__version__)
 
-        if ver < LooseVersion('0.5.0'):
+        if Version(s3fs.__version__) < Version('0.5.0'):
             return super().fn_r + ['_ls']
         else:
             return super().fn_r
