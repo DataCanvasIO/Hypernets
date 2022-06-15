@@ -29,7 +29,7 @@ def test_batch_to_config():
     assert job_config['params']["learning_rate"] == 0.1
 
     assert job_config['command'] == 'pwd'
-    assert job_config['output_dir']
+    assert job_config['data_dir']
     assert job_config['working_dir']
 
     # 3.2 TODO check backend
@@ -69,7 +69,7 @@ def test_load_local_batch_config():
                 },
                 "command": "sleep 3",
                 "working_dir": job2_data_dir,
-                "output_dir": job2_data_dir,
+                "data_dir": job2_data_dir,
             }
         ],
         "backend": {
@@ -99,7 +99,7 @@ def test_load_local_batch_config():
     assert job1.name == "job1"
     assert job1.params['learning_rate'] == 0.1
     assert job1.command == "pwd"
-    assert job1.output_dir == (Path(batch_working_dir) / "job1").absolute().as_posix()
+    assert job1.data_dir == (Path(batch_working_dir) / "job1").absolute().as_posix()
     assert job1.working_dir == (Path(batch_working_dir) / "job1").absolute().as_posix()
 
     job2: ShellJob = jobs[1]
@@ -107,7 +107,7 @@ def test_load_local_batch_config():
     assert job2.name == "job2"
     assert job2.params['learning_rate'] == 0.2
     assert job2.command == "sleep 3"
-    assert job2.output_dir == job2_data_dir
+    assert job2.data_dir == job2_data_dir
     assert job2.working_dir == job2_data_dir
 
     # check backend
@@ -141,7 +141,7 @@ def test_load_remote_batch_config():
                 },
                 "command": "sleep 3",
                 "working_dir": job2_data_dir,
-                "output_dir": job2_data_dir,
+                "data_dir": job2_data_dir,
             }
         ],
         "backend": {

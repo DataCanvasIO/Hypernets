@@ -58,11 +58,11 @@ class BaseBatchAppTest:
 def assert_local_job_finished(jobs):
     rets = []
     for job in jobs:
-        job_output_dir = job.output_dir
+        job_data_dir = job.data_dir
         # stdout is not None but stderr is None
-        stdout = Path(job_output_dir) / "stdout"
-        stderr = Path(job_output_dir) / "stderr"
-        run_sh = Path(job_output_dir) / "run.sh"
+        stdout = Path(job_data_dir) / "stdout"
+        stderr = Path(job_data_dir) / "stderr"
+        run_sh = Path(job_data_dir) / "run.sh"
         assert stdout.exists()
         assert stderr.exists()
         assert run_sh.exists()
@@ -164,7 +164,7 @@ class TestRunRemoteWithAssets(BaseUpload):
         assert_batch_finished(batch,ShellJob.STATUS_SUCCEED)
 
         # check assets in remote
-        job1_data_dir_path = Path(batch.jobs[0].output_dir)
+        job1_data_dir_path = Path(batch.jobs[0].data_dir)
         with ssh_utils.sftp_client(**self.ssh_config) as client:
             remote_assert_path = job1_data_dir_path / "resources" / self.data_dir.name
 
@@ -322,7 +322,7 @@ class TestRunBasePreviousBatch(BaseBatchAppTest):
     def test_run_batch(self):
         app1 = self.app1
         # run the bach base on previous batch
-        app2 = BatchApplication.load(app1.to_config(), batch_working_dir=app1.batch.working_dir_path)
+        app2 = BatchApplication.load(app1.to_config(), batch_data_dir=app1.batch.data_dir_path)
 
         # app2 = create_batch_app(batches_data_dir)
         app2.start()

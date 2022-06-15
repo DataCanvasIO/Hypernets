@@ -279,7 +279,7 @@ BatchApplicationConfig
 
     * - name
       - ``str``, required
-      - batch name, default is a new uuid, recommended that you specify one, with the specified {jobs.name} , the executed job can be skipped when the batch is re-executed
+      - batch name, should be unique in a batch.
 
     * - jobs
       - list[`JobConfig`_], required
@@ -287,7 +287,7 @@ BatchApplicationConfig
 
     * - backend
       - `BackendConfig`_, optional
-      -  Configure the platform where the jobs running on, default is `LocalBackend`_ .
+      -  platform where the jobs running on, default is `LocalBackendConfig`_ .
 
     * - server
       - `ServerConfig`_ , optional
@@ -297,19 +297,18 @@ BatchApplicationConfig
       - `SchedulerConfig`_ , optional
       -  scheduler setting.
 
-    * - batches_working_dir
+    * - batches_data_dir
       - ``str``, optional
-      - batches working directory, where to store output files of batches, default is ``~/hyperctl-batches-working-dir``.
-
-        hyperctl will create a sub-directory by the batch name for every batch in this directory.
+      - batches working directory, where to store output files of batches, hyperctl will create a sub-directory by the batch name for every batch in this directory.
+        default read from environment by key ``HYPERCTL_BATCHES_DATA_DIR``, if do not set in environments using ``~/hyperctl-batches-data-dir``.
 
     * - version
       - ``str``, optional
-      - If is None, use the currently running version, default is None.
+      - if is None, use the currently running version, default is None.
 
 
 JobConfig
-^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
 .. list-table::
     :widths: 10 10 80
@@ -333,15 +332,16 @@ JobConfig
 
     * - working_dir
       - ``str``, optional
-      -  working dir to run the command, default is {batches_working_dir}/{batch_name}/{job_name}
+      -  working dir to run the ``command``, default is {batches_data_dir}/{batch_name}/{job_name}
 
 
 .. note::
 
-  A job write output file to ``{batches_working_dir}/{batch_name}/{job_name}``, it usually contains files:
-  - stdout: standard output
-  - stderr: standard error
-  - run.sh: shell script to run the job
+  A job write output file to ``{batches_data_dir}/{batch_name}/{job_name}``, it usually contains files:
+
+    - stdout: standard output
+    - stderr: standard error
+    - run.sh: shell script to run the job
 
 
 BackendConfig
@@ -519,9 +519,9 @@ JobTemplateConfig
       - `BackendConfig`_, optional
       - refer to ``BatchApplicationConfig.backend``
 
-    * - batches_working_dir
+    * - batches_data_dir
       -  ``str``, optional
-      - refer to ``BatchApplicationConfig.batches_working_dir``
+      - refer to ``BatchApplicationConfig.batches_data_dir``
 
     * - server
       - `ServerConfig`_ , optional

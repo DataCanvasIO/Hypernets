@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExecutionConf:
+
     def __init__(self, command, data_dir, working_dir):
         self.command = command
         self.data_dir = data_dir
@@ -26,6 +27,7 @@ class ExecutionConf:
 
 
 class ShellJob:
+
     STATUS_INIT = 'init'
     STATUS_RUNNING = 'running'
     STATUS_SUCCEED = 'succeed'
@@ -33,15 +35,15 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, command, output_dir, working_dir=None, assets=None, resource=None):
+    def __init__(self, name, params, command, data_dir, working_dir=None, assets=None, resource=None):
         self.name = name
         self.params = params
         self.resource = resource
         self.command = command
-        self.output_dir = output_dir
+        self.data_dir = data_dir
 
         if working_dir is None:
-            self.working_dir = output_dir
+            self.working_dir = data_dir
         else:
             self.working_dir = working_dir
 
@@ -49,6 +51,7 @@ class ShellJob:
 
         self.start_time = None
         self.end_time = None
+
         self._status = ShellJob.STATUS_INIT
 
     def set_status(self, status):
@@ -59,16 +62,16 @@ class ShellJob:
         return self._status
 
     @property
-    def job_data_dir(self):
-        return Path(self.output_dir).as_posix()
+    def data_dir_path(self):
+        return Path(self.data_dir)
 
     @property
-    def run_file_path(self):
-        return (Path(self.job_data_dir) / "run.sh").as_posix()
+    def run_file(self):
+        return (self.data_dir_path / "run.sh").as_posix()
 
     @property
     def resources_path(self):
-        return Path(self.job_data_dir) / "resources"  # resources should be copied to working dir
+        return self.data_dir_path / "resources"  # resources should be copied to working dir
 
     def to_dict(self):
         import copy
@@ -82,7 +85,7 @@ class ShellJob:
             "params": self.params,
             "resource": self.resource,
             "command": self.command,
-            "output_dir": self.output_dir,
+            "data_dir": self.data_dir,
             "working_dir": self.working_dir,
             "assets": self.assets
         }
@@ -136,17 +139,20 @@ class Batch:
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, working_dir: str):
+    def __init__(self, name, data_dir: str):
         self.name = name
-        self.working_dir_path = Path(working_dir)
-
+        self.data_dir = data_dir
         self.jobs = []
 
         self.start_time = None
         self.end_time = None
 
+    @property
+    def data_dir_path(self):
+        return Path(self.data_dir)
+
     def job_status_file_path(self, job_name, status):
-        return (self.working_dir_path / f"{job_name}.{status}").as_posix()
+        return (self.data_dir_path / f"{job_name}.{status}").as_posix()
 
     def status_files(self):
         return self._status_files([ShellJob.STATUS_FAILED, ShellJob.STATUS_SUCCEED, ShellJob.STATUS_RUNNING])
@@ -196,10 +202,10 @@ class Batch:
         return exists_status.issubset(set(ShellJob.FINAL_STATUS))
 
     def config_file_path(self):
-        return self.working_dir_path / self.FILE_CONFIG
+        return self.data_dir_path / self.FILE_CONFIG
 
     def pid_file_path(self):
-        return self.working_dir_path / self.FILE_PID
+        return self.data_dir_path / self.FILE_PID
 
     def pid(self):
         pid_file_path = self.pid_file_path()

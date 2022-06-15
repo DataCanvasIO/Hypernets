@@ -16,8 +16,6 @@ from hypernets.hyperctl.utils import load_yaml, load_json, copy_item
 from hypernets.utils import logging
 from hypernets.utils import logging as hyn_logging, common as common_util
 
-logging.set_level('DEBUG')
-
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +62,6 @@ def run_generate_job_specs(template, output):
     # 1.3. check values should be array
     assert "params" in config_dict
 
-
     params = config_dict['params']
     for k, v in params.items():
         if not isinstance(v, list):
@@ -73,7 +70,7 @@ def run_generate_job_specs(template, output):
     # 1.4. check command exists
     assert "command" in config_dict
 
-    # assert "output_dir" in config_dict
+    # assert "data_dir" in config_dict
     # assert "working_dir" in config_dict
 
     # 2. combine params to generate jobs
@@ -87,7 +84,7 @@ def run_generate_job_specs(template, output):
             "params": job_params_dict
         }
         copy_item(config_dict, job_dict, 'resource')
-        copy_item(config_dict, job_dict, 'output_dir')
+        copy_item(config_dict, job_dict, 'data_dir')
         copy_item(config_dict, job_dict, 'working_dir')
         return job_dict
 
@@ -112,12 +109,13 @@ def run_generate_job_specs(template, output):
 
 
 def _load_batch_data_dir(batches_data_dir: str, batch_name) -> BatchApplication:
-    spec_file_path = Path(batches_data_dir) / batch_name / Batch.FILE_CONFIG
+    batch_data_dir_path = Path(batches_data_dir) / batch_name
+    spec_file_path = batch_data_dir_path / Batch.FILE_CONFIG
     if not spec_file_path.exists():
         raise RuntimeError(f"batch {batch_name} not exists")
 
     batch_spec_dict = load_json(spec_file_path)
-    return BatchApplication.load(batch_spec_dict, batches_data_dir)
+    return BatchApplication.load(batch_spec_dict, batch_data_dir_path)
 
 
 def run_show_jobs(batch_name, batches_data_dir):
@@ -139,7 +137,6 @@ def run_show_jobs(batch_name, batches_data_dir):
 
 
 def run_kill_job(batch_name, job_name, batches_data_dir):
-    batches_data_dir = Path(batches_data_dir)
     batch_app = _load_batch_data_dir(batches_data_dir, batch_name)
     batch = batch_app.batch
     if batch.STATUS_RUNNING != batch.status():
@@ -152,7 +149,6 @@ def run_kill_job(batch_name, job_name, batches_data_dir):
 
 
 def show_job(batch_name, job_name, batches_data_dir):
-    batches_data_dir = Path(batches_data_dir)
     batch_app = _load_batch_data_dir(batches_data_dir, batch_name)
     batch = batch_app.batch
     if batch.STATUS_RUNNING != batch.status():
@@ -171,9 +167,9 @@ def run_batch_config_file(config, batches_data_dir):
 
 
 def run_show_batches(batches_data_dir):
-    batches_data_dir = Path(batches_data_dir)
+    batches_data_dir_path = Path(batches_data_dir)
 
-    if not batches_data_dir.exists():
+    if not batches_data_dir_path.exists():
         print("null")
         return
 
@@ -182,7 +178,7 @@ def run_show_batches(batches_data_dir):
     batches_name = []
     batches_summary = []
     for filename in os.listdir(batches_data_dir):
-        if (Path(batches_data_dir)/filename).is_dir():
+        if (batches_data_dir_path / filename).is_dir():
             batches_name.append(filename)
             batch_app = _load_batch_data_dir(batches_data_dir, filename)
 
@@ -324,3 +320,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

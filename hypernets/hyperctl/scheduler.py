@@ -175,7 +175,7 @@ class JobScheduler:
             job.start_time = time.time()  # update start time
             self._handle_job_start(job, executor)
             process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
-            logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.job_data_dir}')
+            logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.data_dir_path}')
             self._change_job_status(job, job.STATUS_RUNNING)
 
             try:

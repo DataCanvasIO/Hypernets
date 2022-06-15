@@ -47,9 +47,8 @@ class ShellExecutor:
 
     def _make_run_shell_content(self):
 
-        # default http://localhost:8060
-        vars = {
-            consts.KEY_ENV_JOB_DATA_DIR: self.job.job_data_dir,
+        template_vars = {
+            consts.KEY_ENV_JOB_DATA_DIR: self.job.data_dir_path.as_posix(),
             consts.KEY_ENV_JOB_NAME: self.job.name,
             consts.KEY_ENV_JOB_WORKING_DIR: self.job.working_dir,  # default value
             consts.KEY_TEMPLATE_COMMAND: self.job.command,
@@ -57,7 +56,7 @@ class ShellExecutor:
         }
 
         run_shell = str(consts.RUN_SH_TEMPLATE)
-        for k, v in vars.items():
+        for k, v in template_vars.items():
             run_shell = run_shell.replace(f"#{k}#", v)
 
         export_custom_envs_command = ""
@@ -108,7 +107,7 @@ class LocalShellExecutor(ShellExecutor):
 
     def run(self):
         # prepare data dir
-        job_data_dir = Path(self.job.job_data_dir)
+        job_data_dir = Path(self.job.data_dir_path)
 
         if not job_data_dir.exists():
             os.makedirs(job_data_dir, exist_ok=True)
@@ -116,9 +115,9 @@ class LocalShellExecutor(ShellExecutor):
         self.prepare_assets()
 
         # create shell file & write to local
-        self._write_run_shell_script(self.job.run_file_path)
+        self._write_run_shell_script(self.job.run_file)
 
-        command = f'sh {self.job.run_file_path}'
+        command = f'sh {self.job.run_file}'
 
         self._process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
         logger.debug(f'executed command {command} , pid is {self._process.pid}')
@@ -224,11 +223,11 @@ class RemoteShellExecutor(ShellExecutor):
                     ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
 
     def run(self):
-        output_dir = Path(self.job.output_dir).as_posix()
-        logger.debug(f"create remote data dir {output_dir}")
+        data_dir = Path(self.job.data_dir).as_posix()
+        logger.debug(f"create remote data dir {data_dir}")
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f"create remote job output dir {output_dir} ")
-            ssh_utils.makedirs(sftp_client, output_dir)
+            logger.debug(f"create remote job output dir {data_dir} ")
+            ssh_utils.makedirs(sftp_client, data_dir)
 
         logger.debug(f"prepare to upload assets to {self.machine.hostname}")
         self.prepare_assets()
@@ -241,13 +240,13 @@ class RemoteShellExecutor(ShellExecutor):
 
         # copy file to remote
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f'upload {run_file} to {self.job.run_file_path}')
+            logger.debug(f'upload {run_file} to {self.job.run_file}')
             sftp_client: SFTPClient = sftp_client
-            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file_path)
+            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
 
         # execute command in async
         self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
-        command = f'sh {self.job.run_file_path}'
+        command = f'sh {self.job.run_file}'
         logger.debug(f'execute command {command}')
         self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
 
