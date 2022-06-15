@@ -551,7 +551,7 @@ You can also change the file path of the output report by setting the argument `
 
 
 Experiment visualization in jupyter notebook
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 Hypernets support two new features of experiment visualization in notebooks:
 
