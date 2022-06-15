@@ -378,9 +378,11 @@ class LocalExecutorManager(ExecutorManager):
         executor.kill()
 
 
-def create_executor_manager(backend_type, backend_conf, server_host, server_port):  # instance factory
+def create_executor_manager(backend_conf, server_host, server_port):  # instance factory
     backend_conf = backend_conf if backend_conf is not None else {}
     server_portal = http_portal(server_host, server_port)
+    backend_type = backend_conf.get('type', 'local')
+
     if backend_type == 'remote':
         machines = [SSHRemoteMachine(**_) for _ in backend_conf['machines']]
         # check remote host setting, only warning for remote backend

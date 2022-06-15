@@ -27,14 +27,13 @@ class BatchApplication:
                  scheduler_exit_on_finish=False,
                  scheduler_interval=5000,
                  scheduler_callbacks=None,
-                 backend_type='local',
                  backend_conf=None,
                  version=None,
                  **kwargs):
 
         self.batch = batch
 
-        self.job_scheduler: JobScheduler = self._create_scheduler(backend_type, backend_conf,
+        self.job_scheduler: JobScheduler = self._create_scheduler(backend_conf,
                                                                   server_host, server_port,
                                                                   scheduler_exit_on_finish,
                                                                   scheduler_interval,
@@ -44,12 +43,14 @@ class BatchApplication:
 
         self._http_server = None
 
+        self.version = version
+
     def _create_web_app(self, server_host, server_port, batch):
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
-    def _create_scheduler(self, backend_type, backend_conf, server_host, server_port,
+    def _create_scheduler(self, backend_conf, server_host, server_port,
                           scheduler_exit_on_finish, scheduler_interval, scheduler_callbacks):
-        executor_manager = create_executor_manager(backend_type, backend_conf, server_host, server_port)
+        executor_manager = create_executor_manager(backend_conf, server_host, server_port)
         return JobScheduler(self.batch, scheduler_exit_on_finish,
                             scheduler_interval, executor_manager, callbacks=scheduler_callbacks)
 
@@ -158,10 +159,11 @@ class BatchApplication:
 
         flat_args("server")
         flat_args("scheduler")
-        flat_args("backend")
+
+        backend_conf = batch_spec_dict.get('backend')
 
         # web application
-        app = BatchApplication(batch, **batch_spec_dict)
+        app = BatchApplication(batch, backend_conf=backend_conf, **batch_spec_dict)
 
         return app
 

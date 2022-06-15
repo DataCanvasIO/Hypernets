@@ -370,6 +370,10 @@ Running batch in standalone mode,  please refer to the example `LocalBackend`_.
       - ``"local"``
       -
 
+    * - environments
+      - ``dict``, optional
+      - Environments setting will export for the job process.
+
 
 RemoteBackendConfig
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -408,7 +412,7 @@ RemoteMachineConfig
 
     * - environments
       - ``dict``, optional
-      - Environments for the remote machine.
+      - Environments setting will export for the job process.
 
 
 SHHConnectionConfig

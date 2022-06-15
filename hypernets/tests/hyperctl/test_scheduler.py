@@ -105,6 +105,7 @@ def assert_batch_finished(batch: Batch, status, input_batch_name=None, input_job
 
 def create_remote_backend_conf():
     return {
+        "type": "remote",
         "machines": [{"connection": load_ssh_psw_config()}]
     }
 
@@ -120,7 +121,6 @@ class TestRemoteBatch(BaseBatchAppTest):
 
         backend_conf = create_remote_backend_conf()
         app = BatchApplication(batch, server_port=8088,
-                               backend_type='remote',
                                backend_conf=backend_conf,
                                scheduler_exit_on_finish=True,
                                scheduler_interval=1)
@@ -365,6 +365,7 @@ class TestRemoteHostEnv(BaseBatchAppTest):
     def setup_class(cls):
         super(TestRemoteHostEnv, cls).setup_class()
         backend_conf = {
+            "type": 'remote',
             "machines": [{
                 'connection':  load_ssh_psw_config(),
                 'environments': {"hyn_test_conda_home": "/home/hyperctl/miniconda3"}
@@ -373,7 +374,7 @@ class TestRemoteHostEnv(BaseBatchAppTest):
         batch = batch_factory.create_assert_env_batch()
         app = BatchApplication(batch, server_port=8089,
                                scheduler_exit_on_finish=True,
-                               backend_type='remote',
+
                                backend_conf=backend_conf,
                                scheduler_interval=1)
         cls.app = app

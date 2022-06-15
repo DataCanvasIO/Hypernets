@@ -1,44 +1,41 @@
 {
-    "name": "local-batch-example",
+    "name": "remote-batch-example",
     "jobs": [
         {
             "name": "job1",
             "params": {
                 "learning_rate": 0.1
             },
-            "execution": {
-                "command": "sleep 100;echo \"finished\""
-            }
+            "command": "sleep 3;echo \"finished\""
         },{
             "name": "job2",
             "params": {
                 "learning_rate": 0.2
             },
-            "execution": {
-                "command": "sleep 100;echo \"finished\""
-            }
+            "command": "sleep 3;echo \"finished\""
         }
     ],
     "backend": {
         "type": "remote",
-        "conf": {
-            "machines": [
-                {
-                    "connection": {
-                        "hostname": "host1",
-                        "username": "hyperctl",
-                        "password": "hyperctl"
-                    }
+        "machines": [
+            {
+                "connection": {
+                    "hostname": "host1",
+                    "username": "hyperctl",
+                    "password": "hyperctl"
                 },
-                {
-                     "connection":{
-                        "hostname": "host2",
-                        "username": "hyperctl",
-                        "password": "hyperctl"
-                    }
+                "environments": {
+                    "JAVA_HOME": "/usr/local/jdk"
                 }
-            ]
-        }
+            },
+            {
+                 "connection":{
+                    "hostname": "host2",
+                    "username": "hyperctl",
+                    "password": "hyperctl"
+                }
+            }
+        ]
     },
     "scheduler": {
         "interval": 5000,
@@ -46,6 +43,6 @@
     },
     "server": {
         "host": "localhost",
-        "port": 8060
+        "port": 8061
     }
 }
