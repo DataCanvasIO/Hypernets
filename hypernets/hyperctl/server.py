@@ -12,6 +12,7 @@ from hypernets.hyperctl.executor import RemoteSSHExecutorManager
 from hypernets.hyperctl.scheduler import JobScheduler
 from hypernets.hyperctl.utils import http_portal
 from hypernets.utils import logging as hyn_logging
+import copy
 
 logger = hyn_logging.getLogger(__name__)
 
@@ -86,6 +87,14 @@ class IndexHandler(BaseHandler):
         return self.finish("Welcome to hyperctl.")
 
 
+def to_job_detail(job, batch):
+    # add 'status' to return dict
+    job_dict = job.to_config()
+    config_dict = copy.copy(job_dict)
+    config_dict['status'] = batch.get_job_status(job.name)
+    return config_dict
+
+
 class JobHandler(BaseHandler):
 
     def get(self, job_name, **kwargs):
@@ -93,7 +102,7 @@ class JobHandler(BaseHandler):
         if job is None:
             self.response({"msg": "resource not found"}, RestCode.Exception)
         else:
-            ret_dict = job.to_dict()
+            ret_dict = to_job_detail(job, self.batch)
             return self.response(ret_dict)
 
     def initialize(self, batch: Batch):
@@ -122,7 +131,7 @@ class JobListHandler(BaseHandler):
     def get(self, *args, **kwargs):
         jobs_dict = []
         for job in self.batch.jobs:
-            jobs_dict.append(job.to_dict())
+            jobs_dict.append(to_job_detail(job, self.batch))
         self.response({"jobs": jobs_dict})
 
     def initialize(self, batch: Batch):

@@ -123,7 +123,7 @@ class TestRemoteBatch(BaseBatchAppTest):
         app = BatchApplication(batch, server_port=8088,
                                backend_conf=backend_conf,
                                scheduler_exit_on_finish=True,
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         cls.app = app
 
     def test_run_batch(self):
@@ -150,7 +150,7 @@ class TestRunRemoteWithAssets(BaseUpload):
                                backend_type='remote',
                                backend_conf=backend_conf,
                                scheduler_exit_on_finish=True,
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         cls.app = app
 
     def test_run_batch(self):
@@ -191,7 +191,7 @@ class TestMinimumLocalBatch(BaseBatchAppTest):
         batch = create_minimum_batch()
         app = BatchApplication(batch, server_port=8061,
                                scheduler_exit_on_finish=True,
-                               scheduler_interval=1,
+                               scheduler_interval=1000,
                                scheduler_callbacks=[ConsoleCallback()])
         cls.app = app
 
@@ -211,7 +211,7 @@ class TestLocaBatch(BaseBatchAppTest):
         batch = create_local_batch()
         app = BatchApplication(batch, server_port=8082,
                                scheduler_exit_on_finish=True,
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         cls.app = app
 
     def test_run_batch(self):
@@ -236,7 +236,7 @@ class TestKillLocalJob(BaseBatchAppTest):
 
         app = BatchApplication(batch, server_port=server_port,
                                scheduler_exit_on_finish=True,
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         runner = BatchRunner(app)
         cls.app = app
         cls.runner = runner
@@ -271,7 +271,7 @@ class TestStopScheduler(BaseBatchAppTest):
         batch = create_minimum_batch()
         app = BatchApplication(batch, server_port=8086,
                                scheduler_exit_on_finish=False,
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         runner = BatchRunner(app)
         runner.start()
         cls.runner = runner
@@ -297,7 +297,7 @@ def create_batch_app(batches_data_dir):
 
     app = BatchApplication(batch, server_port=8086,
                            scheduler_exit_on_finish=True,
-                           scheduler_interval=1)
+                           scheduler_interval=1000)
 
     return app
 
@@ -346,7 +346,7 @@ class TestLocalHostEnv(BaseBatchAppTest):
                                scheduler_exit_on_finish=True,
                                backend_type='local',
                                backend_conf=dict(environments={"hyn_test_conda_home": "/home/hyperctl/miniconda3"}),
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         cls.app = app
 
     def test_run_batch(self):
@@ -376,7 +376,7 @@ class TestRemoteHostEnv(BaseBatchAppTest):
                                scheduler_exit_on_finish=True,
 
                                backend_conf=backend_conf,
-                               scheduler_interval=1)
+                               scheduler_interval=1000)
         cls.app = app
 
     def test_run_batch(self):
@@ -385,3 +385,37 @@ class TestRemoteHostEnv(BaseBatchAppTest):
         self.app.start()
         assert isinstance(app.job_scheduler.executor_manager, RemoteSSHExecutorManager)
         assert_batch_finished(app.batch, ShellJob.STATUS_SUCCEED)
+
+
+@skip_if_windows
+class TestJobCache(BaseBatchAppTest):
+
+    @staticmethod
+    def create_app(batches_data_dir, port):
+        batch = batch_factory.create_local_batch(batches_data_dir=batches_data_dir)
+        app = BatchApplication(batch, server_port=port,
+                               scheduler_exit_on_finish=True,
+                               backend_conf={'type': 'local'},
+                               scheduler_interval=1000)
+        return app
+
+    @classmethod
+    def setup_class(cls):
+        super(TestJobCache, cls).setup_class()
+        batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+        cls.app = cls.create_app(batches_data_dir, 8090)
+        cls.app1 = cls.create_app(batches_data_dir, 8091)
+
+    def test_run_batch(self):
+
+        self.app1.start()
+
+        self.app.start()
+
+        assert isinstance(self.app.job_scheduler.executor_manager, LocalExecutorManager)
+        assert_batch_finished(self.app.batch, ShellJob.STATUS_SUCCEED)
+
+        assert isinstance(self.app1.job_scheduler.executor_manager, LocalExecutorManager)
+        assert_batch_finished(self.app1.batch, ShellJob.STATUS_SUCCEED)
+
+        assert self.app.job_scheduler.n_skipped == 2

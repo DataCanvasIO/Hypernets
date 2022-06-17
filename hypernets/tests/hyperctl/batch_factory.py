@@ -23,12 +23,14 @@ def create_minimum_batch(command="pwd", batches_data_dir=None):
     return batch
 
 
-def _create_local_batch(batch_name, job_assets=None):
+def _create_local_batch(batch_name, batches_data_dir=None,  job_assets=None):
 
     job1_name = "job1"
     job2_name = "job2"
 
-    batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+    if batches_data_dir is None:
+        batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
+
     batch = Batch(batch_name, data_dir=os.path.join(batches_data_dir, batch_name))
 
     job1_data_dir = (batch.data_dir_path / job1_name).absolute().as_posix()
@@ -50,8 +52,8 @@ def _create_local_batch(batch_name, job_assets=None):
     return batch
 
 
-def create_local_batch(job_assets=None):
-    return _create_local_batch("local-batch", job_assets)
+def create_local_batch(batches_data_dir=None, job_assets=None):
+    return _create_local_batch("local-batch", batches_data_dir=batches_data_dir, job_assets=job_assets)
 
 
 def create_remote_batch(job_asserts=None):

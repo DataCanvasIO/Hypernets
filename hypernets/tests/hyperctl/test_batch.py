@@ -55,5 +55,5 @@ def test_get_job_by_name():
     req_job_name = "job2"
     job = batch.get_job_by_name(req_job_name)
     assert job.name == req_job_name
-    assert job.status == ShellJob.STATUS_INIT
+    assert batch.get_job_status(req_job_name) == ShellJob.STATUS_INIT
     assert job.params['learning_rate'] == 0.2

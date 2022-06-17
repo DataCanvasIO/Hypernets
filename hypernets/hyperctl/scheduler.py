@@ -30,6 +30,7 @@ class JobScheduler:
 
         self._n_skipped = 0
         self._n_allocated = 0
+        self._selected_jobs = []
 
     @property
     def n_skipped(self):
@@ -43,19 +44,19 @@ class JobScheduler:
     def interval(self):
         return self._timer.callback_time
 
-    def stats_finished_jobs(self):
-        for job in self.batch.jobs:
-            if job.status in ShellJob.FINAL_STATUS:
-                logger.info(f"job '{job.name}' status is {job.status}, skip run")
-                self._n_skipped = self.n_skipped + 1
-
     def start(self):
         self.executor_manager.prepare()
         self._timer.start()
         self.batch.start_time = time.time()
 
         # stats finished jobs
-        self.stats_finished_jobs()
+        for job in self.batch.jobs:
+            job_status = self.batch.get_job_status(job.name)
+            if job_status != ShellJob.STATUS_INIT:
+                logger.info(f"job '{job.name}' status is '{job_status}', skip run.")
+                self._n_skipped = self.n_skipped + 1
+            else:
+                self._selected_jobs.append(job)
 
         for callback in self.callbacks:
             callback.on_start(self.batch)
@@ -79,12 +80,14 @@ class JobScheduler:
         job: ShellJob = self.batch.get_job_by_name(job_name)
         if job is None:
             raise ValueError(f'job {job_name} does not exists ')
+        job_status = self.batch.get_job_status(job.name)
 
-        logger.info(f"trying kill job {job_name}, it's status is {job.status} ")
+        logger.info(f"trying kill job {job_name}, it's status is {job_status} ")
 
         # check job status
-        if job.status != job.STATUS_RUNNING:
-            raise RuntimeError(f"job {job_name} in not in {job.STATUS_RUNNING} status but is {job.status} ")
+
+        if job_status != job.STATUS_RUNNING:
+            raise RuntimeError(f"job {job_name} in not in {job.STATUS_RUNNING} status but is {job_status} ")
 
         # find executor and kill
         em = self.executor_manager
@@ -102,21 +105,35 @@ class JobScheduler:
 
     @staticmethod
     def change_job_status(batch: Batch, job: ShellJob, next_status):
-        current_status = job.status
+        current_status = batch.get_job_status(job_name=job.name)
         target_status_file = batch.job_status_file_path(job_name=job.name, status=next_status)
+
+        def touch(f_path):
+            with open(f_path, 'w') as f:
+                pass
+
         if next_status == job.STATUS_INIT:
             raise ValueError(f"can not change to {next_status} ")
         elif next_status == job.STATUS_RUNNING:
             if current_status != job.STATUS_INIT:
                 raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
-            job.set_status(next_status)
+
+            # job.set_status(next_status)
+            touch(target_status_file)
+
         elif next_status in job.FINAL_STATUS:
             if current_status != job.STATUS_RUNNING:
                 raise ValueError(f"only job in {job.STATUS_RUNNING} can change to "
                                  f"{next_status} but now is {current_status}")
-            job.set_status(next_status)
-            with open(target_status_file, 'w') as f:
-                pass
+            # remove running status
+            os.remove(batch.job_status_file_path(job_name=job.name, status=job.STATUS_RUNNING))
+
+            # job.set_status(next_status)
+            touch(target_status_file)
+            reload_status = batch.get_job_status(job_name=job.name)
+            assert reload_status == next_status, f"change job status failed, current status is {reload_status}," \
+                                                 f" expected status is {next_status}"
+
         else:
             raise ValueError(f"unknown status {next_status}")
 
@@ -154,10 +171,11 @@ class JobScheduler:
             callback.on_job_finish(self.batch, job, executor, elapsed)
         self._handle_callbacks(f)
 
-    def _run_jobs(self, executor_manager, jobs):
+    def _run_jobs(self, executor_manager):
+        jobs = self._selected_jobs
         for job in jobs:
-            if job.status != job.STATUS_INIT:
-                # logger.warning(f"job '{job.name}' status is {job.status}, skip run")
+            if self.batch.get_job_status(job.name) != job.STATUS_INIT:
+                # logger.info(f"job '{job.name}' status is {job.status}, skip run")
                 continue
             # logger.debug(f'trying to alloc resource for job {job.name}')
             try:
@@ -194,8 +212,6 @@ class JobScheduler:
             callback.on_finish(self.batch, self.batch.elapsed)
 
     def attempt_scheduling(self):  # attempt_scheduling
-        jobs = self.batch.jobs
-
         # check all jobs finished
         job_finished = self.batch.is_finished()
         if job_finished:
@@ -204,10 +220,9 @@ class JobScheduler:
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)
             self._timer.stop()  # stop the timer
             if self.exit_on_finish:
-
                 self.stop()
             self._handle_on_finished()
             return
 
         self._release_executors(self.executor_manager)
-        self._run_jobs(self.executor_manager, jobs)
+        self._run_jobs(self.executor_manager)

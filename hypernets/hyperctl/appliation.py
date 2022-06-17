@@ -24,7 +24,7 @@ class BatchApplication:
     def __init__(self, batch: Batch,
                  server_host="localhost",
                  server_port=8060,
-                 scheduler_exit_on_finish=False,
+                 scheduler_exit_on_finish=True,
                  scheduler_interval=5000,
                  scheduler_callbacks=None,
                  backend_conf=None,
@@ -56,17 +56,21 @@ class BatchApplication:
 
     def start(self):
         logger.info(f"batch name: {self.batch.name}")
-        logger.info(f"batch working dir: {self.batch.data_dir_path.absolute()}")
+        logger.info(f"batch data dir: {self.batch.data_dir_path.absolute()}")
 
         # check jobs status
         for job in self.batch.jobs:
-            if job.status != job.STATUS_INIT:
-                if job.status == job.STATUS_RUNNING:
-                    logger.warning(f"job '{job.name}' status is {job.status} in the begining,"
+            job:ShellJob = job
+            job_status = self.batch.get_job_status(job.name)
+            if job_status != job.STATUS_INIT:
+                if job_status == job.STATUS_RUNNING:
+                    logger.warning(f"job '{job.name}' status is {job_status} in the beginning,"
                                    f"it may have run and will not run again this time, "
-                                   f"you can remove it's status file and working dir to retry the job")
+                                   f"you can remove it's status file: "
+                                   f"{self.batch.job_status_file_path(job_name=job.name, status=job_status)} "
+                                   f"and data dir(maybe in remote): {job.data_dir} to retry the job")
                 else:
-                    logger.info(f"job '{job.name}' status is {job.status} means it's finished, skip to run ")
+                    logger.info(f"job '{job.name}' status is {job_status} means it's finished, skip to run ")
                 continue
 
         # prepare batch data dir
@@ -153,7 +157,7 @@ class BatchApplication:
                 job_dict['data_dir'] = (batch.data_dir_path / job_dict['name']).as_posix()
 
             job = ShellJob(**job_dict)
-            job.set_status(batch.load_job_status(job_name=job.name))
+            # job.set_status(batch.get_job_status(job_name=job.name))
             batch.jobs.append(job)
             # batch.add_job(**job_dict)
 
