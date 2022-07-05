@@ -52,6 +52,15 @@ class HyperModel:
 
         for callback in self.callbacks:
             callback.on_build_estimator(self, space_sample, estimator, trial_no)
+
+        metrics = fit_kwargs.pop('metrics') if 'metrics' in fit_kwargs else None
+        if metrics is not None:
+            assert isinstance(metrics, (tuple, list)), 'metrics should be list or tuple'
+            if not any(map(lambda _: _ is self.reward_metric, metrics)):
+                metrics = list(metrics) + [self.reward_metric]
+        else:
+            metrics = [self.reward_metric]
+
         succeeded = False
         scores = None
         oof = None
@@ -60,7 +69,7 @@ class HyperModel:
             if cv:
                 scores, oof, oof_scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
                                                                          shuffle=False, random_state=9527,
-                                                                         metrics=[self.reward_metric],
+                                                                         metrics=metrics,
                                                                          **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
@@ -74,7 +83,7 @@ class HyperModel:
 
         if succeeded:
             if scores is None:
-                scores = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
+                scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
             reward = self._get_reward(scores, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:
@@ -85,6 +94,7 @@ class HyperModel:
 
             trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
             trial.iteration_scores = estimator.get_iteration_scores()
+            trial.memo['scores'] = scores
             if oof is not None and self._is_memory_enough(oof):
                 trial.memo['oof'] = oof
             if oof_scores is not None:
