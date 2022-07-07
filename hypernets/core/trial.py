@@ -88,6 +88,12 @@ class Trial():
                 out[p.alias] = p.value
         return pd.DataFrame({k: [v] for k, v in out.items()})
 
+    def get_model(self):
+        from hypernets.utils import fs
+        with fs.open(self.model_file, 'rb') as f:
+            obj = pickle.load(f)
+        return obj
+
 
 class TrialHistory():
     def __init__(self, optimize_direction):
