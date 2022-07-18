@@ -9,7 +9,6 @@ pyarrow
 ipython
 traitlets
 featuretools>=0.23.0
-python-geohash
 XlsxWriter>=3.0.2
 psutil
 joblib

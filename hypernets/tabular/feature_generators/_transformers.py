@@ -11,6 +11,7 @@ from hypernets.tabular.column_selector import column_all_datetime, column_number
 from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
 from . import _base
 from ._primitives import CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive
+from ._primitives import is_geohash_installed
 
 _named_primitives = [CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive]
 
@@ -71,6 +72,10 @@ class FeatureGenerationTransformer(BaseEstimator):
         assert trans_primitives is None or isinstance(trans_primitives, (list, tuple)) and len(trans_primitives) > 0
         assert all([c is None or isinstance(c, (tuple, list))
                     for c in (categories_cols, continuous_cols, datetime_cols, latlong_cols, text_cols)])
+
+        if latlong_cols is not None and len(latlong_cols) > 0:
+            assert is_geohash_installed, \
+                f'python-geohash is required to run FeatureGeneration with latlong columns.'
 
         self.trans_primitives = trans_primitives
         self.max_depth = max_depth

@@ -17,9 +17,11 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
 from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.feature_generators import FeatureGenerationTransformer
+from hypernets.tabular.feature_generators import FeatureGenerationTransformer, is_geohash_installed
 from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
 from hypernets.utils import logging
+
+if_geohash_ready = pytest.mark.skipif(not is_geohash_installed, reason='python-geohash is not installed')
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,7 @@ class Test_FeatureGenerator():
         assert 'TFIDF__title____0__' in xt_columns
         assert 'DAY__timestamp__' in xt_columns
 
+    @if_geohash_ready
     def test_latlong(self):
         df = pd.DataFrame()
         df['latitude'] = [51.52, 9.93, 37.38]

@@ -4,7 +4,6 @@
 """
 from functools import partial
 
-import geohash
 import numpy as np
 from featuretools import primitives
 from featuretools.primitives import Haversine
@@ -12,6 +11,13 @@ from sklearn.pipeline import make_pipeline
 
 from hypernets.tabular.cfg import TabularCfg as cfg
 from . import _base
+
+try:
+    import geohash
+
+    is_geohash_installed = True
+except ImportError:
+    is_geohash_installed = False
 
 
 class DaskCompatibleTransformPrimitive(primitives.TransformPrimitive):

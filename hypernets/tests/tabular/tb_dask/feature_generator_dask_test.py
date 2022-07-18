@@ -11,11 +11,14 @@ from sklearn.pipeline import Pipeline
 
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
+from hypernets.tabular.feature_generators import is_geohash_installed
 from hypernets.utils import logging
 from . import if_dask_ready, is_dask_installed, setup_dask
 
 if is_dask_installed:
     import dask.dataframe as dd
+
+if_geohash_ready = pytest.mark.skipif(not is_geohash_installed, reason='python-geohash is not installed')
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +124,7 @@ class TestFeatureGeneratorWithDask:
         assert 'TFIDF__title____0__' in xt_columns
         assert 'DAY__timestamp__' in xt_columns
 
+    @if_geohash_ready
     def test_latlong(self):
         df = pd.DataFrame()
         df['latitude'] = [51.52, 9.93, 37.38]
