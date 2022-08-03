@@ -21,13 +21,15 @@ logger = logging.get_logger(__name__)
 
 class MultiCollinearityDetector:
     def detect(self, X, method=None):
-        X_shape = X.shape
+        from . import get_tool_box
+
+        tb = get_tool_box(X)
+        X_shape = tb.get_shape(X)
         sample_limit = cfg.multi_collinearity_sample_limit
         if X_shape[0] > sample_limit:
             logger.info(f'{X_shape[0]} rows data found, sample to {sample_limit}')
             frac = sample_limit / X_shape[0]
-            from . import get_tool_box
-            X, _, = get_tool_box(X).train_test_split(X, train_size=frac, random_state=randint())
+            X, _, = tb.train_test_split(X, train_size=frac, random_state=randint())
 
         n_values = self._value_counts(X)
         one_values = [n.name for n in n_values if len(n) <= 1]
