@@ -18,11 +18,14 @@ logger = hyn_logging.getLogger(__name__)
 class JobScheduler:
     """a FIFO scheduler"""
 
-    def __init__(self, batch, exit_on_finish, interval, executor_manager: ExecutorManager, callbacks=None):
+    def __init__(self, batch, exit_on_finish,
+                 interval, executor_manager: ExecutorManager, callbacks=None, signal_file=None):
         self.batch = batch
         self.exit_on_finish = exit_on_finish
         self.executor_manager = executor_manager
         self.callbacks = callbacks if callbacks is not None else []
+
+        self.signal_file = signal_file
 
         self._io_loop_instance = None
 
@@ -223,6 +226,12 @@ class JobScheduler:
                 self.stop()
             self._handle_on_finished()
             return
+
+        # check signal file
+        if self.signal_file is not None:
+            if os.path.exists(self.signal_file):
+                logger.info(f"suspend scheduling: {self.signal_file}")
+                return
 
         self._release_executors(self.executor_manager)
         self._run_jobs(self.executor_manager)
