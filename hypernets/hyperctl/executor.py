@@ -195,6 +195,7 @@ class SSHRemoteMachine:
     def hostname(self):
         return self.connection['hostname']
 
+
 class RemoteShellExecutor(ShellExecutor):
     def __init__(self, job: ShellJob, api_server_portal, machine: SSHRemoteMachine):
         super(RemoteShellExecutor, self).__init__(job, api_server_portal, environments=machine.environments)

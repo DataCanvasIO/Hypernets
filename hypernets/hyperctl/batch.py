@@ -35,7 +35,7 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, params, command, data_dir, working_dir=None, assets=None, resource=None):
+    def __init__(self, name, * , params, command, data_dir, working_dir=None, assets=None, resource=None):
         self.name = name
         self.params = params
         self.resource = resource
@@ -175,13 +175,9 @@ class Batch:
         else:  # no status file
             return ShellJob.STATUS_INIT
 
-    def add_job(self, **kwargs):
-        if kwargs.get('resource') is None:
-            kwargs['resource'] = {
-                'cpu': -1,
-                'mem': -1
-            }
-        self.jobs.append(ShellJob(**kwargs))
+    def add_job(self, name, **kwargs):
+        kwargs['data_dir'] = (self.data_dir_path / name).as_posix()
+        self.jobs.append(ShellJob(name=name, **kwargs))
 
     def status(self):
         pid = self.pid()

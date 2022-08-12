@@ -27,8 +27,9 @@ class BatchApplication:
                  scheduler_exit_on_finish=True,
                  scheduler_interval=5000,
                  scheduler_callbacks=None,
+                 scheduler_signal_file=None,
                  backend_conf=None,
-                 version=None,
+
                  **kwargs):
 
         self.batch = batch
@@ -37,22 +38,23 @@ class BatchApplication:
                                                                   server_host, server_port,
                                                                   scheduler_exit_on_finish,
                                                                   scheduler_interval,
-                                                                  scheduler_callbacks)
+                                                                  scheduler_callbacks,
+                                                                  scheduler_signal_file)
         # create web app
         self.web_app = self._create_web_app(server_host, server_port, batch)
 
         self._http_server = None
 
-        self.version = version
 
     def _create_web_app(self, server_host, server_port, batch):
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
     def _create_scheduler(self, backend_conf, server_host, server_port,
-                          scheduler_exit_on_finish, scheduler_interval, scheduler_callbacks):
+                          scheduler_exit_on_finish, scheduler_interval, scheduler_callbacks, scheduler_signal_file):
         executor_manager = create_executor_manager(backend_conf, server_host, server_port)
         return JobScheduler(self.batch, scheduler_exit_on_finish,
-                            scheduler_interval, executor_manager, callbacks=scheduler_callbacks)
+                            scheduler_interval, executor_manager, callbacks=scheduler_callbacks,
+                            signal_file=scheduler_signal_file)
 
     def start(self):
         logger.info(f"batch name: {self.batch.name}")
