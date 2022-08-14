@@ -10,7 +10,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  test_default:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -53,6 +53,82 @@ jobs:
         python -m pip install --upgrade pip
         pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml "featuretools==${{ matrix.ft-version }}" woodwork==${{ matrix.woodwork-version  }}
         pip install -q -r requirements.txt -r requirements-zhcn.txt -r requirements-extra.txt "scikit-learn<1.1.0"
+        pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip list
+    - name: Test with pytest
+      run: |
+        pytest --cov=hypernets --durations=30
+
+  test_with_latest_requirements:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: [3.7, 3.8, 3.9]
+        include:
+          - os: macos-latest
+            python-version: 3.8
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -q -r requirements.txt -r requirements-zhcn.txt -r requirements-dask.txt -r requirements-extra.txt
+        pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip list
+    - name: Test with pytest
+      run: |
+        pytest --cov=hypernets --durations=30
+
+
+  test_without_daskml:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: [3.7, 3.8]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -q -r requirements.txt "scikit-learn<1.1.0"
+        pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip list
+    - name: Test with pytest
+      run: |
+        pytest --cov=hypernets --durations=30
+
+
+  test_without_grohash:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ]
+        python-version: [3.7, 3.8]
+        dask-version: [2021.7.2,]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml
+        pip install -q -r requirements.txt -r requirements-zhcn.txt "scikit-learn<1.1.0"
         pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Test with pytest
