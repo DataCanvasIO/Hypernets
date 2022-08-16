@@ -11,22 +11,7 @@ from hypernets.utils import logging
 logger = logging.getLogger(__name__)
 
 
-class ExecutionConf:
-
-    def __init__(self, command, data_dir, working_dir):
-        self.command = command
-        self.data_dir = data_dir
-        self.working_dir = working_dir
-
-    def to_config(self):
-        return {
-            "command": self.command,
-            "data_dir": self.data_dir,
-            "working_dir": self.working_dir
-        }
-
-
-class ShellJob:
+class _ShellJob:  # internal class
 
     STATUS_INIT = 'init'
     STATUS_RUNNING = 'running'
@@ -35,15 +20,15 @@ class ShellJob:
 
     FINAL_STATUS = [STATUS_SUCCEED, STATUS_FAILED]
 
-    def __init__(self, name, * , params, command, data_dir, working_dir=None, assets=None, resource=None):
+    def __init__(self,  *, name, batch, params, working_dir=None, assets=None, resource=None):
+
         self.name = name
+        self.batch = batch
         self.params = params
         self.resource = resource
-        self.command = command
-        self.data_dir = data_dir
 
         if working_dir is None:
-            self.working_dir = data_dir
+            self.working_dir = self.data_dir_path.as_posix()
         else:
             self.working_dir = working_dir
 
@@ -52,18 +37,18 @@ class ShellJob:
         self.start_time = None
         self.end_time = None
 
-        self._status = ShellJob.STATUS_INIT
+        self._status = _ShellJob.STATUS_INIT
+
+    @property
+    def data_dir_path(self):
+        return self.batch.data_dir_path / f"{self.name}"
 
     def set_status(self, status):
         self._status = status
 
-    # @property
-    # def status(self):
-    #     return self._status
-
     @property
-    def data_dir_path(self):
-        return Path(self.data_dir)
+    def status(self):
+        return self.batch.get_job_by_name(self.name)
 
     @property
     def run_file(self):
@@ -83,8 +68,7 @@ class ShellJob:
             "name": self.name,
             "params": self.params,
             "resource": self.resource,
-            "command": self.command,
-            "data_dir": self.data_dir,
+            "data_dir": self.data_dir_path.as_posix(),
             "working_dir": self.working_dir,
             "assets": self.assets
         }
@@ -138,11 +122,12 @@ class Batch:
     STATUS_RUNNING = "RUNNING"
     STATUS_FINISHED = "FINISHED"
 
-    def __init__(self, name, data_dir: str):
+    def __init__(self, *, name, job_command, data_dir: str):
         self.name = name
+        self.job_command = job_command
         self.data_dir = data_dir
-        self.jobs = []
 
+        self.jobs = []
         self.start_time = None
         self.end_time = None
 
@@ -153,8 +138,11 @@ class Batch:
     def job_status_file_path(self, job_name, status):
         return (self.data_dir_path / f"{job_name}.{status}").as_posix()
 
+    def job_state_data_file_path(self, job_name):
+        return (self.data_dir_path / f"{job_name}.json").as_posix()
+
     def status_files(self):
-        return self._status_files([ShellJob.STATUS_FAILED, ShellJob.STATUS_SUCCEED, ShellJob.STATUS_RUNNING])
+        return self._status_files([_ShellJob.STATUS_FAILED, _ShellJob.STATUS_SUCCEED, _ShellJob.STATUS_RUNNING])
 
     def _status_files(self, statuses):
         return {status: f"{self.name}.{status}" for status in statuses}
@@ -173,11 +161,11 @@ class Batch:
         elif status_len == 1:
             return exists_statuses[0][0]
         else:  # no status file
-            return ShellJob.STATUS_INIT
+            return _ShellJob.STATUS_INIT
 
     def add_job(self, name, **kwargs):
         kwargs['data_dir'] = (self.data_dir_path / name).as_posix()
-        self.jobs.append(ShellJob(name=name, **kwargs))
+        self.jobs.append(_ShellJob(name=name, **kwargs))
 
     def status(self):
         pid = self.pid()
@@ -194,7 +182,7 @@ class Batch:
 
     def is_finished(self):
         exists_status = set([self.get_job_status(job.name) for job in self.jobs])
-        return exists_status.issubset(set(ShellJob.FINAL_STATUS))
+        return exists_status.issubset(set(_ShellJob.FINAL_STATUS))
 
     def config_file_path(self):
         return self.data_dir_path / self.FILE_CONFIG
@@ -210,7 +198,7 @@ class Batch:
         else:
             return None
 
-    def get_job_by_name(self, job_name) -> Optional[ShellJob]:
+    def get_job_by_name(self, job_name) -> Optional[_ShellJob]:
         for job in self.jobs:
             if job.name == job_name:
                 return job
@@ -229,10 +217,10 @@ class Batch:
             "name": batch.name,
             'status': batch.status(),
             'total': len(batch.jobs),
-            ShellJob.STATUS_FAILED: cnt(ShellJob.STATUS_FAILED),
-            ShellJob.STATUS_INIT: cnt(ShellJob.STATUS_INIT),
-            ShellJob.STATUS_SUCCEED: cnt(ShellJob.STATUS_SUCCEED),
-            ShellJob.STATUS_RUNNING: cnt(ShellJob.STATUS_RUNNING),
+            _ShellJob.STATUS_FAILED: cnt(_ShellJob.STATUS_FAILED),
+            _ShellJob.STATUS_INIT: cnt(_ShellJob.STATUS_INIT),
+            _ShellJob.STATUS_SUCCEED: cnt(_ShellJob.STATUS_SUCCEED),
+            _ShellJob.STATUS_RUNNING: cnt(_ShellJob.STATUS_RUNNING),
         }
 
     @property

@@ -7,7 +7,7 @@ import psutil
 from tornado import ioloop
 
 from hypernets import __version__ as hyn_version
-from hypernets.hyperctl.batch import Batch, ShellJob
+from hypernets.hyperctl.batch import Batch, _ShellJob
 from hypernets.hyperctl.executor import create_executor_manager
 from hypernets.hyperctl.scheduler import JobScheduler
 from hypernets.hyperctl.server import create_batch_manage_webapp
@@ -62,7 +62,7 @@ class BatchApplication:
 
         # check jobs status
         for job in self.batch.jobs:
-            job:ShellJob = job
+            job:_ShellJob = job
             job_status = self.batch.get_job_status(job.name)
             if job_status != job.STATUS_INIT:
                 if job_status == job.STATUS_RUNNING:
@@ -150,15 +150,13 @@ class BatchApplication:
                 batch_spec_dict.update(sub_init_kwargs)
 
         batch_name = batch_spec_dict.pop('name')
+        job_command = batch_spec_dict.pop('job_command')
         jobs_dict = batch_spec_dict.pop('jobs')
 
-        batch = Batch(batch_name, data_dir=batch_data_dir)
+        batch = Batch(name=batch_name, data_dir=batch_data_dir, job_command=job_command)
         for job_dict in jobs_dict:
 
-            if job_dict.get('data_dir') is None:
-                job_dict['data_dir'] = (batch.data_dir_path / job_dict['name']).as_posix()
-
-            job = ShellJob(**job_dict)
+            job = _ShellJob(batch=batch, **job_dict)
             # job.set_status(batch.get_job_status(job_name=job.name))
             batch.jobs.append(job)
             # batch.add_job(**job_dict)

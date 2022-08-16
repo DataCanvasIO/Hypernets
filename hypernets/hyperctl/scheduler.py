@@ -7,7 +7,7 @@ import tornado
 from tornado.ioloop import PeriodicCallback
 
 
-from hypernets.hyperctl.batch import ShellJob, Batch
+from hypernets.hyperctl.batch import _ShellJob, Batch
 from hypernets.hyperctl.callbacks import BatchCallback
 from hypernets.hyperctl.executor import NoResourceException, ShellExecutor, ExecutorManager
 from hypernets.utils import logging as hyn_logging
@@ -55,7 +55,7 @@ class JobScheduler:
         # stats finished jobs
         for job in self.batch.jobs:
             job_status = self.batch.get_job_status(job.name)
-            if job_status != ShellJob.STATUS_INIT:
+            if job_status != _ShellJob.STATUS_INIT:
                 logger.info(f"job '{job.name}' status is '{job_status}', skip run.")
                 self._n_skipped = self.n_skipped + 1
             else:
@@ -80,7 +80,7 @@ class JobScheduler:
 
     def kill_job(self, job_name):
         # checkout job
-        job: ShellJob = self.batch.get_job_by_name(job_name)
+        job: _ShellJob = self.batch.get_job_by_name(job_name)
         if job is None:
             raise ValueError(f'job {job_name} does not exists ')
         job_status = self.batch.get_job_status(job.name)
@@ -103,11 +103,11 @@ class JobScheduler:
         else:
             raise ValueError(f"no executor found for job {job.name}")
 
-    def _change_job_status(self, job: ShellJob, next_status):
+    def _change_job_status(self, job: _ShellJob, next_status):
         self.change_job_status(self.batch, job, next_status)
 
     @staticmethod
-    def change_job_status(batch: Batch, job: ShellJob, next_status):
+    def change_job_status(batch: Batch, job: _ShellJob, next_status):
         current_status = batch.get_job_status(job_name=job.name)
         target_status_file = batch.job_status_file_path(job_name=job.name, status=next_status)
 
@@ -144,7 +144,7 @@ class JobScheduler:
         finished = []
         for executor in executor_manager.waiting_executors():
             executor: ShellExecutor = executor
-            if executor.status() in ShellJob.FINAL_STATUS:
+            if executor.status() in _ShellJob.FINAL_STATUS:
                 finished.append(executor)
 
         for finished_executor in finished:

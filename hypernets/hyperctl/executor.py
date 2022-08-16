@@ -10,7 +10,7 @@ from paramiko import SFTPClient
 
 from hypernets.hyperctl import consts
 from hypernets.hyperctl.utils import http_portal
-from hypernets.hyperctl.batch import ShellJob
+from hypernets.hyperctl.batch import _ShellJob
 from hypernets.utils import logging as hyn_logging
 from hypernets.utils import ssh_utils
 import shutil
@@ -25,7 +25,7 @@ class NoResourceException(Exception):
 
 class ShellExecutor:
 
-    def __init__(self, job: ShellJob, api_server_portal, environments=None):
+    def __init__(self, job: _ShellJob, api_server_portal, environments=None):
         self.job = job
         self.api_server_portal = api_server_portal
         self.environments = environments
@@ -51,7 +51,7 @@ class ShellExecutor:
             consts.KEY_ENV_JOB_DATA_DIR: self.job.data_dir_path.as_posix(),
             consts.KEY_ENV_JOB_NAME: self.job.name,
             consts.KEY_ENV_JOB_WORKING_DIR: self.job.working_dir,  # default value
-            consts.KEY_TEMPLATE_COMMAND: self.job.command,
+            consts.KEY_TEMPLATE_COMMAND: self.job.batch.job_command,
             consts.KEY_ENV_SERVER_PORTAL: self.api_server_portal,
         }
 
@@ -124,13 +124,13 @@ class LocalShellExecutor(ShellExecutor):
 
     def status(self):
         if self._process is None:
-            return ShellJob.STATUS_INIT
+            return _ShellJob.STATUS_INIT
         process_ret_code = self._process.poll()
         if process_ret_code is None:
-            return ShellJob.STATUS_RUNNING
+            return _ShellJob.STATUS_RUNNING
         if process_ret_code == 0:
-            return ShellJob.STATUS_SUCCEED
-        return ShellJob.STATUS_FAILED
+            return _ShellJob.STATUS_SUCCEED
+        return _ShellJob.STATUS_FAILED
 
     def kill(self):
         if self._process is not None:
@@ -197,7 +197,7 @@ class SSHRemoteMachine:
 
 
 class RemoteShellExecutor(ShellExecutor):
-    def __init__(self, job: ShellJob, api_server_portal, machine: SSHRemoteMachine):
+    def __init__(self, job: _ShellJob, api_server_portal, machine: SSHRemoteMachine):
         super(RemoteShellExecutor, self).__init__(job, api_server_portal, environments=machine.environments)
         self.machine = machine
 
@@ -256,14 +256,14 @@ class RemoteShellExecutor(ShellExecutor):
             stdout = self._remote_process[1]
             if stdout.channel.exit_status_ready():
                 ret_code = stdout.channel.recv_exit_status()
-                return ShellJob.STATUS_SUCCEED if ret_code == 0 else ShellJob.STATUS_FAILED
+                return _ShellJob.STATUS_SUCCEED if ret_code == 0 else _ShellJob.STATUS_FAILED
             else:
-                return ShellJob.STATUS_RUNNING
+                return _ShellJob.STATUS_RUNNING
         else:
-            return ShellJob.STATUS_INIT
+            return _ShellJob.STATUS_INIT
 
     def finished(self):
-        return self.status() in ShellJob.FINAL_STATUS
+        return self.status() in _ShellJob.FINAL_STATUS
 
     def kill(self):
         self.close()

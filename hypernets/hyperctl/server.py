@@ -7,7 +7,7 @@ from tornado.log import app_log
 from tornado.web import RequestHandler, Finish, HTTPError, Application
 
 from hypernets.hyperctl.batch import Batch
-from hypernets.hyperctl.batch import ShellJob
+from hypernets.hyperctl.batch import _ShellJob
 from hypernets.hyperctl.executor import RemoteSSHExecutorManager
 from hypernets.hyperctl.scheduler import JobScheduler
 from hypernets.hyperctl.utils import http_portal
