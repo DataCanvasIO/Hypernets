@@ -19,6 +19,8 @@ def test_batch_to_config():
     # 2. to_config
     batch_config_dict = app.to_config()
 
+    assert batch_config_dict['job_command'] == 'pwd'
+
     # 3. asset config content
     # 3.1. check jobs
     jobs_config = batch_config_dict['jobs']
@@ -28,8 +30,6 @@ def test_batch_to_config():
     assert job_config['name'] == 'job1'
     assert job_config['params']["learning_rate"] == 0.1
 
-    assert job_config['command'] == 'pwd'
-    assert job_config['data_dir']
     assert job_config['working_dir']
 
     # 3.2 TODO check backend

@@ -1,12 +1,13 @@
 {
     "name": "local-batch-example",
+    "job_command": "sleep 100;echo \"finished\"",
     "jobs": [
         {
             "name": "job1",
             "params": {
                 "learning_rate": 0.1
             },
-            "command": "sleep 100;echo \"finished\"",
+
             "assets":[
                 "/tmp/file-a",
                 "/tmp/dir-a"
@@ -15,8 +16,7 @@
             "name": "job2",
             "params": {
                 "learning_rate": 0.2
-            },
-            "command": "sleep 100;echo \"finished\""
+            }
         }
     ],
     "backend": {

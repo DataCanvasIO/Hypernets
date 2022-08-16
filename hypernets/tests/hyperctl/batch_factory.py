@@ -13,12 +13,10 @@ def create_minimum_batch(command="pwd", batches_data_dir=None):
     if batches_data_dir is None:
         batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    batch = Batch("minimum-batch", data_dir=batches_data_dir)
-
-    data_dir = (Path(batches_data_dir) / batch.name / "job1").absolute().as_posix()
+    batch = Batch(name="minimum-batch", data_dir=batches_data_dir, job_command=command)
 
     job_params = {"learning_rate": 0.1}
-    batch.add_job(name='job1', params=job_params, resource=None, command=command, data_dir=data_dir, working_dir=data_dir)
+    batch.add_job(name='job1', params=job_params, resource=None)
 
     return batch
 
@@ -31,23 +29,14 @@ def _create_local_batch(batch_name, batches_data_dir=None,  job_assets=None):
     if batches_data_dir is None:
         batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
 
-    batch = Batch(batch_name, data_dir=os.path.join(batches_data_dir, batch_name))
-
-    job1_data_dir = (batch.data_dir_path / job1_name).absolute().as_posix()
+    batch = Batch(name=batch_name, data_dir=os.path.join(batches_data_dir, batch_name), job_command="ls -l")
 
     batch.add_job(name=job1_name,
                   params={"learning_rate": 0.1},
-                  command=f"ls -l",
-                  data_dir=job1_data_dir,
-                  working_dir=job1_data_dir,
                   assets=job_assets)
 
-    job2_data_dir = (Path(batches_data_dir) / job2_name).absolute().as_posix()
     batch.add_job(name=job2_name,
-                  params={"learning_rate": 0.2},
-                  command=f"ls -l",
-                  data_dir=job2_data_dir,
-                  working_dir=job2_data_dir)
+                  params={"learning_rate": 0.2})
 
     return batch
 
@@ -64,15 +53,13 @@ def create_assert_env_batch():
     job1_name = "job1"
 
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-    batch = Batch("assert_env_batch", data_dir=os.path.join(batches_data_dir, "assert_env_batch"))
+    py_code = f"import os; ch=os.environ['hyn_test_conda_home']; print(ch); assert ch == '/home/hyperctl/miniconda3' "
+    batch = Batch(name="assert_env_batch", data_dir=os.path.join(batches_data_dir, "assert_env_batch"), job_command=f"{sys.executable} -c \"{py_code}\"")
 
     job1_data_dir = (batch.data_dir_path / job1_name).absolute().as_posix()
-    py_code = f"import os; ch=os.environ['hyn_test_conda_home']; print(ch); assert ch == '/home/hyperctl/miniconda3' "
+
     batch.add_job(name=job1_name,
-                  params={"learning_rate": 0.1},
-                  command=f"{sys.executable} -c \"{py_code}\"",
-                  data_dir=job1_data_dir,
-                  working_dir=job1_data_dir)
+                  params={"learning_rate": 0.1})
 
     return batch
 
@@ -82,7 +69,8 @@ def create_assets_batch(data_dir):
     job1_name = "job1"
     batch_name = "test_run_batch"
     batches_data_dir = tempfile.mkdtemp(prefix="hyperctl-test-batches")
-    batch = Batch(batch_name, batches_data_dir)
+    command = f"cat resources/{data_dir.name}/sub_dir/b.txt" # read files in remote
+    batch = Batch(name=batch_name, data_dir=batches_data_dir, job_command=command)
 
     job1_data_dir_path = (batch.data_dir_path / job1_name).absolute()
     job1_data_dir = job1_data_dir_path.as_posix()
@@ -90,8 +78,5 @@ def create_assets_batch(data_dir):
 
     batch.add_job(name=job1_name,
                   params={"learning_rate": 0.1},
-                  command=f"cat resources/{data_dir.name}/sub_dir/b.txt",  # read files in remote
-                  data_dir=job1_data_dir,
-                  working_dir=job1_data_dir,
                   assets=job_asserts)
     return batch

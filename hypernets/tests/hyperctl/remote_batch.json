@@ -1,18 +1,17 @@
 {
     "name": "remote-batch-example",
+    "job_command": "sleep 3;echo \"finished\"",
     "jobs": [
         {
             "name": "job1",
             "params": {
                 "learning_rate": 0.1
-            },
-            "command": "sleep 3;echo \"finished\""
+            }
         },{
             "name": "job2",
             "params": {
                 "learning_rate": 0.2
-            },
-            "command": "sleep 3;echo \"finished\""
+            }
         }
     ],
     "backend": {

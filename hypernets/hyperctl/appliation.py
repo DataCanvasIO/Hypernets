@@ -116,6 +116,7 @@ class BatchApplication:
         batch_as_config = {
             "jobs": jobs_config,
             "name": self.batch.name,
+            "job_command": self.batch.job_command,
             "server": {
                 "host": self.server_host,
                 "port": self.server_port

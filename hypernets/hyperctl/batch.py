@@ -84,7 +84,6 @@ class _ShellJob:  # internal class
             "name": self.name,
             "params": self.params,
             "resource": self.resource,
-            "data_dir": self.data_dir_path.as_posix(),
             "working_dir": self.working_dir,
             "assets": self.assets
         }
