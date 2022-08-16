@@ -701,6 +701,25 @@ class ExcelReportRender(ReportRender):
     def _write_prediction_stats(self, datasets: List[DatasetMeta], prediction_elapsed):
         sheet_name = "Prediction stats"
 
+        # check predict elapsed
+        predict_elapsed = None
+        if prediction_elapsed is None or prediction_elapsed[0] <= 0:  # fix ZeroDivisionError: float division by zero
+            self.log_skip_sheet(sheet_name)
+            return
+        else:
+            predict_elapsed = prediction_elapsed[0]
+
+        # check eval rows
+        eval_data_rows = None
+        if datasets is not None:
+            for dataset in datasets:
+                if DatasetMeta.TYPE_EVAL == dataset.kind:
+                    eval_data_rows = dataset.shape[0]
+
+        if eval_data_rows is None or eval_data_rows <= 0:
+            self.log_skip_sheet(sheet_name)
+            return
+
         table_config = {
             "columns": [
                 {
@@ -718,25 +737,17 @@ class ExcelReportRender(ReportRender):
                 }, {
                     'name': 'Speed(K/s)',
                     'key': 'rows',
-                    'render': lambda index, value, row: (round(value/row['elapsed']/1024, 2), {})
+                    'render': lambda index, value, row: (round(value/row['elapsed']/1000, 2), {})
                 }
             ],
             "header": {
                 'render': lambda index, value, row: (value, self.theme.get_header_style())
             }
         }
-        eval_data_rows = None
-        if datasets is not None:
-            for dataset in datasets:
-                if DatasetMeta.TYPE_EVAL == dataset.kind:
-                    eval_data_rows = dataset.shape[0]
 
-        if eval_data_rows is not None and prediction_elapsed is not None:
-            df = pd.DataFrame(data=[[DatasetMeta.TYPE_EVAL, prediction_elapsed[0], eval_data_rows]],
-                              columns=['dataset', 'elapsed', 'rows'])
-            self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
-        else:
-            self.log_skip_sheet(sheet_name)
+        df = pd.DataFrame(data=[[DatasetMeta.TYPE_EVAL, predict_elapsed, eval_data_rows]],
+                          columns=['dataset', 'elapsed', 'rows'])
+        self._render_2d_table(df, table_config, sheet_name, start_position=(0, 0))
 
     def _write_classification_evaluation(self, report_dict, sheet_name):
         metrics_keys = ['precision', 'recall', 'f1-score', 'support']
