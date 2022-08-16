@@ -4,7 +4,6 @@ __author__ = 'yangjian'
 
 """
 import time
-import json
 
 from IPython.display import display
 
@@ -83,7 +82,10 @@ class Experiment(object):
                 self.task, _ = self.hyper_model.infer_task_type(self.y_train)
 
             for callback in self.callbacks:
-                callback.experiment_start(self)
+                try:
+                    callback.experiment_start(self)
+                except Exception as e:
+                    logger.warn(e)
 
             model = self.train(self.hyper_model, self.X_train, self.y_train, self.X_test, X_eval=self.X_eval,
                                y_eval=self.y_eval, **kwargs)
@@ -92,14 +94,21 @@ class Experiment(object):
             self.end_time = time.time()
 
             for callback in self.callbacks:
-                callback.experiment_end(self, self.elapsed)
+                try:
+                    callback.experiment_end(self, self.elapsed)
+                except Exception as e:
+                    logger.warn(e)
+
             return model
         except Exception as e:
             import traceback
             msg = f'ExperimentID:[{self.id}] - {self.current_step}: {e}\n{traceback.format_exc()}'
             logger.error(msg)
             for callback in self.callbacks:
-                callback.experiment_break(self, msg)
+                try:
+                    callback.experiment_break(self, msg)
+                except Exception as e:
+                    logger.warn(e)
 
     def step_start(self, step):
         if self.current_step is not None:
@@ -109,14 +118,21 @@ class Experiment(object):
         self.current_step = step
         self.step_start_time = time.time()
         for callback in self.callbacks:
-            callback.step_start(self, step)
+            try:
+                callback.step_start(self, step)
+            except Exception as e:
+                logger.warn(e)
 
     def step_end(self, output=None):
         if self.current_step is None:
             raise RuntimeError('Make sure `step_start()` is called at the start of the current step.')
         elapsed = time.time() - self.step_start_time
         for callback in self.callbacks:
-            callback.step_end(self, self.current_step, output, elapsed)
+            try:
+                callback.step_end(self, self.current_step, output, elapsed)
+            except Exception as e:
+                logger.warn(e)
+
         self.current_step = None
         self.step_start_time = None
 
@@ -125,14 +141,21 @@ class Experiment(object):
             raise RuntimeError('Make sure `step_start()` is called at the start of the current step.')
 
         for callback in self.callbacks:
-            callback.step_break(self, self.current_step, error)
+            try:
+                callback.step_break(self, self.current_step, error)
+            except Exception as e:
+                logger.warn(e)
+
         self.current_step = None
         self.step_start_time = None
 
     def step_progress(self, progress, eta=None):
         elapsed = time.time() - self.step_start_time
         for callback in self.callbacks:
-            callback.step_progress(self, self.current_step, progress, elapsed, eta)
+            try:
+                callback.step_progress(self, self.current_step, progress, elapsed, eta)
+            except Exception as e:
+                logger.warn(e)
 
     def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, **kwargs):
         """Run an experiment
@@ -145,7 +168,6 @@ class Experiment(object):
         X_test :
         X_eval :
         y_eval :
-        eval_size :
         """
         raise NotImplementedError
 

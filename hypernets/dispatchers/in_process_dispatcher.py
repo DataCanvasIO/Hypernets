@@ -34,8 +34,12 @@ class InProcessDispatcher(Dispatcher):
                         break
                     trial = hyper_model.history.get_trial(space_sample)
                     for callback in hyper_model.callbacks:
-                        callback.on_skip_trial(hyper_model, space_sample, trial_no, 'trial_existed',
-                                               trial.reward, False, trial.elapsed)
+                        try:
+                            callback.on_skip_trial(hyper_model, space_sample, trial_no, 'trial_existed',
+                                                   trial.reward, False, trial.elapsed)
+                        except Exception as e:
+                            logger.warn(e)
+
                     retry_counter += 1
                     continue
 
@@ -48,14 +52,20 @@ class InProcessDispatcher(Dispatcher):
                         improved = hyper_model.history.append(trial)
                         hyper_model.searcher.update_result(space_sample, reward)
                         for callback in hyper_model.callbacks:
-                            callback.on_skip_trial(hyper_model, space_sample, trial_no, 'hit_trial_store', reward,
-                                                   improved,
-                                                   elapsed)
+                            try:
+                                callback.on_skip_trial(hyper_model, space_sample, trial_no, 'hit_trial_store',
+                                                       reward, improved, elapsed)
+                            except Exception as e:
+                                logger.warn(e)
+
                         trial_no += 1
                         continue
 
                 for callback in hyper_model.callbacks:
-                    callback.on_trial_begin(hyper_model, space_sample, trial_no)
+                    try:
+                        callback.on_trial_begin(hyper_model, space_sample, trial_no)
+                    except Exception as e:
+                        logger.warn(e)
 
                 model_file = '%s/%05d_%s.pkl' % (self.models_dir, trial_no, space_sample.space_id)
 
@@ -65,12 +75,19 @@ class InProcessDispatcher(Dispatcher):
                 if trial.succeeded:
                     improved = hyper_model.history.append(trial)
                     for callback in hyper_model.callbacks:
-                        callback.on_trial_end(hyper_model, space_sample, trial_no, trial.reward,
-                                              improved, trial.elapsed)
+                        try:
+                            callback.on_trial_end(hyper_model, space_sample, trial_no, trial.reward,
+                                                  improved, trial.elapsed)
+                        except Exception as e:
+                            logger.warn(e)
+
                 else:
                     hyper_model.history.append(trial)
                     for callback in hyper_model.callbacks:
-                        callback.on_trial_error(hyper_model, space_sample, trial_no)
+                        try:
+                            callback.on_trial_error(hyper_model, space_sample, trial_no)
+                        except Exception as e:
+                            logger.warn(e)
 
                 if logger.is_info_enabled():
                     msg = f'Trial {trial_no} done, reward: {trial.reward}, ' \

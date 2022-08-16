@@ -1,4 +1,6 @@
-# Hypernets
+<p align="center">
+<img src="docs/source/images/Hypernets.png" width="500" >
+
 
 [![Python Versions](https://img.shields.io/pypi/pyversions/hypernets.svg)](https://pypi.org/project/hypernets)
 [![Downloads](https://pepy.tech/badge/hypernets)](https://pepy.tech/project/hypernets)
@@ -85,7 +87,7 @@ python -m hypernets.examples.smoke_testing
 * [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
 
 
-![DataCanvas AutoML Toolkit](docs/source/images/DAT2.5.png)
+![DataCanvas AutoML Toolkit](docs/source/images/DAT_logo.png)
 
 ## Documents
 * [Overview](https://hypernets.readthedocs.io/en/latest/overview.html)

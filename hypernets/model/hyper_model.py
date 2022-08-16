@@ -51,7 +51,19 @@ class HyperModel:
             estimator.set_discriminator(self.discriminator)
 
         for callback in self.callbacks:
-            callback.on_build_estimator(self, space_sample, estimator, trial_no)
+            try:
+                callback.on_build_estimator(self, space_sample, estimator, trial_no)
+            except Exception as e:
+                logger.warn(e)
+
+        metrics = fit_kwargs.pop('metrics') if 'metrics' in fit_kwargs else None
+        if metrics is not None:
+            assert isinstance(metrics, (tuple, list)), 'metrics should be list or tuple'
+            if not any(map(lambda _: _ is self.reward_metric, metrics)):
+                metrics = list(metrics) + [self.reward_metric]
+        else:
+            metrics = [self.reward_metric]
+
         succeeded = False
         scores = None
         oof = None
@@ -60,7 +72,7 @@ class HyperModel:
             if cv:
                 scores, oof, oof_scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
                                                                          shuffle=False, random_state=9527,
-                                                                         metrics=[self.reward_metric],
+                                                                         metrics=metrics,
                                                                          **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
@@ -74,7 +86,7 @@ class HyperModel:
 
         if succeeded:
             if scores is None:
-                scores = estimator.evaluate(X_eval, y_eval, metrics=[self.reward_metric], **fit_kwargs)
+                scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
             reward = self._get_reward(scores, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:
@@ -85,6 +97,7 @@ class HyperModel:
 
             trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
             trial.iteration_scores = estimator.get_iteration_scores()
+            trial.memo['scores'] = scores
             if oof is not None and self._is_memory_enough(oof):
                 trial.memo['oof'] = oof
             if oof_scores is not None:
@@ -191,20 +204,35 @@ class HyperModel:
         dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
 
         for callback in self.callbacks:
-            callback.on_search_start(self, X, y, X_eval, y_eval,
-                                     cv, num_folds, max_trials, dataset_id, trial_store,
-                                     **fit_kwargs)
+            try:
+                callback.on_search_start(self, X, y, X_eval, y_eval,
+                                         cv, num_folds, max_trials, dataset_id, trial_store,
+                                         **fit_kwargs)
+            except Exception as e:
+                logger.warn(e)
+
         try:
             trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval,
                                            cv, num_folds, max_trials, dataset_id, trial_store,
                                            **fit_kwargs)
 
             for callback in self.callbacks:
-                callback.on_search_end(self)
+                try:
+                    callback.on_search_end(self)
+                except Exception as e:
+                    logger.warn(e)
         except Exception as e:
+            cb_ex = False
             for callback in self.callbacks:
-                callback.on_search_error(self)
-            raise
+                try:
+                    callback.on_search_error(self)
+                except Exception as ce:
+                    logger.warn(ce)
+                    cb_ex = True
+            if cb_ex:
+                raise e
+            else:
+                raise
 
         self._after_search(trial_no)
 
