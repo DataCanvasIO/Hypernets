@@ -51,7 +51,10 @@ class HyperModel:
             estimator.set_discriminator(self.discriminator)
 
         for callback in self.callbacks:
-            callback.on_build_estimator(self, space_sample, estimator, trial_no)
+            try:
+                callback.on_build_estimator(self, space_sample, estimator, trial_no)
+            except Exception as e:
+                logger.warn(e)
 
         metrics = fit_kwargs.pop('metrics') if 'metrics' in fit_kwargs else None
         if metrics is not None:
@@ -201,20 +204,35 @@ class HyperModel:
         dispatcher = self.dispatcher if self.dispatcher else get_dispatcher(self)
 
         for callback in self.callbacks:
-            callback.on_search_start(self, X, y, X_eval, y_eval,
-                                     cv, num_folds, max_trials, dataset_id, trial_store,
-                                     **fit_kwargs)
+            try:
+                callback.on_search_start(self, X, y, X_eval, y_eval,
+                                         cv, num_folds, max_trials, dataset_id, trial_store,
+                                         **fit_kwargs)
+            except Exception as e:
+                logger.warn(e)
+
         try:
             trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval,
                                            cv, num_folds, max_trials, dataset_id, trial_store,
                                            **fit_kwargs)
 
             for callback in self.callbacks:
-                callback.on_search_end(self)
+                try:
+                    callback.on_search_end(self)
+                except Exception as e:
+                    logger.warn(e)
         except Exception as e:
+            cb_ex = False
             for callback in self.callbacks:
-                callback.on_search_error(self)
-            raise
+                try:
+                    callback.on_search_error(self)
+                except Exception as ce:
+                    logger.warn(ce)
+                    cb_ex = True
+            if cb_ex:
+                raise e
+            else:
+                raise
 
         self._after_search(trial_no)
 
