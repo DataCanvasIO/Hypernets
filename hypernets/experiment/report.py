@@ -718,7 +718,9 @@ class ExcelReportRender(ReportRender):
                 }, {
                     'name': 'Speed(K/s)',
                     'key': 'rows',
-                    'render': lambda index, value, row: (round(value/row['elapsed']/1024, 2), {})
+                    'render': lambda index, value, row: (
+                        round(value / row['elapsed'] / 1024, 2) if row['elapsed'] > 0 else 'na',
+                        {})
                 }
             ],
             "header": {
