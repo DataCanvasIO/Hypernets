@@ -677,7 +677,7 @@ class ExcelReportRender(ReportRender):
         sheet.insert_chart('O1', chart_model)
 
     def _write_pseudo_labeling(self, step_meta):
-        label_stats: dict = step_meta.ext['samples']
+        label_stats: dict = step_meta.extension['samples']
         sheet_name = "pseudo_labeling"
         labels = list(label_stats.keys())
         samples = [label_stats[l] for l in labels ]

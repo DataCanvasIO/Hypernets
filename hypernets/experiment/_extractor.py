@@ -642,7 +642,7 @@ class ExperimentExtractor:
                      status=extractor.get_status(),
                      configuration=configuration,
                      extension=extension,
-                     start_datetime=step.start_datetime,
+                     start_datetime=step.start_time,
                      end_datetime=step.done_time)
         return d
 

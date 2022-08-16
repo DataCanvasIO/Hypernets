@@ -1537,7 +1537,7 @@ class SteppedExperiment(Experiment):
                 step.status_ = ExperimentStep.STATUS_RUNNING
                 self.step_start(step.name)
                 try:
-                    step.start_datetime = time.time()
+                    step.start_time = time.time()
                     hyper_model, X_train, y_train, X_test, X_eval, y_eval = \
                         step.fit_transform(hyper_model, X_train, y_train, X_test=X_test, X_eval=X_eval, y_eval=y_eval,
                                            **kwargs)
