@@ -8,7 +8,7 @@ import asyncio
 from hypernets.hyperctl import api
 from hypernets.hyperctl import scheduler, utils
 from hypernets.hyperctl.appliation import BatchApplication
-from hypernets.hyperctl.batch import ShellJob, Batch
+from hypernets.hyperctl.batch import _ShellJob, Batch
 from hypernets.hyperctl.callbacks import ConsoleCallback
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.hyperctl import batch_factory
@@ -48,7 +48,7 @@ class BaseBatchAppTest:
     def teardown_class(cls):
         if cls.app is not None:
             batch = cls.app.batch
-            assert_batch_finished(batch, ShellJob.STATUS_SUCCEED)
+            assert_batch_finished(batch, _ShellJob.STATUS_SUCCEED)
             cls.app.stop()
         # release resources
         asyncio.get_event_loop().stop()
@@ -58,7 +58,7 @@ class BaseBatchAppTest:
 def assert_local_job_finished(jobs):
     rets = []
     for job in jobs:
-        job_data_dir = job.data_dir
+        job_data_dir = job.data_dir_path
         # stdout is not None but stderr is None
         stdout = Path(job_data_dir) / "stdout"
         stderr = Path(job_data_dir) / "stderr"
@@ -99,7 +99,7 @@ def assert_batch_finished(batch: Batch, status, input_batch_name=None, input_job
 
     # assert job status
     for job in batch.jobs:
-        job: ShellJob = job
+        job: _ShellJob = job
         assert Path(batch.job_status_file_path(job_name=job.name, status=status)).exists()
 
 
@@ -161,7 +161,7 @@ class TestRunRemoteWithAssets(BaseUpload):
         assert isinstance(job_scheduler.executor_manager, RemoteSSHExecutorManager)
         assert len(job_scheduler.executor_manager.machines) == 1
 
-        assert_batch_finished(batch,ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(batch, _ShellJob.STATUS_SUCCEED)
 
         # check assets in remote
         job1_data_dir_path = Path(batch.jobs[0].data_dir)
@@ -199,7 +199,7 @@ class TestMinimumLocalBatch(BaseBatchAppTest):
         app = self.app
         app.start()
         batch = app.batch
-        assert_batch_finished(batch, ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(batch, _ShellJob.STATUS_SUCCEED)
         assert_local_job_succeed(batch.jobs)
 
 
@@ -219,7 +219,7 @@ class TestLocaBatch(BaseBatchAppTest):
         app.start()
         batch = app.batch
         assert isinstance(app.job_scheduler.executor_manager, LocalExecutorManager)
-        assert_batch_finished(batch, ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(batch, _ShellJob.STATUS_SUCCEED)
         assert_local_job_succeed(batch.jobs)
 
 
@@ -252,7 +252,7 @@ class TestKillLocalJob(BaseBatchAppTest):
     def teardown_class(cls):
         if cls.app is not None:
             batch = cls.app.batch
-            assert_batch_finished(batch, ShellJob.STATUS_FAILED)
+            assert_batch_finished(batch, _ShellJob.STATUS_FAILED)
             cls.app.stop()
 
         if cls.runner is not None:
@@ -354,7 +354,7 @@ class TestLocalHostEnv(BaseBatchAppTest):
 
         self.app.start()
         assert isinstance(app.job_scheduler.executor_manager, LocalExecutorManager)
-        assert_batch_finished(app.batch, ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(app.batch, _ShellJob.STATUS_SUCCEED)
 
 
 @skip_if_windows
@@ -384,7 +384,7 @@ class TestRemoteHostEnv(BaseBatchAppTest):
 
         self.app.start()
         assert isinstance(app.job_scheduler.executor_manager, RemoteSSHExecutorManager)
-        assert_batch_finished(app.batch, ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(app.batch, _ShellJob.STATUS_SUCCEED)
 
 
 @skip_if_windows
@@ -413,9 +413,33 @@ class TestJobCache(BaseBatchAppTest):
         self.app.start()
 
         assert isinstance(self.app.job_scheduler.executor_manager, LocalExecutorManager)
-        assert_batch_finished(self.app.batch, ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(self.app.batch, _ShellJob.STATUS_SUCCEED)
 
         assert isinstance(self.app1.job_scheduler.executor_manager, LocalExecutorManager)
-        assert_batch_finished(self.app1.batch, ShellJob.STATUS_SUCCEED)
+        assert_batch_finished(self.app1.batch, _ShellJob.STATUS_SUCCEED)
 
         assert self.app.job_scheduler.n_skipped == 2
+
+
+
+
+
+@skip_if_windows
+class TestCallbackBatch(BaseBatchAppTest):
+
+    @classmethod
+    def setup_class(cls):
+        super(TestMinimumLocalBatch, cls).setup_class()
+        batch = create_minimum_batch()
+        app = BatchApplication(batch, server_port=8061,
+                               scheduler_exit_on_finish=True,
+                               scheduler_interval=1000,
+                               scheduler_callbacks=[ConsoleCallback()])
+        cls.app = app
+
+    def test_run_batch(self):
+        app = self.app
+        app.start()
+        batch = app.batch
+        assert_batch_finished(batch, _ShellJob.STATUS_SUCCEED)
+        assert_local_job_succeed(batch.jobs)

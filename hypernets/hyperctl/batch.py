@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+import json
 import os
 from pathlib import Path
 from typing import Dict, Optional
@@ -34,10 +35,25 @@ class _ShellJob:  # internal class
 
         self.assets = [] if assets is None else assets
 
-        self.start_time = None
-        self.end_time = None
+        self.start_datetime = None
+        self.end_datetime = None
 
         self._status = _ShellJob.STATUS_INIT
+        self._ext = {}
+
+    @property
+    def ext(self):
+        return self._ext
+
+    def set_ext(self, ext):
+        self._ext = ext
+
+    def state_data_file(self):  # on master node
+        return (self.batch.data_dir_path / f"{self.name}.json").as_posix()
+
+    def state_data(self):
+        with open(self.state_data_file(), 'r') as f:
+            return json.load(f)
 
     @property
     def data_dir_path(self):
@@ -75,8 +91,8 @@ class _ShellJob:  # internal class
 
     @property
     def elapsed(self):
-        if self.start_time is not None and self.end_time is not None:
-            return self.end_time - self.start_time
+        if self.start_datetime is not None and self.end_datetime is not None:
+            return self.end_datetime - self.start_datetime
         else:
             return None
 
@@ -164,8 +180,7 @@ class Batch:
             return _ShellJob.STATUS_INIT
 
     def add_job(self, name, **kwargs):
-        kwargs['data_dir'] = (self.data_dir_path / name).as_posix()
-        self.jobs.append(_ShellJob(name=name, **kwargs))
+        self.jobs.append(_ShellJob(name=name, batch=self, **kwargs))
 
     def status(self):
         pid = self.pid()

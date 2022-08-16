@@ -50,7 +50,7 @@ class JobScheduler:
     def start(self):
         self.executor_manager.prepare()
         self._timer.start()
-        self.batch.start_time = time.time()
+        self.batch.start_datetime = time.time()
 
         # stats finished jobs
         for job in self.batch.jobs:
@@ -152,7 +152,7 @@ class JobScheduler:
             job = finished_executor.job
             logger.info(f"job {job.name} finished with status {executor_status}")
             self._change_job_status(job, finished_executor.status())
-            job.end_time = time.time()  # update end time
+            job.end_datetime = time.time()  # update end time
             executor_manager.release_executor(finished_executor)
             self._handle_job_finished(job, finished_executor, job.elapsed)
 
@@ -170,6 +170,26 @@ class JobScheduler:
         self._handle_callbacks(f)
 
     def _handle_job_finished(self, job, executor, elapsed):
+
+        # write state data file
+        job_state_data = {
+            "start_datetime": job.start_datetime,
+            "elapsed": elapsed,
+            "end_datetime": job.end_datetime,
+            'ext':  job.ext
+        }
+
+        # check state file
+        state_data_path = job.state_data_file()
+
+        if os.path.exists(state_data_path):
+            logger.info(f"state data file {state_data_path} already exists will be overwritten ")
+
+        # write state
+        with open(state_data_path, 'w') as f:
+            json.dump(job_state_data, f)
+
+        # notify callbacks
         def f(callback):
             callback.on_job_finish(self.batch, job, executor, elapsed)
         self._handle_callbacks(f)
@@ -193,10 +213,10 @@ class JobScheduler:
                 continue
 
             self._n_allocated = self.n_allocated + 1
-            job.start_time = time.time()  # update start time
+            job.start_datetime = time.time()  # update start time
             self._handle_job_start(job, executor)
-            process_msg = f"{len(executor_manager.allocated_executors())}/{len(jobs)}"
-            logger.info(f'allocated resource for job {job.name}({process_msg}), data dir at {job.data_dir_path}')
+
+            logger.info(f'ScheduleSummary(allocated={len(executor_manager.allocated_executors())}, total={len(jobs)})')
             self._change_job_status(job, job.STATUS_RUNNING)
 
             try:
@@ -218,7 +238,7 @@ class JobScheduler:
         # check all jobs finished
         job_finished = self.batch.is_finished()
         if job_finished:
-            self.batch.end_time = time.time()
+            self.batch.end_datetime = time.time()
             batch_summary = json.dumps(self.batch.summary())
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)
             self._timer.stop()  # stop the timer

@@ -14,7 +14,6 @@ from hypernets.hyperctl.server import create_batch_manage_webapp
 from hypernets.hyperctl.utils import load_json, http_portal
 from hypernets.utils import logging
 
-logging.set_level('DEBUG')
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ class BatchApplication:
                  scheduler_callbacks=None,
                  scheduler_signal_file=None,
                  backend_conf=None,
-
                  **kwargs):
 
         self.batch = batch
@@ -44,7 +42,6 @@ class BatchApplication:
         self.web_app = self._create_web_app(server_host, server_port, batch)
 
         self._http_server = None
-
 
     def _create_web_app(self, server_host, server_port, batch):
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
@@ -70,7 +67,7 @@ class BatchApplication:
                                    f"it may have run and will not run again this time, "
                                    f"you can remove it's status file: "
                                    f"{self.batch.job_status_file_path(job_name=job.name, status=job_status)} "
-                                   f"and data dir(maybe in remote): {job.data_dir} to retry the job")
+                                   f"and data dir(maybe in remote): {job.data_dir_path} to retry the job")
                 else:
                     logger.info(f"job '{job.name}' status is {job_status} means it's finished, skip to run ")
                 continue

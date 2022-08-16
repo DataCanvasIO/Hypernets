@@ -224,7 +224,7 @@ class RemoteShellExecutor(ShellExecutor):
                     ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
 
     def run(self):
-        data_dir = Path(self.job.data_dir).as_posix()
+        data_dir = self.job.data_dir_path.as_posix()
         logger.debug(f"create remote data dir {data_dir}")
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
             logger.debug(f"create remote job output dir {data_dir} ")
@@ -325,11 +325,18 @@ class RemoteSSHExecutorManager(ExecutorManager):
             if machine.usage == (0, 0, 0):
                 ret = machine.alloc(-1, -1, -1)  # lock resource
                 if ret:
-                    logger.info(f'allocated resource on {machine.hostname} for job {job.name} ')
+                    hostname = machine.hostname
+                    logger.info(f'allocated resource for {job.name},'
+                                f' data dir at: {hostname}{job.data_dir_path}')
                     executor = RemoteShellExecutor(job, self.api_server_portal, machine)
                     # DOT NOT push anything to `_executors_map` or `_waiting_queue` if exception
                     self._executors_map[executor] = machine
                     self._waiting_queue.append(executor)
+
+                    job.set_ext({
+                        'backend_type': 'remote',
+                        'hostname': hostname
+                    })
                     return executor
         raise NoResourceException
 
@@ -366,6 +373,7 @@ class LocalExecutorManager(ExecutorManager):
             self._allocated_executors.append(executor)
             self._waiting_queue.append(executor)
             self._is_busy = True
+            logger.info(f'allocated resource job {job.name}, data dir at: localhost{job.data_dir_path}')
             return executor
         raise NoResourceException
 

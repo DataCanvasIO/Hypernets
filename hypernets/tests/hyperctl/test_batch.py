@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 from hypernets.hyperctl.appliation import BatchApplication
-from hypernets.hyperctl.batch import ShellJob
+from hypernets.hyperctl.batch import _ShellJob
 from hypernets.hyperctl.executor import LocalExecutorManager, RemoteSSHExecutorManager
 from hypernets.tests.hyperctl.batch_factory import create_minimum_batch, create_local_batch
 
@@ -55,5 +55,5 @@ def test_get_job_by_name():
     req_job_name = "job2"
     job = batch.get_job_by_name(req_job_name)
     assert job.name == req_job_name
-    assert batch.get_job_status(req_job_name) == ShellJob.STATUS_INIT
+    assert batch.get_job_status(req_job_name) == _ShellJob.STATUS_INIT
     assert job.params['learning_rate'] == 0.2

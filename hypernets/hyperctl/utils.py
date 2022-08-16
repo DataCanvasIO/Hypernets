@@ -51,7 +51,6 @@ def post_request(url, request_data: Optional[str]):
 
 def _request(url,  req_func, request_data=None):
     from hypernets.utils import logging as hyn_logging
-    hyn_logging.set_level(hyn_logging.DEBUG)
     logger = hyn_logging.getLogger(__name__)
 
     logger.debug(f"request data :\n{request_data}\nto {url}")
