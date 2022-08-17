@@ -6,9 +6,11 @@ KEY_ENV_JOB_NAME = 'HYPERCTL_JOB_NAME'
 KEY_ENV_JOB_DATA_DIR = 'HYPERCTL_JOB_DATA_DIR'
 KEY_ENV_JOB_WORKING_DIR = 'HYPERCTL_JOB_WORKING_DIR'
 KEY_ENV_SERVER_PORTAL = 'HYPERCTL_SERVER_PORTAL'
+KEY_ENV_TMP = 'TMP'
 
 # placeholder
 P_HOST_ENV = 'P_HOST_ENV'
+P_TMP_ENV = 'P_TMP_ENV'
 
 KEY_TEMPLATE_COMMAND = "COMMAND"
 
@@ -18,13 +20,22 @@ export {KEY_ENV_JOB_DATA_DIR}="#{KEY_ENV_JOB_DATA_DIR}#"
 export {KEY_ENV_SERVER_PORTAL}="#{KEY_ENV_SERVER_PORTAL}#"
 export {KEY_ENV_JOB_WORKING_DIR}="#{KEY_ENV_JOB_WORKING_DIR}#"
 
+#{P_TMP_ENV}
 #{P_HOST_ENV}
+
+if [ -n "$TMP" ]; then
+  if [ ! -d "$TMP" ]; then
+    mkdir -p $TMP
+  fi
+fi
 
 cd ${KEY_ENV_JOB_WORKING_DIR}
 #{KEY_TEMPLATE_COMMAND}# >"${KEY_ENV_JOB_DATA_DIR}/stdout" 2>"${KEY_ENV_JOB_DATA_DIR}/stderr"
 """
 
 HOST_LOCALHOST = "localhost"
+
+BATCH_TEMP = "hynctl_batch_temp"
 
 
 def default_batches_data_dir(batches_data_dir):

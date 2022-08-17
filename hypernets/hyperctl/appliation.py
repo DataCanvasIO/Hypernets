@@ -27,17 +27,20 @@ class BatchApplication:
                  scheduler_interval=5000,
                  scheduler_callbacks=None,
                  scheduler_signal_file=None,
+                 independent_tmp=False,
                  backend_conf=None,
                  **kwargs):
 
         self.batch = batch
+        self.independent_tmp = independent_tmp  # allocate tmp for every job
 
         self.job_scheduler: JobScheduler = self._create_scheduler(backend_conf,
                                                                   server_host, server_port,
                                                                   scheduler_exit_on_finish,
                                                                   scheduler_interval,
                                                                   scheduler_callbacks,
-                                                                  scheduler_signal_file)
+                                                                  scheduler_signal_file,
+                                                                  independent_tmp)
         # create web app
         self.web_app = self._create_web_app(server_host, server_port, batch)
 
@@ -46,12 +49,14 @@ class BatchApplication:
     def _create_web_app(self, server_host, server_port, batch):
         return create_batch_manage_webapp(server_host, server_port, batch, self.job_scheduler)
 
-    def _create_scheduler(self, backend_conf, server_host, server_port,
-                          scheduler_exit_on_finish, scheduler_interval, scheduler_callbacks, scheduler_signal_file):
+    def _create_scheduler(self, backend_conf, server_host, server_port, scheduler_exit_on_finish,
+                          scheduler_interval, scheduler_callbacks, scheduler_signal_file, independent_tmp):
+
         executor_manager = create_executor_manager(backend_conf, server_host, server_port)
-        return JobScheduler(self.batch, scheduler_exit_on_finish,
-                            scheduler_interval, executor_manager, callbacks=scheduler_callbacks,
-                            signal_file=scheduler_signal_file)
+        return JobScheduler(batch=self.batch, exit_on_finish=scheduler_exit_on_finish,
+                            interval=scheduler_interval, executor_manager=executor_manager,
+                            callbacks=scheduler_callbacks,
+                            signal_file=scheduler_signal_file, independent_tmp=independent_tmp)
 
     def start(self):
         logger.info(f"batch name: {self.batch.name}")

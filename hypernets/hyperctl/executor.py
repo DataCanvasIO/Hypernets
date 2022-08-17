@@ -30,7 +30,7 @@ class ShellExecutor:
         self.api_server_portal = api_server_portal
         self.environments = environments
 
-    def run(self):
+    def run(self, *, independent_tmp=True):
         pass
 
     def post(self):
@@ -45,14 +45,14 @@ class ShellExecutor:
     def status(self):
         raise NotImplemented
 
-    def _make_run_shell_content(self):
+    def _make_run_shell_content(self, independent_tmp):
 
         template_vars = {
             consts.KEY_ENV_JOB_DATA_DIR: self.job.data_dir_path.as_posix(),
             consts.KEY_ENV_JOB_NAME: self.job.name,
             consts.KEY_ENV_JOB_WORKING_DIR: self.job.working_dir,  # default value
             consts.KEY_TEMPLATE_COMMAND: self.job.batch.job_command,
-            consts.KEY_ENV_SERVER_PORTAL: self.api_server_portal,
+            consts.KEY_ENV_SERVER_PORTAL: self.api_server_portal
         }
 
         run_shell = str(consts.RUN_SH_TEMPLATE)
@@ -65,17 +65,23 @@ class ShellExecutor:
                 export_command = f"export {k}=\"{v}\"\n"
                 export_custom_envs_command = export_custom_envs_command + export_command
 
-        run_shell = run_shell.replace(f"#{consts.P_HOST_ENV}", export_custom_envs_command)
+        export_tmp_command = ""
+        if independent_tmp:
+            independent_tmp_path = (Path(tempfile.gettempdir()) / consts.BATCH_TEMP / self.job.name).as_posix()
+            export_tmp_command = f"export TMP={independent_tmp_path}"
+
+        run_shell = run_shell.replace(f"#{consts.P_HOST_ENV}", export_custom_envs_command)\
+            .replace(f"#{consts.P_TMP_ENV}", export_tmp_command)
 
         return run_shell
 
-    def _write_run_shell_script(self, file_path):
+    def _write_run_shell_script(self, file_path, independent_tmp):
         file_path = Path(file_path)
         # check parent
         if not file_path.parent.exists():
             os.makedirs(Path(file_path.parent), exist_ok=True)
         # write file
-        shell_content = self._make_run_shell_content()
+        shell_content = self._make_run_shell_content(independent_tmp)
         logger.debug(f'write shell script for job {self.job.name} to {file_path} ')
         with open(file_path, 'w', newline='\n') as f:
             f.write(shell_content)
@@ -105,7 +111,7 @@ class LocalShellExecutor(ShellExecutor):
             else:
                 shutil.copyfile(asset_file, (self.job.resources_path / asset_path.name).as_posix())
 
-    def run(self):
+    def run(self, *, independent_tmp=True):
         # prepare data dir
         job_data_dir = Path(self.job.data_dir_path)
 
@@ -115,7 +121,7 @@ class LocalShellExecutor(ShellExecutor):
         self.prepare_assets()
 
         # create shell file & write to local
-        self._write_run_shell_script(self.job.run_file)
+        self._write_run_shell_script(self.job.run_file, independent_tmp)
 
         command = f'sh {self.job.run_file}'
 
@@ -223,7 +229,7 @@ class RemoteShellExecutor(ShellExecutor):
                 else:
                     ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
 
-    def run(self):
+    def run(self, *,  independent_tmp=True):
         data_dir = self.job.data_dir_path.as_posix()
         logger.debug(f"create remote data dir {data_dir}")
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
@@ -233,11 +239,11 @@ class RemoteShellExecutor(ShellExecutor):
         logger.debug(f"prepare to upload assets to {self.machine.hostname}")
         self.prepare_assets()
 
-        # create run shell file
+        # create run sh file
         fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
         os.close(fd_run_file)
 
-        self._write_run_shell_script(run_file)
+        self._write_run_shell_script(run_file, independent_tmp)
 
         # copy file to remote
         with ssh_utils.sftp_client(**self.connections) as sftp_client:
@@ -279,6 +285,7 @@ class ExecutorManager:
 
     def __init__(self, api_server_portal):
         self.api_server_portal = api_server_portal
+
         self._waiting_queue = []
 
     def allocated_executors(self):
@@ -313,8 +320,8 @@ class RemoteSSHExecutorManager(ExecutorManager):
 
     def __init__(self, api_server_portal, machines: List[SSHRemoteMachine]):
         super(RemoteSSHExecutorManager, self).__init__(api_server_portal)
-
         self.machines = machines
+
         self._executors_map = {}
 
     def allocated_executors(self):

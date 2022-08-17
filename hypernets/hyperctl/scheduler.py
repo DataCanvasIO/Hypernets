@@ -18,14 +18,15 @@ logger = hyn_logging.getLogger(__name__)
 class JobScheduler:
     """a FIFO scheduler"""
 
-    def __init__(self, batch, exit_on_finish,
-                 interval, executor_manager: ExecutorManager, callbacks=None, signal_file=None):
+    def __init__(self, *, batch, exit_on_finish, interval, executor_manager: ExecutorManager,
+                 callbacks=None, signal_file=None, independent_tmp=True):
+
         self.batch = batch
         self.exit_on_finish = exit_on_finish
         self.executor_manager = executor_manager
         self.callbacks = callbacks if callbacks is not None else []
-
         self.signal_file = signal_file
+        self.independent_tmp = independent_tmp
 
         self._io_loop_instance = None
 
@@ -220,7 +221,7 @@ class JobScheduler:
             self._change_job_status(job, job.STATUS_RUNNING)
 
             try:
-                executor.run()
+                executor.run(independent_tmp=self.independent_tmp)
             except Exception as e:
                 logger.exception(f"failed to run job '{job.name}' ", e)
                 self._change_job_status(job, job.STATUS_FAILED)  # TODO on job break
