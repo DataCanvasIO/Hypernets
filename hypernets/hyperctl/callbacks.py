@@ -16,13 +16,19 @@ class BatchCallback:
     def on_job_start(self, batch, job, executor):
         pass
 
-    def on_job_finish(self, batch, job, executor, elapsed: float):
+    def on_job_succeed(self, batch, job, executor, elapsed: float):
         pass
 
-    def on_job_break(self, batch, job, executor, elapsed: float):  # TODO
+    def on_job_failed(self, batch, job, executor, elapsed: float):
+        """Job ran failed """
+        pass
+
+    def on_job_break(self, batch, job, exception):
+        """ Job failed before running"""
         pass
 
     def on_finish(self, batch, elapsed: float):
+        """Batch finished"""
         pass
 
 
@@ -34,10 +40,13 @@ class ConsoleCallback(BatchCallback):
     def on_job_start(self, batch, job, executor):
         print("on_job_start")
 
-    def on_job_finish(self, batch, job, executor, elapsed: float):
-        print("on_job_finish")
+    def on_job_succeed(self, batch, job, executor, elapsed: float):
+        print("on_job_succeed")
 
-    def on_job_break(self, batch, job, executor, elapsed: float):
+    def on_job_failed(self, batch, job, executor, elapsed: float):
+        print("on_job_failed")
+
+    def on_job_break(self, batch, job, exception):
         print("on_job_break")
 
     def on_finish(self, batch, elapsed: float):
@@ -118,7 +127,12 @@ class VisDOMCallback(BatchCallback):
             hostname = job_ext.get('hostname')
             self.node_jobs[hostname] = self.node_jobs.get(hostname, 0) + 1
 
-    def on_job_finish(self, batch: Batch, job, executor, elapsed: float):
+    def on_job_start(self, batch, job, executor):
+        self._n_running = self._n_running + 1
+
+        self._update_chart()
+
+    def on_job_succeed(self, batch: Batch, job, executor, elapsed: float):
         # increment cost
         self._elapsed[job.name] = elapsed
 
@@ -128,11 +142,18 @@ class VisDOMCallback(BatchCallback):
 
         self._update_node_jobs(job.ext)
 
+        self._n_running = self._n_running - 1
+
         # re-redner
         self._update_chart()
 
-    def on_job_break(self, batch, job, executor, elapsed: float):
-        self._n_succeed = self._n_failed + 1
+    def on_job_break(self,  batch, job, exception):
+        self.on_job_failed(batch, job, None, -1)
+
+    def on_job_failed(self, batch, job, executor, elapsed: float):
+        self._n_failed = self._n_failed + 1
         self._n_not_start = self._n_not_start - 1
+
+        self._n_running = self._n_running - 1
 
         self._update_chart()

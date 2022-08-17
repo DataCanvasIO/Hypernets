@@ -62,7 +62,7 @@ class ShellExecutor:
         export_custom_envs_command = ""
         if self.environments is not None:
             for k, v in self.environments.items():
-                export_command = f"export {k}=\"{v}\"\n"
+                export_command = f"export {k}={v}\n"
                 export_custom_envs_command = export_custom_envs_command + export_command
 
         export_tmp_command = ""
@@ -336,14 +336,14 @@ class RemoteSSHExecutorManager(ExecutorManager):
                     logger.info(f'allocated resource for {job.name},'
                                 f' data dir at: {hostname}{job.data_dir_path}')
                     executor = RemoteShellExecutor(job, self.api_server_portal, machine)
-                    # DOT NOT push anything to `_executors_map` or `_waiting_queue` if exception
-                    self._executors_map[executor] = machine
-                    self._waiting_queue.append(executor)
 
                     job.set_ext({
                         'backend_type': 'remote',
                         'hostname': hostname
                     })
+                    # DOT NOT push anything to `_executors_map` or `_waiting_queue` if exception
+                    self._executors_map[executor] = machine
+                    self._waiting_queue.append(executor)  # put it to queue if ready
                     return executor
         raise NoResourceException
 

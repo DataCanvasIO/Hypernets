@@ -57,7 +57,15 @@ class JobScheduler:
         for job in self.batch.jobs:
             job_status = self.batch.get_job_status(job.name)
             if job_status != _ShellJob.STATUS_INIT:
-                logger.info(f"job '{job.name}' status is '{job_status}', skip run.")
+                if job_status == job.STATUS_RUNNING:
+                    logger.warning(f"job '{job.name}' status is {job_status} in the beginning,"
+                                   f"it may have run and will not run again this time, "
+                                   f"you can remove it's status file: "
+                                   f"{self.batch.job_status_file_path(job_name=job.name, status=job_status)} "
+                                   f"and data dir(maybe in remote): {job.data_dir_path} to retry the job")
+                else:
+                    logger.info(f"job '{job.name}' status is {job_status} means it's finished, skip to run ")
+
                 self._n_skipped = self.n_skipped + 1
             else:
                 self._selected_jobs.append(job)
@@ -155,7 +163,10 @@ class JobScheduler:
             self._change_job_status(job, finished_executor.status())
             job.end_datetime = time.time()  # update end time
             executor_manager.release_executor(finished_executor)
-            self._handle_job_finished(job, finished_executor, job.elapsed)
+            if executor_status == _ShellJob.STATUS_SUCCEED:
+                self._handle_job_succeed(job, finished_executor, job.elapsed)
+            else:
+                self._handle_job_failed(job, finished_executor, job.elapsed)
 
     def _handle_callbacks(self, func):
         for callback in self.callbacks:
@@ -170,7 +181,7 @@ class JobScheduler:
             callback.on_job_start(self.batch, job, executor)
         self._handle_callbacks(f)
 
-    def _handle_job_finished(self, job, executor, elapsed):
+    def _handle_job_succeed(self, job, executor, elapsed):
 
         # write state data file
         job_state_data = {
@@ -192,7 +203,19 @@ class JobScheduler:
 
         # notify callbacks
         def f(callback):
-            callback.on_job_finish(self.batch, job, executor, elapsed)
+            callback.on_job_succeed(self.batch, job, executor, elapsed)
+        self._handle_callbacks(f)
+
+    def _handle_job_broken(self, job, exception):
+        def f(callback):
+            callback.on_job_break(self.batch, job, exception)
+
+        self._handle_callbacks(f)
+
+    def _handle_job_failed(self, job, executor, elapsed):
+        def f(callback):
+            callback.on_job_failed(self.batch, job, executor, elapsed)
+
         self._handle_callbacks(f)
 
     def _run_jobs(self, executor_manager):
@@ -209,7 +232,8 @@ class JobScheduler:
                 break
             except Exception as e:
                 # skip the job, and do not clean the executor
-                self._change_job_status(job, job.STATUS_FAILED)  # TODO on job break
+                self._change_job_status(job, job.STATUS_FAILED)
+                self._handle_job_broken(job, e)
                 logger.exception(f"failed to alloc resource for job '{job.name}' ", e)
                 continue
 
@@ -224,8 +248,9 @@ class JobScheduler:
                 executor.run(independent_tmp=self.independent_tmp)
             except Exception as e:
                 logger.exception(f"failed to run job '{job.name}' ", e)
-                self._change_job_status(job, job.STATUS_FAILED)  # TODO on job break
+                self._change_job_status(job, job.STATUS_FAILED)
                 executor_manager.release_executor(executor)
+                self._handle_job_broken(job, e)
                 continue
             finally:
                 pass
@@ -236,9 +261,10 @@ class JobScheduler:
             callback.on_finish(self.batch, self.batch.elapsed)
 
     def attempt_scheduling(self):  # attempt_scheduling
+
         # check all jobs finished
-        job_finished = self.batch.is_finished()
-        if job_finished:
+        batch_finished = self.batch.is_finished()
+        if batch_finished:
             self.batch.end_datetime = time.time()
             batch_summary = json.dumps(self.batch.summary())
             logger.info("all jobs finished, stop scheduler:\n" + batch_summary)

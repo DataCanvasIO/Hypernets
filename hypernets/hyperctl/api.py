@@ -27,7 +27,7 @@ def get_job_params():
     return get_job(job_name, api_server_portal)['params']
 
 
-def get_job_working_dir():
+def get_job_data_dir():
     job_working_dir = os.getenv(consts.KEY_ENV_JOB_WORKING_DIR)
     return job_working_dir
 

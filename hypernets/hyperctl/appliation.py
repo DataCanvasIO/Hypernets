@@ -27,7 +27,7 @@ class BatchApplication:
                  scheduler_interval=5000,
                  scheduler_callbacks=None,
                  scheduler_signal_file=None,
-                 independent_tmp=False,
+                 independent_tmp=True,
                  backend_conf=None,
                  **kwargs):
 
@@ -61,21 +61,6 @@ class BatchApplication:
     def start(self):
         logger.info(f"batch name: {self.batch.name}")
         logger.info(f"batch data dir: {self.batch.data_dir_path.absolute()}")
-
-        # check jobs status
-        for job in self.batch.jobs:
-            job:_ShellJob = job
-            job_status = self.batch.get_job_status(job.name)
-            if job_status != job.STATUS_INIT:
-                if job_status == job.STATUS_RUNNING:
-                    logger.warning(f"job '{job.name}' status is {job_status} in the beginning,"
-                                   f"it may have run and will not run again this time, "
-                                   f"you can remove it's status file: "
-                                   f"{self.batch.job_status_file_path(job_name=job.name, status=job_status)} "
-                                   f"and data dir(maybe in remote): {job.data_dir_path} to retry the job")
-                else:
-                    logger.info(f"job '{job.name}' status is {job_status} means it's finished, skip to run ")
-                continue
 
         # prepare batch data dir
         if self.batch.data_dir_path.exists():

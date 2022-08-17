@@ -44,7 +44,7 @@ class CompeteExperimentJobCreator(ExperimentJobCreator, metaclass=abc.ABCMeta):
 
         make_kwargs = job_params
 
-        job_working_dir = hyperctl.api.get_job_working_dir()
+        job_working_dir = hyperctl.api.get_job_data_dir()
         assert job_working_dir
         exp = self.create_experiment_with_params(make_kwargs, job_working_dir)
         assert exp
