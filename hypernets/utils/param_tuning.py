@@ -6,16 +6,14 @@ __author__ = 'yangjian'
 
 import copy
 import time
-import pandas as pd
-from hypernets.conf import configure, Configurable, String, Int as cfg_int
+
+from hypernets.conf import configure, Configurable, String, Int as CfgInt
 from hypernets.core import TrialHistory, Trial, EarlyStoppingError, EarlyStoppingCallback
 from hypernets.core.ops import Identity, HyperInput
 from hypernets.core.search_space import HyperSpace, ParameterSpace
 from hypernets.searchers import EvolutionSearcher, RandomSearcher, MCTSSearcher, GridSearcher, get_searcher_cls, \
     Searcher
 from hypernets.utils import logging
-from hypernets.utils.common import isnotebook
-from IPython.display import clear_output, display, update_display
 
 logger = logging.get_logger(__name__)
 
@@ -23,7 +21,7 @@ logger = logging.get_logger(__name__)
 @configure()
 class ParamSearchCfg(Configurable):
     work_dir = String(help='storage directory path to store running data.').tag(config=True)
-    trial_retry_limit = cfg_int(1000, min=1, help='maximum retry number to run trial.').tag(config=True)
+    trial_retry_limit = CfgInt(1000, min=1, help='maximum retry number to run trial.').tag(config=True)
 
 
 def func_space(func):
@@ -58,8 +56,8 @@ def build_searcher(cls, func, optimize_direction='min'):
     return s
 
 
-def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min', clear_logs=False, callbacks=None,  **func_kwargs):
-
+def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min', history=None, callbacks=None,
+                  **func_kwargs):
     if callbacks is not None:
         assert len(callbacks) == 1, "Only accept one EarlyStoppingCallback's instance."
         assert isinstance(callbacks[0], EarlyStoppingCallback), "Only accept EarlyStoppingCallback's instance yet."
@@ -75,7 +73,10 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
     retry_limit = ParamSearchCfg.trial_retry_limit
     trial_no = 1
     retry_counter = 0
-    history = TrialHistory(optimize_direction)
+    if history is None:
+        history = TrialHistory(optimize_direction)
+    else:
+        assert isinstance(history, TrialHistory)
 
     while trial_no <= max_trials:
         try:
@@ -85,9 +86,13 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
                 callback.on_trial_begin(None, space_sample, trial_no)
 
             if history.is_existed(space_sample):
+                trial = history.get_trial(space_sample)
+                if trial is not None:
+                    searcher.update_result(space_sample, trial.reward)
                 if retry_counter >= retry_limit:
                     logger.info(f'Unable to take valid sample and exceed the retry limit {retry_limit}.')
                     break
+                logger.info(f'skip trial {trial.trial_no}')
                 retry_counter += 1
                 continue
 
@@ -98,6 +103,7 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
 
             trial_start = time.time()
             last_reward = func(**func_params)
+            searcher.update_result(space_sample, last_reward)
             elapsed = time.time() - trial_start
 
             trial = Trial(space_sample, trial_no, last_reward, elapsed)
