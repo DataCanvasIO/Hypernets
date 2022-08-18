@@ -234,7 +234,7 @@ class JobScheduler:
                 # skip the job, and do not clean the executor
                 self._change_job_status(job, job.STATUS_FAILED)
                 self._handle_job_broken(job, e)
-                logger.exception(f"failed to alloc resource for job '{job.name}' ", e)
+                logger.exception(f"failed to alloc resource for job '{job.name}'")
                 continue
 
             self._n_allocated = self.n_allocated + 1

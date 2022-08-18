@@ -34,16 +34,18 @@ def ssh_client(*args, **kwargs):
         client.close()
 
 
-def create_sftp_client(*args, **kwargs):
-    return create_ssh_client(*args, **kwargs).open_sftp()
-
-
 @contextlib.contextmanager
 def sftp_client(*args, **kwargs):
-    _sftp_client: SFTPClient = create_sftp_client(*args, **kwargs)
+
+    ssh_client_inst = create_ssh_client(*args, **kwargs)
+    _sftp_client: SFTPClient = ssh_client_inst.open_sftp()
     yield _sftp_client
+
     if _sftp_client is not None:
         _sftp_client.close()
+
+    if ssh_client_inst is not None:  # only close sftp client lead to connection leak
+        ssh_client_inst.close()
 
 
 def exists(sftp: SFTPClient, remote_path):
