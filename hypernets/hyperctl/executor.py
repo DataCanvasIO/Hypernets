@@ -214,30 +214,33 @@ class RemoteShellExecutor(ShellExecutor):
     def connections(self):
         return self.machine.connection
 
-    def prepare_assets(self):
+    def prepare_assets(self, sftp_client):
         if len(self.job.assets) == 0:
             return
-        with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            for asset in self.job.assets:
-                asset_path = Path(asset).absolute()
-                asset_file = asset_path.as_posix()
-                if not asset_path.exists():
-                    logger.warning(f"local dir {asset_path} not exists, skip to upload")
-                    continue
-                if asset_path.is_dir():
-                    ssh_utils.upload_dir(sftp_client, asset_file, self.job.resources_path.as_posix())
-                else:
-                    ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
+
+        for asset in self.job.assets:
+            asset_path = Path(asset).absolute()
+            asset_file = asset_path.as_posix()
+            if not asset_path.exists():
+                logger.warning(f"local dir {asset_path} not exists, skip to upload")
+                continue
+            if asset_path.is_dir():
+                ssh_utils.upload_dir(sftp_client, asset_file, self.job.resources_path.as_posix())
+            else:
+                ssh_utils.upload_file(sftp_client, asset_file, (self.job.resources_path / asset_path.name).as_posix())
 
     def run(self, *,  independent_tmp=True):
         data_dir = self.job.data_dir_path.as_posix()
         logger.debug(f"create remote data dir {data_dir}")
-        with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f"create remote job output dir {data_dir} ")
-            ssh_utils.makedirs(sftp_client, data_dir)
+        ssh_conn = ssh_utils.create_ssh_client(**self.connections)
+
+        sftp_client = ssh_conn.open_sftp()
+        # with ssh_utils.sftp_client(**self.connections) as sftp_client:
+        logger.debug(f"create remote job output dir {data_dir} ")
+        ssh_utils.makedirs(sftp_client, data_dir)
 
         logger.debug(f"prepare to upload assets to {self.machine.hostname}")
-        self.prepare_assets()
+        self.prepare_assets(sftp_client)  # share connection
 
         # create run sh file
         fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
@@ -246,13 +249,17 @@ class RemoteShellExecutor(ShellExecutor):
         self._write_run_shell_script(run_file, independent_tmp)
 
         # copy file to remote
-        with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f'upload {run_file} to {self.job.run_file}')
-            sftp_client: SFTPClient = sftp_client
-            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
+        # with ssh_utils.sftp_client(**self.connections) as sftp_client:
+        logger.debug(f'upload {run_file} to {self.job.run_file}')
+        ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
+
+        if sftp_client is not None:
+            sftp_client.close()
 
         # execute command in async
-        self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
+        # self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
+        self._command_ssh_client = ssh_conn
+
         command = f'sh {self.job.run_file}'
         logger.debug(f'execute command {command}')
         self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
