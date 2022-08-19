@@ -8,6 +8,7 @@ import pickle
 import shutil
 from collections import OrderedDict
 
+import numpy as np
 import pandas as pd
 
 from hypernets.utils.common import isnotebook, to_repr
@@ -78,7 +79,15 @@ class Trial():
         except AttributeError:
             state = self.__dict__
 
-        state = {k: v for k, v in state.items() if k != 'memo'}
+        # state = {k: v for k, v in state.items() if k != 'memo'}
+        memo = state.get('memo', None)
+        big_data_types = (pd.Series, pd.DataFrame, np.ndarray)
+        big_data_exists = isinstance(memo, dict) and any(isinstance(v, big_data_types) for v in memo.values())
+        if big_data_exists:
+            compacted_memo = {k: v for k, v in memo.items() if not isinstance(v, big_data_types)}
+            state = state.copy()
+            state['memo'] = compacted_memo
+
         return state
 
     def to_df(self, include_params=False):

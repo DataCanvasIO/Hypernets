@@ -3,6 +3,8 @@ __author__ = 'yangjian'
 """
 
 """
+import pickle
+
 from hypernets.core.ops import Identity, Choice
 from hypernets.core.search_space import HyperSpace, Int, Real
 from hypernets.core.trial import TrialHistory, Trial
@@ -78,3 +80,11 @@ class Test_TrialHistory():
 
         trajectories = history.get_trajectories()
         assert trajectories == ([0.0, 100.0, 150.0, 350.0], [0.0, 0.99, 0.99, 0.99], [0.0, 0.99, 0.9, 0.7], 1, 100.0)
+
+        filepath = f'{test_output_dir}/history.pkl'
+        th.save(filepath)
+        with open(filepath, 'rb') as f:
+            h = pickle.load(f)
+            assert isinstance(h, TrialHistory)
+            assert len(h.trials) == len(history.trials)
+            print('>-'*30)
