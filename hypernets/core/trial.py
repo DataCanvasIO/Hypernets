@@ -92,6 +92,9 @@ class Trial():
 
     def to_df(self, include_params=False):
         out = OrderedDict(trial_no=self.trial_no, succeeded=self.succeeded, reward=self.reward, elapsed=self.elapsed)
+        if isinstance(self.memo, dict):
+            out.update(self.memo)
+
         if include_params:
             for p in self.space_sample.get_assigned_params():
                 out[p.alias] = p.value
