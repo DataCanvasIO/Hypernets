@@ -65,8 +65,15 @@ class VisDOMCallback(BatchCallback):
 
         self.node_jobs = {}
 
-    def _update_chart(self):
+        self.session_ = None
+
+    def _ensure_session(self):
         import visdom
+        if self.session_ is None or not self.session_.check_connection(timeout_seconds=3):  # lazy singleton
+            self.session_ = visdom.Visdom()
+        return self.session_
+
+    def _update_chart(self):
 
         summary_dict = {
             _ShellJob.STATUS_SUCCEED: self._n_succeed,
@@ -76,7 +83,7 @@ class VisDOMCallback(BatchCallback):
             "other": self._n_other
         }
 
-        vis = visdom.Visdom()
+        vis = self._ensure_session()
 
         vis.pie(
             win='summary_task',
