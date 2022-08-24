@@ -115,7 +115,7 @@ class VisDOMCallback(BatchCallback):
 
         # init job summary
         for job in batch.jobs:
-            job_status = batch.get_job_status(job.name)
+            job_status = job.status
             if job_status == _ShellJob.STATUS_SUCCEED:
                 self._n_succeed = self._n_succeed + 1
             elif job_status == _ShellJob.STATUS_RUNNING:

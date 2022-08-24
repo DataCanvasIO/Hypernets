@@ -91,7 +91,7 @@ def to_job_detail(job, batch):
     # add 'status' to return dict
     job_dict = job.to_config()
     config_dict = copy.copy(job_dict)
-    config_dict['status'] = batch.get_job_status(job.name)
+    config_dict['status'] = job.status
     return config_dict
 
 

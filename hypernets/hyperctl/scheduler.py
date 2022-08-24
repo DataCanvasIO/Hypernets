@@ -55,7 +55,7 @@ class JobScheduler:
 
         # stats finished jobs
         for job in self.batch.jobs:
-            job_status = self.batch.get_job_status(job.name)
+            job_status = job.status
             if job_status != _ShellJob.STATUS_INIT:
                 if job_status == job.STATUS_RUNNING:
                     logger.warning(f"job '{job.name}' status is {job_status} in the beginning,"
@@ -92,7 +92,7 @@ class JobScheduler:
         job: _ShellJob = self.batch.get_job_by_name(job_name)
         if job is None:
             raise ValueError(f'job {job_name} does not exists ')
-        job_status = self.batch.get_job_status(job.name)
+        job_status = job.status
 
         logger.info(f"trying kill job {job_name}, it's status is {job_status} ")
 
@@ -117,7 +117,7 @@ class JobScheduler:
 
     @staticmethod
     def change_job_status(batch: Batch, job: _ShellJob, next_status):
-        current_status = batch.get_job_status(job_name=job.name)
+        current_status = job.status
         target_status_file = batch.job_status_file_path(job_name=job.name, status=next_status)
 
         def touch(f_path):
@@ -130,8 +130,11 @@ class JobScheduler:
             if current_status != job.STATUS_INIT:
                 raise ValueError(f"only job in {job.STATUS_INIT} can change to {next_status}")
 
-            # job.set_status(next_status)
             touch(target_status_file)
+            job.set_status(next_status)
+            reload_status = batch.get_persisted_job_status(job_name=job.name)
+            assert reload_status == next_status, f"change job status failed, current status is {reload_status}," \
+                                                 f" expected status is {next_status}"
 
         elif next_status in job.FINAL_STATUS:
             if current_status != job.STATUS_RUNNING:
@@ -142,9 +145,10 @@ class JobScheduler:
 
             # job.set_status(next_status)
             touch(target_status_file)
-            reload_status = batch.get_job_status(job_name=job.name)
+            reload_status = batch.get_persisted_job_status(job_name=job.name)
             assert reload_status == next_status, f"change job status failed, current status is {reload_status}," \
                                                  f" expected status is {next_status}"
+            job.set_status(next_status)
 
         else:
             raise ValueError(f"unknown status {next_status}")
@@ -221,7 +225,7 @@ class JobScheduler:
     def _run_jobs(self, executor_manager):
         jobs = self._selected_jobs
         for job in jobs:
-            if self.batch.get_job_status(job.name) != job.STATUS_INIT:
+            if job.status != job.STATUS_INIT:
                 # logger.info(f"job '{job.name}' status is {job.status}, skip run")
                 continue
             # logger.debug(f'trying to alloc resource for job {job.name}')

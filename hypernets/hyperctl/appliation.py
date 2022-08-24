@@ -64,7 +64,12 @@ class BatchApplication:
 
         # prepare batch data dir
         if self.batch.data_dir_path.exists():
-            logger.info(f"batch {self.batch.name} already exists, run again")
+            logger.info(f"batch {self.batch.name} already exists, try to recovery state...")
+            for job in self.batch.jobs:
+                job: _ShellJob = job
+                j_status = self.batch.get_persisted_job_status(job.name)
+                job.set_status(j_status)
+            logger.info(self.batch.summary())
         else:
             os.makedirs(self.batch.data_dir_path, exist_ok=True)
 

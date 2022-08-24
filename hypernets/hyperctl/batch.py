@@ -64,7 +64,7 @@ class _ShellJob:  # internal class
 
     @property
     def status(self):
-        return self.batch.get_job_by_name(self.name)
+        return self._status
 
     @property
     def run_file(self):
@@ -162,7 +162,7 @@ class Batch:
     def _status_files(self, statuses):
         return {status: f"{self.name}.{status}" for status in statuses}
 
-    def get_job_status(self, job_name):
+    def get_persisted_job_status(self, job_name):
         exists_statuses = []
         for status_value, status_file in self.status_files().items():
             abs_status_file = self.job_status_file_path(job_name, status_value)
@@ -195,7 +195,7 @@ class Batch:
             pass
 
     def is_finished(self):
-        exists_status = set([self.get_job_status(job.name) for job in self.jobs])
+        exists_status = set([job.status for job in self.jobs])
         return exists_status.issubset(set(_ShellJob.FINAL_STATUS))
 
     def config_file_path(self):
@@ -222,7 +222,7 @@ class Batch:
         batch = self
 
         def _filter_jobs(status):
-            return list(filter(lambda j: self.get_job_status(j.name) == status, batch.jobs))
+            return list(filter(lambda j: j.status == status, batch.jobs))
 
         def cnt(status):
             return len(_filter_jobs(status))
