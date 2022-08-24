@@ -181,10 +181,17 @@ class SSHRemoteMachine:
             return False
 
     def test_connection(self):
-        # check connections
-        with ssh_utils.ssh_client(**self.connection) as client:
+        client = None
+        try:
+            # check connections
+            client = ssh_utils.create_ssh_client(**self.connection)
             assert client
-            logger.info(f"test connection to host {self.hostname} successfully")
+            logger.info(f"connect to host {self.hostname} successfully")
+        except Exception as e:
+            logger.exception("test connection failed")
+        finally:
+            if client is not None:
+                client.close()
 
     @staticmethod
     def total_resources():
@@ -232,37 +239,46 @@ class RemoteShellExecutor(ShellExecutor):
     def run(self, *,  independent_tmp=True):
         data_dir = self.job.data_dir_path.as_posix()
         logger.debug(f"create remote data dir {data_dir}")
-        ssh_conn = ssh_utils.create_ssh_client(**self.connections)
+        # 此处应该确保链接一定会被关闭哪怕运行失败
+        ssh_conn = None
+        try:
+            ssh_conn = ssh_utils.create_ssh_client(**self.connections)
 
-        sftp_client = ssh_conn.open_sftp()
-        # with ssh_utils.sftp_client(**self.connections) as sftp_client:
-        logger.debug(f"create remote job output dir {data_dir} ")
-        ssh_utils.makedirs(sftp_client, data_dir)
+            sftp_client = ssh_conn.open_sftp()
+            # with ssh_utils.sftp_client(**self.connections) as sftp_client:
+            logger.debug(f"create remote job output dir {data_dir} ")
+            ssh_utils.makedirs(sftp_client, data_dir)
 
-        logger.debug(f"prepare to upload assets to {self.machine.hostname}")
-        self.prepare_assets(sftp_client)  # share connection
+            logger.debug(f"prepare to upload assets to {self.machine.hostname}")
+            self.prepare_assets(sftp_client)  # share connection
 
-        # create run sh file
-        fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
-        os.close(fd_run_file)
+            # create run sh file
+            fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
+            os.close(fd_run_file)
 
-        self._write_run_shell_script(run_file, independent_tmp)
+            self._write_run_shell_script(run_file, independent_tmp)
 
-        # copy file to remote
-        # with ssh_utils.sftp_client(**self.connections) as sftp_client:
-        logger.debug(f'upload {run_file} to {self.job.run_file}')
-        ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
+            # copy file to remote
+            # with ssh_utils.sftp_client(**self.connections) as sftp_client:
+            logger.debug(f'upload {run_file} to {self.job.run_file}')
+            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
 
-        if sftp_client is not None:
-            sftp_client.close()
+            if sftp_client is not None:
+                sftp_client.close()
 
-        # execute command in async
-        # self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
-        self._command_ssh_client = ssh_conn
+            # execute command in async
+            # self._command_ssh_client = ssh_utils.create_ssh_client(**self.connections)
+            self._command_ssh_client = ssh_conn
 
-        command = f'sh {self.job.run_file}'
-        logger.debug(f'execute command {command}')
-        self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
+            command = f'sh {self.job.run_file}'
+            logger.debug(f'execute command {command}')
+            self._remote_process = self._command_ssh_client.exec_command(command, get_pty=True)
+        except Exception as e:
+            if ssh_conn is not None:
+                ssh_conn.close()
+            raise e
+        finally:
+            pass
 
     def status(self):
         if self._remote_process is not None:
@@ -358,11 +374,14 @@ class RemoteSSHExecutorManager(ExecutorManager):
         self.release_executor(executor)
 
     def release_executor(self, executor):
+        executor.close()  # close connection
+
         machine = self._executors_map.get(executor)
         logger.debug(f"release resource of machine {machine.hostname} ")
+
         machine.release(executor.job.resource)
         self._waiting_queue.remove(executor)
-        executor.close()
+
 
     def prepare(self):
         for machine in self.machines:

@@ -163,10 +163,11 @@ class JobScheduler:
         for finished_executor in finished:
             executor_status = finished_executor.status()
             job = finished_executor.job
+            executor_manager.release_executor(finished_executor)  # ensure close connection
             logger.info(f"job {job.name} finished with status {executor_status}")
-            self._change_job_status(job, finished_executor.status())
+            self._change_job_status(job, executor_status)
             job.end_datetime = time.time()  # update end time
-            executor_manager.release_executor(finished_executor)
+
             if executor_status == _ShellJob.STATUS_SUCCEED:
                 self._handle_job_succeed(job, finished_executor, job.elapsed)
             else:
