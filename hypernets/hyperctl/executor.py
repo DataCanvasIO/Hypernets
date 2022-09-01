@@ -239,8 +239,8 @@ class RemoteShellExecutor(ShellExecutor):
     def run(self, *,  independent_tmp=True):
         data_dir = self.job.data_dir_path.as_posix()
         logger.debug(f"create remote data dir {data_dir}")
-        # 此处应该确保链接一定会被关闭哪怕运行失败
         ssh_conn = None
+        sftp_client = None
         try:
             ssh_conn = ssh_utils.create_ssh_client(**self.connections)
 
@@ -276,6 +276,8 @@ class RemoteShellExecutor(ShellExecutor):
         except Exception as e:
             if ssh_conn is not None:
                 ssh_conn.close()
+            if sftp_client is not None:
+                sftp_client.close()
             raise e
         finally:
             pass

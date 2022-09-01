@@ -244,11 +244,10 @@ class JobScheduler:
 
             self._n_allocated = self.n_allocated + 1
             job.start_datetime = time.time()  # update start time
+            self._change_job_status(job, job.STATUS_RUNNING)  # should before callback
+
             self._handle_job_start(job, executor)
-
             logger.info(f'ScheduleSummary(allocated={len(executor_manager.allocated_executors())}, total={len(jobs)})')
-            self._change_job_status(job, job.STATUS_RUNNING)
-
             try:
                 executor.run(independent_tmp=self.independent_tmp)
             except Exception as e:
