@@ -4,6 +4,7 @@ from pathlib import Path
 
 from hypernets.hyperctl.appliation import BatchApplication
 from hypernets.hyperctl.batch import _ShellJob
+from hypernets.hyperctl.consts import JOB_DATA_DIR_PREFIX
 from hypernets.hyperctl.executor import RemoteSSHExecutorManager, SSHRemoteMachine, LocalExecutorManager
 from hypernets.hyperctl.utils import load_json
 
@@ -26,7 +27,7 @@ def test_load_remote_batch():
     assert job1.name == "job1"
     assert job1.params == { "learning_rate": 0.1}
 
-    assert job1.data_dir_path.as_posix() == "/tmp/test_remote_batch/job1"
+    assert job1.data_dir_path.as_posix().startswith(f"/tmp/{JOB_DATA_DIR_PREFIX}{batch_app.batch.name}")
     assert job1.working_dir == job1.data_dir_path.as_posix()
 
     executor_manager = batch_app.job_scheduler.executor_manager
@@ -90,8 +91,9 @@ def test_load_local_batch_config():
     assert isinstance(job1, _ShellJob)
     assert job1.name == "job1"
     assert job1.params['learning_rate'] == 0.1
-    assert job1.data_dir_path.as_posix() == (Path(batch_working_dir) / "job1").absolute().as_posix()
-    assert job1.working_dir == (Path(batch_working_dir) / "job1").absolute().as_posix()
+
+    assert job1.data_dir_path.as_posix().startswith(f"/tmp/{JOB_DATA_DIR_PREFIX}{batch_app.batch.name}")
+    assert job1.working_dir.startswith(f"/tmp/{JOB_DATA_DIR_PREFIX}{batch_app.batch.name}")
 
     job2: _ShellJob = jobs[1]
     assert isinstance(job2, _ShellJob)

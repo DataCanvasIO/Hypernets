@@ -37,6 +37,8 @@ HOST_LOCALHOST = "localhost"
 
 BATCH_TEMP = "hynctl_batch_temp"
 
+JOB_DATA_DIR_PREFIX = "hynctl_job_"
+
 
 def default_batches_data_dir(batches_data_dir):
     if batches_data_dir is None:

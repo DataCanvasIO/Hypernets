@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import json
+import tempfile
 import os
 from collections import OrderedDict
 from pathlib import Path
@@ -7,8 +8,9 @@ from typing import Dict, Optional
 
 import psutil
 
+from hypernets.hyperctl import consts
 from hypernets.utils import logging
-
+from hypernets.utils.common import generate_short_id
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,10 @@ class _ShellJob:  # internal class
         self.batch = batch
         self.params = params
         self.resource = resource
+
+        # write job files to tmp
+        self.data_dir_path = Path(tempfile.gettempdir()) \
+                             / f"{consts.JOB_DATA_DIR_PREFIX}{self.batch.name}_{self.name}_{generate_short_id()}"
 
         if working_dir is None:
             self.working_dir = self.data_dir_path.as_posix()
@@ -55,10 +61,6 @@ class _ShellJob:  # internal class
     def state_data(self):
         with open(self.state_data_file(), 'r') as f:
             return json.load(f)
-
-    @property
-    def data_dir_path(self):
-        return self.batch.data_dir_path / f"{self.name}"
 
     def set_status(self, status):
         self._status = status
