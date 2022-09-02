@@ -179,6 +179,7 @@ class LocalizableSimpleImputer(SimpleImputer, Localizable):
                                          fill_value=self.fill_value, copy=self.copy,
                                          add_indicator=self.add_indicator)
         copy_attrs_as_local(self, target, 'statistics_', 'feature_names_in_', 'n_features_in_')  # 'indicator_', )
+        setattr(target, '_fit_dtype', np.dtype('float64'))
 
         ss = target.statistics_
         if isinstance(ss, (list, tuple)) and isinstance(ss[0], np.ndarray):
@@ -348,6 +349,9 @@ class DatetimeEncoder(sk_ex.DatetimeEncoder, Localizable):
         return target
 
 
+_te_stub = TargetEncoder()
+
+
 @tb_transformer(cudf.DataFrame)
 class SlimTargetEncoder(TargetEncoder, BaseEstimator):
     """
@@ -396,15 +400,16 @@ class SlimTargetEncoder(TargetEncoder, BaseEstimator):
     def _is_train_df(self, df):
         return False
 
-    @property
-    def split_method(self):
-        return self.split
-
     def as_local(self):
         target = sk_ex.SlimTargetEncoder(n_folds=self.n_folds, smooth=self.smooth, seed=self.seed,
-                                         split_method=self.split, dtype=self.dtype, output_2d=self.output_2d)
+                                         split_method=self.split_method, dtype=self.dtype, output_2d=self.output_2d)
         copy_attrs_as_local(self, target, '_fitted', 'train', 'train_encode', 'encode_all', 'mean', 'output_2d')
         return target
+
+    if not hasattr(_te_stub, 'split_method'):
+        @property
+        def split_method(self):
+            return self.split
 
 
 @tb_transformer(cudf.DataFrame)
