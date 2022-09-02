@@ -93,7 +93,7 @@ def test_load_local_batch_config():
     assert job1.params['learning_rate'] == 0.1
 
     # assert job1.data_dir_path.as_posix().startswith(f"/tmp/{JOB_DATA_DIR_PREFIX}{batch_app.batch.name}")
-    assert job1.working_dir.startswith(f"/tmp/{JOB_DATA_DIR_PREFIX}{batch_app.batch.name}")
+    # assert job1.working_dir.startswith(f"/tmp/{JOB_DATA_DIR_PREFIX}{batch_app.batch.name}")
 
     job2: _ShellJob = jobs[1]
     assert isinstance(job2, _ShellJob)
