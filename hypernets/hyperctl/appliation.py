@@ -148,10 +148,8 @@ class BatchApplication:
 
         batch = Batch(name=batch_name, data_dir=batch_data_dir, job_command=job_command)
         for job_dict in jobs_dict:
-
-            job = _ShellJob(batch=batch, **job_dict)
             # job.set_status(batch.get_job_status(job_name=job.name))
-            batch.jobs.append(job)
+            batch.add_job(**job_dict)
             # batch.add_job(**job_dict)
 
         flat_args("server")

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 import json
 import os
+from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -142,13 +143,17 @@ class Batch:
         self.job_command = job_command
         self.data_dir = data_dir
 
-        self.jobs = []
+        self._jobs_dict = OrderedDict()
         self.start_time = None
         self.end_time = None
 
     @property
     def data_dir_path(self):
         return Path(self.data_dir)
+
+    @property
+    def jobs(self):
+        return list(self._jobs_dict.values())
 
     def job_status_file_path(self, job_name, status):
         return (self.data_dir_path / f"{job_name}.{status}").as_posix()
@@ -179,7 +184,8 @@ class Batch:
             return _ShellJob.STATUS_INIT
 
     def add_job(self, name, **kwargs):
-        self.jobs.append(_ShellJob(name=name, batch=self, **kwargs))
+        assert name not in self._jobs_dict, f'job {name} is already exists'  # check job name
+        self._jobs_dict[name] = _ShellJob(name=name, batch=self, **kwargs)
 
     def status(self):
         pid = self.pid()
