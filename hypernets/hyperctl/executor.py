@@ -1,4 +1,5 @@
 import os
+import io
 import time
 import subprocess
 import tempfile
@@ -252,16 +253,11 @@ class RemoteShellExecutor(ShellExecutor):
             logger.debug(f"prepare to upload assets to {self.machine.hostname}")
             self.prepare_assets(sftp_client)  # share connection
 
-            # create run sh file
-            fd_run_file, run_file = tempfile.mkstemp(prefix=f'hyperctl_run_{self.job.name}_', suffix='.sh')
-            os.close(fd_run_file)
-
-            self._write_run_shell_script(run_file, independent_tmp)
-
             # copy file to remote
-            # with ssh_utils.sftp_client(**self.connections) as sftp_client:
-            logger.debug(f'upload {run_file} to {self.job.run_file}')
-            ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
+            # ssh_utils.upload_file(sftp_client, run_file, self.job.run_file)
+            run_file_content = self._make_run_shell_content(independent_tmp).encode('utf-8')
+            ssh_utils.upload_file_obj(sftp_client, io.BytesIO(run_file_content), self.job.run_file)
+            logger.debug(f'upload run file to {self.job.run_file}')
 
             if sftp_client is not None:
                 sftp_client.close()

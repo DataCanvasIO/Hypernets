@@ -84,6 +84,18 @@ def upload_file(sftp: SFTPClient, local_path, remote_path):
     sftp.put(local_path, remote_path)
 
 
+def upload_file_obj(sftp: SFTPClient, fo, remote_path):
+    """Upload file object to remote. if remote dir is not exists should create it.
+    :param sftp:
+    :param fo: file obj
+    :param remote_path: a file path, is not exists and included file name
+    :return:
+    """
+    p = Path(remote_path).parent.as_posix()
+    makedirs(sftp, p)
+    sftp.putfo(fo, remote_path, confirm=True)
+
+
 def upload_dir(sftp: SFTPClient, local_dir, remote_dir):
     """ Recursive upload local dir to remote
     :param sftp:

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import io
 import tempfile
 
 import pytest
@@ -157,6 +158,20 @@ class TestUpload(BaseUpload):
         p2 = common_util.generate_short_id()
         remote_file = (Path("/tmp") / p1 / p2 / Path(self.file_a).name).as_posix()
         self.run_upload_file(remote_file)
+
+    def test_upload_fo(self):
+        # check file in remote
+        p1 = common_util.generate_short_id()
+        p2 = common_util.generate_short_id()
+        remote_file = (Path("/tmp") / p1 / p2 / "fo.bin").as_posix()
+
+        bytes_data = "abc123".encode('utf-8')
+        fo = io.BytesIO(bytes_data)
+        with ssh_utils.sftp_client(**self.ssh_config) as client:
+            print(remote_file)
+            ssh_utils.upload_file_obj(client, fo, remote_file)
+            # check file in remote
+            assert ssh_utils.exists(client, remote_file)
 
     def test_upload_file_to_exists_folder(self):
         remote_file = (Path("/tmp") / Path(self.file_a).name).as_posix()
