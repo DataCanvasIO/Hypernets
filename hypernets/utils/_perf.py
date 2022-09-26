@@ -69,15 +69,17 @@ def get_perf(proc=None, recursive=True, children_pool=None, metrics=None):
             metrics['mem_used_proc'] = sum(rss)
         else:
             metrics['mem_used_proc'] = proc.memory_info().rss
-
-    for i, h in enumerate(_gpu_devices):
-        used = pynvml.nvmlDeviceGetUtilizationRates(h)
-        mem = pynvml.nvmlDeviceGetMemoryInfo(h)
-        metrics[f'gpu_{i}_used'] = used.gpu
-        metrics[f'gpu_{i}_mem_used'] = mem.used  # used.memory
-        metrics[f'gpu_{i}_mem_total'] = mem.total
-        metrics[f'gpu_{i}_power_used'] = pynvml.nvmlDeviceGetPowerUsage(h)
-        metrics[f'gpu_{i}_power_total'] = pynvml.nvmlDeviceGetPowerManagementLimit(h)
+    try:
+        for i, h in enumerate(_gpu_devices):
+            used = pynvml.nvmlDeviceGetUtilizationRates(h)
+            mem = pynvml.nvmlDeviceGetMemoryInfo(h)
+            metrics[f'gpu_{i}_used'] = used.gpu
+            metrics[f'gpu_{i}_mem_used'] = mem.used  # used.memory
+            metrics[f'gpu_{i}_mem_total'] = mem.total
+            metrics[f'gpu_{i}_power_used'] = pynvml.nvmlDeviceGetPowerUsage(h)
+            metrics[f'gpu_{i}_power_total'] = pynvml.nvmlDeviceGetPowerManagementLimit(h)
+    except:
+        pass
 
     return metrics
 
