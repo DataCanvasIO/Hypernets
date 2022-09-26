@@ -37,6 +37,8 @@ class InProcessDispatcher(Dispatcher):
                         try:
                             callback.on_skip_trial(hyper_model, space_sample, trial_no, 'trial_existed',
                                                    trial.reward, False, trial.elapsed)
+                        except EarlyStoppingError:
+                            raise
                         except Exception as e:
                             logger.warn(e)
 
@@ -55,6 +57,8 @@ class InProcessDispatcher(Dispatcher):
                             try:
                                 callback.on_skip_trial(hyper_model, space_sample, trial_no, 'hit_trial_store',
                                                        reward, improved, elapsed)
+                            except EarlyStoppingError:
+                                raise
                             except Exception as e:
                                 logger.warn(e)
 
@@ -64,6 +68,8 @@ class InProcessDispatcher(Dispatcher):
                 for callback in hyper_model.callbacks:
                     try:
                         callback.on_trial_begin(hyper_model, space_sample, trial_no)
+                    except EarlyStoppingError:
+                        raise
                     except Exception as e:
                         logger.warn(e)
 
@@ -78,6 +84,8 @@ class InProcessDispatcher(Dispatcher):
                         try:
                             callback.on_trial_end(hyper_model, space_sample, trial_no, trial.reward,
                                                   improved, trial.elapsed)
+                        except EarlyStoppingError:
+                            raise
                         except Exception as e:
                             logger.warn(e)
 
@@ -86,6 +94,8 @@ class InProcessDispatcher(Dispatcher):
                     for callback in hyper_model.callbacks:
                         try:
                             callback.on_trial_error(hyper_model, space_sample, trial_no)
+                        except EarlyStoppingError:
+                            raise
                         except Exception as e:
                             logger.warn(e)
 
