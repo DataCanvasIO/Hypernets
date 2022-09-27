@@ -29,7 +29,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q -r requirements.txt -r requirements-zhcn.txt -r requirements-dask.txt -r requirements-extra.txt
+        pip install -q pandas!=1.5.0 -r requirements.txt -r requirements-zhcn.txt -r requirements-dask.txt -r requirements-extra.txt
         pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Test with pytest
@@ -78,7 +78,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml "featuretools==${{ matrix.ft-version }}" woodwork==${{ matrix.woodwork-version  }}
+        pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml "featuretools==${{ matrix.ft-version }}" woodwork==${{ matrix.woodwork-version }} pandas!=1.5.0
         pip install -q -r requirements.txt -r requirements-zhcn.txt -r requirements-extra.txt "scikit-learn<1.1.0"
         pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
@@ -127,7 +127,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml
+        pip install -q dask==${{ matrix.dask-version }} distributed==${{ matrix.dask-version }} dask-ml pandas!=1.5.0
         pip install -q -r requirements.txt -r requirements-zhcn.txt "scikit-learn<1.1.0"
         pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
