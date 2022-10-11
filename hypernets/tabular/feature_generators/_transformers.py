@@ -133,7 +133,7 @@ class FeatureGenerationTransformer(BaseEstimator):
 
         es = ft.EntitySet(id='es_hypernets_fit')
         make_index = self.ft_index not in original_cols
-        feature_type_dict = self._get_feature_types(X)
+        feature_type_dict, _ = self._get_feature_types(X)
 
         if _base.FT_V0:
             es.entity_from_dataframe(entity_id='e_hypernets_ft', dataframe=X, variable_types=feature_type_dict,
@@ -186,7 +186,8 @@ class FeatureGenerationTransformer(BaseEstimator):
 
         # 3. transform
         es = ft.EntitySet(id='es_hypernets_transform')
-        feature_type_dict = self._get_feature_types(X)
+        feature_type_dict, unknown_cols = self._get_feature_types(X)
+        unknown_dtypes = X[unknown_cols].dtypes.copy() if unknown_cols else {}
         make_index = self.ft_index not in X.columns.to_list()
 
         if _base.FT_V0:
@@ -205,6 +206,14 @@ class FeatureGenerationTransformer(BaseEstimator):
             X.pop(self.ft_index)
             if self.ft_index in Xt.columns.to_list():
                 Xt.pop(self.ft_index)
+
+        # restore dtypes of unknown_cols
+        for c, d in unknown_dtypes.items():
+            try:
+                if Xt[c].dtype != d:
+                    Xt[c] = Xt[c].astype(d)
+            except:
+                pass
 
         if self.categorical_as_object:
             cat_cols = column_category(Xt)
@@ -332,4 +341,4 @@ class FeatureGenerationTransformer(BaseEstimator):
                          {c: _base.Categorical for c in self.categories_cols},
                          {c: _base.Unknown for c in unknown_cols},
                          )
-        return feature_types
+        return feature_types, unknown_cols
