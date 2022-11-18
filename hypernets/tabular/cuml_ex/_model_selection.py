@@ -42,7 +42,7 @@ def _train_test_split_with_object(X, y, shuffle=True, random_state=None, stratif
         stratify = LabelEncoder().fit_transform(stratify)
 
     X_train, X_test, y_train, y_test = \
-        train_test_split(X, yt, shuffle=shuffle, random_state=random_state, stratify=stratify, **kwargs)
+        cm_sel.train_test_split(X, yt, shuffle=shuffle, random_state=random_state, stratify=stratify, **kwargs)
 
     y_train_decoded = le.inverse_transform(y_train)
     y_test_decoded = le.inverse_transform(y_test)
