@@ -5,8 +5,7 @@
 from functools import partial
 
 import numpy as np
-from featuretools import primitives
-from featuretools.primitives import Haversine
+from featuretools.primitives import Haversine, TransformPrimitive
 from featuretools.utils.gen_utils import Library
 from sklearn.pipeline import make_pipeline
 
@@ -21,7 +20,7 @@ except ImportError:
     is_geohash_installed = False
 
 
-class DaskCompatibleTransformPrimitive(primitives.TransformPrimitive):
+class DaskCompatibleTransformPrimitive(TransformPrimitive):
     compatibility = [Library.PANDAS, Library.DASK]
     return_dtype = 'object'
     commutative = True
@@ -104,12 +103,12 @@ class GeoHashPrimitive(DaskCompatibleTransformPrimitive):
         return vfn_(x1)
 
 
-class TfidfPrimitive(primitives.TransformPrimitive):
+class TfidfPrimitive(TransformPrimitive):
     name = 'tfidf'
     input_types = [_base.ColumnSchema(logical_type=_base.NaturalLanguage)]
     return_dtype = _base.ColumnSchema(logical_type=_base.Numeric, semantic_tags={'numeric'})
     commutative = True
-    compatibility = [primitives.Library.PANDAS, primitives.Library.DASK]
+    compatibility = [Library.PANDAS, Library.DASK]
 
     def __init__(self):
         super().__init__()
