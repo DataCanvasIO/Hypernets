@@ -7,7 +7,7 @@ import traceback
 from collections import UserDict
 
 from ..core.meta_learner import MetaLearner
-from ..core.trial import *
+from ..core.trial import Trial, TrialHistory, DiskTrialStore
 from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
 from ..tabular import get_tool_box
@@ -196,6 +196,8 @@ class HyperModel:
 
         if dataset_id is None:
             dataset_id = self.generate_dataset_id(X, y)
+        if isinstance(trial_store, str):
+            trial_store = DiskTrialStore(trial_store)
         if self.searcher.use_meta_learner:
             self.searcher.set_meta_learner(MetaLearner(self.history, dataset_id, trial_store))
 

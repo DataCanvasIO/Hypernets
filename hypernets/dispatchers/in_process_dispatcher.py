@@ -46,11 +46,18 @@ class InProcessDispatcher(Dispatcher):
                     continue
 
                 if trial_store is not None:
-                    trial = trial_store.get(dataset_id, space_sample)
-                    if trial is not None:
-                        reward = trial.reward
-                        elapsed = trial.elapsed
-                        trial = Trial(space_sample, trial_no, reward, elapsed)
+                    trial_hit = trial_store.get(dataset_id, space_sample)
+                    if trial_hit is not None and fs.exists(trial_hit.model_file):
+                        reward = trial_hit.reward
+                        elapsed = trial_hit.elapsed
+                        trial = Trial(space_sample, trial_no,
+                                      reward=reward,
+                                      elapsed=elapsed,
+                                      model_file=trial_hit.model_file,
+                                      succeeded=trial_hit.succeeded)
+                        trial.memo = trial_hit.memo.copy()
+                        trial.iteration_scores = trial_hit.iteration_scores.copy()
+
                         improved = hyper_model.history.append(trial)
                         hyper_model.searcher.update_result(space_sample, reward)
                         for callback in hyper_model.callbacks:
@@ -61,8 +68,6 @@ class InProcessDispatcher(Dispatcher):
                                 raise
                             except Exception as e:
                                 logger.warn(e)
-
-                        trial_no += 1
                         continue
 
                 for callback in hyper_model.callbacks:
@@ -104,6 +109,7 @@ class InProcessDispatcher(Dispatcher):
                           f'best_trial_no:{hyper_model.best_trial_no}, best_reward:{hyper_model.best_reward}\n'
                     logger.info(msg)
                 if trial_store is not None:
+                    print('>' * 20, 'put', trial)
                     trial_store.put(dataset_id, trial)
             except EarlyStoppingError:
                 break
