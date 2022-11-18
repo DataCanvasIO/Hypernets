@@ -13,15 +13,19 @@ from . import _base
 from ._primitives import CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive
 from ._primitives import is_geohash_installed
 
-_named_primitives = [CrossCategorical, GeoHashPrimitive, DaskCompatibleHaversine, TfidfPrimitive]
+_named_primitives = [CrossCategorical, DaskCompatibleHaversine, TfidfPrimitive]
 
 _DEFAULT_PRIMITIVES_UNKNOWN = []
 _DEFAULT_PRIMITIVES_NUMERIC = []
 _DEFAULT_PRIMITIVES_CATEGORY = [CrossCategorical.name]
 _DEFAULT_PRIMITIVES_DATETIME = ["month", "week", "day", "hour", "minute", "second", "weekday", "is_weekend"]
 # _DEFAULT_PRIMITIVES_LATLONG = [GeoHashPrimitive.name, "haversine"]
-_DEFAULT_PRIMITIVES_LATLONG = [GeoHashPrimitive.name, DaskCompatibleHaversine.name]
+_DEFAULT_PRIMITIVES_LATLONG = [DaskCompatibleHaversine.name, ]
 _DEFAULT_PRIMITIVES_TEXT = [TfidfPrimitive.name]
+
+if is_geohash_installed:
+    _DEFAULT_PRIMITIVES_LATLONG.append(GeoHashPrimitive.name)
+    _named_primitives.append(GeoHashPrimitive)
 
 _named_primitives = {p.name: p for p in _named_primitives}
 
@@ -65,7 +69,7 @@ class FeatureGenerationTransformer(BaseEstimator):
                 for categories: "cross_categorical"
                 for continuous: "add_numeric","subtract_numeric","divide_numeric","multiply_numeric","negate","modulo_numeric","modulo_by_feature","cum_mean","cum_sum","cum_min","cum_max","percentile","absolute"
                 for datetime: "year", "month", "week", "day", "hour", "minute", "second", "weekday", "is_weekend"
-                for lat_long: "haversine", "geohash"
+                for lat_long: "haversine", "geohash"(only if python-geohash is installed)
                 for text: "num_characters", "num_words" + "tfidf"
             max_depth:
         """
@@ -73,9 +77,9 @@ class FeatureGenerationTransformer(BaseEstimator):
         assert all([c is None or isinstance(c, (tuple, list))
                     for c in (categories_cols, continuous_cols, datetime_cols, latlong_cols, text_cols)])
 
-        if latlong_cols is not None and len(latlong_cols) > 0:
-            assert is_geohash_installed, \
-                f'python-geohash is required to run FeatureGeneration with latlong columns.'
+        # if latlong_cols is not None and len(latlong_cols) > 0:
+        #     assert is_geohash_installed, \
+        #         f'python-geohash is required to run FeatureGeneration with latlong columns.'
 
         self.trans_primitives = trans_primitives
         self.max_depth = max_depth
