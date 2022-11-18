@@ -109,7 +109,6 @@ class InProcessDispatcher(Dispatcher):
                           f'best_trial_no:{hyper_model.best_trial_no}, best_reward:{hyper_model.best_reward}\n'
                     logger.info(msg)
                 if trial_store is not None:
-                    print('>' * 20, 'put', trial)
                     trial_store.put(dataset_id, trial)
             except EarlyStoppingError:
                 break
