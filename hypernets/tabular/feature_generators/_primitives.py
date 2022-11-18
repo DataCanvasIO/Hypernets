@@ -7,6 +7,7 @@ from functools import partial
 import numpy as np
 from featuretools import primitives
 from featuretools.primitives import Haversine
+from featuretools.utils.gen_utils import Library
 from sklearn.pipeline import make_pipeline
 
 from hypernets.tabular.cfg import TabularCfg as cfg
@@ -21,7 +22,7 @@ except ImportError:
 
 
 class DaskCompatibleTransformPrimitive(primitives.TransformPrimitive):
-    compatibility = [primitives.Library.PANDAS, primitives.Library.DASK]
+    compatibility = [Library.PANDAS, Library.DASK]
     return_dtype = 'object'
     commutative = True
 
