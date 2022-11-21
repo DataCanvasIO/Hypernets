@@ -1,3 +1,4 @@
+import os
 import sys as sys_
 
 from hypernets.conf import configure, Configurable, Int, String, Bool, Float, Enum, Dict
@@ -9,10 +10,17 @@ else:
     _joblib_default_options = dict(prefer='processes')
 
 
+def _safe_int(v, default=0):
+    try:
+        return int(v)
+    except:
+        return default
+
+
 @configure()
 class TabularCfg(Configurable):
     joblib_njobs = \
-        Int(-1, allow_none=True,
+        Int(_safe_int(os.environ.get('OMP_NUM_THREADS', None), -1), allow_none=True,
             help='"n_jobs" setting for joblib task.'
             ).tag(config=True)
 

@@ -158,7 +158,7 @@ def evaluate(estimator, X, y, metrics, *, task=None, pos_label=None, classes=Non
     return scores
 
 
-def predict_proba(estimator, X, *, n_jobs=-1):
+def predict_proba(estimator, X, *, n_jobs=None):
     if isinstance(estimator, str):
         assert os.path.exists(estimator), f'Not found {estimator}'
 
@@ -170,7 +170,7 @@ def predict_proba(estimator, X, *, n_jobs=-1):
     return proba
 
 
-def predict(estimator, X, *, task=None, classes=None, threshold=0.5, n_jobs=-1):
+def predict(estimator, X, *, task=None, classes=None, threshold=0.5, n_jobs=None):
     assert classes is None or isinstance(classes, (list, tuple, np.ndarray))
     if isinstance(estimator, str):
         assert os.path.exists(estimator), f'Not found {estimator}'
@@ -183,6 +183,7 @@ def predict(estimator, X, *, task=None, classes=None, threshold=0.5, n_jobs=-1):
             classes = c2
 
     if task == const.TASK_REGRESSION:
+        n_jobs = _detect_jobs(X, n_jobs)
         if logger.is_info_enabled():
             logger.info(f'predict with n_jobs={n_jobs}')
         pred = _call_predict(estimator, 'predict', X, n_jobs=n_jobs)
@@ -235,6 +236,9 @@ def _detect_jobs(X, n_jobs):
         return 1
 
     assert X.shape[0] > 0, f'Not found data.'
+
+    if n_jobs is None:
+        n_jobs = cfg.joblib_njobs
 
     if n_jobs <= 0:
         n_jobs = math.ceil(X.shape[0] / _MIN_BATCH_SIZE)

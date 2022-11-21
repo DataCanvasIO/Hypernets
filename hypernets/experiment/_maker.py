@@ -11,6 +11,7 @@ from hypernets.model import HyperModel
 from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import clear as _clear_cache
+from hypernets.tabular.cfg import TabularCfg as tcfg
 from hypernets.utils import const, logging, isnotebook, load_module, DocLens
 
 logger = logging.get_logger(__name__)
@@ -98,6 +99,7 @@ def make_experiment(hyper_model_cls,
                     report_render=None,
                     report_render_options=None,
                     experiment_cls=None,
+                    n_jobs=None,
                     clear_cache=None,
                     log_level=None,
                     **kwargs):
@@ -181,6 +183,8 @@ def make_experiment(hyper_model_cls,
         The options to create render, is used if render is str.
     experiment_cls: class, or None, (default=CompeteExperiment)
         The experiment type, CompeteExperiment or it's subclass.
+    n_jobs: int, default None
+        If not None, update value of option `TabularCfg.joblib_njobs`.
     clear_cache: bool, optional, (default False)
         Clear cache store before running the expeirment.
     log_level : int, str, or None, (default=None),
@@ -215,6 +219,8 @@ def make_experiment(hyper_model_cls,
     assert train_data is not None, 'train_data is required.'
     assert eval_data is None or type(eval_data) is type(train_data)
     assert test_data is None or type(test_data) is type(train_data)
+    assert n_jobs is None or isinstance(n_jobs, int)
+
     if not issubclass(hyper_model_cls, HyperModel):
         logger.warning(f'{hyper_model_cls.__name__} isn\'t subclass of HyperModel.')
 
@@ -322,6 +328,9 @@ def make_experiment(hyper_model_cls,
         hyper_model_options = {}
     hm = hyper_model_cls(searcher, reward_metric=reward_metric, task=task, callbacks=search_callbacks,
                          discriminator=discriminator, **hyper_model_options)
+
+    if n_jobs is not None:
+        tcfg.joblib_njobs = n_jobs
 
     if experiment_cls is None:
         experiment_cls = CompeteExperiment
