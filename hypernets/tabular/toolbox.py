@@ -431,6 +431,10 @@ class ToolBox(metaclass=ToolboxMeta):
         """
         see: sklearn.inspection.permutation_importance
         """
+
+        if n_jobs is None and c.joblib_njobs is not None and c.joblib_njobs > 0:
+            n_jobs = c.joblib_njobs
+
         if hasattr(estimator, 'permutation_importance'):
             importance = estimator.permutation_importance(X, y,
                                                           scoring=scoring, n_repeats=n_repeats, n_jobs=n_jobs,
@@ -497,8 +501,6 @@ class ToolBox(metaclass=ToolboxMeta):
             frac = c.permutation_importance_sample_limit / X_shape[0]
             X, _, y, _ = cls.train_test_split(X, y, train_size=frac, random_state=random_state)
 
-        # if n_jobs is None:
-        #     n_jobs = c.joblib_njobs
         if isinstance(n_jobs, int) and n_jobs <= 0:
             n_jobs = None  # higher performance than -1
 
