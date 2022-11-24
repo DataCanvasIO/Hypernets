@@ -49,7 +49,7 @@ jobs:
         woodwork-version: [0.13.0]
         dask-version: [2021.1.1, 2021.7.2]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             python-version: 3.6
             ft-version: 0.23
             woodwork-version: 0.1.0
