@@ -234,11 +234,7 @@ class MOEADSearcher(Searcher):
         return out_space
 
     def single_point_crossover(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
-        # 特征交叉 只有在特征完全一样的时候才能进行
-        # 实现方式：
-        """
-        1. 筛选出来这一部分的邻居特征变量全部相同
-        2.
+        """Crossover hyperparams only if they have same params
         """
         params_1 = ind1.dna.get_assigned_params()
         params_2 = ind2.dna.get_assigned_params()
