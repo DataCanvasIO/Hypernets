@@ -77,10 +77,11 @@ class MOEADSearcher(Searcher):
     ----------
         [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
         [2]. Das I, Dennis J E. "Normal-boundary intersection: A new method for generating the Pareto surface in nonlinear multicriteria optimization problems[J]." SIAM Journal on Optimization, 1998, 8(3): 631-657.
+        [3]. A. Jaszkiewicz, “On the performance of multiple-objective genetic local search on the 0/1 knapsack problem – A comparative experiment,” IEEE Trans. Evol. Comput., vol. 6, no. 4, pp. 402–412, Aug. 2002
     """
 
     def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, mutate_probability=0.3,
-                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
+                 decomposition=None, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
         :param space_fn: 
@@ -88,6 +89,7 @@ class MOEADSearcher(Searcher):
         :param objectives: name of objectives
         :param n_neighbors: num of neighbors to mating
         :param mutate_probability:
+        :param decomposition: decomposition approch, default is None one of tchebicheff,weighted_sum
         :param optimize_direction:
         :param use_meta_learner:
         :param space_sample_validation_fn:
@@ -106,14 +108,22 @@ class MOEADSearcher(Searcher):
         if n_neighbors > n_vectors:
             raise RuntimeError(f"n_neighbors should less that {n_vectors - 1}")
 
+        if decomposition is None:
+            self.decomposition = self.tchebicheff_decomposition
+        else:
+            mapping = {'tchebicheff': self.tchebicheff_decomposition,
+                       'weighted_sum': self.weighted_sum_decomposition}
+            if decomposition in mapping:
+                self.decomposition = mapping[decomposition]
+            else:
+                raise RuntimeError(f'unseen decomposition apporch {decomposition}.')
+
         self.n_neighbors = n_neighbors
         self.pop = self.init_population(weight_vectors)
 
         self._solutions = []
         self._sample_count = 0
 
-        # self.init_Z()
-        # self.Z = np.zeros(shape=self.n_objectives)
     @property
     def population_size(self):
         return len(self.pop)
@@ -296,10 +306,28 @@ class MOEADSearcher(Searcher):
     def get_best(self):
         return [s[0] for s in self.get_pf()]
 
-    def compare_by_weighted_sum_approach(self, scores1: dict, scores2: dict, weight_vector, objectives):
-        # TODO add Tchebycheff  approach
-        calc = lambda score_: (np.array([score_[k] for k in objectives]) * weight_vector).sum()
-        return calc(scores2) - calc(scores1)
+    def compare_scores(self, scores1: dict, scores2: dict,
+                       weight_vector, decomposite_func):
+
+        return decomposite_func(scores2, weight_vector) - decomposite_func(scores1, weight_vector)
+
+    def weighted_sum_decomposition(self, scores: dict, weight_vector):
+        return (np.array([scores[k] for k in self.objectives]) * weight_vector).sum()
+
+    def tchebicheff_decomposition(self, scores, weight_verctor):
+        rp = self.get_reference_point()
+        np_scores = np.array([scores[o_name] for o_name in self.objectives])
+        return np.max(np.abs(np_scores - rp) * weight_verctor)
+
+    def get_reference_point(self):
+        """calculate Z in tchebicheff decomposition
+        """
+        scores_list = []
+        for solu in self._solutions:
+            scores = solu[1]
+            scores_list.append([scores[o_name] for o_name in self.objectives])
+
+        return np.min(np.array(scores_list), axis=0)
 
     def update_result(self, space, result):
         assert space
@@ -312,8 +340,9 @@ class MOEADSearcher(Searcher):
         for indi in self.pop:
             if indi.get_son() == space:
                 neighbor: Individual = indi.random_neighbors(1)[0]
-                if self.compare_by_weighted_sum_approach(neighbor.get_scores(),
-                                                         result, indi.weight_vector, self.objectives) < 0:
+
+                if self.compare_scores(neighbor.get_scores(),
+                                       result, indi.weight_vector, self.decomposition) < 0:
                     neighbor.update_dna(space, result)
 
     @property
