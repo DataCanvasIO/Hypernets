@@ -250,9 +250,15 @@ class ConstantImputer(sk_ex.ConstantImputer, Localizable):
 class LocalizableOneHotEncoder(OneHotEncoder, Localizable):
     def as_local(self):
         from .. import CumlToolBox
-        target = sk_pre.OneHotEncoder(categories=CumlToolBox.to_local(self.categories)[0],
-                                      drop=self.drop, sparse=self.sparse,
-                                      dtype=self.dtype, handle_unknown=self.handle_unknown)
+        options = dict(categories=CumlToolBox.to_local(self.categories)[0],
+                       drop=self.drop,  # sparse=self.sparse,
+                       dtype=self.dtype, handle_unknown=self.handle_unknown)
+        if 'sparse_output' in inspect.signature(sk_pre.OneHotEncoder.__init__).parameters.keys():
+            # above sklearn 1.2
+            options['sparse_output'] = self.sparse
+        else:
+            options['sparse'] = self.sparse
+        target = sk_pre.OneHotEncoder(**options)
         copy_attrs_as_local(self, target, 'categories_', 'drop_idx_')
 
         try:
