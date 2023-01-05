@@ -174,7 +174,7 @@ class LatLongColumnSelector:
 
     @staticmethod
     def _reduce_is_latlong(df):
-        fn = np.vectorize(LatLongColumnSelector._is_latlong, otypes=[np.bool], signature='()->()')
+        fn = np.vectorize(LatLongColumnSelector._is_latlong, otypes=[bool], signature='()->()')
         return df.apply(fn).all(axis=0)
 
 
