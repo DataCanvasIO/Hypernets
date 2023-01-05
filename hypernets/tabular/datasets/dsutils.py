@@ -5,12 +5,13 @@ basedir = os.path.dirname(__file__)
 
 
 def load_boston():
-    from sklearn import datasets
     import pandas as pd
-    boston_dataset = datasets.load_boston()
-    data = pd.DataFrame(boston_dataset.data)
-    data.columns = boston_dataset.feature_names
-    data.insert(0, 'target', boston_dataset.target)
+    from sklearn import datasets
+    # boston_dataset = datasets.load_boston()
+    # data = pd.DataFrame(boston_dataset.data)
+    # data.columns = boston_dataset.feature_names
+    # data.insert(0, 'target', boston_dataset.target)
+    data = pd.read_csv(f'{basedir}/boston.csv.gz', compression='gzip')
     return data
 
 
