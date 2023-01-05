@@ -1260,7 +1260,7 @@ class EnsembleStep(EstimatorBuilderStep):
 
     def select_trials(self, hyper_model):
         """
-        select trails to ensemble from hyper_model (and it's history)
+        select trials to ensemble from hyper_model (and it's history)
         """
         best_trials = hyper_model.get_top_trials(self.ensemble_size)
         return best_trials
