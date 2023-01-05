@@ -260,7 +260,7 @@ def _safe_ordinal_decoder(categories, dtypes, pdf):
             dtype = dtypes[col]
             if dtype in (np.float32, np.float64, float):
                 return np.nan
-            elif dtype in (np.int32, np.int64, np.int, np.uint32, np.uint64, np.uint):
+            elif dtype in (np.int32, np.int64, np.uint32, np.uint64, np.uint, int):
                 return -1
             else:
                 return None
