@@ -48,7 +48,6 @@ def load_estimator(model_path):
 
 
 def get_tree_importances(tree_model):
-
     def catch_exception(func):
         def _wrapper(model):
             try:
@@ -79,7 +78,7 @@ def get_tree_importances(tree_model):
         return isinstance(m, BaseDecisionTree)
 
     def is_numpy_num_type(v):
-        for t in [np.int, np.int32, np.int64, np.float, np.float32, np.float64]:
+        for t in [int, float, np.int32, np.int64, np.float32, np.float64]:
             if isinstance(v, t) is True:
                 return True
             else:
