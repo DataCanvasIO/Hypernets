@@ -1,17 +1,17 @@
 # -*- coding:utf-8 -*-
 import numpy as np
-from sklearn.model_selection import train_test_split
 
-from hypernets.core import HyperSpace
+from hypernets.core import HyperSpace, get_random_state
 from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection, Searcher
-from hypernets.tabular.datasets import dsutils
 
 
 class Individual:
-    def __init__(self, dna, weight_vector):
+
+    def __init__(self, dna, weight_vector, random_state):
         self.dna = dna
         self.weight_vector = weight_vector
+        self.random_state = random_state
 
         self.neighbors = None
         self._son = None
@@ -47,7 +47,7 @@ class Individual:
             raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
 
         if n == 1:
-            return [self.neighbors[np.random.randint(0, neighbor_len, size=n)[0]]]
+            return [self.neighbors[self.random_state.randint(0, neighbor_len, size=n)[0]]]
 
         # group by params
         params_list = []
@@ -65,7 +65,7 @@ class Individual:
 
         for k, v in params_dict.items():
             if len(v) >= n:
-                idx = np.random.randint(0, neighbor_len, size=n)
+                idx = self.random_state.randint(0, neighbor_len, size=n)
                 return [self.neighbors[i] for i in idx]
 
         raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
@@ -120,6 +120,11 @@ class MOEADSearcher(Searcher):
             else:
                 raise RuntimeError(f'unseen decomposition apporch {decomposition}.')
 
+        if random_state is None:
+            self.random_state = get_random_state()
+        else:
+            self.random_state = np.random.RandomState(seed=random_state)
+
         self.n_neighbors = n_neighbors
         self.pop = self.init_population(weight_vectors)
 
@@ -173,7 +178,7 @@ class MOEADSearcher(Searcher):
         for i in range(pop_size):
             weight_vector = weight_vectors[i]
             space_sample = self._sample_and_check(self._random_sample)
-            pop.append(Individual(space_sample, weight_vector))
+            pop.append(Individual(space_sample, weight_vector, self.random_state))
 
         # euler distances matrix
         euler_distances = self.calc_euler_distance(weight_vectors)
@@ -225,14 +230,14 @@ class MOEADSearcher(Searcher):
         return pf_list
 
     def single_point_mutate(self, sample_space, out_space, mutate_probability):
-        # NOTE: Must mutate because hypernets can not crossover sine the length between sample space does not match
-        # if np.random.rand() < mutate_probability:
-        #     return sample_space
+
+        if self.random_state.rand(0, 1) < mutate_probability:
+            return sample_space
 
         # perform mutate
         assert sample_space.all_assigned
         parent_params = sample_space.get_assigned_params()
-        pos = np.random.randint(0, len(parent_params))
+        pos = self.random_state.randint(0, len(parent_params))
         for i, hp in enumerate(out_space.params_iterator):
             if i > (len(parent_params) - 1) or not parent_params[i].same_config(hp):
                 hp.random_sample()
@@ -263,7 +268,7 @@ class MOEADSearcher(Searcher):
 
         assert len(params_1) == len(params_2)
         n_params = len(params_1)
-        cut_i = np.random.randint(1, n_params - 2)  # ensure offspring has dna from both parents
+        cut_i = self.random_state.randint(1, n_params - 2)  # ensure offspring has dna from both parents
 
         # cross over
         for i, hp in enumerate(out_space.params_iterator):
@@ -290,11 +295,14 @@ class MOEADSearcher(Searcher):
         # select neighbors to  crossover and mutate
         try:
             offspring = self.single_point_crossover(*individual.random_neighbors(2), self.space_fn())
+            MP = self.mutate_probability
         except Exception as e:
+            # sine the length between sample space does not match usually cause no enough neighbors
             logger.info("no enough neighbors, skip mutate")
             offspring = individual.random_neighbors(1)[0].dna
-
-        final_offspring = self.single_point_mutate(offspring, self.space_fn(), self.mutate_probability)
+            # Must mutate because of failing crossover
+            MP = 1
+        final_offspring = self.single_point_mutate(offspring, self.space_fn(), MP)
 
         individual.set_son(final_offspring)
 
