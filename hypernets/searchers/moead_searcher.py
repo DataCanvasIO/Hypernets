@@ -81,7 +81,7 @@ class MOEADSearcher(Searcher):
     """
 
     def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, mutate_probability=0.3,
-                 decomposition=None, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
+                 decomposition=None, pbi_theta=0.5, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
         :param space_fn: 
@@ -101,6 +101,8 @@ class MOEADSearcher(Searcher):
         self.objectives = objectives
 
         self.mutate_probability = mutate_probability
+
+        self.pbi_theta = pbi_theta
 
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
 
@@ -136,6 +138,7 @@ class MOEADSearcher(Searcher):
         """Uniform weighted vectors, an implementation of Normal-boundary intersection.
             N = C_{n_samples+n_objectives-1}^{n_objectives-1}
             N  is the total num of generated vectors.
+
         :param n_samples: the number of samples in each objective
         :param n_objectives:
         :return:
@@ -307,17 +310,35 @@ class MOEADSearcher(Searcher):
         return [s[0] for s in self.get_pf()]
 
     def compare_scores(self, scores1: dict, scores2: dict,
-                       weight_vector, decomposite_func):
+                       weight_vector, de_func):
+        kwargs = {}
+        if de_func == self.pbi_decomposition:
+            kwargs['theta'] = self.pbi_theta
+        return de_func(scores2, weight_vector, **kwargs) - de_func(scores1, weight_vector, **kwargs)
 
-        return decomposite_func(scores2, weight_vector) - decomposite_func(scores1, weight_vector)
+    def _to_score_vec(self, scores: dict):
+        return np.array([scores[k] for k in self.objectives])
 
     def weighted_sum_decomposition(self, scores: dict, weight_vector):
         return (np.array([scores[k] for k in self.objectives]) * weight_vector).sum()
 
-    def tchebicheff_decomposition(self, scores, weight_verctor):
-        rp = self.get_reference_point()
-        np_scores = np.array([scores[o_name] for o_name in self.objectives])
-        return np.max(np.abs(np_scores - rp) * weight_verctor)
+    def tchebicheff_decomposition(self, scores, weight_vector):
+        Z = self.get_reference_point()
+        F = self._to_score_vec(scores)
+        return np.max(np.abs(F - Z) * weight_vector)
+
+    def pbi_decomposition(self, scores: dict, weight_vector: np.ndarray, theta: float):
+        """An implementation of "Boundary Intersection Approach base on penalty"
+        :param scores
+        :param weight_vector
+        :param theta: Penalty F deviates from the weight vector.
+        """
+        F = self._to_score_vec(scores)
+        Z = self.get_reference_point()  # virtual ZERO point
+        d1 = ((Z - F) * weight_vector) / np.linalg.norm(weight_vector)
+        d2 = np.linalg.norm((Z - weight_vector * d1) - F)
+
+        return d1 + d2 * theta
 
     def get_reference_point(self):
         """calculate Z in tchebicheff decomposition
