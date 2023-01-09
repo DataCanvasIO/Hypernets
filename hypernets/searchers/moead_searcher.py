@@ -315,7 +315,7 @@ class MOEADSearcher(Searcher):
             return space_sample
 
     def get_best(self):
-        return [s[0] for s in self.get_pf()]
+        return list(map(lambda s: s[0], self.get_pf()))
 
     def compare_scores(self, scores1: dict, scores2: dict,
                        weight_vector, de_func):
@@ -328,14 +328,14 @@ class MOEADSearcher(Searcher):
         return np.array([scores[k] for k in self.objectives])
 
     def weighted_sum_decomposition(self, scores: dict, weight_vector):
-        return (np.array([scores[k] for k in self.objectives]) * weight_vector).sum()
+        return (self._to_score_vec(scores) * weight_vector).sum()
 
     def tchebicheff_decomposition(self, scores, weight_vector):
         Z = self.get_reference_point()
         F = self._to_score_vec(scores)
         return np.max(np.abs(F - Z) * weight_vector)
 
-    def pbi_decomposition(self, scores: dict, weight_vector: np.ndarray, theta: float):
+    def pbi_decomposition(self, scores: dict, weight_vector: np.ndarray, theta: float = 0.5):
         """An implementation of "Boundary Intersection Approach base on penalty"
         :param scores
         :param weight_vector
@@ -358,8 +358,15 @@ class MOEADSearcher(Searcher):
 
         return np.min(np.array(scores_list), axis=0)
 
+    def _update_neighbors(self, indi: Individual, dna, scores):
+        for neigh in indi.neighbors:
+            if self.compare_scores(neigh.get_scores(),
+                                   scores, neigh.weight_vector, self.decomposition) < 0:
+                neigh.update_dna(dna, scores)
+
     def update_result(self, space, result):
         assert space
+        assert result
         self._solutions.append((space, result))
 
         for indi in self.pop:
@@ -368,11 +375,7 @@ class MOEADSearcher(Searcher):
 
         for indi in self.pop:
             if indi.get_son() == space:
-                neighbor: Individual = indi.random_neighbors(1)[0]
-
-                if self.compare_scores(neighbor.get_scores(),
-                                       result, indi.weight_vector, self.decomposition) < 0:
-                    neighbor.update_dna(space, result)
+                self._update_neighbors(indi, space, result)
 
     @property
     def parallelizable(self):
