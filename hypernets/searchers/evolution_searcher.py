@@ -187,6 +187,8 @@ class EvolutionSearcher(Searcher):
                 return None
 
     def update_result(self, space_sample, result):
+        result = list(result.values())[0]
+
         if not self.population.initializing:
             self.population.eliminate(regularized=self.regularized)
         self.population.append(space_sample, result)

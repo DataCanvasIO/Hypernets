@@ -193,6 +193,15 @@ class CustomizedLogger(_logging.Logger):
     def is_warning_enabled(self):
         return self.isEnabledFor(WARN)
 
+    def is_enabled_for(self, level):
+        return self.isEnabledFor(level)
+
+    def isEnabledFor(self, level):
+        if self.disabled:
+            return False
+
+        return level >= self.getEffectiveLevel()
+
 
 def get_logger(name):
     original_logger_class = _logging.getLoggerClass()
