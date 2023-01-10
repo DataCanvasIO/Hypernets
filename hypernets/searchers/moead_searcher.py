@@ -14,14 +14,14 @@ class Individual:
         self.random_state = random_state
 
         self.neighbors = None
-        self._son = None
+        self._offspring = None
         self._scores = None
 
-    def get_son(self):
-        return self._son
+    def get_offspring(self):
+        return self._offspring
 
-    def set_son(self, son):
-        self._son = son
+    def set_offspring(self, offspring):
+        self._offspring = offspring
 
     def set_neighbors(self, neighbors):
         self.neighbors = neighbors
@@ -71,6 +71,45 @@ class Individual:
         raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
 
 
+def get_pf(objectives, solutions):
+    """Update Pareto front and pareto optimal solution.
+      Compare solution with solutions in pareto front, if there are solutions dominated by new solution ,
+      then replace them.
+
+    :param dna: new evaluated solution
+    :param scores: scores of new solution
+    :return:
+    """
+    def dominate(s1_scores, s2_scores):
+        # return: is s1 dominate s2
+        ret = []
+        for j, o_name in enumerate(objectives):
+            if s1_scores[o_name] < s2_scores[o_name]:
+                ret.append(1)
+            elif s1_scores[o_name] == s2_scores[o_name]:
+                ret.append(0)
+            else:
+                return False  # s1 does not dominate s2
+        if np.sum(np.array(ret)) >= 1:
+            return True  # s1 has at least one metric better that s2
+        else:
+            return False
+
+    def find_non_dominated_solu(input_solu):
+        for solu in solutions:
+            if solu == input_solu:
+                continue
+            if dominate(solu[1], input_solu[1]):
+                # solu_i has non-dominated solution
+                return solu
+        return None  # this is a pareto optimal
+
+    # find non-dominated solution for every solution
+    pf_list = list(filter(lambda s: find_non_dominated_solu(s) is None, solutions))
+
+    return pf_list
+
+
 class MOEADSearcher(Searcher):
     """
     References
@@ -89,7 +128,7 @@ class MOEADSearcher(Searcher):
         :param objectives: name of objectives
         :param n_neighbors: num of neighbors to mating
         :param mutate_probability:
-        :param decomposition: decomposition approch, default is None one of tchebicheff,weighted_sum
+        :param decomposition: decomposition approach, default is None one of tchebicheff,weighted_sum, pbi
         :param optimize_direction:
         :param use_meta_learner:
         :param space_sample_validation_fn:
@@ -114,7 +153,8 @@ class MOEADSearcher(Searcher):
             self.decomposition = self.tchebicheff_decomposition
         else:
             mapping = {'tchebicheff': self.tchebicheff_decomposition,
-                       'weighted_sum': self.weighted_sum_decomposition}
+                       'weighted_sum': self.weighted_sum_decomposition,
+                       'pbi': self.pbi_decomposition}
             if decomposition in mapping:
                 self.decomposition = mapping[decomposition]
             else:
@@ -304,7 +344,7 @@ class MOEADSearcher(Searcher):
             MP = 1
         final_offspring = self.single_point_mutate(offspring, self.space_fn(), MP)
 
-        individual.set_son(final_offspring)
+        individual.set_offspring(final_offspring)
 
         self._sample_count = self._sample_count + 1
 
@@ -343,8 +383,8 @@ class MOEADSearcher(Searcher):
         """
         F = self._to_score_vec(scores)
         Z = self.get_reference_point()  # virtual ZERO point
-        d1 = ((Z - F) * weight_vector) / np.linalg.norm(weight_vector)
-        d2 = np.linalg.norm((Z - weight_vector * d1) - F)
+        d1 = ((F - Z) * weight_vector).sum() / np.linalg.norm(weight_vector)
+        d2 = np.linalg.norm((Z + weight_vector * d1) - F)
 
         return d1 + d2 * theta
 
@@ -374,7 +414,7 @@ class MOEADSearcher(Searcher):
                 indi.set_scores(result)
 
         for indi in self.pop:
-            if indi.get_son() == space:
+            if indi.get_offspring() == space:
                 self._update_neighbors(indi, space, result)
 
     @property
