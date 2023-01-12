@@ -204,10 +204,10 @@ class TestMinimumLocalBatch(BaseBatchAppTest):
 
 
 @skip_if_windows
-class TestLocaBatch(BaseBatchAppTest):
+class TestLocalBatch(BaseBatchAppTest):
     @classmethod
     def setup_class(cls):
-        super(TestLocaBatch, cls).setup_class()
+        super(TestLocalBatch, cls).setup_class()
         batch = create_local_batch()
         app = BatchApplication(batch, server_port=8082,
                                scheduler_exit_on_finish=True,
