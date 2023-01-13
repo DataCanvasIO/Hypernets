@@ -27,11 +27,11 @@ Job scheduler, which schedules jobs in batch to run on appropriate machine resou
 The backend for running jobs can run in a stand-alone mode or multiple remote nodes through SSH protocol.
 
 
-Examples
+Quick start
 ================
 
-Run batch with command line tool
-__________
+Run batch using command line tool
+_________________________________
 
 After installing ``hypernets``, you could see the following description by typing ``hyperctl``, which includes four arguments  ``run``, ``generate``, ``batch``, ``job``:
 
@@ -67,6 +67,8 @@ create a job python script ``~/sklearn_iris_example.py`` with following content:
 
 .. code-block:: python
 
+    import os
+    import pickle as pkl
     from hypernets import hyperctl
     from sklearn import datasets
     from sklearn.metrics import accuracy_score
@@ -85,6 +87,13 @@ create a job python script ``~/sklearn_iris_example.py`` with following content:
     y_pred = lr.predict(X_test)
 
     print(f"tol: {tol}, accuracy_score: {accuracy_score(y_pred, y_test)}")
+
+    # persist assets
+    report_dir = "~/report/"
+    os.makedirs(report_dir)
+
+    with open(os.path.join(reportdir, f"model_tol_{tol}.pkl"), 'wb') as f:
+        pkl.dump(lr, f)
 
 
 Hyperctl uses the JSON format file to define the jobs, for example create a file named ``batch.json`` and configures 2 jobs then set the parameter ``tol`` to 1 and 100 respectively:
@@ -137,14 +146,95 @@ After the task finished, view the output log file:
     tol: 100, accuracy_score: 0.36666666666666664
 
 
-Run batch with API
-_________________________________
+Run batch using API
+___________________
+Using API is more flexible than the command line tool to manage batch.
+
+.. code-block::  python
+
+    from hypernets.hyperctl.appliation import BatchApplication
+    from hypernets.hyperctl.batch import Batch
+
+    batch = Batch(name="remote-batch-example", data_dir="~/hyperctl/remote-batch-example", job_command="python ~/sklearn_iris_example.py")
+
+    batch.add_job(name='job1', params={"tol": 1})
+    batch.add_job(name='job2', params={"tol": 2})
+    batch.add_job(name='job3', params={"tol": 3})
 
 
+    backend_conf = {
+            "type": "remote",
+            "machines": [
+                {
+                    "connection": { 'hostname': "172.20.30.105", 'username': "hyperctl", 'password': "hyperctl"}  # modify to your host configuration
+                }, {
+                    "connection": { 'hostname': "172.20.30.106", 'username': "hyperctl", 'password': "hyperctl"}  # modify to your host configuration
+                }, {
+                    "connection": { 'hostname': "172.20.30.107", 'username': "hyperctl", 'password': "hyperctl"}  # modify to your host configuration
+                }
+            ]
+        }
 
 
-Generate batch config from job template
-_______________________________________
+    app = BatchApplication(batch, server_host="172.20.30.105",  # modify to your host configuration
+                           server_port=8061,
+                           scheduler_exit_on_finish=True,
+                           scheduler_interval=1000,
+                           backend_conf=backend_conf,
+                           independent_tmp=True,
+                           scheduler_callbacks=[ConsoleCallback()])
+
+    app.start()
+
+
+Debug job in development stage
+______________________________
+
+Job scripts need to be scheduled through `BatchApplication` to run, so that they run in two separate processes,
+This brings inconvenience to the development and debugging of the job script. At this time, we can inject test parameters into the job to run the job script directly:
+
+.. code-block:: python
+
+    import os
+    import pickle as pkl
+    from hypernets import hyperctl
+    from sklearn import datasets
+    from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import train_test_split
+    from sklearn.linear_model import LogisticRegression
+
+    test_params = {  # define your test params
+        "tol": 1
+    }
+
+    api.inject(params=mock_params)  # inject test params, and NOTE that remove it when you no longer debug or it can not read params from BatchApplication
+
+    job_params = hyperctl.get_job_params()
+
+    tol=job_params['tol']
+
+    X, y = datasets.load_iris(return_X_y=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=8086)
+
+    lr = LogisticRegression(tol=tol)
+    lr.fit(X_train, y_train)
+    y_pred = lr.predict(X_test)
+
+    print(f"tol: {tol}, accuracy_score: {accuracy_score(y_pred, y_test)}")
+
+    # persist assets
+    report_dir = "~/report/"
+    os.makedirs(report_dir)
+
+    with open(os.path.join(reportdir, f"model_tol_{tol}.pkl"), 'wb') as f:
+        pkl.dump(lr, f)
+
+
+And now we can run or debug the job script directly, but note that we need remove ``api.inject(params=mock_params)`` if
+needs to receive params from ``BatchApplication``.
+
+Generate jobs from template
+___________________________
 
 Hyperctl generates jobs config in batch by arranging and combining parameters based on the configuration template, the generated file can be used to run the batch.
 Here is an example of how to use template file to generate batch config file .
@@ -493,7 +583,7 @@ ________
 Basic example
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Refer to `Job template`_ .
+Refer to `Generate jobs from template`_ .
 
 Configuration references
 _________________________
