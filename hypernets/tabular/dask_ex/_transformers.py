@@ -891,7 +891,7 @@ class LocalizedTfidfVectorizer(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def agg_part(part):
-        return pd.Series(index=part.columns)
+        return pd.Series(index=part.columns, dtype='f8')
 
     @staticmethod
     def transform_part(part, voc):
