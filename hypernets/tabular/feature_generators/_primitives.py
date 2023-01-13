@@ -4,12 +4,15 @@
 """
 from functools import partial
 
+import featuretools as ft
 import numpy as np
+import pandas as pd
 from featuretools.primitives import Haversine, TransformPrimitive
 from featuretools.utils.gen_utils import Library
 from sklearn.pipeline import make_pipeline
 
 from hypernets.tabular.cfg import TabularCfg as cfg
+from hypernets.utils import Version
 from . import _base
 
 try:
@@ -18,6 +21,8 @@ try:
     is_geohash_installed = True
 except ImportError:
     is_geohash_installed = False
+
+_TO_DASK_SERIES = Version(ft.__version__) >= Version('1.20')
 
 
 class DaskCompatibleTransformPrimitive(TransformPrimitive):
@@ -48,7 +53,12 @@ class DaskCompatibleTransformPrimitive(TransformPrimitive):
 
     def fn_dask_part(self, part):
         arrs = [part.iloc[:, i] for i in range(len(part.columns))]
-        return self.fn_pd(*arrs)
+        result = self.fn_pd(*arrs)
+
+        if _TO_DASK_SERIES and isinstance(result, np.ndarray):
+            result = pd.Series(result)
+
+        return result
 
 
 class CrossCategorical(DaskCompatibleTransformPrimitive):
@@ -136,6 +146,14 @@ class TfidfPrimitive(TransformPrimitive):
             self.encoder_ = encoder
         else:
             xt = self.encoder_.transform(x1)
+
+        if _TO_DASK_SERIES:
+            from hypernets.tabular import is_dask_installed
+            if is_dask_installed:
+                from hypernets.tabular.dask_ex import DaskToolBox
+                if DaskToolBox.is_dask_array(xt):
+                    xt = DaskToolBox.to_dask_frame_or_series(xt)
+                    xt = DaskToolBox.make_divisions_known(xt)
 
         if hasattr(xt, 'iloc'):
             result = [xt.iloc[:, i] for i in range(xt.shape[1])]
