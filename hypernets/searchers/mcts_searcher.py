@@ -89,6 +89,7 @@ class MCTSSearcher(Searcher):
         raise NotImplementedError
 
     def update_result(self, space_sample, result):
+        result = list(result.values())[0]
         best_node = self.nodes_map[space_sample.space_id]
         # print(f'Update result: space:{space_sample.space_id}, result:{result}, node:{best_node.info()}')
         self.tree.back_propagation(best_node, result)

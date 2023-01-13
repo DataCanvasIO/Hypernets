@@ -27,10 +27,10 @@ Job scheduler, which schedules jobs in batch to run on appropriate machine resou
 The backend for running jobs can run in a stand-alone mode or multiple remote nodes through SSH protocol.
 
 
-Quick start
+Examples
 ================
 
-Run batch
+Run batch with command line tool
 __________
 
 After installing ``hypernets``, you could see the following description by typing ``hyperctl``, which includes four arguments  ``run``, ``generate``, ``batch``, ``job``:
@@ -137,9 +137,14 @@ After the task finished, view the output log file:
     tol: 100, accuracy_score: 0.36666666666666664
 
 
+Run batch with API
+_________________________________
 
-Job template
-______________
+
+
+
+Generate batch config from job template
+_______________________________________
 
 Hyperctl generates jobs config in batch by arranging and combining parameters based on the configuration template, the generated file can be used to run the batch.
 Here is an example of how to use template file to generate batch config file .

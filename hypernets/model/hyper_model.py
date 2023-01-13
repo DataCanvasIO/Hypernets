@@ -104,8 +104,8 @@ class HyperModel:
                 trial.memo['oof_scores'] = oof_scores
 
             # improved = self.history.append(trial)
-
-            self.searcher.update_result(space_sample, reward)
+            # scores['elapsed'] = elapsed
+            self.searcher.update_result(space_sample, scores)
         else:
             elapsed = time.time() - start_time
             trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
