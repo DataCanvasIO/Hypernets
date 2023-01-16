@@ -5,6 +5,8 @@ from hypernets.core import HyperSpace, get_random_state
 from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection, Searcher
 
+from .ea_operators import ShuffleCrossOver, UniformCrossover, SinglePointCrossOver
+
 
 class Individual:
 
@@ -119,7 +121,8 @@ class MOEADSearcher(Searcher):
         [3]. A. Jaszkiewicz, “On the performance of multiple-objective genetic local search on the 0/1 knapsack problem – A comparative experiment,” IEEE Trans. Evol. Comput., vol. 6, no. 4, pp. 402–412, Aug. 2002
     """
 
-    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, mutate_probability=0.3,
+    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2,
+                 recombination=None, mutate_probability=0.3,
                  decomposition=None, pbi_theta=0.5, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
@@ -149,6 +152,19 @@ class MOEADSearcher(Searcher):
         if n_neighbors > n_vectors:
             raise RuntimeError(f"n_neighbors should less that {n_vectors - 1}")
 
+        if recombination is None:
+            self.recombination = ShuffleCrossOver
+        else:
+            recombination_mapping = {
+                'shuffle': ShuffleCrossOver,
+                'uniform': UniformCrossover,
+                'single_point': SinglePointCrossOver,
+            }
+            if recombination in recombination_mapping:
+                self.recombination = recombination_mapping[recombination]
+            else:
+                raise RuntimeError(f'unseen recombination approach {decomposition}.')
+
         if decomposition is None:
             self.decomposition = self.tchebicheff_decomposition
         else:
@@ -158,7 +174,7 @@ class MOEADSearcher(Searcher):
             if decomposition in mapping:
                 self.decomposition = mapping[decomposition]
             else:
-                raise RuntimeError(f'unseen decomposition apporch {decomposition}.')
+                raise RuntimeError(f'unseen decomposition approach {decomposition}.')
 
         if random_state is None:
             self.random_state = get_random_state()
