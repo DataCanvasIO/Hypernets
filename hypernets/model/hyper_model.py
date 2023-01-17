@@ -39,6 +39,13 @@ class HyperModel:
     def _get_estimator(self, space_sample):
         raise NotImplementedError
 
+    @property
+    def reward_metrics(self):
+        if isinstance(self.reward_metric, list):
+            return self.reward_metric
+        else:
+            return [self.reward_metric]
+
     def load_estimator(self, model_file):
         raise NotImplementedError
 
@@ -59,10 +66,9 @@ class HyperModel:
         metrics = fit_kwargs.pop('metrics') if 'metrics' in fit_kwargs else None
         if metrics is not None:
             assert isinstance(metrics, (tuple, list)), 'metrics should be list or tuple'
-            if not any(map(lambda _: _ is self.reward_metric, metrics)):
-                metrics = list(metrics) + [self.reward_metric]
+            metrics = list(set(list(metrics)).union(set(self.reward_metrics)))
         else:
-            metrics = [self.reward_metric]
+            metrics = self.reward_metrics
 
         succeeded = False
         scores = None
@@ -87,13 +93,17 @@ class HyperModel:
         if succeeded:
             if scores is None:
                 scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
-            reward = self._get_reward(scores, self.reward_metric)
 
             if model_file is None or len(model_file) == 0:
                 model_file = '%05d_%s.pkl' % (trial_no, space_sample.space_id)
             estimator.save(model_file)
 
             elapsed = time.time() - start_time
+
+            if 'elapsed' in self.reward_metrics:
+                scores['elapsed'] = elapsed
+
+            reward = self._get_reward(scores, self.reward_metric)
 
             trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
             trial.iteration_scores = estimator.get_iteration_scores()
@@ -104,8 +114,7 @@ class HyperModel:
                 trial.memo['oof_scores'] = oof_scores
 
             # improved = self.history.append(trial)
-            # scores['elapsed'] = elapsed
-            self.searcher.update_result(space_sample, scores)
+            self.searcher.update_result(space_sample, reward)
         else:
             elapsed = time.time() - start_time
             trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
@@ -123,7 +132,7 @@ class HyperModel:
         free = tb.memory_free() / tb.memory_total()
         return free > 0.618
 
-    def _get_reward(self, value, key=None):
+    def _get_reward(self, value: dict, keys: list = None):
         def cast_float(value):
             try:
                 fv = float(value)
@@ -131,20 +140,27 @@ class HyperModel:
             except TypeError:
                 return None
 
-        if key is None:
-            key = 'reward'
-        elif callable(key) and hasattr(key, '__name__'):
-            key = key.__name__
+        if keys is None:
+            keys = ['reward']
 
-        fv = cast_float(value)
-        if fv is not None:
-            reward = fv
-        elif isinstance(value, (dict, UserDict)) and key in value and cast_float(value[key]) is not None:
-            reward = cast_float(value[key])
-        else:
-            raise ValueError(
-                f'[value] should be a numeric or a dict which has a key named "{key}" whose value is a numeric.')
-        return reward
+        if not isinstance(value, (dict, UserDict)):
+            raise ValueError(f"[value] should be a dict but is {value} ")
+
+        rewards = []
+        for key in keys:
+            if callable(key) and hasattr(key, '__name__'):
+                key_name = key.__name__
+            else:
+                key_name = key
+            if key_name in value:
+                reward = cast_float(value[key_name])
+                if reward is not None:
+                    rewards.append(reward)
+                else:
+                    raise ValueError(
+                        f'[value] should be a numeric or a dict which has a key named "{key}" whose value is a numeric.')
+
+        return rewards
 
     def get_best_trial(self):
         return self.history.get_best()
