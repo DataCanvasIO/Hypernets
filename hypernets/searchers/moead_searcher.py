@@ -169,21 +169,30 @@ class Decomposition:
     def __init__(self, **kwargs):
         pass
 
-    def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray):
+    def adaptive_normalization(self, F, ideal, nadir):
+        """For objectives space normalization, the formula:
+            f_{i}' = \frac{f_i - z_i^*}{z_i^{nad} - z^* + \epsilon }
+        """
+        eps = 1e-6
+        return (F - ideal) / (nadir - ideal + eps)
+
+    def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray,
+           nadir: np.ndarray, **kwargs):
         raise NotImplementedError
 
-    def __call__(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray):
-        return self.do(scores, weight_vector, Z)
+    def __call__(self, F: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray):
+        N_F = self.adaptive_normalization(F, ideal, nadir)
+        return self.do(N_F, weight_vector, Z, ideal, nadir)
 
 
 class WeightedSumDecomposition(Decomposition):
 
-    def do(self, scores: np.ndarray, weight_vector, Z: np.ndarray):
+    def do(self, scores: np.ndarray, weight_vector, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray, **kwargs):
         return (scores * weight_vector).sum()
 
 
 class TchebicheffDecomposition(Decomposition):
-    def do(self, scores: np.ndarray, weight_vector, Z):
+    def do(self, scores: np.ndarray, weight_vector, Z, ideal:np.ndarray, nadir: np.ndarray, **kwargs):
         F = scores
         return np.max(np.abs(F - Z) * weight_vector)
 
@@ -194,7 +203,8 @@ class PBIDecomposition(Decomposition):
         super().__init__()
         self.penalty = penalty
 
-    def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray):
+    def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray,
+           **kwargs):
         """An implementation of "Boundary Intersection Approach base on penalty"
         :param scores
         :param weight_vector
@@ -389,6 +399,7 @@ class MOEADSearcher(Searcher):
         return pf_list
 
     def get_pf(self):
+        # TODO rename to non-dominated set
         return self.calc_pf(self.n_objectives, self._solutions)
 
     def single_point_mutate(self, sample_space, out_space, mutate_probability):
@@ -455,14 +466,25 @@ class MOEADSearcher(Searcher):
         for solu in self._solutions:
             scores = solu[1]
             scores_list.append(scores)
-
         return np.min(np.array(scores_list), axis=0)
+
+    def get_ideal_point(self):
+        non_dominated = self.get_pf()
+        return np.min(np.array(list(map(lambda v: v[1], non_dominated))), axis=0)
+
+    def get_nadir_point(self):
+        non_dominated = self.get_pf()
+        return np.max(np.array(list(map(lambda v: v[1], non_dominated))), axis=0)
+
 
     def _update_neighbors(self, indi: Individual, dna, scores):
         for neigh in indi.neighbors:
             wv = neigh.weight_vector
             Z = self.get_reference_point()
-            if (self.decomposition(neigh.get_scores(), wv, Z) - self.decomposition(scores, wv, Z)) < 0:
+            nadir = self.get_nadir_point()
+            ideal = self.get_ideal_point()
+
+            if (self.decomposition(neigh.get_scores(), wv, Z, ideal, nadir) - self.decomposition(scores, wv, Z, ideal, nadir)) < 0:
                 neigh.update_dna(dna, scores)
 
     def update_result(self, space, result):
