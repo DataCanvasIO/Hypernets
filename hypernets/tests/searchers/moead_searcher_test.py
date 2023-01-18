@@ -2,6 +2,7 @@ import os.path
 from pathlib import Path
 import sys
 
+from sklearn.preprocessing import LabelEncoder
 from hypernets.core.random_state import set_random_state
 from hypernets.examples.plain_model import PlainSearchSpace, PlainModel
 from hypernets.tabular.datasets import dsutils
@@ -13,19 +14,16 @@ set_random_state(1234)
 from hypernets.core.callbacks import *
 from hypernets.searchers.moead_searcher import MOEADSearcher
 
+import pytest
 
-def test_moead_training():
 
-    params = {
-        'decomposition': 'pbi',
-        'n_sampling': 5,
-        'pbi_theta': 1,
-    }
-
-    p_decomposition = params['decomposition']
-    p_n_sampling = int(params['n_sampling'])
+@pytest.mark.parametrize('decomposition', ['pbi',  'weighted_sum', 'tchebicheff'])
+@pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
+def test_moead_training(decomposition: str, recombination: str):
 
     df = dsutils.load_bank()
+    df['y'] = LabelEncoder().fit_transform(df['y'])
+
     df.drop(['id'], axis=1, inplace=True)
     X_train, X_test = train_test_split(df, test_size=0.8, random_state=1234)
 
@@ -36,7 +34,7 @@ def test_moead_training():
     objectives = ['logloss', 'elapsed']
 
     rs = MOEADSearcher(search_space, n_objectives=len(objectives),
-                       decomposition=p_decomposition, n_sampling=2)
+                       decomposition=decomposition, recombination=recombination, n_sampling=2)
 
     hk = PlainModel(rs, task='binary', reward_metric=objectives,
                     callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
@@ -48,4 +46,4 @@ def test_moead_training():
 
 
 if __name__ == '__main__':
-    test_moead_training()
+    test_moead_training("weighted_sum", "shuffle")

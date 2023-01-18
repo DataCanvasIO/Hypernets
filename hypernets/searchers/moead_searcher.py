@@ -145,8 +145,8 @@ class ShuffleCrossOver(Recombination):
 
 
 class UniformCrossover(Recombination):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, random_state=None):
+        super().__init__(random_state)
         self.p = 0.5
 
     def do(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
