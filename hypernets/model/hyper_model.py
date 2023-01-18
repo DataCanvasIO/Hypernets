@@ -103,7 +103,7 @@ class HyperModel:
             if 'elapsed' in self.reward_metrics:
                 scores['elapsed'] = elapsed
 
-            reward = self._get_reward(scores, self.reward_metric)
+            reward = self._get_reward(scores, self.reward_metrics)
 
             trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
             trial.iteration_scores = estimator.get_iteration_scores()
