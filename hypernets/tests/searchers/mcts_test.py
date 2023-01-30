@@ -78,7 +78,7 @@ class Test_MCTS():
             space_sample = searcher.sample()
             assert space_sample.all_assigned == True
             print(space_sample.params_summary())
-            searcher.update_result(space_sample, {'reward': np.random.uniform(0.1, 0.9)})
+            searcher.update_result(space_sample, [np.random.uniform(0.1, 0.9)])
 
         assert searcher.tree.root.visits == 1000
         assert len(searcher.nodes_map.items()) == 1000
@@ -99,7 +99,7 @@ class Test_MCTS():
             reward = np.random.uniform(0.1, 0.9)
             trial = Trial(sample, trial_no, reward, 10)
             history.append(trial)
-            searcher.update_result(sample, {'reward': reward})
+            searcher.update_result(sample, [reward])
             trial_no += 1
 
         assert searcher.tree.root.visits == 10
@@ -114,7 +114,7 @@ class Test_MCTS():
             reward = np.random.uniform(0.1, 0.9)
             trial = Trial(sample, trial_no, reward, 10)
             history.append(trial)
-            searcher.update_result(sample, {'reward': reward})
+            searcher.update_result(sample, [reward])
 
         assert searcher.tree.root.visits == 20
 

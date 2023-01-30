@@ -37,11 +37,6 @@ class Individual:
         self._scores = scores
 
     def random_neighbors(self, n):
-        """Random select neighbors
-        :param n:
-        :param same_param: ensure neighbors has same params
-        :return:
-        """
         neighbor_len = len(self.neighbors)
         if n > neighbor_len:
             raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
@@ -53,7 +48,6 @@ class Individual:
         params_list = []
         for neighbor in self.neighbors:
             assert neighbor.dna.all_assigned
-            # TODO use hp.same_config
             params_list.append((frozenset([p.alias for p in neighbor.dna.get_assigned_params()]), neighbor))
 
         params_dict = {}
@@ -71,43 +65,156 @@ class Individual:
         raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
 
 
-def get_pf(objectives, solutions):
-    """Update Pareto front and pareto optimal solution.
-      Compare solution with solutions in pareto front, if there are solutions dominated by new solution ,
-      then replace them.
+class Recombination:
 
-    :param dna: new evaluated solution
-    :param scores: scores of new solution
-    :return:
-    """
-    def dominate(s1_scores, s2_scores):
-        # return: is s1 dominate s2
-        ret = []
-        for j, o_name in enumerate(objectives):
-            if s1_scores[o_name] < s2_scores[o_name]:
-                ret.append(1)
-            elif s1_scores[o_name] == s2_scores[o_name]:
-                ret.append(0)
-            else:
-                return False  # s1 does not dominate s2
-        if np.sum(np.array(ret)) >= 1:
-            return True  # s1 has at least one metric better that s2
+    def __init__(self, random_state=None):
+        if random_state is None:
+            self.random_state = get_random_state()
         else:
-            return False
+            self.random_state = random_state
 
-    def find_non_dominated_solu(input_solu):
-        for solu in solutions:
-            if solu == input_solu:
-                continue
-            if dominate(solu[1], input_solu[1]):
-                # solu_i has non-dominated solution
-                return solu
-        return None  # this is a pareto optimal
+    def do(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+        raise NotImplementedError
 
-    # find non-dominated solution for every solution
-    pf_list = list(filter(lambda s: find_non_dominated_solu(s) is None, solutions))
+    def __call__(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+        # Crossover hyperparams only if they have same params
+        params_1 = ind1.dna.get_assigned_params()
+        params_2 = ind2.dna.get_assigned_params()
 
-    return pf_list
+        assert len(params_1) == len(params_2)
+        for p1, p2 in zip(params_1, params_2):
+            assert p1.alias == p2.alias
+
+        out = self.do(ind1, ind2, out_space)
+        assert out.all_assigned
+        return out
+
+
+class SinglePointCrossOver(Recombination):
+
+    def do(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+
+        params_1 = ind1.dna.get_assigned_params()
+        params_2 = ind2.dna.get_assigned_params()
+        n_params = len(params_1)
+        cut_i = self.random_state.randint(1, n_params - 2)  # ensure offspring has dna from both parents
+
+        # cross over
+        for i, hp in enumerate(out_space.params_iterator):
+            if i < cut_i:
+                # comes from the first parent
+                hp.assign(params_1[i].value)
+            else:
+                hp.assign(params_2[i].value)
+
+        return out_space
+
+
+class ShuffleCrossOver(Recombination):
+
+    def do(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+        params_1 = ind1.dna.get_assigned_params()
+        params_2 = ind2.dna.get_assigned_params()
+
+        n_params = len(params_1)
+
+        # rearrange dna & single point crossover
+        cs_point = self.random_state.randint(1, n_params - 2)
+        R = self.random_state.permutation(len(params_1))
+        t1_params = []
+        t2_params = []
+        for i in range(n_params):
+            if i < cs_point:
+                t1_params[i] = params_1[R[i]]
+                t2_params[i] = params_2[R[i]]
+            else:
+                t1_params[i] = params_2[R[i]]
+                t2_params[i] = params_1[R[i]]
+
+        c1_params = []
+        c2_params = []
+        for i in range(n_params):
+            c1_params[R[i]] = c1_params[i]
+            c2_params[R[i]] = c2_params[i]
+
+        # select the first child
+        for i, hp in enumerate(out_space.params_iterator):
+            hp.assign(c1_params[i])
+
+        return out_space
+
+
+class UniformCrossover(Recombination):
+    def __init__(self, random_state=None):
+        super().__init__(random_state)
+        self.p = 0.5
+
+    def do(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+
+        params_1 = ind1.dna.get_assigned_params()
+        params_2 = ind2.dna.get_assigned_params()
+
+        # crossover
+        for i, hp in enumerate(out_space.params_iterator):
+            if self.random_state.random() >= self.p:
+                hp.assign(params_1[i].value)
+            else:
+                hp.assign(params_2[i].value)
+
+        assert out_space.all_assigned
+        return out_space
+
+
+class Decomposition:
+    def __init__(self, **kwargs):
+        pass
+
+    def adaptive_normalization(self, F, ideal, nadir):
+        """For objectives space normalization, the formula:
+            f_{i}' = \frac{f_i - z_i^*}{z_i^{nad} - z^* + \epsilon }
+        """
+        eps = 1e-6
+        return (F - ideal) / (nadir - ideal + eps)
+
+    def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray,
+           nadir: np.ndarray, **kwargs):
+        raise NotImplementedError
+
+    def __call__(self, F: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray):
+        N_F = self.adaptive_normalization(F, ideal, nadir)
+        return self.do(N_F, weight_vector, Z, ideal, nadir)
+
+
+class WeightedSumDecomposition(Decomposition):
+
+    def do(self, scores: np.ndarray, weight_vector, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray, **kwargs):
+        return (scores * weight_vector).sum()
+
+
+class TchebicheffDecomposition(Decomposition):
+    def do(self, scores: np.ndarray, weight_vector, Z, ideal:np.ndarray, nadir: np.ndarray, **kwargs):
+        F = scores
+        return np.max(np.abs(F - Z) * weight_vector)
+
+
+class PBIDecomposition(Decomposition):
+
+    def __init__(self, penalty=0.5):
+        super().__init__()
+        self.penalty = penalty
+
+    def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray,
+           **kwargs):
+        """An implementation of "Boundary Intersection Approach base on penalty"
+        :param scores
+        :param weight_vector
+        :param theta: Penalty F deviates from the weight vector.
+        """
+        F = scores
+        d1 = ((F - Z) * weight_vector).sum() / np.linalg.norm(weight_vector)
+        d2 = np.linalg.norm((Z + weight_vector * d1) - F)
+
+        return d1 + d2 * self.penalty
 
 
 class MOEADSearcher(Searcher):
@@ -119,14 +226,16 @@ class MOEADSearcher(Searcher):
         [3]. A. Jaszkiewicz, “On the performance of multiple-objective genetic local search on the 0/1 knapsack problem – A comparative experiment,” IEEE Trans. Evol. Comput., vol. 6, no. 4, pp. 402–412, Aug. 2002
     """
 
-    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, mutate_probability=0.3,
-                 decomposition=None, pbi_theta=0.5, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
+    def __init__(self, space_fn, n_objectives, n_sampling=5, n_neighbors=2,
+                 recombination=None, mutate_probability=0.3,
+                 decomposition=None, decomposition_options=None,
+                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
         :param space_fn: 
         :param n_sampling: the number of samples in each objective
-        :param objectives: name of objectives
-        :param n_neighbors: num of neighbors to mating
+        :param n_objectives: number of objectives
+        :param n_neighbors: number of neighbors to mating
         :param mutate_probability:
         :param decomposition: decomposition approach, default is None one of tchebicheff,weighted_sum, pbi
         :param optimize_direction:
@@ -137,33 +246,54 @@ class MOEADSearcher(Searcher):
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
                           use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
 
-        self.objectives = objectives
+        if optimize_direction != OptimizeDirection.Minimize:
+            raise ValueError("optimization towards maximization is not supported.")
+
+        self.n_objectives = n_objectives
 
         self.mutate_probability = mutate_probability
 
-        self.pbi_theta = pbi_theta
-
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
-
-        n_vectors = weight_vectors.shape[0]
-        if n_neighbors > n_vectors:
-            raise RuntimeError(f"n_neighbors should less that {n_vectors - 1}")
-
-        if decomposition is None:
-            self.decomposition = self.tchebicheff_decomposition
-        else:
-            mapping = {'tchebicheff': self.tchebicheff_decomposition,
-                       'weighted_sum': self.weighted_sum_decomposition,
-                       'pbi': self.pbi_decomposition}
-            if decomposition in mapping:
-                self.decomposition = mapping[decomposition]
-            else:
-                raise RuntimeError(f'unseen decomposition apporch {decomposition}.')
 
         if random_state is None:
             self.random_state = get_random_state()
         else:
             self.random_state = np.random.RandomState(seed=random_state)
+
+        n_vectors = weight_vectors.shape[0]
+        if n_neighbors > n_vectors:
+            raise RuntimeError(f"n_neighbors should less that {n_vectors - 1}")
+
+        if recombination is None:
+            self.recombination = ShuffleCrossOver
+        else:
+            recombination_mapping = {
+                'shuffle': ShuffleCrossOver,
+                'uniform': UniformCrossover,
+                'single_point': SinglePointCrossOver,
+            }
+            if recombination in recombination_mapping:
+                self.recombination = recombination_mapping[recombination](random_state=self.random_state)
+            else:
+                raise RuntimeError(f'unseen recombination approach {decomposition}.')
+
+        if decomposition_options is None:
+            decomposition_options = {}
+
+        if decomposition is None:
+            decomposition_cls = TchebicheffDecomposition
+        else:
+            decomposition_mapping = {
+                'tchebicheff': TchebicheffDecomposition,
+                'weighted_sum': WeightedSumDecomposition,
+                'pbi': PBIDecomposition
+            }
+            decomposition_cls = decomposition_mapping.get(decomposition)
+
+            if decomposition_cls is None:
+                raise RuntimeError(f'unseen decomposition approach {decomposition}.')
+
+        self.decomposition = decomposition_cls(**decomposition_options)
 
         self.n_neighbors = n_neighbors
         self.pop = self.init_population(weight_vectors)
@@ -175,9 +305,6 @@ class MOEADSearcher(Searcher):
     def population_size(self):
         return len(self.pop)
 
-    @property
-    def n_objectives(self):
-        return len(self.objectives)
 
     def distribution_number(self, n_samples, n_objectives):
         """Uniform weighted vectors, an implementation of Normal-boundary intersection.
@@ -231,7 +358,8 @@ class MOEADSearcher(Searcher):
 
         return pop
 
-    def get_pf(self):
+    @staticmethod
+    def calc_pf(n_objectives, solutions):
         """Update Pareto front and pareto optimal solution.
           Compare solution with solutions in pareto front, if there are solutions dominated by new solution ,
           then replace them.
@@ -240,13 +368,14 @@ class MOEADSearcher(Searcher):
         :param scores: scores of new solution
         :return:
         """
+
         def dominate(s1_scores, s2_scores):
             # return: is s1 dominate s2
             ret = []
-            for j, o_name in enumerate(self.objectives):
-                if s1_scores[o_name] < s2_scores[o_name]:
+            for j in range(n_objectives):
+                if s1_scores[j] < s2_scores[j]:
                     ret.append(1)
-                elif s1_scores[o_name] == s2_scores[o_name]:
+                elif s1_scores[j] == s2_scores[j]:
                     ret.append(0)
                 else:
                     return False  # s1 does not dominate s2
@@ -256,7 +385,7 @@ class MOEADSearcher(Searcher):
                 return False
 
         def find_non_dominated_solu(input_solu):
-            for solu in self._solutions:
+            for solu in solutions:
                 if solu == input_solu:
                     continue
                 if dominate(solu[1], input_solu[1]):
@@ -265,9 +394,13 @@ class MOEADSearcher(Searcher):
             return None  # this is a pareto optimal
 
         # find non-dominated solution for every solution
-        pf_list = list(filter(lambda s: find_non_dominated_solu(s) is None, self._solutions))
+        pf_list = list(filter(lambda s: find_non_dominated_solu(s) is None, solutions))
 
         return pf_list
+
+    def get_pf(self):
+        # TODO rename to non-dominated set
+        return self.calc_pf(self.n_objectives, self._solutions)
 
     def single_point_mutate(self, sample_space, out_space, mutate_probability):
 
@@ -291,37 +424,6 @@ class MOEADSearcher(Searcher):
                     hp.assign(parent_params[i].value)
         return out_space
 
-    def single_point_crossover(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
-        """Crossover hyperparams only if they have same params
-        """
-        params_1 = ind1.dna.get_assigned_params()
-        params_2 = ind2.dna.get_assigned_params()
-
-        assert len(params_1) == len(params_2)
-        for p1, p2 in zip(params_1, params_2):
-            assert p1.alias == p2.alias
-
-        # random crossover point
-        if len(params_1) != len(params_2):
-            print(params_1)
-            print(params_2)
-
-        assert len(params_1) == len(params_2)
-        n_params = len(params_1)
-        cut_i = self.random_state.randint(1, n_params - 2)  # ensure offspring has dna from both parents
-
-        # cross over
-        for i, hp in enumerate(out_space.params_iterator):
-            if i < cut_i:
-                # comes from the first parent
-                hp.assign(params_1[i].value)
-            else:
-                hp.assign(params_2[i].value)
-
-        assert out_space.all_assigned
-
-        return out_space
-
     def sample(self):
         # priority evaluation of samples that have not been evaluated
         for indi in self.pop:
@@ -334,7 +436,7 @@ class MOEADSearcher(Searcher):
 
         # select neighbors to  crossover and mutate
         try:
-            offspring = self.single_point_crossover(*individual.random_neighbors(2), self.space_fn())
+            offspring = self.recombination(*individual.random_neighbors(2), self.space_fn())
             MP = self.mutate_probability
         except Exception as e:
             # sine the length between sample space does not match usually cause no enough neighbors
@@ -357,51 +459,32 @@ class MOEADSearcher(Searcher):
     def get_best(self):
         return list(map(lambda s: s[0], self.get_pf()))
 
-    def compare_scores(self, scores1: dict, scores2: dict,
-                       weight_vector, de_func):
-        kwargs = {}
-        if de_func == self.pbi_decomposition:
-            kwargs['theta'] = self.pbi_theta
-        return de_func(scores2, weight_vector, **kwargs) - de_func(scores1, weight_vector, **kwargs)
-
-    def _to_score_vec(self, scores: dict):
-        return np.array([scores[k] for k in self.objectives])
-
-    def weighted_sum_decomposition(self, scores: dict, weight_vector):
-        return (self._to_score_vec(scores) * weight_vector).sum()
-
-    def tchebicheff_decomposition(self, scores, weight_vector):
-        Z = self.get_reference_point()
-        F = self._to_score_vec(scores)
-        return np.max(np.abs(F - Z) * weight_vector)
-
-    def pbi_decomposition(self, scores: dict, weight_vector: np.ndarray, theta: float = 0.5):
-        """An implementation of "Boundary Intersection Approach base on penalty"
-        :param scores
-        :param weight_vector
-        :param theta: Penalty F deviates from the weight vector.
-        """
-        F = self._to_score_vec(scores)
-        Z = self.get_reference_point()  # virtual ZERO point
-        d1 = ((F - Z) * weight_vector).sum() / np.linalg.norm(weight_vector)
-        d2 = np.linalg.norm((Z + weight_vector * d1) - F)
-
-        return d1 + d2 * theta
-
     def get_reference_point(self):
         """calculate Z in tchebicheff decomposition
         """
         scores_list = []
         for solu in self._solutions:
             scores = solu[1]
-            scores_list.append([scores[o_name] for o_name in self.objectives])
-
+            scores_list.append(scores)
         return np.min(np.array(scores_list), axis=0)
+
+    def get_ideal_point(self):
+        non_dominated = self.get_pf()
+        return np.min(np.array(list(map(lambda v: v[1], non_dominated))), axis=0)
+
+    def get_nadir_point(self):
+        non_dominated = self.get_pf()
+        return np.max(np.array(list(map(lambda v: v[1], non_dominated))), axis=0)
+
 
     def _update_neighbors(self, indi: Individual, dna, scores):
         for neigh in indi.neighbors:
-            if self.compare_scores(neigh.get_scores(),
-                                   scores, neigh.weight_vector, self.decomposition) < 0:
+            wv = neigh.weight_vector
+            Z = self.get_reference_point()
+            nadir = self.get_nadir_point()
+            ideal = self.get_ideal_point()
+
+            if (self.decomposition(neigh.get_scores(), wv, Z, ideal, nadir) - self.decomposition(scores, wv, Z, ideal, nadir)) < 0:
                 neigh.update_dna(dna, scores)
 
     def update_result(self, space, result):
