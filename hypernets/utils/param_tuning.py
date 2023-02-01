@@ -103,11 +103,13 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
 
             trial_start = time.time()
             result = func(**func_params)
-            assert isinstance(result, (float, dict))
+            assert isinstance(result, (float, dict, list))
 
             if isinstance(result, dict):
                 assert 'reward' in result.keys()
-                last_reward = result['reward']
+                last_reward = [result['reward']]
+            elif isinstance(result, float):
+                last_reward = [result]
             else:
                 last_reward = result
             searcher.update_result(space_sample, last_reward)
@@ -119,7 +121,7 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
                 memo.pop('reward')
                 trial.memo.update(memo)
 
-            if last_reward != 0:  # success
+            if last_reward[0] != 0:  # success
                 improved = history.append(trial)
                 for callback in callbacks:
                     callback.on_trial_end(None, space_sample, trial_no, trial.reward, improved, trial.elapsed)
