@@ -95,6 +95,8 @@ class EarlyStoppingCallback(Callback):
             self.start_time = time.time()
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        reward = reward[0]  # NOTE only use first metric
+
         if self.start_time is None:
             self.start_time = time.time()
 
@@ -169,6 +171,7 @@ class FileLoggingCallback(Callback):
         #     f.write(space.params_summary())
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        reward = reward[0]
         with self.open(f'{self.output_dir}/trial_{improved}_{trial_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
                        'w') as f:
             f.write(space.params_summary())
@@ -340,6 +343,7 @@ class NotebookCallback(Callback):
             update_display(df_best_trials, display_id=self.current_trial_display_id)
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
+        reward = reward[0]
         self.last_trial_no = trial_no
         self.last_reward = reward
 
