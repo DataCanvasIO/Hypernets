@@ -194,8 +194,9 @@ class FileLoggingCallback(Callback):
                 f.write('\r\n---------------------------------------------------\r\n\r\n')
 
     def on_skip_trial(self, hyper_model, space, trial_no, reason, reward, improved, elapsed):
+        reward_repr = "_".join(list(map(lambda v: f"{v:010.8f}", reward)))
         with self.open(
-                f'{self.output_dir}/trial_{reason}_{improved}_{trial_no:04d}_{reward:010.8f}_{elapsed:06.2f}.log',
+                f'{self.output_dir}/trial_{reason}_{improved}_{trial_no:04d}_{reward_repr}_{elapsed:06.2f}.log',
                 'w') as f:
             f.write(space.params_summary())
 
