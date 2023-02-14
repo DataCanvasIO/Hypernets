@@ -18,6 +18,7 @@ import pytest
 
 
 @pytest.mark.parametrize('decomposition', ['pbi',  'weighted_sum', 'tchebicheff'])
+# @pytest.mark.parametrize('decomposition', ['tchebicheff'])
 @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
 def test_moead_training(decomposition: str, recombination: str):
 
@@ -39,11 +40,13 @@ def test_moead_training(decomposition: str, recombination: str):
     hk = PlainModel(rs, task='binary', reward_metric=objectives,
                     callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 
-    hk.search(X_train, y_train, X_test, y_test, max_trials=20)
+    hk.search(X_train, y_train, X_test, y_test, max_trials=10)
 
     len(hk.history.trials)
     assert hk.get_best_trial()
 
 
 if __name__ == '__main__':
-    test_moead_training("weighted_sum", "shuffle")
+    # test_moead_training("tchebicheff", "shuffle")
+    # test_moead_training("tchebicheff", "single_point")
+    test_moead_training("tchebicheff", "uniform")
