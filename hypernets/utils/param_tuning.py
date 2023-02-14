@@ -112,7 +112,6 @@ def search_params(func, searcher='Grid', max_trials=100, optimize_direction='min
                 last_reward = [result]
             else:
                 last_reward = result
-            last_reward = [last_reward]
             searcher.update_result(space_sample, last_reward)
             elapsed = time.time() - trial_start
 
