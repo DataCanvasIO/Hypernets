@@ -29,7 +29,7 @@ class Test_ParamTuning():
         print('start')
         history = search_params(func1, 'grid', max_trials=10, optimize_direction='max')
         best = history.get_best()
-        assert best.reward == 14.370000000000001
+        assert best.reward[0] == 14.370000000000001
         assert best.trial_no == 10
 
     def test_trigger_by_trials(self):
@@ -40,7 +40,7 @@ class Test_ParamTuning():
 
         history = search_params(func_early_stopping, 'grid', max_trials=10, optimize_direction='max', callbacks=[es])
         best = history.get_best()
-        assert best.reward == 0.6
+        assert best.reward[0] == 0.6
         assert best.trial_no == 1
         assert len(history.trials) == 4
         assert es.triggered_reason == EarlyStoppingCallback.REASON_TRIAL_LIMIT
@@ -53,7 +53,7 @@ class Test_ParamTuning():
 
         history = search_params(func_early_stopping, 'grid', max_trials=10, optimize_direction='max', callbacks=[es])
         best = history.get_best()
-        assert best.reward == 0.6
+        assert best.reward[0] == 0.6
         assert best.trial_no == 1
         assert len(history.trials) == 1
         assert es.triggered_reason == EarlyStoppingCallback.REASON_EXPECTED_REWARD
