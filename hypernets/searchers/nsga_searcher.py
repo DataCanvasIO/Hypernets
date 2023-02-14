@@ -21,7 +21,7 @@ class NSGAIndividual(Individual):
         self.S: List[NSGAIndividual] = []
         self.n: int = -1
 
-        self.distance = -1  # crowding-distance
+        self.distance = 0  # crowding-distance
 
 
 class NSGAIISearcher(Searcher):
@@ -91,23 +91,22 @@ class NSGAIISearcher(Searcher):
             i = i + 1
         return F
 
-    def crowding_distance_assignment(self, I: List[NSGAIndividual]):
-        l = len(I)
+    @staticmethod
+    def crowding_distance_assignment(I: List[NSGAIndividual]):
         scores_array = np.array([indi.scores for indi in I])
 
-        maximum_array = np.max(scores_array, axis=1)
-        minimum_array = np.min(scores_array, axis=1)
+        maximum_array = np.max(scores_array, axis=0)
+        minimum_array = np.min(scores_array, axis=0)
 
         for m in range(len(I[0].scores)):
             sorted_I = list(sorted(I, key=lambda v: v.scores[m], reverse=False))
-            sorted_I[0].distance = float("inf")
-            sorted_I[l-1].distance = float("inf")
-
-            for i in range(1, (l-1)):
+            sorted_I[0].distance = float("inf")  # so that boundary points always selected, because they are not crowd
+            sorted_I[len(I)-1].distance = float("inf")
+            # only assign distances for non-boundary points
+            for i in range(1, (len(I) - 1)):
                 sorted_I[i].distance = sorted_I[i].distance\
                                 + (sorted_I[i+1].scores[m] - sorted_I[i - 1].scores[m]) \
                                 / (maximum_array[m] - minimum_array[m])
-
         return I
 
     def binary_tournament_select(self, population):
