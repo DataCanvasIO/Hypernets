@@ -88,6 +88,31 @@ class DaskToolBox(ToolBox):
         return len(client.ncores()) if client else 0
 
     @staticmethod
+    def dump_cluster_info(cluster=None, log_level=logging.INFO):
+        if not logger.is_enabled_for(log_level):
+            return
+
+        if cluster is None:
+            client = DaskToolBox.default_client()
+            if client is None:
+                logger.log(log_level, 'Not found dask default client.')
+                return
+            cluster = client.cluster
+
+        msgs = [f'Dask cluster: {cluster}', ]
+        try:
+            msgs.append(f'scheduler: {cluster.scheduler}')
+            msgs.append('workers:')
+            GB = 1024 ** 3
+            for i, wk in cluster.workers.items():
+                mem_limit = wk.memory_limit / GB
+                msgs.append(f'\t[{i}]: {wk}, mem: {mem_limit:.1f}GB')
+        except:
+            pass
+
+        logger.log(log_level, '\n'.join(msgs))
+
+    @staticmethod
     def is_dask_dataframe(X):
         return isinstance(X, dd.DataFrame)
 
