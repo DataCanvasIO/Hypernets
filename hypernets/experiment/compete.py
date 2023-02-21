@@ -1504,6 +1504,10 @@ class SteppedExperiment(Experiment):
         self.hyper_model_ = None
 
     def train(self, hyper_model, X_train, y_train, X_test, X_eval=None, y_eval=None, **kwargs):
+        tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
+        if tb.__name__.lower().find('dask') >= 0:
+            tb.dump_cluster_info()
+
         from_step = self.get_step_index(kwargs.pop('from_step', None), 0)
         to_step = self.get_step_index(kwargs.pop('to_step', None), len(self.steps) - 1)
         assert from_step <= to_step
