@@ -1,5 +1,13 @@
 # -*- coding:utf-8 -*-
 
-from .grpc_process import GrpcProcess
 from .local_process import LocalProcess
-from .ssh_process import SshProcess
+
+try:
+    from .grpc_process import GrpcProcess
+except ImportError:
+    pass
+
+try:
+    from .ssh_process import SshProcess
+except ImportError:
+    pass
