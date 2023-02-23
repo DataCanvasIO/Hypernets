@@ -16,7 +16,7 @@ from ..core.searcher import OptimizeDirection
 
 
 class Trial():
-    def __init__(self, space_sample, trial_no, reward, elapsed, model_file=None, succeeded=True):
+    def __init__(self, space_sample, trial_no, reward=None, elapsed=None, model_file=None, succeeded=True):
         self.space_sample = space_sample
         self.trial_no = trial_no
         self.reward = reward
@@ -26,6 +26,7 @@ class Trial():
 
         self.memo = {}
         self.iteration_scores = {}
+        self.context = {}
 
     def __repr__(self):
         return to_repr(self)

@@ -1626,7 +1626,8 @@ class CompeteExperiment(SteppedExperiment):
     of steps and *Pipeline Search* is just one step. It also includes advanced steps such as data cleaning,
     data drift handling, two-stage search, ensemble etc.
     """
-
+    # TODO hyper_model.context.put("exp", self)
+    # trial.context = hyper_model.context
     def __init__(self, hyper_model, X_train, y_train, X_eval=None, y_eval=None, X_test=None,
                  eval_size=DEFAULT_EVAL_SIZE,
                  train_test_split_strategy=None,

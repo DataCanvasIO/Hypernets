@@ -283,7 +283,7 @@ def make_experiment(hyper_model_cls,
 
     if optimize_direction is None or len(optimize_direction) == 0:
         optimize_direction = 'max' if scorer._sign > 0 else 'min'
-
+    # todo searcher.objectives
     searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options)
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \

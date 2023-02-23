@@ -5,7 +5,8 @@ from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection, Searcher
 
 from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
-from .mo import calc_nondominated_set
+from .moo import calc_nondominated_set
+from .moo import MOOSearcher
 
 
 class Direction:
@@ -107,7 +108,7 @@ class PBIDecomposition(Decomposition):
         return d1 + d2 * self.penalty
 
 
-class MOEADSearcher(Searcher):
+class MOEADSearcher(MOOSearcher):
     """
     References
     ----------
