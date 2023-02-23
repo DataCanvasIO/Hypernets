@@ -1,7 +1,9 @@
+import abc
 from typing import List
 
 import numpy as np
 
+from hypernets.core import Searcher, OptimizeDirection
 from hypernets.searchers.genetic import Individual
 
 
@@ -64,3 +66,12 @@ def _op_less(self, x1, x2):
 
 def _op_greater(self, x1, x2):
     return self._compair(x1, x2, np.greater)
+
+
+class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
+
+    def __init__(self, space_fn, objectives, *, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
+                 space_sample_validation_fn=None):
+        super().__init__(space_fn=space_fn, optimize_direction=optimize_direction, use_meta_learner=use_meta_learner,
+                         space_sample_validation_fn=space_sample_validation_fn)
+        self.objectives = objectives

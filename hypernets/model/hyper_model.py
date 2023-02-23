@@ -36,6 +36,8 @@ class HyperModel:
         if self.discriminator:
             self.discriminator.bind_history(self.history)
 
+        self.context = {}
+
     def _get_estimator(self, space_sample):
         raise NotImplementedError
 
@@ -51,7 +53,6 @@ class HyperModel:
 
     def _run_trial(self, space_sample, trial_no, X, y, X_eval, y_eval, cv=False, num_folds=3, model_file=None,
                    **fit_kwargs):
-
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
         if self.discriminator:
@@ -90,35 +91,42 @@ class HyperModel:
             track = traceback.format_exc()
             logger.error(track)
 
+        from hypernets.searchers.moo import MOOSearcher
         if succeeded:
-            if scores is None:
-                scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
 
             if model_file is None or len(model_file) == 0:
                 model_file = '%05d_%s.pkl' % (trial_no, space_sample.space_id)
             estimator.save(model_file)
 
-            elapsed = time.time() - start_time
+            elapsed = time.time() - start_time  # Notes: does not contains evaluation
+            trial = Trial(space_sample, trial_no, reward=None, elapsed=elapsed,
+                          model_file=model_file, succeeded=succeeded)
+            trial.context = self.context
 
-            if 'elapsed' in self.reward_metrics:
-                scores['elapsed'] = elapsed
+            if not isinstance(self.searcher, MOOSearcher):
+                if scores is None:
+                    scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
+                reward = self._get_reward(scores, self.reward_metrics)
+            else:
+                reward = [fn(trial, estimator, X_eval, y_eval) for fn in self.searcher.objectives]
 
-            reward = self._get_reward(scores, self.reward_metrics)
-
-            trial = Trial(space_sample, trial_no, reward, elapsed, model_file, succeeded)
+            trial.reward = reward
             trial.iteration_scores = estimator.get_iteration_scores()
             trial.memo['scores'] = scores
+
             if oof is not None and self._is_memory_enough(oof):
                 trial.memo['oof'] = oof
             if oof_scores is not None:
                 trial.memo['oof_scores'] = oof_scores
 
             # improved = self.history.append(trial)
-            self.searcher.update_result(space_sample, reward)
+            if isinstance(self.searcher, MOOSearcher):
+                self.searcher.update_result(space_sample, reward)
+            else:
+                self.searcher.update_result(space_sample, reward)
         else:
             elapsed = time.time() - start_time
             trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
-
             if self.history is not None:
                 t = self.history.get_worst()
                 if t is not None:

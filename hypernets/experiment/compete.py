@@ -2019,6 +2019,9 @@ class CompeteExperiment(SteppedExperiment):
         self.run_kwargs = kwargs
 
         self.evaluation_ = None
+
+        hyper_model.context["exp"] = self
+
         super(CompeteExperiment, self).__init__(steps,
                                                 hyper_model, X_train, y_train, X_eval=X_eval, y_eval=y_eval,
                                                 X_test=X_test, eval_size=eval_size, task=task,
