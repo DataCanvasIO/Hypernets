@@ -2,8 +2,8 @@
 """
 
 """
-from collections import namedtuple
 import time
+from collections import namedtuple
 
 TbNamedEntity = namedtuple('TbNamedEntity', ['entity', 'name', 'dtypes'])
 
@@ -17,11 +17,11 @@ _tb_extensions = []  # list of TbNamedEntity
 _tb_extensions_update_at = 0
 
 
-def register_toolbox(tb, pos=None):
+def register_toolbox(tb, pos=None, aliases=None):
     if pos is None:
-        _tool_boxes.append(tb)
+        _tool_boxes.append((tb, aliases))
     else:
-        _tool_boxes.insert(pos, tb)
+        _tool_boxes.insert(pos, (tb, aliases))
 
     global _tool_boxes_update_at
     _tool_boxes_update_at = time.time()
@@ -61,12 +61,19 @@ def register_extension(extension, *, name=None, dtypes=None):
 
 
 def get_tool_box(*data):
-    for tb in _tool_boxes:
-        if tb.accept(*data):
-            return tb
+    assert len(data) > 0
+    if len(data) == 1 and isinstance(data[0], str):
+        # get toolbox by alias
+        for tb, aliases in _tool_boxes:
+            if aliases is not None and data[0] in aliases:
+                return tb
+    else:
+        for tb, _ in _tool_boxes:
+            if tb.accept(*data):
+                return tb
 
     raise ValueError(f'No toolbox found for your data with types: {[type(x) for x in data]}. '
-                     f'Registered tabular toolboxes are {[t.__name__ for t in _tool_boxes]}.')
+                     f'Registered tabular toolboxes are {[tb.__name__ for tb, _ in _tool_boxes]}.')
 
 
 def get_transformers(dtypes):
