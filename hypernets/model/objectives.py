@@ -13,6 +13,9 @@ class PerformanceObjective(Objective, metaclass=abc.ABCMeta):
 
 class ElapsedObjective(PerformanceObjective):
 
+    def __init__(self):
+        super(ElapsedObjective, self).__init__(name='elapsed', direction='min')
+
     def call(self, trial, estimator, y_test, **kwargs):
         return trial.elapsed
 

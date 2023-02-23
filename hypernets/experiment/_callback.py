@@ -443,6 +443,13 @@ class MLReportCallback(ExperimentCallback):
     def step_break(self, exp, step, error):
         pass
 
+    def __getstate__(self):
+        states = dict(self.__dict__)
+        if '_rum' in states:
+            del states['_rum']
+
+        return states
+
 
 class ActionType:
     ExperimentStart = 'experimentStart'

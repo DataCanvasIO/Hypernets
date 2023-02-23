@@ -6,7 +6,7 @@ class Objective(metaclass=abc.ABCMeta):
     """ Objective  = Indicator metric + Direction
     """
 
-    def __init__(self, name, direction: OptimizeDirection):
+    def __init__(self, name, direction):
         self.name = name
         self.direction = direction
 

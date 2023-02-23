@@ -3,8 +3,11 @@ from pathlib import Path
 import sys
 
 from sklearn.preprocessing import LabelEncoder
+
+from hypernets.core import OptimizeDirection
 from hypernets.core.random_state import set_random_state
 from hypernets.examples.plain_model import PlainSearchSpace, PlainModel
+from hypernets.model.objectives import PredictionObjective, ElapsedObjective
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from sklearn.model_selection import train_test_split
@@ -32,13 +35,14 @@ def test_moead_training(decomposition: str, recombination: str):
     y_test = X_test.pop('y')
 
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-    objectives = ['logloss', 'elapsed']
 
-    rs = MOEADSearcher(search_space, n_objectives=len(objectives),
+    objectives = (ElapsedObjective(),
+                  PredictionObjective('logloss', OptimizeDirection.Minimize))
+
+    rs = MOEADSearcher(search_space, objectives=objectives,
                        decomposition=decomposition, recombination=recombination, n_sampling=2)
 
-    hk = PlainModel(rs, task='binary', reward_metric=objectives,
-                    callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
+    hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 
     hk.search(X_train, y_train, X_test, y_test, max_trials=10)
 

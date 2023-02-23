@@ -1,10 +1,18 @@
 from datetime import datetime
 
+import numpy as np
+
 from sklearn.preprocessing import LabelEncoder
 
+from hypernets.core import SummaryCallback
+from hypernets.core.objective import Objective
+from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import CompeteExperiment
+from hypernets.model.objectives import ElapsedObjective
+from hypernets.searchers.nsga_searcher import NSGAIISearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
+from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.tb_dask import if_dask_ready, is_dask_installed, setup_dask
 
@@ -217,3 +225,58 @@ def test_with_cv_ensemble_dask():
 def test_with_feature_generator_dask():
     experiment_with_movie_lens(dict(feature_generation=True, feature_selection=True,
                                     feature_generation_text_cols=['title']), {}, with_dask=True)
+
+
+class PlainContextObjective(Objective):
+    def __init__(self):
+        super(PlainContextObjective, self).__init__('plain_context', 'min')
+
+    def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
+        exp = trial.context.get('exp')
+        assert exp is not None and isinstance(exp, CompeteExperiment)  # get experiment in Objective
+        return np.random.random()
+
+
+def test_moo_context():
+    search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
+    rs = NSGAIISearcher(search_space, objectives=(ElapsedObjective(), PlainContextObjective()), population_size=10)
+
+    hyper_model = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
+
+    X = dsutils.load_bank()
+    X['y'] = LabelEncoder().fit_transform(X['y'])
+    y = X.pop('y')
+
+    tb = get_tool_box(X, y)
+
+    X_train, X_test, y_train, y_test = \
+        tb.train_test_split(X, y, test_size=0.3, random_state=9527)
+    X_train, X_eval, y_train, y_eval = \
+        tb.train_test_split(X_train, y_train, test_size=0.3, random_state=9527)
+
+    init_kwargs = {
+        'X_eval': X_eval, 'y_eval': y_eval, 'X_test': X_test,
+        'ensemble_size': 0,
+        'drift_detection': False,
+    }
+    run_kwargs = {
+        'max_trials': 3,
+    }
+    from hypernets.tabular.metrics import metric_to_scoring
+    experiment = CompeteExperiment(hyper_model, X_train, y_train, scorer=metric_to_scoring("logloss"), **init_kwargs)
+    estimator = experiment.run(**run_kwargs)
+
+    assert estimator
+
+    optimal_set = experiment.hyper_model_.searcher.get_nondominated_set()
+    assert experiment.hyper_model_.searcher.get_best()
+
+    assert optimal_set[0].scores[1] > 0
+
+    preds = estimator.predict(X_test)
+    proba = estimator.predict_proba(X_test)
+
+    score = tb.metrics.calc_score(y_test, preds, proba, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
+    print('evaluate score:', score)
+    assert score
+

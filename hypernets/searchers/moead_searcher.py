@@ -115,7 +115,7 @@ class MOEADSearcher(MOOSearcher):
         [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
     """
 
-    def __init__(self, space_fn, n_objectives, n_sampling=5, n_neighbors=2,
+    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2,
                  recombination=None, mutate_probability=0.3,
                  decomposition=None, decomposition_options=None,
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
@@ -132,14 +132,12 @@ class MOEADSearcher(MOOSearcher):
         :param space_sample_validation_fn:
         :param random_state:
         """
-        Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
-                          use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
+        super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,
+                                            optimize_direction=optimize_direction, use_meta_learner=use_meta_learner,
+                                            space_sample_validation_fn=space_sample_validation_fn)
 
         if optimize_direction != OptimizeDirection.Minimize:
             raise ValueError("optimization towards maximization is not supported.")
-
-        self.n_objectives = n_objectives
-
 
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
 
@@ -194,6 +192,10 @@ class MOEADSearcher(MOOSearcher):
     @property
     def population_size(self):
         return len(self.directions)
+
+    @property
+    def n_objectives(self):
+        return len(self.objectives)
 
     def distribution_number(self, n_samples, n_objectives):
         """Uniform weighted vectors, an implementation of Normal-boundary intersection.

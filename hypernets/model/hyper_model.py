@@ -36,6 +36,8 @@ class HyperModel:
         if self.discriminator:
             self.discriminator.bind_history(self.history)
 
+        self.context = {}
+
     def _get_estimator(self, space_sample):
         raise NotImplementedError
 
@@ -98,7 +100,10 @@ class HyperModel:
             estimator.save(model_file)
 
             elapsed = time.time() - start_time  # Notes: does not contains evaluation
-            trial = Trial(space_sample, trial_no, reward=None, elapsed=elapsed, model_file=model_file, succeeded=succeeded)
+            trial = Trial(space_sample, trial_no, reward=None, elapsed=elapsed,
+                          model_file=model_file, succeeded=succeeded)
+            trial.context = self.context
+
             if not isinstance(self.searcher, MOOSearcher):
                 if scores is None:
                     scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
