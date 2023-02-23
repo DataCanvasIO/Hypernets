@@ -19,8 +19,8 @@ class LocalProcess(Process):
         self.environment = environment
         self._exit_code = PValue('i', -1)
 
-    def run(self):
-        if logger.is_info_enabled():
+    def run(self, verbose=False):
+        if verbose and logger.is_info_enabled():
             logger.info(f'[{self.name}] [CMD] {self.cmd}, out={self.out_file}, err={self.err_file}')
 
         try:
@@ -42,7 +42,7 @@ class LocalProcess(Process):
         except KeyboardInterrupt:
             code = 137
 
-        if logger.is_info_enabled():
+        if verbose and logger.is_info_enabled():
             logger.info(f'[{self.name}] [CMD] {self.cmd} done with {code}')
 
         self._exit_code.value = code

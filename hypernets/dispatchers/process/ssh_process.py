@@ -45,8 +45,8 @@ class SshProcess(Process):
         self.environment = environment
         self._exit_code = PValue('i', -1)
 
-    def run(self):
-        if logger.is_info_enabled():
+    def run(self, verbose=False):
+        if verbose and logger.is_info_enabled():
             logger.info(f'[{self.name}] [SSH {self.ssh_host}]: {self.cmd}')
         try:
             code = self.ssh_run(self.ssh_host, self.ssh_port,
@@ -58,7 +58,7 @@ class SshProcess(Process):
         except KeyboardInterrupt:
             code = 137
 
-        if logger.is_info_enabled():
+        if verbose and logger.is_info_enabled():
             logger.info(f'[{self.name}] [SSH {self.ssh_host}] {self.cmd} done with {code}')
 
         self._exit_code.value = code

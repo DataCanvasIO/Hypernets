@@ -21,8 +21,8 @@ class GrpcProcess(Process):
         self.environment = environment
         self._exit_code = PValue('i', -1)
 
-    def run(self):
-        if logger.is_info_enabled():
+    def run(self, verbose=False):
+        if verbose and logger.is_info_enabled():
             msg = f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd}, out={self.out_file}, err={self.err_file}'
             logger.info(msg)
 
@@ -37,7 +37,7 @@ class GrpcProcess(Process):
         except KeyboardInterrupt:
             code = 137
 
-        if logger.is_info_enabled():
+        if verbose and logger.is_info_enabled():
             logger.info(f'[{self.name}] [GRPC {self.grpc_broker}] {self.cmd} done with {code}')
         self._exit_code.value = code
 
