@@ -3,7 +3,7 @@ from functools import cmp_to_key
 
 import numpy as np
 
-from .mo import dominate, calc_nondominated_set
+from .moo import MOOSearcher, dominate, calc_nondominated_set
 from ..core import HyperSpace, Searcher, OptimizeDirection, get_random_state
 from .genetic import Recombination, Individual, SinglePointMutation
 
@@ -24,13 +24,13 @@ class NSGAIndividual(Individual):
         self.distance = 0  # crowding-distance
 
 
-class NSGAIISearcher(Searcher):
+class NSGAIISearcher(MOOSearcher):
     """
     References:
         [1]. K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.
     """
 
-    def __init__(self, space_fn, recombination=None, mutate_probability=0.7, population_size=30,
+    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7, population_size=30,
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
@@ -41,8 +41,8 @@ class NSGAIISearcher(Searcher):
         :param space_sample_validation_fn:
         :param random_state:
         """
-        Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
-                          use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
+        super().__init__(space_fn=space_fn, objectives=objectives, optimize_direction=optimize_direction,
+                         use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
 
         self.population: List[NSGAIndividual] = []
         self.random_state = random_state if random_state is not None else get_random_state()

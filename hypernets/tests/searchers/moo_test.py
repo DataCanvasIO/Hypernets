@@ -1,6 +1,6 @@
 import numpy as np
 
-from hypernets.searchers.mo import dominate, calc_nondominated_set
+from hypernets.searchers.moo import dominate, calc_nondominated_set
 from hypernets.searchers.genetic import Individual
 
 

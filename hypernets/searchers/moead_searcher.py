@@ -5,7 +5,8 @@ from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection, Searcher
 
 from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
-from .mo import calc_nondominated_set
+from .moo import calc_nondominated_set
+from .moo import MOOSearcher
 
 
 class Direction:
@@ -107,20 +108,20 @@ class PBIDecomposition(Decomposition):
         return d1 + d2 * self.penalty
 
 
-class MOEADSearcher(Searcher):
+class MOEADSearcher(MOOSearcher):
     """
     References
     ----------
         [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
     """
 
-    def __init__(self, space_fn, n_objectives, n_sampling=5, n_neighbors=2,
+    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2,
                  recombination=None, mutate_probability=0.3,
                  decomposition=None, decomposition_options=None,
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
-        :param space_fn: 
+        :param space_fn:
         :param n_sampling: the number of samples in each objective
         :param n_objectives: number of objectives
         :param n_neighbors: number of neighbors to mating
@@ -131,14 +132,12 @@ class MOEADSearcher(Searcher):
         :param space_sample_validation_fn:
         :param random_state:
         """
-        Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
-                          use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
+        super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,
+                                            optimize_direction=optimize_direction, use_meta_learner=use_meta_learner,
+                                            space_sample_validation_fn=space_sample_validation_fn)
 
         if optimize_direction != OptimizeDirection.Minimize:
             raise ValueError("optimization towards maximization is not supported.")
-
-        self.n_objectives = n_objectives
-
 
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
 
@@ -193,6 +192,10 @@ class MOEADSearcher(Searcher):
     @property
     def population_size(self):
         return len(self.directions)
+
+    @property
+    def n_objectives(self):
+        return len(self.objectives)
 
     def distribution_number(self, n_samples, n_objectives):
         """Uniform weighted vectors, an implementation of Normal-boundary intersection.

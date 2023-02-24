@@ -1,11 +1,8 @@
 import pytest
 
-import numpy as np
-
+from hypernets.core import OptimizeDirection
+from hypernets.model.objectives import ElapsedObjective, PredictionObjective
 from hypernets.searchers.nsga_searcher import NSGAIISearcher, NSGAIndividual
-import os.path
-from pathlib import Path
-import sys
 
 from sklearn.preprocessing import LabelEncoder
 from hypernets.core.random_state import set_random_state
@@ -17,7 +14,6 @@ from sklearn.model_selection import train_test_split
 set_random_state(1234)
 
 from hypernets.core.callbacks import *
-from hypernets.searchers.moead_searcher import MOEADSearcher
 
 
 def test_fast_non_dominated_sort():
@@ -70,14 +66,13 @@ def test_nsga2_training(recombination: str):
     y_test = X_test.pop('y')
 
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-    objectives = ['logloss', 'elapsed']
+    rs = NSGAIISearcher(search_space, objectives=(ElapsedObjective(),
+                                                 PredictionObjective('logloss', OptimizeDirection.Minimize)),
+                        recombination=recombination, population_size=3)
 
-    rs = NSGAIISearcher(search_space, recombination=recombination, population_size=10)
+    hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 
-    hk = PlainModel(rs, task='binary', reward_metric=objectives,
-                    callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
-
-    hk.search(X_train, y_train, X_test, y_test, max_trials=20)
+    hk.search(X_train, y_train, X_test, y_test, max_trials=5)
 
     len(hk.history.trials)
     assert hk.get_best_trial()
