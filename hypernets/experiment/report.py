@@ -864,6 +864,12 @@ class ExcelReportRender(ReportRender):
         logger.info(f"write report excel to {self.workbook.filename}")
         self.workbook.close()
 
+    def __getstate__(self):
+        states = dict(self.__dict__)
+        if 'workbook' in states:
+            del states['workbook']
+        return states
+
 
 def get_render(name):  # instance factory
     if name == 'excel':
