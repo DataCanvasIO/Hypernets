@@ -239,7 +239,7 @@ class PlainContextObjective(Objective):
 
 def test_moo_context():
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-    rs = NSGAIISearcher(search_space, objectives=(ElapsedObjective(), PlainContextObjective()), population_size=10)
+    rs = NSGAIISearcher(search_space, objectives=[ElapsedObjective(), PlainContextObjective()], population_size=10)
 
     hyper_model = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 

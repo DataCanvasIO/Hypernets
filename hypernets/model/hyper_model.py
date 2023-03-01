@@ -6,6 +6,7 @@ import time
 import traceback
 from collections import UserDict
 
+from ..core.context import DefaultContext
 from ..core.meta_learner import MetaLearner
 from ..core.trial import Trial, TrialHistory, DiskTrialStore
 from ..discriminators import UnPromisingTrial
@@ -36,7 +37,7 @@ class HyperModel:
         if self.discriminator:
             self.discriminator.bind_history(self.history)
 
-        self.context = {}
+        self.context = DefaultContext()
 
     def _get_estimator(self, space_sample):
         raise NotImplementedError

@@ -6,9 +6,11 @@ from sklearn.model_selection import train_test_split
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback, ExperimentMeta
 from hypernets.experiment.compete import StepNames
+from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from hypernets.utils import common as common_util
+from hypernets.searchers.nsga_searcher import NSGAIISearcher
 
 
 def test_experiment_with_blood_simple():
@@ -261,3 +263,52 @@ def test_regression_task_report():
     assert _experiment_meta.evaluation_metrics is not None
     assert len(_experiment_meta.prediction_elapsed) == 2
     assert len(_experiment_meta.datasets) == 3
+
+
+class CatPlainModel(PlainModel):
+
+    def __init__(self, searcher, dispatcher=None, callbacks=None, reward_metric=None, task=None,
+                 discriminator=None):
+        super(CatPlainModel, self).__init__(searcher, dispatcher=dispatcher, callbacks=callbacks,
+                                            reward_metric=reward_metric, task=task)
+        self.transformer = MultiLabelEncoder
+
+
+def test_moo_experiment():
+    from sklearn.preprocessing import LabelEncoder
+    df = dsutils.load_bank()
+    df['y'] = LabelEncoder().fit_transform(df['y'])
+
+    tb = get_tool_box(df)
+
+    df_train, df_test = tb.train_test_split(df, test_size=0.3, random_state=9527)
+
+    experiment = make_experiment(CatPlainModel, df_train,
+                                 eval_data=df_test.copy(),
+                                 target='y',
+                                 searcher=NSGAIISearcher,
+                                 objectives=['elapsed', 'logloss'],
+                                 drift_detection_threshold=0.4,
+                                 drift_detection_min_features=3,
+                                 drift_detection_remove_size=0.5,
+                                 search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
+
+    estimator = experiment.run(max_trials=5)
+    assert estimator is not None
+
+    searcher_ = experiment.hyper_model_.searcher
+    assert searcher_.get_best()
+
+    optimal_set = searcher_.get_nondominated_set()
+    assert optimal_set[0].scores[0] > 0
+
+    X_test = df_test.copy()
+    y_test = X_test.pop('y')
+
+    preds = estimator.predict(X_test)
+    proba = estimator.predict_proba(X_test)
+
+    score = tb.metrics.calc_score(y_test, preds, proba, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
+    print('evaluate score:', score)
+    assert score
+

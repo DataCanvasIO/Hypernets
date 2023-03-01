@@ -26,7 +26,7 @@ class Trial():
 
         self.memo = {}
         self.iteration_scores = {}
-        self.context = {}
+        self.context = None
 
     def __repr__(self):
         return to_repr(self)
