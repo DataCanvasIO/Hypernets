@@ -46,16 +46,20 @@ def get_searcher_cls(identifier):
         raise ValueError(f'Illegal identifier:{identifier}')
 
 
-def make_searcher(cls, search_space_fn, optimize_direction='min', **kwargs):
+def make_searcher(cls, search_space_fn, optimize_direction='min', objectives=None, **kwargs):
+    from hypernets.searchers.moo import MOOSearcher
+
     cls = get_searcher_cls(cls)
 
     if cls == EvolutionSearcher:
         default_kwargs = dict(population_size=30, sample_size=10, candidates_size=10,
-                              regularized=True, use_meta_learner=True)
+                              regularized=True, use_meta_learner=True, optimize_direction=optimize_direction)
     elif cls == MCTSSearcher:
-        default_kwargs = dict(max_node_space=10)
+        default_kwargs = dict(max_node_space=10, optimize_direction=optimize_direction)
+    elif issubclass(cls, MOOSearcher):
+        default_kwargs = dict(objectives=objectives)
     else:
         default_kwargs = {}
     kwargs = {**default_kwargs, **kwargs}
-    searcher = cls(search_space_fn, optimize_direction=optimize_direction, **kwargs)
+    searcher = cls(search_space_fn, **kwargs)
     return searcher

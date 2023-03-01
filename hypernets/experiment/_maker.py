@@ -8,6 +8,7 @@ from hypernets.discriminators import make_discriminator
 from hypernets.experiment import CompeteExperiment
 from hypernets.experiment.cfg import ExperimentCfg as cfg
 from hypernets.model import HyperModel
+from hypernets.model.objectives import create_objective
 from hypernets.searchers import make_searcher, PlaybackSearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.cache import clear as _clear_cache
@@ -38,16 +39,32 @@ def default_search_callbacks():
     return cbs
 
 
-def to_search_object(search_space, optimize_direction, searcher, searcher_options):
+def to_objective_object(o, options=None):
+    from hypernets.core.objective import Objective
+
+    if options is None:
+        options = {}
+    if isinstance(o, str):
+        return create_objective(o, **options)
+    elif isinstance(o, Objective):
+        return o
+    else:
+        raise RuntimeError("objective specific should be instanced by 'Objective' or a string")
+
+
+def to_search_object(search_space, optimize_direction, searcher, searcher_options, objectives=None):
     def to_searcher(cls, options):
         assert search_space is not None, '"search_space" should be specified if "searcher" is None or str.'
         assert optimize_direction in {'max', 'min'}
-        if options is None:
-            options = {}
-        options['optimize_direction'] = optimize_direction
-        s = make_searcher(cls, search_space, **options)
+        s = make_searcher(cls, search_space, optimize_direction=optimize_direction, **options)
 
         return s
+
+    from hypernets.searchers.moo import MOOSearcher
+    if issubclass(searcher, MOOSearcher):
+        if objectives is not None:
+            objectives_instance = list(map(to_objective_object, objectives))
+            searcher_options['objectives'] = objectives_instance
 
     if searcher is None:
         from hypernets.searchers import EvolutionSearcher
@@ -90,6 +107,7 @@ def make_experiment(hyper_model_cls,
                     early_stopping_time_limit=3600,
                     early_stopping_reward=None,
                     reward_metric=None,
+                    objectives=None,
                     optimize_direction=None,
                     hyper_model_options=None,
                     discriminator=None,
@@ -130,8 +148,9 @@ def make_experiment(hyper_model_cls,
     searcher : str, searcher class, search object, optional
         The hypernets Searcher instance to explore search space, default is EvolutionSearcher instance.
         For str, should be one of 'evolution', 'mcts', 'random'.
-        For class, should be one of EvolutionSearcher, MCTSSearcher, RandomSearcher, or subclass of hypernets Searcher.
-        For other, should be instance of hypernets Searcher.
+        For class, should be one of EvolutionSearcher, MCTSSearcher, RandomSearcher, MOEADSearcher, NSGAIISearrcher
+         or subclass of hypernets Searcher.
+        For other, should be instanced of hypernets Searcher.
     searcher_options: dict, optional, default is None
         The options to create searcher, is used if searcher is str.
     search_space : callable, optional
@@ -162,6 +181,10 @@ def make_experiment(hyper_model_cls,
             - rmse
             - r2
             - recall
+    objectives : List[Union[Objective, str]] optional
+        Used for multi-objectives optimization, "reward_metric" string value is ompatible here and some builtin values are:
+            - elapsed
+
     optimize_direction : str, optional
         Hypernets search reward metric direction, default is detected from reward_metric.
     discriminator : instance of hypernets.discriminator.BaseDiscriminator, optional
@@ -284,7 +307,10 @@ def make_experiment(hyper_model_cls,
     if optimize_direction is None or len(optimize_direction) == 0:
         optimize_direction = 'max' if scorer._sign > 0 else 'min'
 
-    searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options)
+    if searcher_options is None:
+        searcher_options = {}
+
+    searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options, objectives)
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
             and 'down_sample_search' not in kwargs.keys():

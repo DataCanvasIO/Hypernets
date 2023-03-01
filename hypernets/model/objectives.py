@@ -21,17 +21,31 @@ class ElapsedObjective(PerformanceObjective):
 
 
 class PredictionObjective(PerformanceObjective):
+    def __init__(self, name, task=None, pos_label=None):
+        from hypernets.tabular.metrics import metric_to_scoring
+        scorer = metric_to_scoring(metric=name, task=task, pos_label=pos_label)
+        direction = 'max' if scorer._sign > 0 else 'min'
+        super(PredictionObjective, self).__init__(name, direction=direction)
+        self._scorer = scorer
 
     def call(self, trial, estimator, X_test, y_test, **kwargs):
-        from hypernets.tabular.metrics import calc_score
-        # TODO: convert probabilities to prediction
-        y_pred = estimator.predict(X_test)
-        y_proba = estimator.predict_proba(X_test)
-        scores = calc_score(y_true=y_test, y_preds=y_pred, y_proba=y_proba, metrics=[self.name])
-        return scores.get(self.name)
+        #y_pred = estimator.predict(X_test)
+        #y_proba = estimator.predict_proba(X_test)
+        return self._scorer(estimator, X_test, y_test)
 
 
 class FeatureComplexityObjective(ComplexityObjective):
 
     def call(self, trial, estimator, y_test, **kwargs):
         pass
+
+
+def create_objective(name, **kwargs):
+    # objective factory
+    if name == 'elapsed':
+        return ElapsedObjective()
+    else:
+        # check it in sklearn metrics
+        po = PredictionObjective(name, **kwargs)
+        return po
+        # raise RuntimeError(f"unseen objective name {name}")
