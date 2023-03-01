@@ -15,6 +15,11 @@ def test_dominate():
     s4 = np.array([0.2, 0.5])
     assert dominate(s3, s4) is False
 
+    # different direction
+    s5 = np.array([0.8, 100])
+    s6 = np.array([0.7, 101])
+    assert dominate(s5, s6, directions=('max', 'min')) is True
+
 
 def test_calc_nondominated_set():
     i1 = Individual("1", np.array([0.1, 0.2]), None)

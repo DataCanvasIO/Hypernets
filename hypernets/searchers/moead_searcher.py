@@ -1,4 +1,6 @@
 # -*- coding:utf-8 -*-
+from typing import List
+
 import numpy as np
 from hypernets.core import HyperSpace, get_random_state
 from hypernets.core.callbacks import *
@@ -330,6 +332,9 @@ class MOEADSearcher(MOOSearcher):
                     self._update_neighbors(direction, individual)
         else:
             pass  # init population needs enough individual
+
+    def get_historical_population(self) -> List[Individual]:
+        return self._pop_history
 
     @property
     def parallelizable(self):
