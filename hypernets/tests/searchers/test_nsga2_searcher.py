@@ -21,7 +21,7 @@ def test_fast_non_dominated_sort():
     i1 = NSGAIndividual("1", np.array([0.1, 0.3]), None)
     i2 = NSGAIndividual("2", np.array([0.2, 0.3]), None)
 
-    l = NSGAIISearcher.fast_non_dominated_sort([i1, i2])
+    l = NSGAIISearcher.fast_non_dominated_sort([i1, i2], directions=['min', 'min'])
     assert len(l) == 2
 
     assert l[0][0] == i1
@@ -29,14 +29,14 @@ def test_fast_non_dominated_sort():
 
     # first rank has two element
     i3 = NSGAIndividual("3", np.array([0.3, 0.1]), None)
-    l = NSGAIISearcher.fast_non_dominated_sort([i1, i2, i3])
+    l = NSGAIISearcher.fast_non_dominated_sort([i1, i2, i3], directions=['min', 'min'])
     assert len(l) == 2
     assert i1 in l[0]
     assert i3 in l[0]
     assert l[1][0] == i2
 
     i4 = NSGAIndividual("4", np.array([0.25, 0.3]), None)
-    l = NSGAIISearcher.fast_non_dominated_sort([i1, i2, i3, i4])
+    l = NSGAIISearcher.fast_non_dominated_sort([i1, i2, i3, i4], directions=['min', 'min'])
     assert len(l) == 3
     assert l[2][0] == i4
 
