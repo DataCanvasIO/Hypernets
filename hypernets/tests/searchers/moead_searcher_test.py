@@ -1,7 +1,3 @@
-import os.path
-from pathlib import Path
-import sys
-
 from sklearn.preprocessing import LabelEncoder
 
 from hypernets.core import OptimizeDirection
@@ -36,8 +32,8 @@ def test_moead_training(decomposition: str, recombination: str):
 
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
 
-    objectives = (ElapsedObjective(),
-                  PredictionObjective('logloss', OptimizeDirection.Minimize))
+    objectives = [ElapsedObjective(),
+                  PredictionObjective('logloss', OptimizeDirection.Minimize)]
 
     rs = MOEADSearcher(search_space, objectives=objectives,
                        decomposition=decomposition, recombination=recombination, n_sampling=2)
@@ -48,6 +44,8 @@ def test_moead_training(decomposition: str, recombination: str):
 
     len(hk.history.trials)
     assert hk.get_best_trial()
+    rs.plot_pf()
+
 
 
 if __name__ == '__main__':

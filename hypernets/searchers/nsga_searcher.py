@@ -30,9 +30,8 @@ class NSGAIISearcher(MOOSearcher):
         [1]. K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.
     """
 
-    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7, population_size=30,
-                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
-                 space_sample_validation_fn=None, random_state=None):
+    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7,
+                 population_size=30, use_meta_learner=False, space_sample_validation_fn=None, random_state=None):
         """
         :param space_fn:
         :param mutate_probability:
@@ -41,8 +40,8 @@ class NSGAIISearcher(MOOSearcher):
         :param space_sample_validation_fn:
         :param random_state:
         """
-        super().__init__(space_fn=space_fn, objectives=objectives, optimize_direction=optimize_direction,
-                         use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)
+        super().__init__(space_fn=space_fn, objectives=objectives, use_meta_learner=use_meta_learner,
+                         space_sample_validation_fn=space_sample_validation_fn)
 
         self.population: List[NSGAIndividual] = []
         self.random_state = random_state if random_state is not None else get_random_state()
@@ -53,7 +52,7 @@ class NSGAIISearcher(MOOSearcher):
         self.population_size = population_size
 
     @staticmethod
-    def fast_non_dominated_sort(P: List[NSGAIndividual]):
+    def fast_non_dominated_sort(P: List[NSGAIndividual], directions):
 
         F_1 = []
         F = [F_1]  # to store pareto front of levels respectively
@@ -64,9 +63,9 @@ class NSGAIISearcher(MOOSearcher):
             for q in P:
                 if p == q:
                     continue
-                if dominate(p.scores, q.scores):
+                if dominate(p.scores, q.scores, directions=directions):
                     S_p.append(q)
-                if dominate(q.scores, p.scores):
+                if dominate(q.scores, p.scores, directions=directions):
                     n_p = n_p + 1
 
             p.S = S_p
@@ -110,7 +109,7 @@ class NSGAIISearcher(MOOSearcher):
         return I
 
     def binary_tournament_select(self, population):
-        indi_inx = self.random_state.randint(low=0, high=len(population) - 1, size=2)
+        indi_inx = self.random_state.randint(low=0, high=len(population) - 1, size=2)  # fixme: maybe duplicated inx
 
         p1 = population[indi_inx[0]]
         p2 = population[indi_inx[1]]
@@ -153,8 +152,8 @@ class NSGAIISearcher(MOOSearcher):
     def sample(self):
         if len(self.population) < self.population_size:
             return self._sample_and_check(self._random_sample)
-
-        P_sorted = self.fast_non_dominated_sort(self.population)
+        directions = [o.direction for o in self.objectives]
+        P_sorted = self.fast_non_dominated_sort(self.population, directions)
         P_selected:List[NSGAIndividual] = []
 
         rank = 0
@@ -187,6 +186,9 @@ class NSGAIISearcher(MOOSearcher):
 
     def update_result(self, space, result):
         self.population.append(NSGAIndividual(space, np.array(result), self.random_state))
+
+    def get_historical_population(self) -> List[Individual]:
+        return self.population
 
     def reset(self):
         pass

@@ -66,8 +66,8 @@ def test_nsga2_training(recombination: str):
     y_test = X_test.pop('y')
 
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-    rs = NSGAIISearcher(search_space, objectives=(ElapsedObjective(),
-                                                 PredictionObjective('logloss', OptimizeDirection.Minimize)),
+    rs = NSGAIISearcher(search_space, objectives=[ElapsedObjective(),
+                                                  PredictionObjective('logloss', OptimizeDirection.Minimize)],
                         recombination=recombination, population_size=3)
 
     hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
@@ -76,3 +76,34 @@ def test_nsga2_training(recombination: str):
 
     len(hk.history.trials)
     assert hk.get_best_trial()
+
+
+def test_non_consistent_direction():
+
+    df = dsutils.load_bank()
+    df['y'] = LabelEncoder().fit_transform(df['y'])
+
+    df.drop(['id'], axis=1, inplace=True)
+    X_train, X_test = train_test_split(df, test_size=0.8, random_state=1234)
+
+    y_train = X_train.pop('y')
+    y_test = X_test.pop('y')
+
+    search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
+    rs = NSGAIISearcher(search_space, objectives=[ElapsedObjective(),
+                                                  PredictionObjective('auc', OptimizeDirection.Maximize)],
+                        recombination='single_point', population_size=10)
+
+    hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
+
+    hk.search(X_train, y_train, X_test, y_test, max_trials=30)
+
+    len(hk.history.trials)
+    assert hk.get_best_trial()
+
+    ns = rs.get_nondominated_set()
+    print(ns)
+
+    rs.plot_pf(consistent_direction=False)
+
+
