@@ -186,9 +186,9 @@ def make_experiment(hyper_model_cls,
             - rmse
             - r2
             - recall
-    objectives : List[Union[Objective, str]] optional, (default to reward_metric as the first metric,
-                'elapsed' for the second)
-        Used for multi-objectives optimization, "reward_metric" compatible here and some other builtin values are:
+    objectives : List[Union[Objective, str]] optional, (default to ['elapsed'] )
+        Used for multi-objectives optimization, "reward_metric" is alway picked as the first objective.
+         For str as identifier of objectives, possible values:
             - elapsed
 
     optimize_direction : str, optional

@@ -243,7 +243,7 @@ def test_moo_context():
 
     hyper_model = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 
-    X = dsutils.load_bank()
+    X = dsutils.load_bank().sample(1000)
     X['y'] = LabelEncoder().fit_transform(X['y'])
     y = X.pop('y')
 

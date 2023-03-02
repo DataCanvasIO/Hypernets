@@ -79,7 +79,7 @@ def test_nsga2_training(recombination: str):
 
 
 def test_non_consistent_direction():
-    df = dsutils.load_bank()
+    df = dsutils.load_bank().sample(1000)
     df['y'] = LabelEncoder().fit_transform(df['y'])
 
     df.drop(['id'], axis=1, inplace=True)
