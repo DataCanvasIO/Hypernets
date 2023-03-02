@@ -276,7 +276,7 @@ class CatPlainModel(PlainModel):
 
 def test_moo_experiment():
     from sklearn.preprocessing import LabelEncoder
-    df = dsutils.load_bank()
+    df = dsutils.load_bank().sample(1000)
     df['y'] = LabelEncoder().fit_transform(df['y'])
 
     tb = get_tool_box(df)
@@ -287,7 +287,8 @@ def test_moo_experiment():
                                  eval_data=df_test.copy(),
                                  target='y',
                                  searcher=NSGAIISearcher,
-                                 objectives=['elapsed', 'logloss'],
+                                 reward_metric='logloss',
+                                 objectives=['elapsed'],
                                  drift_detection_threshold=0.4,
                                  drift_detection_min_features=3,
                                  drift_detection_remove_size=0.5,
@@ -300,7 +301,7 @@ def test_moo_experiment():
     assert searcher_.get_best()
 
     optimal_set = searcher_.get_nondominated_set()
-    assert optimal_set[0].scores[0] > 0
+    assert optimal_set[0].scores[1] > 0
 
     X_test = df_test.copy()
     y_test = X_test.pop('y')

@@ -52,7 +52,8 @@ def to_objective_object(o, options=None):
         raise RuntimeError("objective specific should be instanced by 'Objective' or a string")
 
 
-def to_search_object(search_space, optimize_direction, searcher, searcher_options, task, objectives=None):
+def to_search_object(search_space, optimize_direction, searcher, searcher_options,
+                     reward_metric=None, scorer=None, objectives=None):
     from hypernets.searchers.moo import MOOSearcher
     from hypernets.searchers import get_searcher_cls
 
@@ -68,11 +69,11 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
         sch = to_searcher(EvolutionSearcher, searcher_options)
     elif isinstance(searcher, (type, str)):
         if issubclass(get_searcher_cls(searcher), MOOSearcher):
+            from hypernets.model.objectives import PredictionObjective
             if objectives is None:
-                reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
-                objectives = [reward_metric, 'elapsed']
-
+                objectives = ['elapsed']
             objectives_instance = list(map(to_objective_object, objectives))
+            objectives_instance.insert(0, PredictionObjective(name=reward_metric, scorer=scorer))
             searcher_options['objectives'] = objectives_instance
         sch = to_searcher(searcher, searcher_options)
     else:
@@ -315,7 +316,8 @@ def make_experiment(hyper_model_cls,
     if searcher_options is None:
         searcher_options = {}
 
-    searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options, objectives)
+    searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options,
+                                reward_metric=reward_metric, scorer=scorer, objectives=objectives)
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
             and 'down_sample_search' not in kwargs.keys():

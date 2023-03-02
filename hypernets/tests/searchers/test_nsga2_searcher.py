@@ -56,7 +56,7 @@ def test_crowd_distance_sort():
 @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
 def test_nsga2_training(recombination: str):
 
-    df = dsutils.load_bank()
+    df = dsutils.load_bank().sample(1000)
     df['y'] = LabelEncoder().fit_transform(df['y'])
 
     df.drop(['id'], axis=1, inplace=True)
@@ -67,7 +67,7 @@ def test_nsga2_training(recombination: str):
 
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
     rs = NSGAIISearcher(search_space, objectives=[ElapsedObjective(),
-                                                  PredictionObjective('logloss', OptimizeDirection.Minimize)],
+                                                  PredictionObjective.create('logloss')],
                         recombination=recombination, population_size=3)
 
     hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
@@ -79,7 +79,6 @@ def test_nsga2_training(recombination: str):
 
 
 def test_non_consistent_direction():
-
     df = dsutils.load_bank()
     df['y'] = LabelEncoder().fit_transform(df['y'])
 
@@ -91,7 +90,7 @@ def test_non_consistent_direction():
 
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
     rs = NSGAIISearcher(search_space, objectives=[ElapsedObjective(),
-                                                  PredictionObjective('auc', OptimizeDirection.Maximize)],
+                                                  PredictionObjective.create('auc')],
                         recombination='single_point', population_size=10)
 
     hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)

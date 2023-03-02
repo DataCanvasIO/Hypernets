@@ -29,8 +29,7 @@ class TestMOEADSearcher:
 
         search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
 
-        objectives = [ElapsedObjective(),
-                      PredictionObjective('logloss', OptimizeDirection.Minimize)]
+        objectives = [ElapsedObjective(), PredictionObjective.create('logloss')]
 
         rs = MOEADSearcher(search_space, objectives=objectives,
                            decomposition=decomposition, recombination=recombination, n_sampling=2)

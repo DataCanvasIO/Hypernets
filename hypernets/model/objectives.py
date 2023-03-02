@@ -1,6 +1,7 @@
 import abc
 
 from hypernets.core.objective import Objective
+from hypernets.utils import const
 
 
 class ComplexityObjective(Objective, metaclass=abc.ABCMeta):
@@ -21,9 +22,8 @@ class ElapsedObjective(PerformanceObjective):
 
 
 class PredictionObjective(PerformanceObjective):
-    def __init__(self, name, task=None, pos_label=None):
-        from hypernets.tabular.metrics import metric_to_scoring
-        scorer = metric_to_scoring(metric=name, task=task, pos_label=pos_label)
+
+    def __init__(self, name, scorer):
         direction = 'max' if scorer._sign > 0 else 'min'
         super(PredictionObjective, self).__init__(name, direction=direction)
         self._scorer = scorer
@@ -33,6 +33,12 @@ class PredictionObjective(PerformanceObjective):
         #y_proba = estimator.predict_proba(X_test)
         return self._scorer(estimator, X_test, y_test)
 
+    @staticmethod
+    def create(name, task=const.TASK_BINARY, pos_label=None):
+        from hypernets.tabular.metrics import metric_to_scoring
+        scorer = metric_to_scoring(metric=name, task=task, pos_label=pos_label)
+        return PredictionObjective(name, scorer)
+
 
 class FeatureComplexityObjective(ComplexityObjective):
 
@@ -41,11 +47,11 @@ class FeatureComplexityObjective(ComplexityObjective):
 
 
 def create_objective(name, **kwargs):
-    # objective factory
+    # objective factory, exclude PredictionObjective now
     if name == 'elapsed':
         return ElapsedObjective()
     else:
         # check it in sklearn metrics
-        po = PredictionObjective(name, **kwargs)
-        return po
-        # raise RuntimeError(f"unseen objective name {name}")
+        # po = PredictionObjective(name, **kwargs)
+        # return po
+        raise RuntimeError(f"unseen objective name {name}")
