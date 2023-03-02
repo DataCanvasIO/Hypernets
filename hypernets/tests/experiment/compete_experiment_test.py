@@ -264,6 +264,7 @@ def test_moo_context():
     }
     from hypernets.tabular.metrics import metric_to_scoring
     experiment = CompeteExperiment(hyper_model, X_train, y_train, scorer=metric_to_scoring("logloss"), **init_kwargs)
+
     estimator = experiment.run(**run_kwargs)
 
     assert estimator

@@ -14,7 +14,7 @@ class DefaultContext(Context):
 
     def __init__(self):
         super(DefaultContext, self).__init__()
-        self._map = dict()
+        self._map = {}
 
     def put(self, key, value):
         self._map[key] = value
@@ -22,8 +22,8 @@ class DefaultContext(Context):
     def get(self, key):
         return self._map.get(key)
 
-    def __getstate__(self):
-        states = dict(self.__dict__)
-        if '_map' in states:  # mark _map as transient
-            del states['_map']
-        return states
+    # def __getstate__(self):
+    #     states = dict(self.__dict__)
+    #     if '_map' in states:  # mark _map as transient
+    #         states['_map'] = {}
+    #     return states
