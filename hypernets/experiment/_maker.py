@@ -52,7 +52,10 @@ def to_objective_object(o, options=None):
         raise RuntimeError("objective specific should be instanced by 'Objective' or a string")
 
 
-def to_search_object(search_space, optimize_direction, searcher, searcher_options, objectives=None):
+def to_search_object(search_space, optimize_direction, searcher, searcher_options, task, objectives=None):
+    from hypernets.searchers.moo import MOOSearcher
+    from hypernets.searchers import get_searcher_cls
+
     def to_searcher(cls, options):
         assert search_space is not None, '"search_space" should be specified if "searcher" is None or str.'
         assert optimize_direction in {'max', 'min'}
@@ -60,16 +63,17 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
 
         return s
 
-    from hypernets.searchers.moo import MOOSearcher
-    if issubclass(searcher, MOOSearcher):
-        if objectives is not None:
-            objectives_instance = list(map(to_objective_object, objectives))
-            searcher_options['objectives'] = objectives_instance
-
     if searcher is None:
         from hypernets.searchers import EvolutionSearcher
         sch = to_searcher(EvolutionSearcher, searcher_options)
     elif isinstance(searcher, (type, str)):
+        if issubclass(get_searcher_cls(searcher), MOOSearcher):
+            if objectives is None:
+                reward_metric = 'rmse' if task == const.TASK_REGRESSION else 'accuracy'
+                objectives = [reward_metric, 'elapsed']
+
+            objectives_instance = list(map(to_objective_object, objectives))
+            searcher_options['objectives'] = objectives_instance
         sch = to_searcher(searcher, searcher_options)
     else:
         from hypernets.core.searcher import Searcher as SearcherSpec
@@ -147,7 +151,7 @@ def make_experiment(hyper_model_cls,
         ExperimentCallback list.
     searcher : str, searcher class, search object, optional
         The hypernets Searcher instance to explore search space, default is EvolutionSearcher instance.
-        For str, should be one of 'evolution', 'mcts', 'random'.
+        For str, should be one of 'evolution', 'mcts', 'random', 'nsga2', 'moead'.
         For class, should be one of EvolutionSearcher, MCTSSearcher, RandomSearcher, MOEADSearcher, NSGAIISearrcher
          or subclass of hypernets Searcher.
         For other, should be instanced of hypernets Searcher.
@@ -181,8 +185,9 @@ def make_experiment(hyper_model_cls,
             - rmse
             - r2
             - recall
-    objectives : List[Union[Objective, str]] optional
-        Used for multi-objectives optimization, "reward_metric" string value is ompatible here and some builtin values are:
+    objectives : List[Union[Objective, str]] optional, (default to reward_metric as the first metric,
+                'elapsed' for the second)
+        Used for multi-objectives optimization, "reward_metric" compatible here and some other builtin values are:
             - elapsed
 
     optimize_direction : str, optional
@@ -193,7 +198,7 @@ def make_experiment(hyper_model_cls,
         Options to initlize HyperModel except *reward_metric*, *task*, *callbacks*, *discriminator*.
     evaluation_metrics: str, list, or None (default='auto'),
         If *eval_data* is not None, it used to evaluate model with the metrics.
-        For str should be 'auto', it will selected metrics accord to machine learning task type.
+        For str should be 'auto', it will select metrics accord to machine learning task type.
         For list should be metrics name.
     evaluation_persist_prediction: bool (default=False)
     evaluation_persist_prediction_dir: str or None (default='predction')
@@ -201,7 +206,7 @@ def make_experiment(hyper_model_cls,
     report_render: str, obj, optional, default is None
         The experiment report render.
         For str should be one of 'excel'
-        for obj should be instance ReportRender
+        for obj should be instanced of ReportRender
     report_render_options: dict, optional
         The options to create render, is used if render is str.
     experiment_cls: class, or None, (default=CompeteExperiment)

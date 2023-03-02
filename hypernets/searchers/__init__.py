@@ -6,6 +6,8 @@ __author__ = 'yangjian'
 
 from .evolution_searcher import EvolutionSearcher
 from .mcts_searcher import MCTSSearcher
+from .moead_searcher import MOEADSearcher
+from .nsga_searcher import NSGAIISearcher
 from .random_searcher import RandomSearcher
 from .playback_searcher import PlaybackSearcher
 from .grid_searcher import GridSearcher
@@ -26,7 +28,11 @@ searcher_dict = {
     'GridSearcher': GridSearcher,
     'playback': PlaybackSearcher,
     'PlaybackSearcher': PlaybackSearcher,
-    'Playback': PlaybackSearcher
+    'Playback': PlaybackSearcher,
+    'nsga2': NSGAIISearcher,
+    'NSGAIISearcher': NSGAIISearcher,
+    'moead': MOEADSearcher,
+    'MOEADSearcher': MOEADSearcher
 }
 
 
