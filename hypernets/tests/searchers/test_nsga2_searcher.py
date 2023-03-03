@@ -103,4 +103,4 @@ def test_non_consistent_direction():
     ns = rs.get_nondominated_set()
     print(ns)
 
-    rs.plot_pf(consistent_direction=False)
+    # rs.plot_pf(consistent_direction=False)

@@ -41,7 +41,7 @@ class TestMOEADSearcher:
 
         len(hk.history.trials)
         assert hk.get_best_trial()
-        rs.plot_pf()
+        # rs.plot_pf()
         print(time.time() - t1)
 
     @classmethod
