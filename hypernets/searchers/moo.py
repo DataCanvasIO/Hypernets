@@ -97,6 +97,10 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def plot_pf(self, consistent_direction=False):
+        def do_P(indis, color, label, fig):
+            indis_array = np.array(list(map(lambda _: _.scores, indis)))
+            fig.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+
         try:
             from matplotlib import pyplot as plt
         except Exception:
@@ -104,10 +108,6 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
 
         if len(self.objectives) != 2:
             raise RuntimeError("plot currently works only in case of 2 objectives. ")
-
-        def do_P(indis, color, label):
-            indis_array = np.array(list(map(lambda _: _.scores, indis)))
-            plt.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
 
         objective_names = list(map(lambda v: v.name, self.objectives))
         population = self.get_historical_population()
@@ -129,14 +129,19 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
         else:
             fixed_population = population
 
+        figure = plt.figure(figsize=(6, 6))
+        def do_P(indis, color, label, fig):
+            indis_array = np.array(list(map(lambda _: _.scores, indis)))
+            plt.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+
         ns: List[Individual] = calc_nondominated_set(fixed_population)
-        do_P(ns, color='red', label='nondominated')
+        do_P(ns, color='red', label='nondominated', fig=figure)
 
         ds: List[Individual] = list(filter(lambda v: v not in ns, fixed_population))
-        do_P(ds, color='blue', label='dominated')
+        do_P(ds, color='blue', label='dominated', fig=figure)
 
-        plt.legend()
+        figure.legend()
         plt.xlabel(objective_names[0])
         plt.ylabel(objective_names[1])
 
-        plt.show()
+        return figure

@@ -104,5 +104,3 @@ def test_non_consistent_direction():
     print(ns)
 
     rs.plot_pf(consistent_direction=False)
-
-
