@@ -171,14 +171,19 @@ class NotebookPseudoLabelingStepCallback(NotebookStepCallback):
             proba = fitted_params.get('test_proba')
             proba = proba[:, 1]  # fixme for multi-classes
 
-            import seaborn as sns
+            from scipy.stats import gaussian_kde
             import matplotlib.pyplot as plt
+
+            kde = gaussian_kde(proba)
+            x = np.linspace(proba.min(), proba.max())
+            y = kde(x)
+
             # Draw Plot
             plt.figure(figsize=(8, 4), dpi=80)
-            sns.kdeplot(proba, shade=True, color="g", label="Proba", alpha=.7, bw_adjust=0.01)
+            plt.plot(x, y, 'g-', alpha=0.7)
+            plt.fill_between(x, y, color='g', alpha=0.2)
             # Decoration
             plt.title('Density Plot of Probability', fontsize=22)
-            plt.legend()
             plt.show()
         except:
             pass
@@ -237,22 +242,28 @@ class SimpleNotebookCallback(ExperimentCallback):
                                       'Task', ]), display_id='output_intput')
 
         try:
-            import seaborn as sns
             import matplotlib.pyplot as plt
-            from sklearn.preprocessing import LabelEncoder
+
+            y_train = y_train.dropna()
             if exp.task == const.TASK_REGRESSION:
+                from scipy.stats import gaussian_kde
+                kde = gaussian_kde(y_train)
+                x = np.linspace(y_train.min(), y_train.max(), num=50)
+                y = kde(x)
                 # Draw Plot
                 plt.figure(figsize=(8, 4), dpi=80)
-                sns.kdeplot(y_train.dropna(), shade=True, color="g", label="Proba", alpha=.7, bw_adjust=0.01)
+                plt.plot(x, y, 'g-', alpha=0.7)
+                plt.fill_between(x, y, color='g', alpha=0.2)
             else:
-                le = LabelEncoder()
-                y = le.fit_transform(y_train.dropna())
+                tb = get_tool_box(y_train)
+                vs = tb.value_counts(y_train)
+                labels = list(sorted(vs.keys()))
+                values = [vs[k] for k in labels]
                 # Draw Plot
                 plt.figure(figsize=(8, 4), dpi=80)
-                sns.distplot(y, kde=False, color="g", label="y")
-            # Decoration
+                plt.pie(values, labels=labels, autopct='%1.1f%%')
+
             plt.title('Distribution of y', fontsize=22)
-            plt.legend()
             plt.show()
         except:
             pass
@@ -355,10 +366,11 @@ class MLEvaluateCallback(ExperimentCallback):
             from hypernets.tabular.metrics import calc_score
             evaluation_metrics_data = calc_score(y_test, y_pred, y_proba=None, metrics=('mse', 'mae', 'rmse', 'r2'),
                                                  task=const.TASK_REGRESSION, pos_label=None, classes=None, average=None)
-            evaluation_metrics_data['explained_variance'] = sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred)
+            evaluation_metrics_data['explained_variance'] = \
+                sk_metrics.explained_variance_score(y_true=y_test, y_pred=y_pred)
 
         exp.evaluation_ = {
-            'prediction_elapsed': (predict_elapsed,  predict_proba_elapsed),
+            'prediction_elapsed': (predict_elapsed, predict_proba_elapsed),
             'evaluation_metrics': evaluation_metrics_data,
             'confusion_matrix': confusion_matrix_data,
             'classification_report': classification_report_data
@@ -366,7 +378,6 @@ class MLEvaluateCallback(ExperimentCallback):
 
 
 class ResourceUsageMonitor(Thread):
-
     STATUS_READY = 0
     STATUS_RUNNING = 1
     STATUS_STOP = 2
@@ -449,6 +460,7 @@ class MLReportCallback(ExperimentCallback):
             del states['_rum']
 
         return states
+
 
 class ActionType:
     ExperimentStart = 'experimentStart'
