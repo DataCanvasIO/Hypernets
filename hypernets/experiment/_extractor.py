@@ -6,6 +6,7 @@ from typing import List, Set, Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from hypernets.model import Estimator
 from hypernets.utils import logging, get_tree_importances
@@ -584,15 +585,25 @@ class PseudoStepExtractor(Extractor):
 
     @staticmethod
     def get_proba_density_estimation(scores, classes, n_partitions=1000):
-        # from sklearn.neighbors import KernelDensity
         probability_density = {}
-        from seaborn._statistics import KDE
+
+        def calc(proba):
+            cut = 3
+            gridsize = 200
+
+            kde = stats.gaussian_kde(proba, bw_method='scott')
+            kde.set_bandwidth(0.01 * kde.factor)
+            bw = np.sqrt(kde.covariance.squeeze())
+            gridmin = max(proba.min() - bw * cut, -np.inf)
+            gridmax = min(proba.max() + bw * cut, +np.inf)
+            support = np.linspace(gridmin, gridmax, gridsize)
+            return kde(support), support
+
         for i, class_ in enumerate(classes):
             selected_proba = np.array(scores[:, i])
-            selected_proba_series = pd.Series(selected_proba).dropna()  # todo use numpy instead to remove pandas
+            proba = selected_proba[~np.isnan(selected_proba)]
             # selected_proba = selected_proba.reshape((selected_proba.shape[0], 1))
-            estimator = KDE(bw_method='scott', bw_adjust=0.01, gridsize=200, cut=3, clip=None, cumulative=False)
-            density, support = estimator(selected_proba_series, weights=None)
+            density, support = calc(proba)
             probability_density[class_] = {
                 'gaussian': {
                     "X": support.tolist(),
