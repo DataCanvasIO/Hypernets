@@ -25,7 +25,6 @@ from . import _data_hasher
 from . import _dataframe_mapper
 from . import _feature_generators
 from . import _metrics
-from . import _persistence
 from . import _transformers as tfs
 from .. import sklearn_ex as sk_ex
 
@@ -236,6 +235,7 @@ class DaskToolBox(ToolBox):
 
     @staticmethod
     def parquet():
+        from . import _persistence
         return _persistence.DaskParquetPersistence()
 
     # @staticmethod

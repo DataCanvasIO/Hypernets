@@ -1,19 +1,27 @@
 import glob
 import os
 
+import pytest
+
 from hypernets.tabular.datasets import dsutils
 from hypernets.tests import test_output_dir
 from hypernets.utils import fs
 from . import if_dask_ready, is_dask_installed, setup_dask
 
+is_parquet_ready = False
 if is_dask_installed:
     import dask.dataframe as dd
     import dask.array as da
     from hypernets.tabular.dask_ex import DaskToolBox
 
-    p = DaskToolBox.parquet()
+    try:
+        p = DaskToolBox.parquet()
+        is_parquet_ready = True
+    except:
+        pass
 
 
+@pytest.mark.skipif(not is_parquet_ready, reason='ParquetPersistence is not installed')
 @if_dask_ready
 class TestDaskPersistence:
     @classmethod

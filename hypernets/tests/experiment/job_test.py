@@ -9,6 +9,14 @@ from hypernets.experiment.job import ExperimentJobCreator, CompeteExperimentJobC
 from hypernets.tabular.datasets import dsutils
 from hypernets.utils import const, common as common_util
 
+try:
+    from pandas.io.parquet import get_engine
+
+    get_engine('auto')
+    is_pd_parquet_ready = True
+except:
+    is_pd_parquet_ready = False
+
 
 class BloodDatasetJobEngine(CompeteExperimentJobCreator):
 
@@ -27,6 +35,7 @@ class TestExperimentJobCreator:
             txt_file = f'{basedir}/movielens_sample.txt'
             ExperimentJobCreator._read_file(txt_file)
 
+    @pytest.mark.skipif(not is_pd_parquet_ready, reason='pandas parquet engine is not ready')
     def test_read_supported_file(self):
         from hypernets.tabular.datasets.dsutils import basedir
         csv_file = f'{basedir}/heart-disease-uci.csv'

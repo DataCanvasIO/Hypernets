@@ -29,7 +29,6 @@ from . import pseudo_labeling as pseudo_labeling_
 from . import sklearn_ex as sk_ex  # NOQA,  register customized transformer
 from ._base import ToolboxMeta, register_transformer
 from .cfg import TabularCfg as c
-from .persistence import ParquetPersistence
 
 try:
     import lightgbm
@@ -154,6 +153,7 @@ class ToolBox(metaclass=ToolboxMeta):
 
     @staticmethod
     def parquet():
+        from .persistence import ParquetPersistence
         return ParquetPersistence()
 
     @staticmethod

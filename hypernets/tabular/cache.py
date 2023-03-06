@@ -20,6 +20,20 @@ _KIND_PARQUET = 'parquet'
 _KIND_LIST = 'list'
 _KIND_NONE = 'none'
 
+_is_parquet_ready_flag = None
+
+
+def _is_parquet_ready(tb):
+    global _is_parquet_ready_flag
+    if _is_parquet_ready_flag is None:
+        try:
+            tb.parquet()
+            _is_parquet_ready_flag = True
+        except ImportError as e:
+            logger.warning(f'{e}, so cache strategy "{_STRATEGY_DATA}" is disabled.')
+            _is_parquet_ready_flag = False
+    return _is_parquet_ready_flag
+
 
 class SkipCache(Exception):
     pass
@@ -195,6 +209,9 @@ def decorate(fn, *, cache_dir, strategy,
 
                 # store cache
                 cache_strategy = strategy if strategy is not None else cfg.cache_strategy
+                if cache_strategy == _STRATEGY_DATA and not _is_parquet_ready(tb):
+                    cache_strategy = _STRATEGY_TRANSFORM
+
                 if cache_strategy == _STRATEGY_TRANSFORM and (result is None or transformer is not None):
                     cache_data = None
                     meta = {'strategy': _STRATEGY_TRANSFORM}

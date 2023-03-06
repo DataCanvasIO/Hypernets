@@ -3,15 +3,22 @@ from os import path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.persistence import ParquetPersistence
 from hypernets.tests import test_output_dir
 from hypernets.utils import fs
 
-p = ParquetPersistence()
+try:
+    from hypernets.tabular.persistence import ParquetPersistence
+
+    p = ParquetPersistence()
+    is_parquet_persitence_ready = True
+except:
+    is_parquet_persitence_ready = False
 
 
+@pytest.mark.skipif(not is_parquet_persitence_ready, reason='ParquetPersistence is not installed')
 class TestPersistence:
     @classmethod
     def setup_class(cls):
