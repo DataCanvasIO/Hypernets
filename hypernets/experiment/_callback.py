@@ -175,7 +175,8 @@ class NotebookPseudoLabelingStepCallback(NotebookStepCallback):
             import matplotlib.pyplot as plt
 
             kde = gaussian_kde(proba)
-            x = np.linspace(proba.min(), proba.max())
+            kde.set_bandwidth(0.01 * kde.factor)
+            x = np.linspace(proba.min(), proba.max(), num=100)
             y = kde(x)
 
             # Draw Plot
@@ -248,7 +249,8 @@ class SimpleNotebookCallback(ExperimentCallback):
             if exp.task == const.TASK_REGRESSION:
                 from scipy.stats import gaussian_kde
                 kde = gaussian_kde(y_train)
-                x = np.linspace(y_train.min(), y_train.max(), num=50)
+                kde.set_bandwidth(0.01 * kde.factor)
+                x = np.linspace(y_train.min(), y_train.max(), num=100)
                 y = kde(x)
                 # Draw Plot
                 plt.figure(figsize=(8, 4), dpi=80)
