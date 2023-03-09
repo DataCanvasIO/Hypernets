@@ -1,3 +1,6 @@
+import abc
+from typing import List
+
 from hypernets.core import HyperSpace, get_random_state
 from hypernets.core.searcher import OptimizeDirection, Searcher
 
@@ -142,3 +145,9 @@ class SinglePointMutation:
                     hp.assign(parent_params[i].value)
 
         return out_space
+
+
+class Survival(metaclass=abc.ABCMeta):
+
+    def update(self, pop: List[Individual], pop_size: int, challengers: List[Individual], directions: List[str]):
+        raise NotImplementedError

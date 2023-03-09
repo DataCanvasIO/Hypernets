@@ -5,7 +5,7 @@ import numpy as np
 
 from .moo import MOOSearcher, dominate, calc_nondominated_set
 from ..core import HyperSpace, Searcher, OptimizeDirection, get_random_state
-from .genetic import Recombination, Individual, SinglePointMutation
+from .genetic import Recombination, Individual, SinglePointMutation, Survival
 
 
 class NSGAIndividual(Individual):
@@ -22,6 +22,104 @@ class NSGAIndividual(Individual):
         self.n: int = -1
 
         self.distance = 0  # crowding-distance
+
+
+def compare_solution(s1: NSGAIndividual, s2: NSGAIndividual):
+    if s1.rank < s2.rank:
+        return 1
+    elif s1.rank == s2.rank:
+        if s1.distance > s2.distance:
+            return 1
+        elif s1.distance == s2.distance:
+            return 0
+        else:
+            return -1
+    else:
+        return -1
+
+
+def fast_non_dominated_sort(P: List[NSGAIndividual], directions):
+
+    F_1 = []
+    F = [F_1]  # to store pareto front of levels respectively
+
+    for p in P:
+        S_p = []
+        n_p = 0
+        for q in P:
+            if p == q:
+                continue
+            if dominate(p.scores, q.scores, directions=directions):
+                S_p.append(q)
+            if dominate(q.scores, p.scores, directions=directions):
+                n_p = n_p + 1
+
+        p.S = S_p
+        p.n = n_p
+
+        if n_p == 0:
+            p.rank = 1
+            F_1.append(p)
+
+    i = 0
+    while True:
+        Q = []
+        for p in F[i]:
+           for q in p.S:
+               q.n = q.n - 1
+               if q.n == 0:
+                   q.rank = i + 1
+                   Q.append(q)
+        if len(Q) == 0:
+            break
+        F.append(Q)
+        i = i + 1
+    return F
+
+
+def crowding_distance_assignment(I: List[NSGAIndividual]):
+    scores_array = np.array([indi.scores for indi in I])
+
+    maximum_array = np.max(scores_array, axis=0)
+    minimum_array = np.min(scores_array, axis=0)
+
+    for m in range(len(I[0].scores)):
+        sorted_I = list(sorted(I, key=lambda v: v.scores[m], reverse=False))
+        sorted_I[0].distance = float("inf")  # so that boundary points always selected, because they are not crowd
+        sorted_I[len(I)-1].distance = float("inf")
+        # only assign distances for non-boundary points
+        for i in range(1, (len(I) - 1)):
+            sorted_I[i].distance = sorted_I[i].distance\
+                            + (sorted_I[i+1].scores[m] - sorted_I[i - 1].scores[m]) \
+                            / (maximum_array[m] - minimum_array[m])
+    return I
+
+
+class RankAndCrowdSortSurvival(Survival):
+
+    def __init__(self, random_state):
+        self.random_state = random_state
+
+    def update(self, pop: List[NSGAIndividual], pop_size: int, challengers: List[Individual], directions: List[str]):
+        temp_pop = []
+        temp_pop.extend(pop)
+        temp_pop.extend(challengers)
+
+        P_sorted = fast_non_dominated_sort(temp_pop, directions)
+        P_selected: List[NSGAIndividual] = []
+
+        rank = 0
+        while len(P_selected) + len(P_sorted[rank]) <= pop_size:
+            individuals = crowding_distance_assignment(P_sorted[rank])
+            P_selected.extend(individuals)
+            rank = rank + 1
+            if rank >= len(P_sorted):  # no enough elements
+                break
+
+        # ensure population size
+        P_final = list(sorted(P_selected, key=cmp_to_key(compare_solution)))[:pop_size]
+
+        return P_final
 
 
 class NSGAIISearcher(MOOSearcher):
@@ -50,63 +148,8 @@ class NSGAIISearcher(MOOSearcher):
         self.mutation = SinglePointMutation(self.random_state, mutate_probability)
 
         self.population_size = population_size
-
-    @staticmethod
-    def fast_non_dominated_sort(P: List[NSGAIndividual], directions):
-
-        F_1 = []
-        F = [F_1]  # to store pareto front of levels respectively
-
-        for p in P:
-            S_p = []
-            n_p = 0
-            for q in P:
-                if p == q:
-                    continue
-                if dominate(p.scores, q.scores, directions=directions):
-                    S_p.append(q)
-                if dominate(q.scores, p.scores, directions=directions):
-                    n_p = n_p + 1
-
-            p.S = S_p
-            p.n = n_p
-
-            if n_p == 0:
-                p.rank = 1
-                F_1.append(p)
-
-        i = 0
-        while True:
-            Q = []
-            for p in F[i]:
-               for q in p.S:
-                   q.n = q.n - 1
-                   if q.n == 0:
-                       q.rank = i + 1
-                       Q.append(q)
-            if len(Q) == 0:
-                break
-            F.append(Q)
-            i = i + 1
-        return F
-
-    @staticmethod
-    def crowding_distance_assignment(I: List[NSGAIndividual]):
-        scores_array = np.array([indi.scores for indi in I])
-
-        maximum_array = np.max(scores_array, axis=0)
-        minimum_array = np.min(scores_array, axis=0)
-
-        for m in range(len(I[0].scores)):
-            sorted_I = list(sorted(I, key=lambda v: v.scores[m], reverse=False))
-            sorted_I[0].distance = float("inf")  # so that boundary points always selected, because they are not crowd
-            sorted_I[len(I)-1].distance = float("inf")
-            # only assign distances for non-boundary points
-            for i in range(1, (len(I) - 1)):
-                sorted_I[i].distance = sorted_I[i].distance\
-                                + (sorted_I[i+1].scores[m] - sorted_I[i - 1].scores[m]) \
-                                / (maximum_array[m] - minimum_array[m])
-        return I
+        self.survival = RankAndCrowdSortSurvival(self.random_state)
+        self._historical_individuals: List[NSGAIndividual] = []
 
     def binary_tournament_select(self, population):
         indi_inx = self.random_state.randint(low=0, high=len(population) - 1, size=2)  # fixme: maybe duplicated inx
@@ -115,7 +158,7 @@ class NSGAIISearcher(MOOSearcher):
         p2 = population[indi_inx[1]]
 
         # select the first parent
-        if self.compare_solution(p1, p2) >= 0:
+        if compare_solution(p1, p2) >= 0:
             first_inx = indi_inx[0]
         else:
             first_inx = indi_inx[1]
@@ -129,46 +172,23 @@ class NSGAIISearcher(MOOSearcher):
             indi_inx = self.random_state.randint(low=0, high=len(population) - 1, size=2)
             try_times = try_times + 1
 
-        if self.compare_solution(p1, p2) >= 0:
+        if compare_solution(p1, p2) >= 0:
             second_inx = indi_inx[0]
         else:
             second_inx = indi_inx[1]
 
         return population[first_inx], population[second_inx]
 
-    def compare_solution(self, s1: NSGAIndividual, s2: NSGAIndividual):
-        if s1.rank < s2.rank:
-            return 1
-        elif s1.rank == s2.rank:
-            if s1.distance > s2.distance:
-                return 1
-            elif s1.distance == s2.distance:
-                return 0
-            else:
-                return -1
-        else:
-            return -1
+    @property
+    def directions(self):
+        return [o.direction for o in self.objectives]
 
     def sample(self):
         if len(self.population) < self.population_size:
             return self._sample_and_check(self._random_sample)
-        directions = [o.direction for o in self.objectives]
-        P_sorted = self.fast_non_dominated_sort(self.population, directions)
-        P_selected:List[NSGAIndividual] = []
-
-        rank = 0
-        while len(P_selected) + len(P_sorted[rank]) <= self.population_size:
-            individuals = self.crowding_distance_assignment(P_sorted[rank])
-            P_selected.extend(individuals)
-            rank = rank+1
-            if rank >= len(P_sorted):  # no enough elements
-                break
-
-        # ensure population size
-        P_final = list(sorted(P_selected, key=cmp_to_key(self.compare_solution)))[:self.population_size]
 
         # binary tournament selection operation
-        p1, p2 = self.binary_tournament_select(P_final)
+        p1, p2 = self.binary_tournament_select(self.population)
 
         try:
             offspring = self.recombination.do(p1, p2, self.space_fn())
@@ -185,10 +205,14 @@ class NSGAIISearcher(MOOSearcher):
         return calc_nondominated_set(self.population)
 
     def update_result(self, space, result):
-        self.population.append(NSGAIndividual(space, np.array(result), self.random_state))
+        indi = NSGAIndividual(space, np.array(result), self.random_state)
+        self._historical_individuals.append(indi)  # add to history
+        p = self.survival.update(pop=self.population, pop_size=self.population_size,
+                                 challengers=[indi], directions=self.directions)
+        self.population = p
 
-    def get_historical_population(self) -> List[Individual]:
-        return self.population
+    def get_historical_population(self):
+        return self._historical_individuals
 
     def reset(self):
         pass
