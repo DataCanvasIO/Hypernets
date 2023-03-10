@@ -29,9 +29,10 @@ class PredictionObjective(PerformanceObjective):
         self._scorer = scorer
 
     def call(self, trial, estimator, X_test, y_test, **kwargs):
+        import numpy as np
         #y_pred = estimator.predict(X_test)
         #y_proba = estimator.predict_proba(X_test)
-        return self._scorer(estimator, X_test, y_test)
+        return np.absolute(self._scorer(estimator, X_test, y_test))
 
     @staticmethod
     def create(name, task=const.TASK_BINARY, pos_label=None):

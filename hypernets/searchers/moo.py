@@ -8,7 +8,7 @@ from hypernets.core.objective import Objective
 from hypernets.searchers.genetic import Individual
 
 
-def dominate(x1: np.ndarray, x2: np.ndarray, directions=None):
+def pareto_dominate(x1: np.ndarray, x2: np.ndarray, directions=None):
     # return: is s1 dominate s2
     if directions is None:
         directions = ['min'] * x1.shape[0]
@@ -62,7 +62,7 @@ def calc_nondominated_set(population: List[Individual]):
         for indi_ in population:
             if indi_ == indi:
                 continue
-            if dominate(indi_.scores, indi.scores):
+            if pareto_dominate(indi_.scores, indi.scores):
                 return False
         return True  # this is a pareto optimal
 

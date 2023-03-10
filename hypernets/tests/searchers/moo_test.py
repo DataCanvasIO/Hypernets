@@ -1,24 +1,24 @@
 import numpy as np
 
-from hypernets.searchers.moo import dominate, calc_nondominated_set
+from hypernets.searchers.moo import pareto_dominate, calc_nondominated_set
 from hypernets.searchers.genetic import Individual
 
 
 def test_dominate():
     s1 = np.array([0.5, 0.6])
     s2 = np.array([0.4, 0.6])
-    assert dominate(s2, s1) is True
+    assert pareto_dominate(s2, s1) is True
 
     s3 = np.array([0.3, 0.7])
-    assert dominate(s2, s3) is False
+    assert pareto_dominate(s2, s3) is False
 
     s4 = np.array([0.2, 0.5])
-    assert dominate(s3, s4) is False
+    assert pareto_dominate(s3, s4) is False
 
     # different direction
     s5 = np.array([0.8, 100])
     s6 = np.array([0.7, 101])
-    assert dominate(s5, s6, directions=('max', 'min')) is True
+    assert pareto_dominate(s5, s6, directions=('max', 'min')) is True
 
 
 def test_calc_nondominated_set():
