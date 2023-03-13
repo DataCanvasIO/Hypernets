@@ -96,10 +96,16 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
     def get_historical_population(self) -> List[Individual]:
         raise NotImplementedError
 
-    def plot_pf(self, consistent_direction=False):
-        def do_P(indis, color, label, fig):
+    @abc.abstractmethod
+    def get_population(self) -> List[Individual]:
+        raise NotImplementedError
+
+    def _plot(self, pop: List[Individual], label: str, comparison_label: str):
+        def do_P(indis, color, label, ax):
+            if len(indis) <= 0:
+                return
             indis_array = np.array(list(map(lambda _: _.scores, indis)))
-            fig.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+            ax.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
 
         try:
             from matplotlib import pyplot as plt
@@ -110,38 +116,76 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
             raise RuntimeError("plot currently works only in case of 2 objectives. ")
 
         objective_names = list(map(lambda v: v.name, self.objectives))
-        population = self.get_historical_population()
-        if consistent_direction:
-            scores_array = np.array([indi.scores for indi in population])
-            reverse_inx = []
-            if len(set(map(lambda v: v.direction, self.objectives))) > 1:
-                for i, o in enumerate(self.objectives):
-                    if o.direction != 'min':
-                        objective_names[i] = f"{objective_names[i]}(e^-x)"
-                        reverse_inx.append(i)
+        historical_individuals = self.get_historical_population()
+        comparison: List[Individual] = list(filter(lambda v: v not in pop, historical_individuals))
 
-            reversed_scores = scores_array.copy()
-            reversed_scores[:, reverse_inx] = np.exp(-scores_array[:, reverse_inx])  # e^-x
+        fig, ax = plt.subplots(figsize=(6, 6))
 
-            rd_population = [Individual(indi.dna, reversed_scores[i], indi.random_state)
-                             for i, indi in enumerate(population)]
-            fixed_population = rd_population
-        else:
-            fixed_population = population
+        do_P(pop, color='red', label=label, ax=ax)
 
-        figure = plt.figure(figsize=(6, 6))
-        def do_P(indis, color, label, fig):
-            indis_array = np.array(list(map(lambda _: _.scores, indis)))
-            plt.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+        do_P(comparison, color='blue', label=comparison_label, ax=ax)
 
-        ns: List[Individual] = calc_nondominated_set(fixed_population)
-        do_P(ns, color='red', label='nondominated', fig=figure)
-
-        ds: List[Individual] = list(filter(lambda v: v not in ns, fixed_population))
-        do_P(ds, color='blue', label='dominated', fig=figure)
-
-        figure.legend()
+        fig.legend()
         plt.xlabel(objective_names[0])
         plt.ylabel(objective_names[1])
 
-        return figure
+        return fig
+
+    def plot_nondominated(self):
+        ns: List[Individual] = self.get_nondominated_set()
+        self._plot(ns, label='nondominated', comparison_label='dominated')
+
+    def plot_population(self):
+        pop: List[Individual] = self.get_population()
+        self._plot(pop, label='in population', comparison_label='the others')
+
+
+    # def plot_pf(self, consistent_direction=False):
+    #     def do_P(indis, color, label, fig):
+    #         indis_array = np.array(list(map(lambda _: _.scores, indis)))
+    #         fig.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+    #
+    #     try:
+    #         from matplotlib import pyplot as plt
+    #     except Exception:
+    #         raise RuntimeError("it requires matplotlib installed.")
+    #
+    #     if len(self.objectives) != 2:
+    #         raise RuntimeError("plot currently works only in case of 2 objectives. ")
+    #
+    #     objective_names = list(map(lambda v: v.name, self.objectives))
+    #     population = self.get_historical_population()
+    #     if consistent_direction:
+    #         scores_array = np.array([indi.scores for indi in population])
+    #         reverse_inx = []
+    #         if len(set(map(lambda v: v.direction, self.objectives))) > 1:
+    #             for i, o in enumerate(self.objectives):
+    #                 if o.direction != 'min':
+    #                     objective_names[i] = f"{objective_names[i]}(e^-x)"
+    #                     reverse_inx.append(i)
+    #
+    #         reversed_scores = scores_array.copy()
+    #         reversed_scores[:, reverse_inx] = np.exp(-scores_array[:, reverse_inx])  # e^-x
+    #
+    #         rd_population = [Individual(indi.dna, reversed_scores[i], indi.random_state)
+    #                          for i, indi in enumerate(population)]
+    #         fixed_population = rd_population
+    #     else:
+    #         fixed_population = population
+    #
+    #     figure = plt.figure(figsize=(6, 6))
+    #     def do_P(indis, color, label, fig):
+    #         indis_array = np.array(list(map(lambda _: _.scores, indis)))
+    #         plt.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+    #
+    #     ns: List[Individual] = calc_nondominated_set(fixed_population)
+    #     do_P(ns, color='red', label='nondominated', fig=figure)
+    #
+    #     ds: List[Individual] = list(filter(lambda v: v not in ns, fixed_population))
+    #     do_P(ds, color='blue', label='dominated', fig=figure)
+    #
+    #     figure.legend()
+    #     plt.xlabel(objective_names[0])
+    #     plt.ylabel(objective_names[1])
+    #
+    #     return figure

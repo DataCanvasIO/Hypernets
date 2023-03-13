@@ -219,6 +219,9 @@ class NSGAIISearcher(MOOSearcher):
     def get_historical_population(self):
         return self._historical_individuals
 
+    def get_population(self) -> List[Individual]:
+        return self.population
+
     def reset(self):
         pass
 

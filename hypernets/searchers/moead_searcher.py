@@ -280,7 +280,6 @@ class MOEADSearcher(MOOSearcher):
 
         direction.offspring = final_offspring
 
-
         if final_offspring is not None:
             return self._sample_and_check(lambda: final_offspring)
         else:
@@ -335,6 +334,9 @@ class MOEADSearcher(MOOSearcher):
 
     def get_historical_population(self) -> List[Individual]:
         return self._pop_history
+
+    def get_population(self) -> List[Individual]:
+        raise NotImplementedError
 
     @property
     def parallelizable(self):
