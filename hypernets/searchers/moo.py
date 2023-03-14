@@ -55,14 +55,17 @@ def _compair(x1, x2, c_op):
         return False
 
 
-def calc_nondominated_set(population: List[Individual]):
+def calc_nondominated_set(population: List[Individual], dominate_func=None):
+    if dominate_func is None:
+        dominate_func = pareto_dominate
+
     def find_non_dominated_solu(indi):
         if (np.array(indi.scores) == None).any():  # illegal individual for the None scores
             return False
         for indi_ in population:
             if indi_ == indi:
                 continue
-            if pareto_dominate(indi_.scores, indi.scores):
+            if dominate_func(indi_.scores, indi.scores):
                 return False
         return True  # this is a pareto optimal
 

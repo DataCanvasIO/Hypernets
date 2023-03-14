@@ -237,29 +237,35 @@ class RDominanceSurvival(RankAndCrowdSortSurvival):
         self.weights = weights
         self.dominance_threshold = dominance_threshold
 
-    def distance(self, x: np.ndarray, g: np.ndarray, w: np.ndarray, pop: List[Individual]):
-        """Calculate weighted Euclidean distance of two solution.
-            :param x: considered solution
-            :param g: user-specified reference point
-        """
-        # get the scores
-        scores = np.array([_.scores for _ in pop])
-        return np.sum(np.sqrt(np.square((x - g) / (np.max(scores, axis=0) - np.min(scores, axis=0))) * w))
+    @staticmethod
+    def r_dominance(x, y, ref_point, weights, directions, pop: np.ndarray, threshold):
+        def distance(x: np.ndarray, g: np.ndarray, w: np.ndarray, scores_diff: np.ndarray):
+            """Calculate weighted Euclidean distance of two solution.
+                :param x: considered solution
+                :param g: user-specified reference point
+                :param w: weight vector
+                :param scores_diff: max(obj_i) - min(obj_i), for normalization
+            """
+            return np.sum(np.sqrt(np.square((x - g) / scores_diff) * w))
 
-    def r_dominance(self, x, y, ref_point, weights, directions, pop: List[NSGAIndividual], threshold):
+        assert pop.ndim == 2
         if pareto_dominate(x, y, directions):
             return True
-        distances = [self.distance(indi.scores, ref_point, weights, pop) for indi in pop]
-        d = -(self.distance(x, ref_point, weights, pop) - self.distance(y, ref_point, weights, pop)) / (np.max(distances) - np.min(distances))
-        return d >= threshold
+
+        scores_diff = np.max(pop, axis=0) - np.min(pop, axis=0)
+
+        distances = [distance(_, ref_point, weights, scores_diff) for _ in pop]
+        d = (distance(x, ref_point, weights, scores_diff) - distance(y, ref_point, weights, scores_diff)) / (np.max(distances) - np.min(distances))
+        return d < -threshold
 
     def dominate(self, x1: np.ndarray, x2: np.ndarray, pop, directions=None):
+        pop_scores = np.array([_.scores for _ in pop])
         return self.r_dominance(x=x1, y=x2, ref_point=self.ref_point, weights=self.weights, directions=directions,
-                                pop=pop, threshold=self.dominance_threshold)
+                                pop=pop_scores, threshold=self.dominance_threshold)
 
 
 class RNSGAIISearcher(NSGAIISearcher):
-    """An implementation of "reference solution-based NSGA-II" implementation of r-dominance" which is a variant of NSGA-II algorithm.
+    """An implementation of R-NSGA-II which is a variant of NSGA-II algorithm.
 
         References:
             [1]. L. Ben Said, S. Bechikh and K. Ghedira, "The r-Dominance: A New Dominance Relation for Interactive Evolutionary Multicriteria Decision Making," in IEEE Transactions on Evolutionary Computation, vol. 14, no. 5, pp. 801-818, Oct. 2010, doi: 10.1109/TEVC.2010.2041060.
@@ -274,9 +280,12 @@ class RNSGAIISearcher(NSGAIISearcher):
         # default is uniform weights
         self.weights = weights if weights is not None else [1 / n_objectives] * n_objectives
         self.dominance_threshold = dominance_threshold
+        self.epsilon = epsilon
 
-        super().__init__(space_fn=space_fn, objectives=objectives, use_meta_learner=use_meta_learner,
-                         space_sample_validation_fn=space_sample_validation_fn)
+        super().__init__(space_fn=space_fn, objectives=objectives,recombination=recombination,
+                         mutate_probability=mutate_probability, population_size=population_size,
+                         use_meta_learner=use_meta_learner,
+                         space_sample_validation_fn=space_sample_validation_fn, random_state=random_state)
 
     def create_survival(self):
         return RDominanceSurvival(random_state=self.random_state, ref_point=self.ref_point,

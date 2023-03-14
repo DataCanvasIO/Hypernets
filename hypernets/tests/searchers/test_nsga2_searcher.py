@@ -1,8 +1,11 @@
 import pytest
+import numpy as np
+from pexpect import searcher_string
 
 from hypernets.core import OptimizeDirection
 from hypernets.model.objectives import ElapsedObjective, PredictionObjective
-from hypernets.searchers.nsga_searcher import NSGAIISearcher, NSGAIndividual, RankAndCrowdSortSurvival
+from hypernets.searchers.nsga_searcher import NSGAIISearcher, NSGAIndividual, RankAndCrowdSortSurvival, \
+    RDominanceSurvival
 
 from sklearn.preprocessing import LabelEncoder
 from hypernets.core.random_state import set_random_state, get_random_state
@@ -10,6 +13,9 @@ from hypernets.examples.plain_model import PlainSearchSpace, PlainModel
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from sklearn.model_selection import train_test_split
+
+from hypernets.searchers.moo import pareto_dominate, calc_nondominated_set
+from hypernets.searchers.genetic import Individual
 
 set_random_state(1234)
 
@@ -104,3 +110,37 @@ def test_non_consistent_direction():
     print(ns)
 
     # rs.plot_pf(consistent_direction=False)
+
+
+def test_r_dominate():
+    reference_point = [0.2, 0.4]
+
+    b = np.array([0.2, 0.6])
+    c = np.array([0.38, 0.5])
+    d = np.array([0.6, 0.25])
+    f = np.array([0.4, 0.6])
+
+    def cmp(x1, x2, directions=None):
+        return RDominanceSurvival.r_dominance(x1, x2, ref_point=reference_point, weights=np.array([0.5, 0.5]),
+                                               directions=['min', 'min'], pop=np.array([b, c, d, f]), threshold=0.3)
+
+    assert not cmp(b, c)
+    assert cmp(b, d)
+    assert cmp(c, d)
+
+    assert cmp(b, f)
+    assert cmp(c, f)
+
+    assert not cmp(d, f)
+
+    i_b = Individual("1", np.array([0.2, 0.6]), None)
+    i_c = Individual("2", np.array([0.38, 0.5]), None)
+    i_d = Individual("3", np.array([0.6, 0.25]), None)
+    i_f = Individual("4", np.array([0.4, 0.6]), None)
+
+    nondominated_set = calc_nondominated_set([i_b, i_c, i_d, i_f], dominate_func=cmp)
+
+    assert len(nondominated_set) == 2
+    assert i_b in nondominated_set
+    assert i_c in nondominated_set
+
