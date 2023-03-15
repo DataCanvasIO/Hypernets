@@ -1,6 +1,5 @@
 import pytest
 import numpy as np
-from pexpect import searcher_string
 
 from hypernets.core import OptimizeDirection
 from hypernets.model.objectives import ElapsedObjective, PredictionObjective
