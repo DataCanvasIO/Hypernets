@@ -1,5 +1,5 @@
 from typing import List
-from functools import cmp_to_key
+from functools import cmp_to_key, partial
 
 import numpy as np
 
@@ -40,7 +40,8 @@ def cmp_operator(s1: NSGAIndividual, s2: NSGAIndividual):
 
 class RankAndCrowdSortSurvival(Survival):
 
-    def __init__(self, random_state):
+    def __init__(self, directions, random_state):
+        self.directions = directions
         self.random_state = random_state
 
     @staticmethod
@@ -61,11 +62,10 @@ class RankAndCrowdSortSurvival(Survival):
                                        / (maximum_array[m] - minimum_array[m])
         return I
 
-    def fast_non_dominated_sort(self, P: List[NSGAIndividual], directions):
-
+    def fast_non_dominated_sort(self, P: List[NSGAIndividual]):
+        directions = self.directions
         F_1 = []
         F = [F_1]  # to store pareto front of levels respectively
-
         for p in P:
             S_p = []
             n_p = 0
@@ -104,20 +104,22 @@ class RankAndCrowdSortSurvival(Survival):
         temp_pop.extend(pop)
         temp_pop.extend(challengers)
 
-        P_sorted = self.fast_non_dominated_sort(temp_pop, directions)
-        P_selected: List[NSGAIndividual] = []
+        p_sorted = self.fast_non_dominated_sort(temp_pop)
+        if len(p_sorted) == 1 and len(p_sorted[0]) == 0:
+            print(p_sorted)
 
-        rank = 0
-        while len(P_selected) + len(P_sorted[rank]) <= pop_size:
-            individuals = self.crowding_distance_assignment(P_sorted[rank])
-            P_selected.extend(individuals)
-            rank = rank + 1
-            if rank >= len(P_sorted):  # no enough elements
+        p_selected: List[NSGAIndividual] = []
+        for rank, P_front in enumerate(p_sorted):
+            if len(P_front) == 0:
                 break
+            individuals = self.crowding_distance_assignment(P_front)
+            p_selected.extend(individuals)
+            if len(p_selected) >= pop_size:
+                pass
 
         # ensure population size
-        P_final = list(sorted(P_selected, key=cmp_to_key(cmp_operator)))[:pop_size]
-        return P_final
+        p_final = list(sorted(p_selected, key=cmp_to_key(cmp_operator)))[:pop_size]
+        return p_final
 
     def dominate(self, x1: np.ndarray, x2: np.ndarray, pop, directions=None):
         return pareto_dominate(x1=x1, x2=x2, directions=directions)
@@ -154,7 +156,7 @@ class NSGAIISearcher(MOOSearcher):
         self._historical_individuals: List[NSGAIndividual] = []
 
     def create_survival(self):
-        return RankAndCrowdSortSurvival(self.random_state)
+        return RankAndCrowdSortSurvival(directions=self.directions, random_state=self.random_state)
 
     def binary_tournament_select(self, population):
         indi_inx = self.random_state.randint(low=0, high=len(population) - 1, size=2)  # fixme: maybe duplicated inx
@@ -231,32 +233,45 @@ class NSGAIISearcher(MOOSearcher):
 
 class RDominanceSurvival(RankAndCrowdSortSurvival):
 
-    def __init__(self, random_state, ref_point, weights, dominance_threshold):
-        super(RDominanceSurvival, self).__init__(random_state)
+    def __init__(self,directions, random_state, ref_point, weights, dominance_threshold):
+        super(RDominanceSurvival, self).__init__(directions, random_state)
         self.ref_point = ref_point
         self.weights = weights
         self.dominance_threshold = dominance_threshold
 
     @staticmethod
-    def r_dominance(x, y, ref_point, weights, directions, pop: np.ndarray, threshold):
-        def distance(x: np.ndarray, g: np.ndarray, w: np.ndarray, scores_diff: np.ndarray):
-            """Calculate weighted Euclidean distance of two solution.
-                :param x: considered solution
-                :param g: user-specified reference point
-                :param w: weight vector
-                :param scores_diff: max(obj_i) - min(obj_i), for normalization
-            """
-            return np.sum(np.sqrt(np.square((x - g) / scores_diff) * w))
+    def distance(x: np.ndarray, g: np.ndarray, w: np.ndarray, scores_diff: np.ndarray):
+        """ Calculate weighted Euclidean distance of two solution.
 
+        Parameters
+        ----------
+        x: considered solution
+        g: user-specified reference point
+        w: weight vector
+        scores_diff: max(obj_i) - min(obj_i), for normalization, note that since g is infeasible value, maybe ret>1
+        """
+        ret = np.sqrt(np.sum(np.square((x - g) / scores_diff) * w))
+        return ret
+
+    @staticmethod
+    def r_dominance(x, y, ref_point, weights, directions, pop: np.ndarray, threshold):
         assert pop.ndim == 2
         if pareto_dominate(x, y, directions):
             return True
 
+        if pareto_dominate(y, x, directions):
+            return False
+
+        # in case of pareto-equivalent, compare distance
         scores_diff = np.max(pop, axis=0) - np.min(pop, axis=0)
 
-        distances = [distance(_, ref_point, weights, scores_diff) for _ in pop]
-        d = (distance(x, ref_point, weights, scores_diff) - distance(y, ref_point, weights, scores_diff)) / (np.max(distances) - np.min(distances))
-        return d < -threshold
+        dist = partial(RDominanceSurvival.distance, g=ref_point, w=weights, scores_diff=scores_diff)
+
+        distances = [dist(_) for _ in pop]
+        dist_diff = np.max(distances) - np.min(distances)
+
+        dd = (dist(x) - dist(y)) / dist_diff
+        return dd < -threshold
 
     def dominate(self, x1: np.ndarray, x2: np.ndarray, pop, directions=None):
         pop_scores = np.array([_.scores for _ in pop])
@@ -282,11 +297,25 @@ class RNSGAIISearcher(NSGAIISearcher):
         self.dominance_threshold = dominance_threshold
         self.epsilon = epsilon
 
-        super().__init__(space_fn=space_fn, objectives=objectives,recombination=recombination,
-                         mutate_probability=mutate_probability, population_size=population_size,
-                         use_meta_learner=use_meta_learner,
-                         space_sample_validation_fn=space_sample_validation_fn, random_state=random_state)
+        super(RNSGAIISearcher, self).__init__(space_fn=space_fn, objectives=objectives, recombination=recombination,
+                                              mutate_probability=mutate_probability, population_size=population_size,
+                                              use_meta_learner=use_meta_learner,
+                                              space_sample_validation_fn=space_sample_validation_fn,
+                                              random_state=random_state)
 
     def create_survival(self):
         return RDominanceSurvival(random_state=self.random_state, ref_point=self.ref_point,
-                                  weights=self.weights, dominance_threshold=self.dominance_threshold)
+                                  weights=self.weights, dominance_threshold=self.dominance_threshold,
+                                  directions=self.directions)
+
+    def plot_addition(self, ax, fig, show_ref_point=True, show_weights=False, **kwargs):
+        if show_ref_point:
+            ref_point = self.ref_point
+            ax.scatter([ref_point[0]], [ref_point[1]], c='green', marker="*", label='ref point')
+
+        if show_weights:
+            weights = self.weights
+            # plot a vector
+            ax.quiver(0, 0, weights[0], weights[1], angles='xy', scale_units='xy', scale=1, label='weights')
+
+        return ax, fig

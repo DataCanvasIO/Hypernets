@@ -12,6 +12,9 @@ class Individual:
         self.random_state = random_state
         self.scores = scores
 
+    def __repr__(self):
+        return str(self.dna) + "=" + str(self.scores)
+
 
 class Recombination:
 

@@ -103,7 +103,7 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
     def get_population(self) -> List[Individual]:
         raise NotImplementedError
 
-    def _plot(self, pop: List[Individual], label: str, comparison_label: str):
+    def _plot(self, pop: List[Individual], label: str, comparison_label: str, **kwargs):
         def do_P(indis, color, label, ax):
             if len(indis) <= 0:
                 return
@@ -128,20 +128,24 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
 
         do_P(comparison, color='blue', label=comparison_label, ax=ax)
 
+        ax, fig = self.plot_addition(ax, fig, **kwargs)
+
         fig.legend()
         plt.xlabel(objective_names[0])
         plt.ylabel(objective_names[1])
 
         return fig
 
-    def plot_nondominated(self):
+    def plot_addition(self, ax, fig, **kwargs):
+        return ax, fig
+
+    def plot_nondominated(self, **kwargs):
         ns: List[Individual] = self.get_nondominated_set()
-        self._plot(ns, label='nondominated', comparison_label='dominated')
+        self._plot(ns, label='nondominated', comparison_label='dominated', **kwargs)
 
-    def plot_population(self):
+    def plot_population(self, **kwargs):
         pop: List[Individual] = self.get_population()
-        self._plot(pop, label='in population', comparison_label='the others')
-
+        self._plot(pop, label='in population', comparison_label='the others', **kwargs)
 
     # def plot_pf(self, consistent_direction=False):
     #     def do_P(indis, color, label, fig):
