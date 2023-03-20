@@ -150,6 +150,22 @@ class RankAndCrowdSortSurvival(Survival):
         else:
             return -1
 
+    def calc_nondominated_set(self, population: List[NSGAIndividual]):
+        def find_non_dominated_solu(indi):
+            if (np.array(indi.scores) == None).any():  # illegal individual for the None scores
+                return False
+            for indi_ in population:
+                if indi_ == indi:
+                    continue
+                if self.dominate(ind1=indi_, ind2=indi, pop=population):
+                    return False
+            return True  # this is a pareto optimal
+
+        # find non-dominated solution for every solution
+        ns = list(filter(lambda s: find_non_dominated_solu(s), population))
+
+        return ns
+
 
 class NSGAIISearcher(MOOSearcher):
     """
@@ -246,20 +262,7 @@ class NSGAIISearcher(MOOSearcher):
 
     def get_nondominated_set(self):
         population = self.get_historical_population()
-
-        def find_non_dominated_solu(indi):
-            if (np.array(indi.scores) == None).any():  # illegal individual for the None scores
-                return False
-            for indi_ in population:
-                if indi_ == indi:
-                    continue
-                if self.survival.dominate(ind1=indi_, ind2=indi, pop=population):
-                    return False
-            return True  # this is a pareto optimal
-
-        # find non-dominated solution for every solution
-        ns = list(filter(lambda s: find_non_dominated_solu(s), population))
-
+        ns = self.survival.calc_nondominated_set(population)
         return ns
 
     def get_historical_population(self):

@@ -31,9 +31,14 @@ def get_bankdata():
 
 class TestRankAndCrowdSortSurvival:
 
-    def test_crowd_distance_sort(self):
+    @classmethod
+    def setup_class(cls):
         survival = RankAndCrowdSortSurvival(directions=['min', 'min'], population_size=10,
                                             random_state=get_random_state())
+        cls.survival = survival
+
+    def test_crowd_distance_sort(self):
+        survival = self.survival
         i1 = NSGAIndividual("1", np.array([0.10, 0.30]), None)
         i2 = NSGAIndividual("2", np.array([0.11, 0.25]), None)
         i3 = NSGAIndividual("3", np.array([0.12, 0.19]), None)
@@ -45,8 +50,7 @@ class TestRankAndCrowdSortSurvival:
         assert i3.distance > i2.distance  # i3 is more sparsity
 
     def test_fast_non_dominated_sort(self):
-        survival = RankAndCrowdSortSurvival(directions=['min', 'min'], population_size=10,
-                                            random_state=get_random_state())
+        survival = self.survival
         i1 = NSGAIndividual("1", np.array([0.1, 0.3]), None)
         i2 = NSGAIndividual("2", np.array([0.2, 0.3]), None)
 
@@ -68,6 +72,19 @@ class TestRankAndCrowdSortSurvival:
         l = survival.fast_non_dominated_sort([i1, i2, i3, i4])
         assert len(l) == 3
         assert l[2][0] == i4
+
+    def test_non_dominated(self):
+        survival = self.survival
+        i1 = Individual("1", np.array([0.1, 0.2]), None)
+        i2 = Individual("1", np.array([0.2, 0.1]), None)
+        i3 = Individual("1", np.array([0.2, 0.2]), None)
+        i4 = Individual("1", np.array([0.3, 0.2]), None)
+        i5 = Individual("1", np.array([0.4, 0.4]), None)
+
+        nondominated_set = survival.calc_nondominated_set([i1, i2, i3, i4, i5])
+        assert len(nondominated_set) == 2
+        assert i1 in nondominated_set
+        assert i2 in nondominated_set
 
 
 class Test_NGGA2:
