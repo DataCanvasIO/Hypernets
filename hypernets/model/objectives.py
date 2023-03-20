@@ -39,10 +39,17 @@ class PredictionObjective(PerformanceObjective):
 
     @staticmethod
     def create(name, task=const.TASK_BINARY, pos_label=None):
+        from sklearn.metrics import log_loss, make_scorer, roc_auc_score, accuracy_score
+
         if name.lower() == 'logloss':
             # Note: the logloss score in sklearn is negative of naive logloss to maximize optimization
-            from sklearn.metrics import log_loss, make_scorer
             scorer = make_scorer(log_loss, greater_is_better=True, needs_proba=True)  # let _sign>0
+            return PredictionObjective(name, scorer, direction='min')
+        elif name.lower() == 'roc_auc':
+            scorer = make_scorer(roc_auc_score, greater_is_better=False, needs_threshold=True)
+            return PredictionObjective(name, scorer, direction='min')
+        elif name.lower() == 'accuracy':
+            scorer = make_scorer(accuracy_score, greater_is_better=False, needs_threshold=False)
             return PredictionObjective(name, scorer, direction='min')
         else:
             from hypernets.tabular.metrics import metric_to_scoring

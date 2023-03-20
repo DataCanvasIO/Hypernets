@@ -1,38 +1,38 @@
 import abc
 from typing import List
+from operator import attrgetter
 
 import numpy as np
 
 from hypernets.core import Searcher, OptimizeDirection
 from hypernets.core.objective import Objective
-from hypernets.searchers.genetic import Individual
+from hypernets.searchers.genetic import Individual, Survival
 
 
 def pareto_dominate(x1: np.ndarray, x2: np.ndarray, directions=None):
-    # return: is s1 dominate s2
+    #  dominance in pareto scene
     if directions is None:
         directions = ['min'] * x1.shape[0]
 
     ret = []
-    for i, j in enumerate(range(x1.shape[0])):
+    for i in range(x1.shape[0]):
         if directions[i] == 'min':
-            if x1[j] < x2[j]:
+            if x1[i] < x2[i]:
                 ret.append(1)
-            elif x1[j] == x2[j]:
+            elif x1[i] == x2[i]:
                 ret.append(0)
             else:
                 return False  # s1 does not dominate s2
         else:
-            if x1[j] > x2[j]:
+            if x1[i] > x2[i]:
                 ret.append(1)
-            elif x1[j] == x2[j]:
+            elif x1[i] == x2[i]:
                 ret.append(0)
             else:
                 return False
-    if np.sum(np.array(ret)) >= 1:
-        return True  # s1 has at least one metric better that s2
-    else:
-        return False
+
+    # s1 has at least one metric better that s2
+    return np.sum(np.array(ret)) >= 1
 
 
 def _compair(x1, x2, c_op):
@@ -53,26 +53,6 @@ def _compair(x1, x2, c_op):
         return True  # x1 has at least one metric better that x2
     else:
         return False
-
-
-def calc_nondominated_set(population: List[Individual], dominate_func=None):
-    if dominate_func is None:
-        dominate_func = pareto_dominate
-
-    def find_non_dominated_solu(indi):
-        if (np.array(indi.scores) == None).any():  # illegal individual for the None scores
-            return False
-        for indi_ in population:
-            if indi_ == indi:
-                continue
-            if dominate_func(indi_.scores, indi.scores):
-                return False
-        return True  # this is a pareto optimal
-
-    # find non-dominated solution for every solution
-    nondominated_set = list(filter(lambda s: find_non_dominated_solu(s), population))
-
-    return nondominated_set
 
 
 def _op_less(self, x1, x2):
@@ -104,11 +84,11 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def _plot(self, pop: List[Individual], label: str, comparison_label: str, **kwargs):
-        def do_P(indis, color, label, ax):
+        def do_P(indis, color, label, ax, marker):
             if len(indis) <= 0:
                 return
-            indis_array = np.array(list(map(lambda _: _.scores, indis)))
-            ax.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label)
+            indis_array = np.array(list(map(attrgetter("scores"), indis)))
+            ax.scatter(indis_array[:, 0], indis_array[:, 1], c=color, label=label,  marker=marker)
 
         try:
             from matplotlib import pyplot as plt
@@ -122,18 +102,20 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
         historical_individuals = self.get_historical_population()
         comparison: List[Individual] = list(filter(lambda v: v not in pop, historical_individuals))
 
-        fig, ax = plt.subplots(figsize=(6, 6))
+        fig, ax = plt.subplots(figsize=(10, 10))
 
-        do_P(pop, color='red', label=label, ax=ax)
+        do_P(pop, color='red', label=label, ax=ax, marker="o")
 
-        do_P(comparison, color='blue', label=comparison_label, ax=ax)
+        do_P(comparison, color='blue', marker="p", label=comparison_label, ax=ax)
+        # ax.set_ylim(-1, 0)
+        # ax.set_xlim(-1, 0)
 
         ax, fig = self.plot_addition(ax, fig, **kwargs)
 
-        fig.legend()
+        fig.legend(loc='upper right')
         plt.xlabel(objective_names[0])
         plt.ylabel(objective_names[1])
-
+        # plt.show()
         return fig
 
     def plot_addition(self, ax, fig, **kwargs):

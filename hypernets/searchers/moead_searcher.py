@@ -7,7 +7,7 @@ from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection, Searcher
 
 from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
-from .moo import calc_nondominated_set
+from .moo import pareto_dominate
 from .moo import MOOSearcher
 
 
@@ -253,7 +253,20 @@ class MOEADSearcher(MOOSearcher):
         return directions
 
     def get_nondominated_set(self):
-        return calc_nondominated_set(self._pop_history)
+        population = self.get_historical_population()
+
+        def find_non_dominated_solu(indi):
+            if (np.array(indi.scores) == None).any():  # illegal individual for the None scores
+                return False
+            for indi_ in population:
+                if indi_ == indi:
+                    continue
+                return pareto_dominate(x1=indi_.scores, x2=indi.scores, directions=self.directions)
+            return True  # this is a pareto optimal
+
+        # find non-dominated solution for every solution
+        ns = list(filter(lambda s: find_non_dominated_solu(s), population))
+        return ns
 
     def sample(self):
         # random sample

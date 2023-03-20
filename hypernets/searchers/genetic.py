@@ -13,7 +13,7 @@ class Individual:
         self.scores = scores
 
     def __repr__(self):
-        return str(self.dna) + "=" + str(self.scores)
+        return f"(dna={self.dna}, scores={self.scores})"
 
 
 class Recombination:
@@ -152,5 +152,5 @@ class SinglePointMutation:
 
 class Survival(metaclass=abc.ABCMeta):
 
-    def update(self, pop: List[Individual], pop_size: int, challengers: List[Individual], directions: List[str]):
+    def update(self, pop: List[Individual], challengers: List[Individual]):
         raise NotImplementedError
