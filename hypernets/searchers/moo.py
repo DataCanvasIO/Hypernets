@@ -7,6 +7,7 @@ import numpy as np
 from hypernets.core import Searcher, OptimizeDirection
 from hypernets.core.objective import Objective
 from hypernets.searchers.genetic import Individual, Survival
+from hypernets.utils import const
 
 
 def pareto_dominate(x1: np.ndarray, x2: np.ndarray, directions=None):
@@ -128,6 +129,9 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
     def plot_population(self, **kwargs):
         pop: List[Individual] = self.get_population()
         self._plot(pop, label='in population', comparison_label='the others', **kwargs)
+
+    def kind(self):
+        return const.SEARCHER_MOO
 
     # def plot_pf(self, consistent_direction=False):
     #     def do_P(indis, color, label, fig):

@@ -1,5 +1,6 @@
 from typing import List
 from functools import cmp_to_key, partial
+from operator import attrgetter
 
 import numpy as np
 from hypernets.utils import logging as hyn_logging
@@ -100,24 +101,30 @@ class RankAndCrowdSortSurvival(Survival):
             i = i + 1
         return F
 
-    def update(self, pop: List[NSGAIndividual], challengers: List[NSGAIndividual]):
+    def sort_font(self, front: List[NSGAIndividual]):
+        return self.crowding_distance_assignment(front)
+
+    def sort_population(self, population: List[NSGAIndividual]):
+        return sorted(population, key=self.cmp_operator, reverse=False)
+
+    def update(self, pop: List[NSGAIndividual], challengers: List[Individual]):
         temp_pop = []
         temp_pop.extend(pop)
         temp_pop.extend(challengers)
-
         if len(pop) < self.population_size:
             return temp_pop
 
+        # assign a weighted Euclidean distance for each one
         p_sorted = self.fast_non_dominated_sort(temp_pop)
         if len(p_sorted) == 1 and len(p_sorted[0]) == 0:
-            print(p_sorted)
+            print(f"ERR: {p_sorted}")
 
+        # sort individual in a front
         p_selected: List[NSGAIndividual] = []
         for rank, P_front in enumerate(p_sorted):
             if len(P_front) == 0:
                 break
-
-            individuals = self.crowding_distance_assignment(P_front)
+            individuals = self.sort_font(P_front)  # only assign distance for nsga
             p_selected.extend(individuals)
             if len(p_selected) >= self.population_size:
                 break
@@ -125,11 +132,8 @@ class RankAndCrowdSortSurvival(Survival):
         # ensure population size
         p_cmp_sorted = list(sorted(p_selected, key=cmp_to_key(self.cmp_operator), reverse=True))
         p_final = p_cmp_sorted[:self.population_size]
-        logger.debug(f"Individual have been removed from population: {p_cmp_sorted[self.population_size-1: ]}, sorted={p_cmp_sorted}")
-        if challengers[0] in p_final:
-            logger.debug(f"New individual{challengers[0]} goes into population, current pop {pop}")
-        else:
-            logger.debug(f"New individual{challengers[0]} does not go into population, current pop {pop}")
+        logger.debug(f"Individual {p_cmp_sorted[self.population_size-1: ]} have been removed from population,"
+                     f" sorted population ={p_cmp_sorted}")
 
         return p_final
 
@@ -168,16 +172,17 @@ class RankAndCrowdSortSurvival(Survival):
 
 
 class NSGAIISearcher(MOOSearcher):
-    """
+    """An implementation of "NSGA-II".
+
     References:
         [1]. K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.
     """
 
     def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7,
                  population_size=30, use_meta_learner=False, space_sample_validation_fn=None, random_state=None):
+
         super().__init__(space_fn=space_fn, objectives=objectives, use_meta_learner=use_meta_learner,
                          space_sample_validation_fn=space_sample_validation_fn)
-
         self.population: List[NSGAIndividual] = []
         self.random_state = random_state if random_state is not None else get_random_state()
         self.recombination: Recombination = recombination
@@ -250,9 +255,20 @@ class NSGAIISearcher(MOOSearcher):
         p = self.survival.update(pop=self.population,  challengers=[indi])
         self.population = p
 
+        challengers = [indi]
+
+        if challengers[0] in self.population:
+            logger.debug(f"new individual{challengers} is accepted by population, current population {self.population}")
+        else:
+            logger.debug(f"new individual{challengers[0]} is not accepted by population, current population {self.population}")
+
+        # from matplotlib import pyplot as plt
+        # self.plot_population()
+        # plt.show()
+
     def plot_addition(self, ax, fig, **kwargs):
         p_sorted = self.survival.fast_non_dominated_sort(self.get_population())
-        colors = ['c', 'm', 'y', 'r', 'g', 'b' ]
+        colors = ['c', 'm', 'y', 'r', 'g', 'b']
         for i, front in enumerate(p_sorted):
             scores = np.array([_.scores for _ in front])
             c_i = len(colors) - 1 if i > len(colors) - 1 else i
@@ -281,20 +297,11 @@ class NSGAIISearcher(MOOSearcher):
 class RDominanceSurvival(RankAndCrowdSortSurvival):
 
     def __init__(self, directions, population_size, random_state, ref_point, weights, threshold):
-        """ Calculate weighted Euclidean distance of two solution.
-
-        Parameters
-        ----------
-        ref_point: user-specified reference point, note that since g is infeasible value, distance maybe larger than 1
-        weights: weight vector
-        threshold: distance threshold
-        """
-
         super(RDominanceSurvival, self).__init__(directions, population_size=population_size, random_state=random_state)
         self.ref_point = ref_point
         self.weights = weights
         # enables the DM to control the selection pressure of the r-dominance relation.
-        self.dominance_threshold = threshold
+        self.threshold = threshold
 
     def dominate(self, ind1: NSGAIndividual, ind2: NSGAIndividual, pop: List[NSGAIndividual], directions=None):
 
@@ -306,51 +313,24 @@ class RDominanceSurvival(RankAndCrowdSortSurvival):
             return False
 
         # in case of pareto-equivalent, compare distance
-
         scores = np.array([_.scores for _ in pop])
         scores_extend = np.max(scores, axis=0) - np.min(scores, axis=0)
         distances = []
         for indi in pop:
+            # Calculate weighted Euclidean distance of two solution.
+            # Note: if ref_point is infeasible value, distance maybe larger than 1
             indi.distance = np.sqrt(np.sum(np.square((indi.scores - self.ref_point) / scores_extend) * self.weights))
             distances.append(indi.distance)
 
         dist_extent = np.max(distances) - np.min(distances)
 
-        if (ind1.distance - ind2.distance) / dist_extent < -self.dominance_threshold:
-            return True
-        else:
-            return False
+        return (ind1.distance - ind2.distance) / dist_extent < -self.threshold
 
-    @staticmethod
-    def sort_within_font(front: List[NSGAIndividual]):
+    def sort_font(self, front: List[NSGAIndividual]):
         return sorted(front, key=lambda v: v.distance, reverse=False)
 
-    def update(self, pop: List[NSGAIndividual], challengers: List[Individual]):
-        temp_pop = []
-        temp_pop.extend(pop)
-        temp_pop.extend(challengers)
-        if len(pop) < self.population_size:
-            return temp_pop
-
-        # assign a weighted Euclidean distance for each one
-        p_sorted = self.fast_non_dominated_sort(temp_pop)
-        if len(p_sorted) == 1 and len(p_sorted[0]) == 0:
-            print(f"ERR: {p_sorted}")
-
-        # sort individual in a front
-        p_selected: List[NSGAIndividual] = []
-        for rank, P_front in enumerate(p_sorted):
-            if len(P_front) == 0:
-                break
-            individuals = self.sort_within_font(P_front)
-            p_selected.extend(individuals)
-            if len(p_selected) >= self.population_size:
-                break
-
-        # ensure population size
-        p_final = list(sorted(p_selected, key=cmp_to_key(self.cmp_operator)))[:self.population_size]
-
-        return p_final
+    def sort_population(self, population: List[NSGAIndividual]):
+        return sorted(population, key=cmp_to_key(self.cmp_operator), reverse=True)
 
     @staticmethod
     def cmp_operator(s1: NSGAIndividual, s2: NSGAIndividual):
@@ -373,14 +353,25 @@ class RNSGAIISearcher(NSGAIISearcher):
         References:
             [1]. L. Ben Said, S. Bechikh and K. Ghedira, "The r-Dominance: A New Dominance Relation for Interactive Evolutionary Multicriteria Decision Making," in IEEE Transactions on Evolutionary Computation, vol. 14, no. 5, pp. 801-818, Oct. 2010, doi: 10.1109/TEVC.2010.2041060.
     """
-    def __init__(self, space_fn, objectives, ref_point=None, weights=None, dominance_threshold=0.0001,
-                 recombination=None, mutate_probability=0.7, epsilon=0.001, population_size=30, use_meta_learner=False,
+    def __init__(self, space_fn, objectives, ref_point=None, weights=None, dominance_threshold=0.3,
+                 recombination=None, mutate_probability=0.7, population_size=30, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
+        """
+        Parameters
+        ----------
+        ref_point: Tuple[float], required
+            user-specified reference point, used to guide the search toward the desired region.
+
+        weights:  Tuple[float], optional, default to uniform
+            weights vector, provides more detailed information about what Pareto optimal to converge to.
+
+        dominance_threshold: float, optional, default to 0.3
+            distance threshold, in case of pareto-equivalent, compare distance between two solutions.
+        """
 
         n_objectives = len(objectives)
 
         self.ref_point = ref_point if ref_point is not None else [0.0] * n_objectives
-        # default is uniform weights
         self.weights = weights if weights is not None else [1 / n_objectives] * n_objectives
         self.dominance_threshold = dominance_threshold
 
@@ -408,10 +399,10 @@ class RNSGAIISearcher(NSGAIISearcher):
             ax.quiver(0, 0, weights[0], weights[1], angles='xy', scale_units='xy', label='weights')
 
         p_sorted = self.survival.fast_non_dominated_sort(self.get_population())
-        colors = ['c', 'm', 'y', 'r', 'g', 'b' ]
+        colors = ['c', 'm', 'y', 'r', 'g', 'b']
 
         for i, front in enumerate(p_sorted):
-            scores = np.array([_.scores for _ in front])
+            scores = np.array(list(map(attrgetter('scores'), front)))
             i_color = len(colors) - 1 if i > len(colors) - 1 else i
             ax.plot(scores[:, 0], scores[:, 1], color=colors[i_color], label=f"rank={i}")
 

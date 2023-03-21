@@ -111,7 +111,8 @@ class PBIDecomposition(Decomposition):
 
 
 class MOEADSearcher(MOOSearcher):
-    """
+    """An implementation of "MOEA/D"
+
     References
     ----------
         [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
@@ -123,16 +124,18 @@ class MOEADSearcher(MOOSearcher):
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
                  space_sample_validation_fn=None, random_state=None):
         """
-        :param space_fn:
-        :param n_sampling: the number of samples in each objective
-        :param n_objectives: number of objectives
-        :param n_neighbors: number of neighbors to mating
-        :param mutate_probability:
-        :param decomposition: decomposition approach, default is None one of tchebicheff,weighted_sum, pbi
-        :param optimize_direction:
-        :param use_meta_learner:
-        :param space_sample_validation_fn:
-        :param random_state:
+        Parameters
+        ----------
+        n_sampling: int, optional, default to 5.
+            The number of samples in each objective, it affects the number of optimization objectives after
+            decomposition (N):
+                N = C_{n_samples+n_objectives-1}^{n_objectives-1}
+
+        n_neighbors: int, optional, default to 3.
+            Number of neighbors to crossover.
+
+        decomposition: str or instance of Decomposition, optional, default to 'tchebicheff'
+            Decomposition approach, for str, is one of tchebicheff, weighted_sum, pbi
         """
         super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,
                                             optimize_direction=optimize_direction, use_meta_learner=use_meta_learner,
@@ -201,11 +204,6 @@ class MOEADSearcher(MOOSearcher):
 
     def distribution_number(self, n_samples, n_objectives):
         """Uniform weighted vectors, an implementation of Normal-boundary intersection.
-            N = C_{n_samples+n_objectives-1}^{n_objectives-1}
-            N  is the total num of generated vectors.
-        :param n_samples: the number of samples in each objective
-        :param n_objectives:
-        :return:
         """
         if n_objectives == 1:
             return [[n_samples]]
@@ -354,3 +352,10 @@ class MOEADSearcher(MOOSearcher):
     @property
     def parallelizable(self):
         return False
+
+    def reset(self):
+        pass
+
+    def export(self):
+        pass
+

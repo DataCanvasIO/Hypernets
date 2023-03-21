@@ -66,5 +66,11 @@ class Searcher(Stateful):
     def export(self):
         raise NotImplementedError
 
+    def kind(self):
+        """Type of the Searcher, should be one of soo, moo.
+           This property used to avoid having to import MOOSearcher when detecting Searcher type.
+        """
+        return 'soo'
+
     def __repr__(self):
         return to_repr(self)

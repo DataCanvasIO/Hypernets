@@ -8,7 +8,7 @@ from collections import UserDict
 
 from ..core.context import DefaultContext
 from ..core.meta_learner import MetaLearner
-from ..core.trial import Trial, TrialHistory, DiskTrialStore
+from ..core.trial import Trial, TrialHistory, DiskTrialStore, DominateBasedTrialHistory
 from ..discriminators import UnPromisingTrial
 from ..dispatchers import get_dispatcher
 from ..tabular import get_tool_box
@@ -31,7 +31,16 @@ class HyperModel:
         self.dispatcher = dispatcher
         self.callbacks = callbacks if callbacks is not None else []
         self.reward_metric = reward_metric
-        self.history = TrialHistory(searcher.optimize_direction)
+
+        searcher_type = searcher.kind()
+
+        if searcher_type == const.SEARCHER_MOO:
+            objective_names = [_.name for _ in searcher.objectives]
+            directions = [_.direction for _ in searcher.objectives]
+            self.history = DominateBasedTrialHistory(directions=directions, objective_names=objective_names)
+        else:
+            self.history = TrialHistory(searcher.optimize_direction)
+
         self.task = task
         self.discriminator = discriminator
         if self.discriminator:
@@ -175,7 +184,10 @@ class HyperModel:
     def best_reward(self):
         best = self.get_best_trial()
         if best is not None:
-            return best.reward
+            if isinstance(best, list):
+                return [t.reward for t in best]
+            else:
+                return best.reward
         else:
             return None
 
@@ -183,7 +195,10 @@ class HyperModel:
     def best_trial_no(self):
         best = self.get_best_trial()
         if best is not None:
-            return best.trial_no
+            if isinstance(best, list):
+                return [t.trial_no for t in best]
+            else:
+                return best.trial_no
         else:
             return None
 
