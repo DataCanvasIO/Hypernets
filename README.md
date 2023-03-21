@@ -68,7 +68,7 @@ pip install hypernets[all]
 ```
 
 
-***Verify installation***:
+To ***Verify*** your installation:
 ```bash
 python -m hypernets.examples.smoke_testing
 ```
@@ -76,18 +76,6 @@ python -m hypernets.examples.smoke_testing
 ## Related Links
 
 * [A Brief Tutorial for Developing AutoML Tools with Hypernets](https://github.com/BochenLv/knn_toy_model/blob/main/Introduction.md)
-
-## Hypernets related projects
-* [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning (AutoML) framework.
-* [HyperGBM](https://github.com/DataCanvasIO/HyperGBM): A full pipeline AutoML tool integrated various GBM models.
-* [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
-* [HyperTS](https://github.com/DataCanvasIO/HyperTS): A full pipeline AutoML&AutoDL tool for time series datasets.
-* [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
-* [HyperBoard](https://github.com/DataCanvasIO/HyperBoard): A visualization tool for Hypernets.
-* [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
-
-
-![DataCanvas AutoML Toolkit](docs/source/images/DAT_logo.png)
 
 ## Documents
 * [Overview](https://hypernets.readthedocs.io/en/latest/overview.html)
@@ -101,6 +89,37 @@ python -m hypernets.examples.smoke_testing
 * [Define A CNN Search Space](https://hypernets.readthedocs.io/en/latest/nas.html#define-a-cnn-search-space)
 * [Define An ENAS Micro Search Space](https://hypernets.readthedocs.io/en/latest/nas.html#define-an-enas-micro-search-space)
 
+
+## Hypernets related projects
+* [Hypernets](https://github.com/DataCanvasIO/Hypernets): A general automated machine learning (AutoML) framework.
+* [HyperGBM](https://github.com/DataCanvasIO/HyperGBM): A full pipeline AutoML tool integrated various GBM models.
+* [HyperDT/DeepTables](https://github.com/DataCanvasIO/DeepTables): An AutoDL tool for tabular data.
+* [HyperTS](https://github.com/DataCanvasIO/HyperTS): A full pipeline AutoML&AutoDL tool for time series datasets.
+* [HyperKeras](https://github.com/DataCanvasIO/HyperKeras): An AutoDL tool for Neural Architecture Search and Hyperparameter Optimization on Tensorflow and Keras.
+* [HyperBoard](https://github.com/DataCanvasIO/HyperBoard): A visualization tool for Hypernets.
+* [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
+
+
+![DataCanvas AutoML Toolkit](docs/source/images/DAT_logo.png)
+
+## Citation
+
+If you use Hypernets in your research, please cite us as follows:
+
+   Jian Yang, Xuefeng Li, Haifeng Wu. 
+   **Hypernets: A General Automated Machine Learning Framework.** https://github.com/DataCanvasIO/Hypernets. 2020. Version 0.2.x.
+
+BibTex:
+
+```
+@misc{hypernets,
+  author={Jian Yang, Xuefeng Li, Haifeng Wu},
+  title={{Hypernets}: { A General Automated Machine Learning Framework}},
+  howpublished={https://github.com/DataCanvasIO/Hypernets},
+  note={Version 0.2.x},
+  year={2020}
+}
+```
 
 ## DataCanvas
 Hypernets is an open source project created by [DataCanvas](https://www.datacanvas.com/). 
