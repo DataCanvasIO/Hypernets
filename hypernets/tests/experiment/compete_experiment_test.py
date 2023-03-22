@@ -265,9 +265,12 @@ def test_moo_context():
     from hypernets.tabular.metrics import metric_to_scoring
     experiment = CompeteExperiment(hyper_model, X_train, y_train, scorer=metric_to_scoring("logloss"), **init_kwargs)
 
-    estimator = experiment.run(**run_kwargs)
+    estimators = experiment.run(**run_kwargs)
 
-    assert estimator
+    assert estimators
+    assert isinstance(estimators, list)
+
+    estimator = estimators[0]
 
     optimal_set = experiment.hyper_model_.searcher.get_nondominated_set()
     assert experiment.hyper_model_.searcher.get_best()

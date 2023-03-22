@@ -73,7 +73,7 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
             if objectives is None:
                 objectives = ['elapsed']
             objectives_instance = list(map(to_objective_object, objectives))
-            objectives_instance.insert(0, PredictionObjective(name=reward_metric, scorer=scorer))
+            objectives_instance.insert(0, PredictionObjective.create(reward_metric))
             searcher_options['objectives'] = objectives_instance
         sch = to_searcher(searcher, searcher_options)
     else:
@@ -334,7 +334,8 @@ def make_experiment(hyper_model_cls,
 
     if eval_data is not None:
         from hypernets.experiment import MLEvaluateCallback
-        if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS]:
+        if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS]\
+                and searcher.kind() == const.SEARCHER_SOO:
             if evaluation_persist_prediction is True:
                 persist_dir = evaluation_persist_prediction_dir
             else:

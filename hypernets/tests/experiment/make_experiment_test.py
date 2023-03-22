@@ -294,8 +294,10 @@ def test_moo_experiment():
                                  drift_detection_remove_size=0.5,
                                  search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
 
-    estimator = experiment.run(max_trials=5)
-    assert estimator is not None
+    estimators = experiment.run(max_trials=5)
+    assert estimators is not None
+    assert isinstance(estimators, list)
+    estimator = estimators[0]
 
     searcher_ = experiment.hyper_model_.searcher
     assert searcher_.get_best()

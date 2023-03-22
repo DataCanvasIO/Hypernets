@@ -7,6 +7,7 @@ import os
 import pickle
 import shutil
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -403,6 +404,53 @@ class DominateBasedTrialHistory(TrialHistory):
             df = pd.DataFrame()
 
         return df
+
+    def plot_best_trials(self, figsize=(6, 6), show_comparison=True, show_trial_no=True):
+        def do(trials, color, label, ax, marker):
+            if len(trials) <= 0:
+                return
+            scores = np.array([t.reward for t in trials])
+            ax.scatter(scores[:, 0], scores[:, 1], c=color, label=label, marker=marker)
+
+        try:
+            from matplotlib import pyplot as plt
+        except Exception:
+            raise RuntimeError("it requires matplotlib installed.")
+
+        if len(self.objective_names) != 2:
+            raise RuntimeError("plot currently works only in case of 2 objectives. ")
+
+        best_trials = self.get_best()
+        objective_names = self.objective_names
+
+        fig, ax = plt.subplots(figsize=figsize)
+        do(best_trials, color='red', label='best-trials', ax=ax, marker="o")
+
+        best_scores = [_.reward for _ in best_trials]
+
+        best_scores_sorted = np.array(sorted(best_scores, key=lambda v: v[1]))
+        ax.plot(best_scores_sorted[:, 0], best_scores_sorted[:, 1], color='c', label=f"pareto front")
+
+        if show_comparison:
+            comparison: List[Trial] = list(filter(lambda v: v not in best_trials, self.trials))
+            do(comparison, color='blue', marker="p", label='dominated-trials', ax=ax)
+
+        if show_trial_no:
+            for i, t in enumerate(best_trials):
+                ax.text(t.reward[0], t.reward[1] + 0.02, f"{i}", ha='center', va='bottom', fontsize=9)
+
+        # ax.set_ylim(-1, 0)
+        # ax.set_xlim(-1, 0)
+
+        fig.legend(loc='right', bbox_to_anchor=(1.2, 0.5))
+        plt.xlabel(objective_names[0])
+        plt.ylabel(objective_names[1])
+        # plt.tight_layout()
+
+        plt.title(f"Best trials in TrialHistory(total={len(self.trials)})")
+
+        # plt.suptitle("{trial_no}|{index}")
+        return fig, ax
 
 
 class TrialStore(object):

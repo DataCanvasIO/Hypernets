@@ -349,7 +349,7 @@ class NotebookCallback(Callback):
         self.last_reward = reward
 
         best_trial = hyper_model.get_best_trial()
-        if best_trial is not None and self.best_trial_display_id is not None:
+        if best_trial is not None and not isinstance(best_trial, list) and self.best_trial_display_id is not None:
             update_display(best_trial.space_sample, display_id=self.best_trial_display_id)
 
     def on_trial_error(self, hyper_model, space, trial_no):

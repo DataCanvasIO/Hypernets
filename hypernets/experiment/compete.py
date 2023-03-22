@@ -86,6 +86,7 @@ class StepNames:
     FINAL_SEARCHING = 'two_stage_searching'
     FINAL_ENSEMBLE = 'final_ensemble'
     FINAL_TRAINING = 'final_train'
+    FINAL_MOO = 'final_moo'
 
 
 class ExperimentStep(BaseEstimator):
@@ -996,12 +997,22 @@ class SpaceSearchStep(ExperimentStep):
                                 X_eval=X_eval.copy() if X_eval is not None else None,
                                 y_eval=y_eval.copy() if y_eval is not None else None,
                                 dataset_id=dataset_id, **kwargs)
-            if model.get_best_trial() is None or model.get_best_trial().reward == 0:
+            best_trial = model.get_best_trial()
+
+            if best_trial is None:
                 raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
+            else:
+                if not isinstance(best_trial, list) and best_trial.reward == 0:
+                    raise RuntimeError('Not found available trial, change experiment settings and try again pls.')
+            if isinstance(best_trial, list):
+                best_reward = [t.reward for t in best_trial]
+            else:
+                best_reward = best_trial.reward
+
             self.dataset_id = dataset_id
             self.model = model
             self.history_ = model.history
-            self.best_reward_ = model.get_best_trial().reward
+            self.best_reward_ = best_reward
         else:
             logger.info(f'reuse fitted step: {fitted_step.name}')
             self.status_ = self.STATUS_SKIPPED
@@ -1344,6 +1355,21 @@ class FinalTrainStep(EstimatorBuilderStep):
         return estimator
 
 
+class MOOFinalStep(EstimatorBuilderStep):
+
+    def __init__(self, experiment, name):
+        super().__init__(experiment, name)
+
+    def build_estimator(self, hyper_model, X_train, y_train, X_test=None, X_eval=None, y_eval=None, **kwargs):
+        # get the estimator that corresponding non-dominated solution
+        estimators = []
+        for t in hyper_model.history.get_best():
+            estimators.append(hyper_model.load_estimator(t.model_file))
+
+        logger.info(f"best trails are: {estimators}")
+        return estimators
+
+
 class PseudoLabelStep(ExperimentStep):
     def __init__(self, experiment, name, estimator_builder_name,
                  strategy=None, proba_threshold=None, proba_quantile=None, sample_number=None,
@@ -1607,8 +1633,17 @@ class SteppedExperiment(Experiment):
 
         if len(pipeline_steps) > 0:
             tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
-            pipeline_steps += [('estimator', last_step.estimator_)]
-            estimator = tb.transformers['Pipeline'](pipeline_steps)
+            last_estimator = last_step.estimator_
+            if isinstance(last_estimator, list):
+                pipelines = []
+                for item in last_estimator:
+                    pipeline_model = tb.transformers['Pipeline'](pipeline_steps + [('estimator', item)])
+                    pipelines.append(pipeline_model)
+                estimator = pipelines
+            else:
+                pipeline_steps += [('estimator', last_step.estimator_)]
+                estimator = tb.transformers['Pipeline'](pipeline_steps)
+
             if logger.is_info_enabled():
                 names = [step[0] for step in pipeline_steps]
                 logger.info(f'trained experiment pipeline: {names}')
@@ -2001,12 +2036,16 @@ class CompeteExperiment(SteppedExperiment):
                                      cv=cv, num_folds=num_folds))
 
         # final train
-        if ensemble_size is not None and ensemble_size > 1:
-            creator = creators[StepNames.FINAL_ENSEMBLE]
-            last_step = creator(self, StepNames.FINAL_ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
+        if hyper_model.searcher.kind() == const.SEARCHER_MOO:
+            creator = creators[StepNames.FINAL_MOO]
+            last_step = creator(self, StepNames.FINAL_MOO)
         else:
-            creator = creators[StepNames.FINAL_TRAINING]
-            last_step = creator(self, StepNames.FINAL_TRAINING, retrain_on_wholedata=retrain_on_wholedata)
+            if ensemble_size is not None and ensemble_size > 1:
+                creator = creators[StepNames.FINAL_ENSEMBLE]
+                last_step = creator(self, StepNames.FINAL_ENSEMBLE, scorer=scorer, ensemble_size=ensemble_size)
+            else:
+                creator = creators[StepNames.FINAL_TRAINING]
+                last_step = creator(self, StepNames.FINAL_TRAINING, retrain_on_wholedata=retrain_on_wholedata)
         steps.append(last_step)
 
         # ignore warnings
@@ -2047,6 +2086,7 @@ class CompeteExperiment(SteppedExperiment):
             StepNames.FINAL_SEARCHING: SpaceSearchWithDownSampleStep if down_sample_search else SpaceSearchStep,
             StepNames.FINAL_ENSEMBLE: EnsembleStep,
             StepNames.FINAL_TRAINING: FinalTrainStep,
+            StepNames.FINAL_MOO: MOOFinalStep,
         }
 
         tb = get_tool_box(X_train, y_train, X_test, X_eval, y_eval)
