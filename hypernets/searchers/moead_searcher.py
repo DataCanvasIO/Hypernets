@@ -4,7 +4,8 @@ from typing import List
 import numpy as np
 from hypernets.core import HyperSpace, get_random_state
 from hypernets.core.callbacks import *
-from hypernets.core.searcher import OptimizeDirection, Searcher
+from hypernets.core.searcher import OptimizeDirection
+from hypernets.core import pareto
 
 from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
 from .moo import pareto_dominate
@@ -250,21 +251,6 @@ class MOEADSearcher(MOOSearcher):
 
         return directions
 
-    def get_nondominated_set(self):
-        population = self.get_historical_population()
-
-        def find_non_dominated_solu(indi):
-            if (np.array(indi.scores) == None).any():  # illegal individual for the None scores
-                return False
-            for indi_ in population:
-                if indi_ == indi:
-                    continue
-                return pareto_dominate(x1=indi_.scores, x2=indi.scores, directions=self.directions)
-            return True  # this is a pareto optimal
-
-        # find non-dominated solution for every solution
-        ns = list(filter(lambda s: find_non_dominated_solu(s), population))
-        return ns
 
     def sample(self):
         # random sample
@@ -297,8 +283,18 @@ class MOEADSearcher(MOOSearcher):
             space_sample = self._sample_and_check(self._random_sample)
             return space_sample
 
+    def get_nondominated_set(self):
+        population = self.get_historical_population()
+
+        scores = np.array([_.scores for _ in population])
+        obj_directions = [_.direction for _ in self.objectives]
+
+        non_dominated_inx = pareto.calc_nondominated_set(scores, directions=obj_directions)
+
+        return [population[i] for i in non_dominated_inx]
+
     def get_best(self):
-        return list(map(lambda s: s[0], self.get_nondominated_set()))
+        return list(map(lambda _: _.dna, self.get_nondominated_set()))
 
     def get_reference_point(self):
         """calculate Z in tchebicheff decomposition
@@ -347,7 +343,8 @@ class MOEADSearcher(MOOSearcher):
         return self._pop_history
 
     def get_population(self) -> List[Individual]:
-        raise NotImplementedError
+        return list(map(lambda d: d.individual,
+                        filter(lambda v: v.individual is not None, self.directions)))
 
     @property
     def parallelizable(self):
