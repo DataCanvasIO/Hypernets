@@ -152,7 +152,7 @@ def make_experiment(hyper_model_cls,
         ExperimentCallback list.
     searcher : str, searcher class, search object, optional
         The hypernets Searcher instance to explore search space, default is EvolutionSearcher instance.
-        For str, should be one of 'evolution', 'mcts', 'random', 'nsga2', 'moead'.
+        For str, should be one of 'evolution', 'mcts', 'random', 'nsga2', 'moead'.  # TODO rnsga
         For class, should be one of EvolutionSearcher, MCTSSearcher, RandomSearcher, MOEADSearcher, NSGAIISearrcher
          or subclass of hypernets Searcher.
         For other, should be instanced of hypernets Searcher.
