@@ -84,13 +84,18 @@ class NumOfFeatures(ComplexityObjective):
         return len(features) / len(X_test.columns)
 
     def get_used_features(self, estimator, X_test, y_test, **kwargs):
-        D: pd.DataFrame = X_test.sample(self.sample_size, random_state=random_state)
+        if self.sample_size >= X_test.shape[0]:
+            sample_size = X_test.shape[0]
+        else:
+            sample_size = self.sample_size
+
+        D: pd.DataFrame = X_test.sample(sample_size, random_state=random_state)
         y_pred = estimator.predict(D)
         NF = []
         for feature in X_test.columns:
             unique = X_test[feature].unique()
-
-            samples_inx = random_state.randint(low=0, high=len(unique) - 2, size=D.shape[0])
+            n_unique = len(unique)
+            samples_inx = random_state.randint(low=0, high=len(unique) - 1, size=D.shape[0])
             # transform inx that does not contain self
             mapped_inx = []
 

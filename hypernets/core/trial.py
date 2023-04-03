@@ -395,7 +395,10 @@ class DominateBasedTrialHistory(TrialHistory):
         if len(self.trials) > 0:
             df = super(DominateBasedTrialHistory, self).to_df(include_params=include_params)
             ns = self.get_best()
+
             df['non-dominated'] = [t in ns for t in self.trials]
+            df['model-index'] = [ns.index(t) if t in ns else None for t in self.trials]
+
             scores: np.ndarray = np.array(df['reward'].values.tolist())
             assert scores.shape[1] == len(self.objective_names)
             for i, name in enumerate(self.objective_names):
