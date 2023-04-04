@@ -80,38 +80,42 @@ class NumOfFeatures(ComplexityObjective):
         self.sample_size = sample_size
 
     def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
-        features = self.get_used_features(estimator=estimator, X_test=X_test, y_test=y_test)
+        features = self.get_used_features(estimator=estimator, X_test=X_test)
         return len(features) / len(X_test.columns)
 
-    def get_used_features(self, estimator, X_test, y_test, **kwargs):
+    def get_used_features(self, estimator, X_test):
         if self.sample_size >= X_test.shape[0]:
             sample_size = X_test.shape[0]
         else:
             sample_size = self.sample_size
 
         D: pd.DataFrame = X_test.sample(sample_size, random_state=random_state)
-        y_pred = estimator.predict(D)
+        # D.reset_index(inplace=True, drop=True)
+
+        y_pred = estimator.predict(D.copy())  # predict can modify D
         NF = []
         for feature in X_test.columns:
             unique = X_test[feature].unique()
             n_unique = len(unique)
-            samples_inx = random_state.randint(low=0, high=len(unique) - 1, size=D.shape[0])
+            samples_inx = random_state.randint(low=0, high=n_unique - 1, size=D.shape[0])
             # transform inx that does not contain self
             mapped_inx = []
 
-            for i, value in zip(samples_inx, X_test[feature]):
-                j = np.where(unique == value)[0][0]
+            for i, value in zip(samples_inx, D[feature].values):
+                j = int(np.where(unique == value)[0][0])
                 if i >= j:
                     mapped_inx.append(i + 1)
                 else:
-                    mapped_inx.append(1)
+                    mapped_inx.append(i)
 
             D_ = D.copy()
             D_[feature] = unique[mapped_inx]
-            # assert not (D_[feature] == D[feature]).any()
+
+            if (D_[feature] == D[feature]).values.any():
+                raise RuntimeError("some samples have not been replaced by different value")
 
             y_pred_modified = estimator.predict(D_)
-            if not (y_pred == y_pred_modified).all():
+            if (y_pred != y_pred_modified).any():
                 NF.append(feature)
             del D_
 

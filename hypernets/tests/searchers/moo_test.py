@@ -1,6 +1,6 @@
 import numpy as np
 
-from hypernets.searchers.moo import pareto_dominate
+from hypernets.core.pareto import pareto_dominate
 from hypernets.searchers.genetic import Individual
 
 

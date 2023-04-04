@@ -3,10 +3,12 @@ from functools import cmp_to_key, partial
 from operator import attrgetter
 
 import numpy as np
-from hypernets.utils import logging as hyn_logging
 
-from .moo import MOOSearcher, pareto_dominate
+from hypernets.utils import logging as hyn_logging
+from ..core.pareto import pareto_dominate
 from ..core import HyperSpace, Searcher, OptimizeDirection, get_random_state
+
+from .moo import MOOSearcher
 from .genetic import Recombination, Individual, SinglePointMutation, Survival
 
 logger = hyn_logging.get_logger(__name__)
@@ -250,7 +252,7 @@ class NSGAIISearcher(MOOSearcher):
         return list(map(lambda v: v.dna, self.get_nondominated_set()))
 
     def update_result(self, space, result):
-        indi = NSGAIndividual(space, np.array(result), self.random_state)
+        indi = NSGAIndividual(space, result, self.random_state)
         self._historical_individuals.append(indi)  # add to history
         p = self.survival.update(pop=self.population,  challengers=[indi])
         self.population = p

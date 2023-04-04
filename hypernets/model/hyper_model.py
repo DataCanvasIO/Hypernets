@@ -101,7 +101,6 @@ class HyperModel:
             track = traceback.format_exc()
             logger.error(track)
 
-        from hypernets.searchers.moo import MOOSearcher
         if succeeded:
 
             if model_file is None or len(model_file) == 0:
@@ -113,7 +112,7 @@ class HyperModel:
                           model_file=model_file, succeeded=succeeded)
             trial.context = self.context
 
-            if not isinstance(self.searcher, MOOSearcher):
+            if self.searcher.kind() != const.SEARCHER_MOO:
                 if scores is None:
                     scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
                 reward = self._get_reward(scores, self.reward_metrics)

@@ -8,7 +8,6 @@ from hypernets.core.searcher import OptimizeDirection
 from hypernets.core import pareto
 
 from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
-from .moo import pareto_dominate
 from .moo import MOOSearcher
 
 
@@ -325,7 +324,7 @@ class MOEADSearcher(MOOSearcher):
 
     def update_result(self, space, result):
         assert space
-        individual = Individual(dna=space, scores=np.array(result), random_state=self.random_state)
+        individual = Individual(dna=space, scores=result, random_state=self.random_state)
         self._pop_history.append(individual)
 
         if len(self._pop_history) == self.population_size:

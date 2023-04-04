@@ -28,5 +28,5 @@ class TestNumOfFeatures:
 
         assert score < 1  # only 2 features used
 
-        features = nof.get_used_features(trial=None, estimator=lr, X_test=X_test, y_test=y_test)
+        features = nof.get_used_features(estimator=lr, X_test=X_test)
         assert 'log' in set(features) or 'exp' in set(features)

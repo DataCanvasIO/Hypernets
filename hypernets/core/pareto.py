@@ -1,9 +1,14 @@
 import numpy as np
 
 
-def pareto_dominate(x1: np.ndarray, x2: np.ndarray, directions=None):
+def pareto_dominate(x1, x2, directions=None):
     """dominance in pareto scene, if x1 dominate x2 return True.
     """
+    if not isinstance(x1, np.ndarray):
+        x1 = np.array(x1)
+
+    if not isinstance(x2, np.ndarray):
+        x2 = np.array(x2)
 
     if directions is None:
         directions = ['min'] * x1.shape[0]

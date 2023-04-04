@@ -6,34 +6,8 @@ import numpy as np
 
 from hypernets.core import Searcher, OptimizeDirection
 from hypernets.core.objective import Objective
-from hypernets.searchers.genetic import Individual, Survival
+from hypernets.searchers.genetic import Individual
 from hypernets.utils import const
-
-
-def pareto_dominate(x1: np.ndarray, x2: np.ndarray, directions=None):
-    #  dominance in pareto scene
-    if directions is None:
-        directions = ['min'] * x1.shape[0]
-
-    ret = []
-    for i in range(x1.shape[0]):
-        if directions[i] == 'min':
-            if x1[i] < x2[i]:
-                ret.append(1)
-            elif x1[i] == x2[i]:
-                ret.append(0)
-            else:
-                return False  # s1 does not dominate s2
-        else:
-            if x1[i] > x2[i]:
-                ret.append(1)
-            elif x1[i] == x2[i]:
-                ret.append(0)
-            else:
-                return False
-
-    # s1 has at least one metric better that s2
-    return np.sum(np.array(ret)) >= 1
 
 
 def _compair(x1, x2, c_op):
