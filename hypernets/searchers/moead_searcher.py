@@ -118,14 +118,18 @@ class MOEADSearcher(MOOSearcher):
         [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
     """
 
-    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2,
-                 recombination=None, mutate_probability=0.3,
-                 decomposition=None, decomposition_options=None,
-                 optimize_direction=OptimizeDirection.Minimize, use_meta_learner=False,
+    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, recombination=None,
+                 mutate_probability=0.3, decomposition=None, decomposition_options=None,
                  space_sample_validation_fn=None, random_state=None):
         """
         Parameters
         ----------
+        space_fn: callable, required
+            A search space function which when called returns a `HyperSpace` instance
+
+        objectives: List[Objective], optional, (default to NumOfFeatures instance)
+            The optimization objectives.
+
         n_sampling: int, optional, default to 5.
             The number of samples in each objective, it affects the number of optimization objectives after
             decomposition (N):
@@ -134,15 +138,40 @@ class MOEADSearcher(MOOSearcher):
         n_neighbors: int, optional, default to 3.
             Number of neighbors to crossover.
 
+        recombination: Recombination, required
+            the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
+            - ShuffleCrossOver
+            - UniformCrossover
+            - SinglePointCrossOver
+
         decomposition: str or instance of Decomposition, optional, default to 'tchebicheff'
             Decomposition approach, for str, is one of tchebicheff, weighted_sum, pbi
-        """
-        super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,
-                                            optimize_direction=optimize_direction, use_meta_learner=use_meta_learner,
-                                            space_sample_validation_fn=space_sample_validation_fn)
 
-        if optimize_direction != OptimizeDirection.Minimize:
-            raise ValueError("optimization towards maximization is not supported.")
+        decomposition_options: dict, optional
+            options to create Decomposition .
+
+        mutate_probability: float, optional, default to 0.7
+            the probability of genetic variation for offspring, when the parents can not recombine,
+            it will definitely mutate a gene for the generated offspring.
+
+        population_size: int, default to 30
+            size of population
+
+        space_sample_validation_fn: callable or None, (default=None)
+            used to verify the validity of samples from the search space, and can be used to add specific constraint
+            rules to the search space to reduce the size of the space.
+
+        random_state: np.RandomState, optional
+            used to reproduce the search process
+
+        """
+
+        super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,
+                                            optimize_direction=objectives[0].direction, use_meta_learner=False,
+                                            space_sample_validation_fn=space_sample_validation_fn)
+        for o in objectives:
+            if o.direction != OptimizeDirection.Minimize:
+                raise ValueError("optimization towards maximization is not supported.")
 
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
 

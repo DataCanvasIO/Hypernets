@@ -180,10 +180,38 @@ class NSGAIISearcher(MOOSearcher):
         [1]. K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.
     """
 
-    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7,
-                 population_size=30, use_meta_learner=False, space_sample_validation_fn=None, random_state=None):
+    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7, population_size=30,
+                 space_sample_validation_fn=None, random_state=None):
+        """
+        Parameters
+        ----------
+        space_fn: callable, required
+            A search space function which when called returns a `HyperSpace` instance
 
-        super().__init__(space_fn=space_fn, objectives=objectives, use_meta_learner=use_meta_learner,
+        objectives: List[Objective], optional, (default to NumOfFeatures instance)
+            The optimization objectives.
+
+        recombination: Recombination, required
+            the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
+            - ShuffleCrossOver
+            - UniformCrossover
+            - SinglePointCrossOver
+
+        mutate_probability: float, optional, default to 0.7
+            the probability of genetic variation for offspring, when the parents can not recombine,
+            it will definitely mutate a gene for the generated offspring.
+
+        population_size: int, default to 30
+            size of population
+
+        space_sample_validation_fn: callable or None, (default=None)
+            used to verify the validity of samples from the search space, and can be used to add specific constraint
+            rules to the search space to reduce the size of the space.
+
+        random_state: np.RandomState, optional
+            used to reproduce the search process
+        """
+        super().__init__(space_fn=space_fn, objectives=objectives, use_meta_learner=False,
                          space_sample_validation_fn=space_sample_validation_fn)
         self.population: List[NSGAIndividual] = []
         self.random_state = random_state if random_state is not None else get_random_state()
@@ -395,11 +423,17 @@ class RNSGAIISearcher(NSGAIISearcher):
             [1]. L. Ben Said, S. Bechikh and K. Ghedira, "The r-Dominance: A New Dominance Relation for Interactive Evolutionary Multicriteria Decision Making," in IEEE Transactions on Evolutionary Computation, vol. 14, no. 5, pp. 801-818, Oct. 2010, doi: 10.1109/TEVC.2010.2041060.
     """
     def __init__(self, space_fn, objectives, ref_point=None, weights=None, dominance_threshold=0.3,
-                 recombination=None, mutate_probability=0.7, population_size=30, use_meta_learner=False,
+                 recombination=None, mutate_probability=0.7, population_size=30,
                  space_sample_validation_fn=None, random_state=None):
         """
         Parameters
         ----------
+        space_fn: callable, required
+            A search space function which when called returns a `HyperSpace` instance
+
+        objectives: List[Objective], optional, (default to NumOfFeatures instance)
+            The optimization objectives.
+
         ref_point: Tuple[float], required
             user-specified reference point, used to guide the search toward the desired region.
 
@@ -408,6 +442,26 @@ class RNSGAIISearcher(NSGAIISearcher):
 
         dominance_threshold: float, optional, default to 0.3
             distance threshold, in case of pareto-equivalent, compare distance between two solutions.
+
+        recombination: Recombination, required
+            the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
+            - ShuffleCrossOver
+            - UniformCrossover
+            - SinglePointCrossOver
+
+        mutate_probability: float, optional, default to 0.7
+            the probability of genetic variation for offspring, when the parents can not recombine,
+            it will definitely mutate a gene for the generated offspring.
+
+        population_size: int, default to 30
+            size of population
+
+        space_sample_validation_fn: callable or None, (default=None)
+            used to verify the validity of samples from the search space, and can be used to add specific constraint
+            rules to the search space to reduce the size of the space.
+
+        random_state: np.RandomState, optional
+            used to reproduce the search process
         """
 
         n_objectives = len(objectives)
@@ -418,7 +472,6 @@ class RNSGAIISearcher(NSGAIISearcher):
 
         super(RNSGAIISearcher, self).__init__(space_fn=space_fn, objectives=objectives, recombination=recombination,
                                               mutate_probability=mutate_probability, population_size=population_size,
-                                              use_meta_learner=use_meta_learner,
                                               space_sample_validation_fn=space_sample_validation_fn,
                                               random_state=random_state)
 
