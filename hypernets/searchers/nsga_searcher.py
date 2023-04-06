@@ -268,16 +268,6 @@ class NSGAIISearcher(MOOSearcher):
         # self.plot_population()
         # plt.show()
 
-    def plot_addition(self, ax, fig, **kwargs):
-        p_sorted = self.survival.fast_non_dominated_sort(self.get_population())
-        colors = ['c', 'm', 'y', 'r', 'g', 'b']
-        for i, front in enumerate(p_sorted):
-            scores = np.array([_.scores for _ in front])
-            c_i = len(colors) - 1 if i > len(colors) - 1 else i
-            ax.plot(scores[:, 0], scores[:, 1], color=colors[c_i], label=f"rank={i}")
-
-        return ax, fig
-
     def get_nondominated_set(self):
         population = self.get_historical_population()
         ns = self.survival.calc_nondominated_set(population)
@@ -288,6 +278,49 @@ class NSGAIISearcher(MOOSearcher):
 
     def get_population(self) -> List[Individual]:
         return self.population
+
+    def _sub_plot_pop(self, ax, historical_individuals):
+        population = self.get_population()
+        not_in_population: List[Individual] = list(filter(lambda v: v not in population, historical_individuals))
+        self._do_plot(population, color='red', label='in-population', ax=ax, marker="o")  #
+        self._do_plot(not_in_population, color='blue', label='others', ax=ax, marker="o")  # marker="p"
+        ax.set_title(f"individual in population(total={len(historical_individuals)}) plot")
+        # handles, labels = ax.get_legend_handles_labels()
+        ax.legend()
+
+    def _sub_plot_ranking(self, ax, historical_individuals):
+        p_sorted = self.survival.fast_non_dominated_sort(historical_individuals)
+        colors = ['c', 'm', 'y', 'r', 'g']
+        n_colors = len(colors)
+        for i, front in enumerate(p_sorted[: n_colors]):
+            scores = np.array([_.scores for _ in front])
+            ax.scatter(scores[:, 0], scores[:, 1], color=colors[i], label=f"rank={i + 1}")
+
+        if len(p_sorted) > n_colors:
+            others = []
+            for front in p_sorted[n_colors:]:
+                others.extend(front)
+            scores = np.array([_.scores for _ in others])
+            ax.scatter(scores[:, 0], scores[:, 1], color='b', label='others')
+        ax.set_title(f"individuals(total={len(historical_individuals)}) ranking plot")
+        ax.legend()
+
+    def _plot_population(self, figsize=(6, 6), **kwargs):
+        from matplotlib import pyplot as plt
+
+        figs, axes = plt.subplots(3, 1, figsize=(figsize[0], figsize[0] * 3))
+        historical_individuals = self.get_historical_population()
+
+        # 1. ranking plot
+        self._sub_plot_ranking(axes[0], historical_individuals)
+
+        # 2. population plot
+        self._sub_plot_pop(axes[1], historical_individuals)
+
+        # 3. dominated plot
+        self._plot_pareto(axes[2], historical_individuals)
+
+        return figs, axes
 
     def reset(self):
         pass
@@ -321,7 +354,7 @@ class RDominanceSurvival(RankAndCrowdSortSurvival):
         for indi in pop:
             # Calculate weighted Euclidean distance of two solution.
             # Note: if ref_point is infeasible value, distance maybe larger than 1
-            indi.distance = np.sqrt(np.sum(np.square((indi.scores - self.ref_point) / scores_extend) * self.weights))
+            indi.distance = np.sqrt(np.sum(np.square((np.asarray(indi.scores) - self.ref_point) / scores_extend) * self.weights))
             distances.append(indi.distance)
 
         dist_extent = np.max(distances) - np.min(distances)
@@ -390,22 +423,50 @@ class RNSGAIISearcher(NSGAIISearcher):
                                   weights=self.weights, threshold=self.dominance_threshold,
                                   directions=self.directions)
 
-    def plot_addition(self, ax, fig, show_ref_point=True, show_weights=False, **kwargs):
-        if show_ref_point:
-            ref_point = self.ref_point
-            ax.scatter([ref_point[0]], [ref_point[1]], c='green', marker="*", label='ref point')
+    def _plot_population(self, figsize=(6, 6), show_ref_point=True, show_weights=False, **kwargs):
+        from matplotlib import pyplot as plt
 
-        if show_weights:
-            weights = self.weights
-            # plot a vector
-            ax.quiver(0, 0, weights[0], weights[1], angles='xy', scale_units='xy', label='weights')
+        def attach(ax):
+            if show_ref_point:
+                ref_point = self.ref_point
+                ax.scatter([ref_point[0]], [ref_point[1]], c='green', marker="*", label='ref point')
+            if show_weights:
+                weights = self.weights
+                # plot a vector
+                ax.quiver(0, 0, weights[0], weights[1], angles='xy', scale_units='xy', label='weights')
 
-        p_sorted = self.survival.fast_non_dominated_sort(self.get_population())
-        colors = ['c', 'm', 'y', 'r', 'g', 'b']
+        n_axes = 4
+        figs, axes = plt.subplots(2, 2, figsize=(figsize[0] * 2, figsize[0] * 2))
+        historical_individuals = self.get_historical_population()
 
-        for i, front in enumerate(p_sorted):
-            scores = np.array(list(map(attrgetter('scores'), front)))
-            i_color = len(colors) - 1 if i > len(colors) - 1 else i
-            ax.plot(scores[:, 0], scores[:, 1], color=colors[i_color], label=f"rank={i}")
+        # 1. ranking plot
+        ax1 = axes[0][0]
+        self._sub_plot_ranking(ax1, historical_individuals)
+        attach(ax1)
 
-        return ax, fig
+        # 2. population plot
+        ax2 = axes[0][1]
+        self._sub_plot_pop(ax2, historical_individuals)
+        attach(ax2)
+
+        # 3. r-dominated plot
+        ax3 = axes[1][0]
+        n_set = self.get_nondominated_set()
+        d_set: List[Individual] = list(filter(lambda v: v not in n_set, historical_individuals))
+        self._do_plot(n_set, color='red', label='non-dominated', ax=ax3, marker="o")  # , marker="o"
+        self._do_plot(d_set, color='blue', label='dominated', ax=ax3, marker="o")
+        ax3.set_title(f"non-dominated solution (total={len(historical_individuals)}) in R-dominance scene")
+        ax3.legend()
+        attach(ax3)
+
+        # 4. pareto dominated plot
+        ax4 = axes[1][1]
+        self._plot_pareto(ax4, historical_individuals)
+        attach(ax4)
+
+        objective_names = [_.name for _ in self.objectives]
+        plt.xlabel(objective_names[0])
+        plt.ylabel(objective_names[1])
+
+        return figs, axes
+
