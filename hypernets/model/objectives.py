@@ -1,4 +1,5 @@
 import abc
+import time
 
 import numpy as np
 import pandas as pd
@@ -25,6 +26,16 @@ class ElapsedObjective(PerformanceObjective):
 
     def call(self, trial, estimator, y_test, **kwargs):
         return trial.elapsed
+
+
+class PredictionPerformanceObjective(Objective):
+    def __init__(self):
+        super(PredictionPerformanceObjective, self).__init__('pred_perf', 'min')
+
+    def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
+        t1 = time.time()
+        estimator.predict(X_test)
+        return time.time() - t1
 
 
 class PredictionObjective(PerformanceObjective):
@@ -129,5 +140,7 @@ def create_objective(name, **kwargs):
         return ElapsedObjective()
     elif name == 'nf':
         return NumOfFeatures(**kwargs)
+    elif name == 'pred_perf':
+        return PredictionPerformanceObjective()
     else:
         raise RuntimeError(f"unseen objective name {name}")

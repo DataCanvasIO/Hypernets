@@ -71,7 +71,7 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
         if issubclass(get_searcher_cls(searcher), MOOSearcher):
             from hypernets.model.objectives import PredictionObjective
             if objectives is None:
-                objectives = ['elapsed']
+                objectives = ['nf']
             objectives_instance = list(map(to_objective_object, objectives))
             objectives_instance.insert(0, PredictionObjective.create(reward_metric))
             searcher_options['objectives'] = objectives_instance
@@ -186,10 +186,12 @@ def make_experiment(hyper_model_cls,
             - rmse
             - r2
             - recall
-    objectives : List[Union[Objective, str]] optional, (default to ['elapsed'] )
+    objectives : List[Union[Objective, str]] optional, (default to ['nf'] )
         Used for multi-objectives optimization, "reward_metric" is alway picked as the first objective.
          For str as identifier of objectives, possible values:
             - elapsed
+            - pred_perf
+            - nf
 
     optimize_direction : str, optional
         Hypernets search reward metric direction, default is detected from reward_metric.

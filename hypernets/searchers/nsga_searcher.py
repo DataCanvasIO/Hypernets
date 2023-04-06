@@ -286,6 +286,9 @@ class NSGAIISearcher(MOOSearcher):
         self._do_plot(not_in_population, color='blue', label='others', ax=ax, marker="o")  # marker="p"
         ax.set_title(f"individual in population(total={len(historical_individuals)}) plot")
         # handles, labels = ax.get_legend_handles_labels()
+        objective_names = [_.name for _ in self.objectives]
+        ax.set_xlabel(objective_names[0])
+        ax.set_ylabel(objective_names[1])
         ax.legend()
 
     def _sub_plot_ranking(self, ax, historical_individuals):
@@ -303,6 +306,9 @@ class NSGAIISearcher(MOOSearcher):
             scores = np.array([_.scores for _ in others])
             ax.scatter(scores[:, 0], scores[:, 1], color='b', label='others')
         ax.set_title(f"individuals(total={len(historical_individuals)}) ranking plot")
+        objective_names = [_.name for _ in self.objectives]
+        ax.set_xlabel(objective_names[0])
+        ax.set_ylabel(objective_names[1])
         ax.legend()
 
     def _plot_population(self, figsize=(6, 6), **kwargs):
@@ -456,6 +462,9 @@ class RNSGAIISearcher(NSGAIISearcher):
         self._do_plot(n_set, color='red', label='non-dominated', ax=ax3, marker="o")  # , marker="o"
         self._do_plot(d_set, color='blue', label='dominated', ax=ax3, marker="o")
         ax3.set_title(f"non-dominated solution (total={len(historical_individuals)}) in R-dominance scene")
+        objective_names = [_.name for _ in self.objectives]
+        ax3.set_xlabel(objective_names[0])
+        ax3.set_ylabel(objective_names[1])
         ax3.legend()
         attach(ax3)
 
@@ -464,9 +473,7 @@ class RNSGAIISearcher(NSGAIISearcher):
         self._plot_pareto(ax4, historical_individuals)
         attach(ax4)
 
-        objective_names = [_.name for _ in self.objectives]
-        plt.xlabel(objective_names[0])
-        plt.ylabel(objective_names[1])
+
 
         return figs, axes
 

@@ -70,7 +70,11 @@ class MOOSearcher(Searcher, metaclass=abc.ABCMeta):
         self._do_plot(pn_set, color='red', label='non-dominated', ax=ax, marker="o")  # , marker="o"
         self._do_plot(pd_set, color='blue', label='dominated', ax=ax, marker="o")
         ax.set_title(f"non-dominated solution (total={len(historical_individuals)}) in pareto scene")
+        objective_names = [_.name for _ in self.objectives]
+        ax.set_xlabel(objective_names[0])
+        ax.set_ylabel(objective_names[1])
         ax.legend()
+
 
     @abc.abstractmethod
     def get_historical_population(self) -> List[Individual]:
