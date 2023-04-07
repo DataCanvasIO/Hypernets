@@ -307,18 +307,6 @@ class NSGAIISearcher(MOOSearcher):
     def get_population(self) -> List[Individual]:
         return self.population
 
-    def _sub_plot_pop(self, ax, historical_individuals):
-        population = self.get_population()
-        not_in_population: List[Individual] = list(filter(lambda v: v not in population, historical_individuals))
-        self._do_plot(population, color='red', label='in-population', ax=ax, marker="o")  #
-        self._do_plot(not_in_population, color='blue', label='others', ax=ax, marker="o")  # marker="p"
-        ax.set_title(f"individual in population(total={len(historical_individuals)}) plot")
-        # handles, labels = ax.get_legend_handles_labels()
-        objective_names = [_.name for _ in self.objectives]
-        ax.set_xlabel(objective_names[0])
-        ax.set_ylabel(objective_names[1])
-        ax.legend()
-
     def _sub_plot_ranking(self, ax, historical_individuals):
         p_sorted = self.survival.fast_non_dominated_sort(historical_individuals)
         colors = ['c', 'm', 'y', 'r', 'g']

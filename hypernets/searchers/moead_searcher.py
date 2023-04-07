@@ -280,9 +280,7 @@ class MOEADSearcher(MOOSearcher):
 
         return directions
 
-
     def sample(self):
-        # random sample
         for direction in self.directions:
             if direction.individual is None:
                 sample = self._sample_and_check(self._random_sample)
@@ -296,7 +294,7 @@ class MOEADSearcher(MOOSearcher):
         try:
             offspring = self.recombination(*direction.random_select_neighbors(2), self.space_fn())
             # sine the length between sample space does not match usually cause no enough neighbors
-            logger.info("do recombination.")
+            # logger.info("do recombination.")
             MP = self.mutation.proba
         except Exception as e:
             offspring = direction.random_select_neighbors(1)[0].individual.dna
@@ -321,6 +319,20 @@ class MOEADSearcher(MOOSearcher):
         non_dominated_inx = pareto.calc_nondominated_set(scores, directions=obj_directions)
 
         return [population[i] for i in non_dominated_inx]
+
+    def _plot_population(self, figsize=(6, 6), **kwargs):
+        from matplotlib import pyplot as plt
+
+        figs, axes = plt.subplots(1, 2, figsize=(figsize[0] * 2, figsize[1]))
+        historical_individuals = self.get_historical_population()
+
+        # 1. population plot
+        self._sub_plot_pop(axes[0], historical_individuals)
+
+        # 2. pareto dominated plot
+        self._plot_pareto(axes[1], historical_individuals)
+
+        return figs, axes
 
     def get_best(self):
         return list(map(lambda _: _.dna, self.get_nondominated_set()))
