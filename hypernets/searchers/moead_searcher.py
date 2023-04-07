@@ -7,7 +7,8 @@ from hypernets.core.callbacks import *
 from hypernets.core.searcher import OptimizeDirection
 from hypernets.core import pareto
 
-from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
+from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation, \
+    create_recombination
 from .moo import MOOSearcher
 from ..utils import const
 
@@ -34,29 +35,25 @@ class Direction:
         neighbor_len = len(self.neighbors)
         if n > neighbor_len:
             raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
-
-        if n == 1:
-            return [self.neighbors[self.random_state.randint(0, neighbor_len, size=n)[0]]]
+        return [self.neighbors[i] for i in self.random_state.randint(0, neighbor_len, size=n)]
 
         # group by params
-        params_list = []
-        for neighbor in self.neighbors:
-            assert neighbor.dna.all_assigned
-            params_list.append((frozenset([p.alias for p in neighbor.dna.get_assigned_params()]), neighbor))
-
-        params_dict = {}
-        for param in params_list:
-            if not param[0] in params_dict:
-                params_dict[param[0]] = [param[1]]
-            else:
-                params_dict[param[0]].append(param[1])
-
-        for k, v in params_dict.items():
-            if len(v) >= n:
-                idx = self.random_state.randint(0, neighbor_len, size=n)
-                return [self.neighbors[i].individual for i in idx]
-
-        raise RuntimeError(f"required neighbors = {n} bigger that all neighbors = {neighbor_len} .")
+        # params_list = []
+        # for neighbor in self.neighbors:
+        #     assert neighbor.individual.dna.all_assigned
+        #     params_list.append((frozenset([p.alias for p in neighbor.individual.dna.get_assigned_params()]), neighbor))
+        #
+        # params_dict = {}
+        # for param in params_list:
+        #     if not param[0] in params_dict:
+        #         params_dict[param[0]] = [param[1]]
+        #     else:
+        #         params_dict[param[0]].append(param[1])
+        #
+        # for k, v in params_dict.items():
+        #     if len(v) >= n:
+        #         idx = self.random_state.randint(0, neighbor_len, size=n)
+        #         return [self.neighbors[i].individual for i in idx]
 
 
 class Decomposition:
@@ -92,18 +89,20 @@ class TchebicheffDecomposition(Decomposition):
 
 
 class PBIDecomposition(Decomposition):
-
+    """An implementation of "Boundary Intersection Approach base on penalty" """
     def __init__(self, penalty=0.5):
+        """
+        Parameters
+        ----------
+        penalty: float, optional, default to 0.5
+            Penalty the solution(F) deviates from the weight vector, the larger the value,
+            the faster the convergence.
+        """
         super().__init__()
         self.penalty = penalty
 
     def do(self, scores: np.ndarray, weight_vector: np.ndarray, Z: np.ndarray, ideal: np.ndarray, nadir: np.ndarray,
            **kwargs):
-        """An implementation of "Boundary Intersection Approach base on penalty"
-        :param scores
-        :param weight_vector
-        :param theta: Penalty F deviates from the weight vector.
-        """
         F = scores
         d1 = ((F - Z) * weight_vector).sum() / np.linalg.norm(weight_vector)
         d2 = np.linalg.norm((Z + weight_vector * d1) - F)
@@ -119,9 +118,8 @@ class MOEADSearcher(MOOSearcher):
         [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
     """
 
-    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, recombination=None,
-                 mutate_probability=0.3, decomposition=None, decomposition_options=None,
-                 space_sample_validation_fn=None, random_state=None):
+    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, recombination=None, mutate_probability=0.3,
+                 decomposition=None, space_sample_validation_fn=None, random_state=None):
         """
         Parameters
         ----------
@@ -139,24 +137,21 @@ class MOEADSearcher(MOOSearcher):
         n_neighbors: int, optional, default to 3.
             Number of neighbors to crossover.
 
-        recombination: Recombination, required
+        recombination: Recombination, required, default to instance of SinglePointCrossOver
             the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
             - ShuffleCrossOver
             - UniformCrossover
             - SinglePointCrossOver
 
-        decomposition: str or instance of Decomposition, optional, default to 'tchebicheff'
-            Decomposition approach, for str, is one of tchebicheff, weighted_sum, pbi
-
-        decomposition_options: dict, optional
-            options to create Decomposition .
+        decomposition: Decomposition, optional, default to instance of TchebicheffDecomposition
+            Objectives decompose approaches, builtin strategies:
+            - TchebicheffDecomposition
+            - PBIDecomposition
+            - WeightedSumDecomposition
 
         mutate_probability: float, optional, default to 0.7
             the probability of genetic variation for offspring, when the parents can not recombine,
             it will definitely mutate a gene for the generated offspring.
-
-        population_size: int, default to 30
-            size of population
 
         space_sample_validation_fn: callable or None, (default=None)
             used to verify the validity of samples from the search space, and can be used to add specific constraint
@@ -179,7 +174,7 @@ class MOEADSearcher(MOOSearcher):
         if random_state is None:
             self.random_state = get_random_state()
         else:
-            self.random_state = np.random.RandomState(seed=random_state)
+            self.random_state = random_state
 
         self.mutation = SinglePointMutation(random_state=self.random_state, proba=mutate_probability)
 
@@ -188,35 +183,14 @@ class MOEADSearcher(MOOSearcher):
             raise RuntimeError(f"n_neighbors should less that {n_vectors - 1}")
 
         if recombination is None:
-            self.recombination = ShuffleCrossOver
+            self.recombination = create_recombination(const.COMBINATION_SINGLE_POINT, random_state=self.random_state)
         else:
-            recombination_mapping = {
-                'shuffle': ShuffleCrossOver,
-                'uniform': UniformCrossover,
-                'single_point': SinglePointCrossOver,
-            }
-            if recombination in recombination_mapping:
-                self.recombination = recombination_mapping[recombination](random_state=self.random_state)
-            else:
-                raise RuntimeError(f'unseen recombination approach {decomposition}.')
-
-        if decomposition_options is None:
-            decomposition_options = {}
+            self.recombination = recombination
 
         if decomposition is None:
-            decomposition_cls = TchebicheffDecomposition
+            self.decomposition = create_decomposition(const.DECOMPOSITION_TCHE)
         else:
-            decomposition_mapping = {
-                'tchebicheff': TchebicheffDecomposition,
-                'weighted_sum': WeightedSumDecomposition,
-                'pbi': PBIDecomposition
-            }
-            decomposition_cls = decomposition_mapping.get(decomposition)
-
-            if decomposition_cls is None:
-                raise RuntimeError(f'unseen decomposition approach {decomposition}.')
-
-        self.decomposition = decomposition_cls(**decomposition_options)
+            self.decomposition = decomposition
 
         self.n_neighbors = n_neighbors
         self.directions = self.init_population(weight_vectors)
@@ -238,9 +212,9 @@ class MOEADSearcher(MOOSearcher):
         if n_objectives == 1:
             return [[n_samples]]
         vectors = []
-        for i in range(1, n_samples - (n_objectives - 1) + 1):
-            right_vec = self.distribution_number(n_samples - i, n_objectives - 1)
-            a = [i]
+        for i in range(n_samples - (n_objectives - 1)):
+            right_vec = self.distribution_number(n_samples - (i + 1), n_objectives - 1)
+            a = [i+1]
             for item in right_vec:
                 vectors.append(a + item)
         return vectors
@@ -291,15 +265,18 @@ class MOEADSearcher(MOOSearcher):
         direction = self.directions[direction_inx]
 
         # select neighbors to  crossover and mutate
-        try:
-            offspring = self.recombination(*direction.random_select_neighbors(2), self.space_fn())
+        direction1, direction2 = direction.random_select_neighbors(2)
+        ind1 = direction1.individual
+        ind2 = direction2.individual
+        if self.recombination.check_parents(ind1, ind2):
+            offspring = self.recombination(ind1, ind2, self.space_fn())
             # sine the length between sample space does not match usually cause no enough neighbors
             # logger.info("do recombination.")
             MP = self.mutation.proba
-        except Exception as e:
+        else:
             offspring = direction.random_select_neighbors(1)[0].individual.dna
-            # Must mutate because of failing crossover
-            MP = 1
+            MP = 1  # Must mutate because of failing crossover
+
         final_offspring = self.mutation.do(offspring, self.space_fn(), proba=MP)
 
         direction.offspring = final_offspring
@@ -397,3 +374,18 @@ class MOEADSearcher(MOOSearcher):
     def export(self):
         pass
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(objectives={self.objectives}, n_neighbors={self.n_neighbors}," \
+               f" recombination={self.recombination}, " \
+               f"mutation={self.mutation}, population_size={self.population_size})"
+
+
+def create_decomposition(name, **kwargs):
+    if name == const.DECOMPOSITION_TCHE:
+        return TchebicheffDecomposition()
+    elif name == const.DECOMPOSITION_WS:
+        return WeightedSumDecomposition()
+    elif name == const.DECOMPOSITION_PBI:
+        return PBIDecomposition(**kwargs)
+    else:
+        raise RuntimeError(f'unseen decomposition approach {name}.')

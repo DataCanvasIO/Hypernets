@@ -1,6 +1,7 @@
+import numpy as np
 import pytest
 
-from hypernets.model.objectives import ElapsedObjective, PredictionObjective
+from hypernets.model.objectives import ElapsedObjective, PredictionObjective, NumOfFeatures
 from hypernets.searchers.nsga_searcher import NSGAIISearcher, NSGAIndividual, RankAndCrowdSortSurvival, \
     RDominanceSurvival, RNSGAIISearcher
 
@@ -11,9 +12,10 @@ from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from sklearn.model_selection import train_test_split
 
-from hypernets.searchers.genetic import Individual
+from hypernets.searchers.genetic import Individual, create_recombination
+from hypernets.utils import const
 
-set_random_state(1234)
+
 from hypernets.core.callbacks import *
 
 
@@ -126,15 +128,48 @@ class Test_NGGA2:
 
 class Test_RNGGA2:
 
+    # def setup_method(self):
+    #     set_random_state(1234)
+
     @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
     def test_nsga2_training(self, recombination: str):
-        X_train, y_train, X_test, y_test = get_bankdata()
+        set_random_state(1234)
+        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_SHUFFLE)
+        pop1 = hk1.searcher.get_historical_population()
+        scores1 = np.asarray([indi.scores for indi in pop1])
 
+        # test search process reproduce by setting random_state
+        # set_random_state(1234)  # reset random state
+        # hk2 = self.run_nsga2_training(recombination=const.COMBINATION_SHUFFLE)
+        # pop2 = hk2.searcher.get_historical_population()
+        # scores2 = np.asarray([indi.scores for indi in pop2])
+        #
+        # assert (scores1 == scores2).all()
+
+    def reproce_nsga2_training(self):
+        set_random_state(1234)
+        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_UNIFORM)
+        pop1 = hk1.searcher.get_historical_population()
+        scores1 = np.asarray([indi.scores for indi in pop1])
+
+        # test search process reproduce by setting random_state
+        set_random_state(1234)  # reset random state
+        hk2 = self.run_nsga2_training(recombination=const.COMBINATION_UNIFORM)
+        pop2 = hk2.searcher.get_historical_population()
+        scores2 = np.asarray([indi.scores for indi in pop2])
+
+        assert (scores1 == scores2).all()
+
+    def run_nsga2_training(self, recombination: str):
+        random_state = get_random_state()
+        X_train, y_train, X_test, y_test = get_bankdata()
         search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-        rs = RNSGAIISearcher(search_space, objectives=[PredictionObjective.create('logloss'), ElapsedObjective(),],
+        rs = RNSGAIISearcher(search_space, objectives=[PredictionObjective.create('logloss'), NumOfFeatures()],
                              ref_point=[0.5, 0.5],
                              weights=[0.4, 0.6],
-                             recombination=recombination, population_size=3)
+                             random_state=random_state,
+                             recombination=create_recombination(recombination, random_state=random_state),
+                             population_size=3)
 
         hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 
@@ -142,6 +177,10 @@ class Test_RNGGA2:
 
         len(hk.history.trials)
         assert hk.get_best_trial()
+        # ensure reproduce
+        assert hk.searcher.random_state == hk.searcher.recombination.random_state
+        assert hk.searcher.random_state == random_state
+        return hk
 
 
 class TestRDominanceSurvival:
@@ -219,3 +258,7 @@ def test_r_dominate():
     # assert b in nondominated_set
     # assert c in nondominated_set
 
+
+
+# if __name__ == '__main__':
+#     Test_RNGGA2().reproce_nsga2_training()

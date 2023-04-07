@@ -3,6 +3,7 @@ from typing import List
 
 from hypernets.core import HyperSpace, get_random_state
 from hypernets.core.searcher import OptimizeDirection, Searcher
+from hypernets.utils import const
 
 
 class Individual:
@@ -18,23 +19,27 @@ class Individual:
 
 class Recombination:
 
-    def __init__(self, random_state=None):
-        if random_state is None:
-            self.random_state = get_random_state()
-        else:
-            self.random_state = random_state
+    def __init__(self, random_state):
+        self.random_state = random_state
 
     def do(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
         raise NotImplementedError
 
-    def __call__(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+    def check_parents(self, ind1: Individual, ind2: Individual):
         # Crossover hyperparams only if they have same params
         params_1 = ind1.dna.get_assigned_params()
         params_2 = ind2.dna.get_assigned_params()
 
-        assert len(params_1) == len(params_2)
+        if len(params_1) != len(params_2):
+            return False
         for p1, p2 in zip(params_1, params_2):
-            assert p1.alias == p2.alias
+            if p1.alias != p2.alias:
+                return False
+        return True
+
+    def __call__(self, ind1: Individual, ind2: Individual, out_space: HyperSpace):
+        if not self.check_parents(ind1, ind2):
+            raise RuntimeError(f"Individual {ind1} & {ind2} can not recombine because of different DNA")
 
         out = self.do(ind1, ind2, out_space)
         assert out.all_assigned
@@ -69,33 +74,35 @@ class ShuffleCrossOver(Recombination):
         n_params = len(params_1)
 
         # rearrange dna & single point crossover
-        cs_point = self.random_state.randint(1, n_params - 2)
+        m = self.random_state.randint(1, n_params - 2)
         R = self.random_state.permutation(len(params_1))
-        t1_params = []
-        t2_params = []
+
+        t1_params = [None] * n_params
+        t2_params = [None] * n_params
+
         for i in range(n_params):
-            if i < cs_point:
+            if i < m:
                 t1_params[i] = params_1[R[i]]
                 t2_params[i] = params_2[R[i]]
             else:
                 t1_params[i] = params_2[R[i]]
                 t2_params[i] = params_1[R[i]]
 
-        c1_params = []
-        c2_params = []
+        c1_params = [None] * n_params
+        c2_params = [None] * n_params
         for i in range(n_params):
-            c1_params[R[i]] = c1_params[i]
-            c2_params[R[i]] = c2_params[i]
+            c1_params[R[i]] = t1_params[i]
+            c2_params[R[i]] = t2_params[i]
 
         # select the first child
         for i, hp in enumerate(out_space.params_iterator):
-            hp.assign(c1_params[i])
+            hp.assign(c1_params[i].value)
 
         return out_space
 
 
 class UniformCrossover(Recombination):
-    def __init__(self, random_state=None):
+    def __init__(self, random_state):
         super().__init__(random_state)
         self.p = 0.5
 
@@ -154,3 +161,14 @@ class Survival(metaclass=abc.ABCMeta):
 
     def update(self, pop: List[Individual], challengers: List[Individual]):
         raise NotImplementedError
+
+
+def create_recombination(name, random_state, **kwargs):
+    if name == const.COMBINATION_SHUFFLE:
+        return ShuffleCrossOver(random_state=random_state)
+    elif name == const.COMBINATION_UNIFORM:
+        return UniformCrossover(random_state=random_state)
+    elif name == const.COMBINATION_SINGLE_POINT:
+        return SinglePointCrossOver(random_state=random_state)
+    else:
+        raise ValueError(f"unseen combination {name}")

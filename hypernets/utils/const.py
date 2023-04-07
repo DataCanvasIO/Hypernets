@@ -21,3 +21,11 @@ DATATYPE_LABEL = 'int16'
 
 SEARCHER_SOO = "soo"
 SEARCHER_MOO = "moo"
+
+COMBINATION_SHUFFLE = "shuffle"
+COMBINATION_UNIFORM = "uniform"
+COMBINATION_SINGLE_POINT = "single_point"
+
+DECOMPOSITION_TCHE = "tchebicheff"
+DECOMPOSITION_WS = "weighted_sum"
+DECOMPOSITION_PBI = "pbi"

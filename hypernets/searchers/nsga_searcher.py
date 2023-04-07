@@ -1,12 +1,11 @@
 from typing import List
-from functools import cmp_to_key, partial
-from operator import attrgetter
+from functools import cmp_to_key
 
 import numpy as np
 
 from hypernets.utils import logging as hyn_logging
 from ..core.pareto import pareto_dominate
-from ..core import HyperSpace, Searcher, OptimizeDirection, get_random_state
+from ..core import HyperSpace, get_random_state
 
 from .moo import MOOSearcher
 from .genetic import Recombination, Individual, SinglePointMutation, Survival
@@ -39,7 +38,7 @@ class NSGAIndividual(Individual):
         self.distance = -1.0
 
     def __repr__(self):
-        return f"(scores={self.scores}, rank={self.rank}, n={self.n}, distance={self.distance})"
+        return f"{self.__class__.__name__}(scores={self.scores}, rank={self.rank}, n={self.n}, distance={self.distance})"
 
 
 class RankAndCrowdSortSurvival(Survival):
@@ -268,10 +267,10 @@ class NSGAIISearcher(MOOSearcher):
         # binary tournament selection operation
         p1, p2 = self.binary_tournament_select(self.population)
 
-        try:
+        if self.recombination.check_parents(p1, p2):
             offspring = self.recombination.do(p1, p2, self.space_fn())
             final_offspring = self.mutation.do(offspring.dna, self.space_fn())
-        except Exception:
+        else:
             final_offspring = self.mutation.do(p1.dna, self.space_fn(), proba=1)
 
         return final_offspring
@@ -349,6 +348,10 @@ class NSGAIISearcher(MOOSearcher):
 
     def export(self):
         pass
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(objectives={self.objectives}, recombination={self.recombination}, " \
+               f"mutation={self.mutation}, population_size={self.population_size})"
 
 
 class RDominanceSurvival(RankAndCrowdSortSurvival):
@@ -513,8 +516,6 @@ class RNSGAIISearcher(NSGAIISearcher):
         ax4 = axes[1][1]
         self._plot_pareto(ax4, historical_individuals)
         attach(ax4)
-
-
 
         return figs, axes
 
