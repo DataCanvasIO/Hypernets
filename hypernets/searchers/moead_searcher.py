@@ -9,6 +9,7 @@ from hypernets.core import pareto
 
 from .genetic import Individual, ShuffleCrossOver, SinglePointCrossOver, UniformCrossover, SinglePointMutation
 from .moo import MOOSearcher
+from ..utils import const
 
 
 class Direction:
@@ -170,7 +171,7 @@ class MOEADSearcher(MOOSearcher):
                                             optimize_direction=objectives[0].direction, use_meta_learner=False,
                                             space_sample_validation_fn=space_sample_validation_fn)
         for o in objectives:
-            if o.direction != OptimizeDirection.Minimize:
+            if o.direction != OptimizeDirection.Minimize.value:
                 raise ValueError("optimization towards maximization is not supported.")
 
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
