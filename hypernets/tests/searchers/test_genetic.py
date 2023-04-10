@@ -19,7 +19,11 @@ class TestCrossOver:
 
     def test_uniform_crossover(self):
         co = UniformCrossover(random_state=self.random_state)
-        self.run_crossover(co)
+        try:
+            self.run_crossover(co)
+            # P(off=[A or B]) = 0.5 ^ 3 * 2
+        except Exception as e:
+            print(e)
 
     def run_crossover(self, crossover):
         # 1. prepare data

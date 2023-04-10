@@ -61,7 +61,7 @@ class RankAndCrowdSortSurvival(Survival):
             sorted_I[0].distance = float("inf")  # so that boundary points always selected, because they are not crowd
             sorted_I[len(I) - 1].distance = float("inf")
             # only assign distances for non-boundary points
-            for i in range(len(I) - 1):
+            for i in range(len(I) - 2):
                 ti = i + 1
                 sorted_I[ti].distance = sorted_I[ti].distance \
                                         + (sorted_I[ti + 1].scores[m] - sorted_I[ti - 1].scores[m]) \
@@ -359,7 +359,7 @@ class NSGAIISearcher(NSGAIIBasedSearcher):
             used to reproduce the search process
         """
 
-        survival = RankAndCrowdSortSurvival(directions=[o.direction for o in self.objectives],
+        survival = RankAndCrowdSortSurvival(directions=[o.direction for o in objectives],
                                             population_size=population_size,
                                             random_state=random_state)
 

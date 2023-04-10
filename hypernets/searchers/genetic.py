@@ -63,11 +63,10 @@ class SinglePointCrossOver(Recombination):
         cut_i = self.random_state.randint(0, n_params - 2)  # ensure offspring has dna from both parents
 
         for i, hp in enumerate(out_space.params_iterator):
-            if i < cut_i:
-                # comes from the first parent
-                hp.assign(params_1[i].value)
-            else:
+            if i > cut_i:
                 hp.assign(params_2[i].value)
+            else:
+                hp.assign(params_1[i].value)
 
         return out_space
 
