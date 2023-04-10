@@ -132,7 +132,11 @@ class HyperModel:
             self.searcher.update_result(space_sample, reward)
         else:
             elapsed = time.time() - start_time
-            trial = Trial(space_sample, trial_no, 0, elapsed, succeeded=succeeded)
+            if self.searcher.kind() == const.SEARCHER_MOO:
+                nan_scores = [None] * len(self.searcher.objectives)
+            else:
+                nan_scores = 0
+            trial = Trial(space_sample, trial_no, nan_scores, elapsed, succeeded=succeeded)
             if self.history is not None:
                 t = self.history.get_worst()
                 if t is not None:

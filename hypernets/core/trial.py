@@ -383,9 +383,10 @@ class DominateBasedTrialHistory(TrialHistory):
         self.objective_names = objective_names
 
     def get_best(self):
-        solutions = np.asarray([t.reward for t in self.trials])
+        succeed_trials = list(filter(lambda t: t.succeeded, self.trials))
+        solutions = np.asarray([t.reward for t in succeed_trials])
         optimal_inx = pareto.calc_nondominated_set(solutions=solutions, directions=self.directions)
-        return [self.trials[i] for i in optimal_inx]
+        return [succeed_trials[i] for i in optimal_inx]
 
     def append(self, trial):
         self.trials.append(trial)

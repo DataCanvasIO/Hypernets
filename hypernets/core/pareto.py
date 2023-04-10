@@ -34,6 +34,9 @@ def pareto_dominate(x1, x2, directions=None):
 
 
 def calc_nondominated_set(solutions: np.ndarray, dominate_func=None, directions=None):
+
+    assert solutions.ndim == 2
+
     if directions is None:
         directions = ['min'] * solutions.shape[1]
 
@@ -41,7 +44,7 @@ def calc_nondominated_set(solutions: np.ndarray, dominate_func=None, directions=
         dominate_func = pareto_dominate
 
     def is_pareto_optimal(scores_i):
-        if (np.array(scores_i) == None).any():  # illegal individual for the None scores
+        if (scores_i == None).any():  # illegal individual for the None scores
             return False
         for scores_j in solutions:
             if (scores_i == scores_j).all():
