@@ -3,12 +3,12 @@ from functools import cmp_to_key
 
 import numpy as np
 
-from hypernets.utils import logging as hyn_logging
+from hypernets.utils import logging as hyn_logging, const
 from ..core.pareto import pareto_dominate
 from ..core import HyperSpace, get_random_state
 
 from .moo import MOOSearcher
-from .genetic import Recombination, Individual, SinglePointMutation, Survival
+from .genetic import Individual, SinglePointMutation, Survival, create_recombination
 
 logger = hyn_logging.get_logger(__name__)
 
@@ -38,7 +38,8 @@ class NSGAIndividual(Individual):
         self.distance = -1.0
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(scores={self.scores}, rank={self.rank}, n={self.n}, distance={self.distance})"
+        return f"{self.__class__.__name__}(scores={self.scores}, " \
+               f"rank={self.rank}, n={self.n}, distance={self.distance})"
 
 
 class RankAndCrowdSortSurvival(Survival):
@@ -60,16 +61,16 @@ class RankAndCrowdSortSurvival(Survival):
             sorted_I[0].distance = float("inf")  # so that boundary points always selected, because they are not crowd
             sorted_I[len(I) - 1].distance = float("inf")
             # only assign distances for non-boundary points
-            for i in range(1, (len(I) - 1)):
-                sorted_I[i].distance = sorted_I[i].distance \
-                                       + (sorted_I[i + 1].scores[m] - sorted_I[i - 1].scores[m]) \
-                                       / (maximum_array[m] - minimum_array[m])
+            for i in range(len(I) - 1):
+                ti = i + 1
+                sorted_I[ti].distance = sorted_I[ti].distance \
+                                        + (sorted_I[ti + 1].scores[m] - sorted_I[ti - 1].scores[m]) \
+                                        / (maximum_array[m] - minimum_array[m])
         return I
 
     def fast_non_dominated_sort(self, pop: List[NSGAIndividual]):
         for p in pop:
             p.reset()
-        directions = self.directions
         F_1 = []
         F = [F_1]  # to store pareto front of levels respectively
         for p in pop:
@@ -172,61 +173,26 @@ class RankAndCrowdSortSurvival(Survival):
         return ns
 
 
-class NSGAIISearcher(MOOSearcher):
-    """An implementation of "NSGA-II".
+class NSGAIIBasedSearcher(MOOSearcher):
+    def __init__(self, space_fn, objectives, survival, recombination, mutate_probability,
+                 space_sample_validation_fn, random_state):
 
-    References:
-        [1]. K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.
-    """
-
-    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7, population_size=30,
-                 space_sample_validation_fn=None, random_state=None):
-        """
-        Parameters
-        ----------
-        space_fn: callable, required
-            A search space function which when called returns a `HyperSpace` instance
-
-        objectives: List[Objective], optional, (default to NumOfFeatures instance)
-            The optimization objectives.
-
-        recombination: Recombination, required
-            the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
-            - ShuffleCrossOver
-            - UniformCrossover
-            - SinglePointCrossOver
-
-        mutate_probability: float, optional, default to 0.7
-            the probability of genetic variation for offspring, when the parents can not recombine,
-            it will definitely mutate a gene for the generated offspring.
-
-        population_size: int, default to 30
-            size of population
-
-        space_sample_validation_fn: callable or None, (default=None)
-            used to verify the validity of samples from the search space, and can be used to add specific constraint
-            rules to the search space to reduce the size of the space.
-
-        random_state: np.RandomState, optional
-            used to reproduce the search process
-        """
         super().__init__(space_fn=space_fn, objectives=objectives, use_meta_learner=False,
                          space_sample_validation_fn=space_sample_validation_fn)
+
         self.population: List[NSGAIndividual] = []
         self.random_state = random_state if random_state is not None else get_random_state()
-        self.recombination: Recombination = recombination
+
+        if recombination is None:
+            self.recombination = create_recombination(const.COMBINATION_SINGLE_POINT, random_state=self.random_state)
+        else:
+            self.recombination = recombination
 
         self.mutation = SinglePointMutation(self.random_state, mutate_probability)
 
-        self.population_size = population_size
+        self.survival = survival
 
-        self.survival = self.create_survival()
         self._historical_individuals: List[NSGAIndividual] = []
-
-    def create_survival(self):
-        return RankAndCrowdSortSurvival(directions=self.directions,
-                                        population_size=self.population_size,
-                                        random_state=self.random_state)
 
     def binary_tournament_select(self, population):
         indi_inx = self.random_state.randint(low=0, high=len(population) - 1, size=2)  # fixme: maybe duplicated inx
@@ -261,7 +227,7 @@ class NSGAIISearcher(MOOSearcher):
         return [o.direction for o in self.objectives]
 
     def sample(self):
-        if len(self.population) < self.population_size:
+        if len(self.population) < self.survival.population_size:
             return self._sample_and_check(self._random_sample)
 
         # binary tournament selection operation
@@ -269,7 +235,7 @@ class NSGAIISearcher(MOOSearcher):
 
         if self.recombination.check_parents(p1, p2):
             offspring = self.recombination.do(p1, p2, self.space_fn())
-            final_offspring = self.mutation.do(offspring.dna, self.space_fn())
+            final_offspring = self.mutation.do(offspring, self.space_fn())
         else:
             final_offspring = self.mutation.do(p1.dna, self.space_fn(), proba=1)
 
@@ -289,11 +255,8 @@ class NSGAIISearcher(MOOSearcher):
         if challengers[0] in self.population:
             logger.debug(f"new individual{challengers} is accepted by population, current population {self.population}")
         else:
-            logger.debug(f"new individual{challengers[0]} is not accepted by population, current population {self.population}")
-
-        # from matplotlib import pyplot as plt
-        # self.plot_population()
-        # plt.show()
+            logger.debug(f"new individual{challengers[0]} is not accepted by population, "
+                         f"current population {self.population}")
 
     def get_nondominated_set(self):
         population = self.get_historical_population()
@@ -350,8 +313,60 @@ class NSGAIISearcher(MOOSearcher):
         pass
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(objectives={self.objectives}, recombination={self.recombination}, " \
-               f"mutation={self.mutation}, population_size={self.population_size})"
+        return f"{self.__class__.__name__}(objectives={self.objectives}, " \
+               f"recombination={self.recombination}), " \
+               f"mutation={self.mutation}), " \
+               f"survival={self.survival}), " \
+               f"random_state={self.random_state}"
+
+
+class NSGAIISearcher(NSGAIIBasedSearcher):
+    """An implementation of "NSGA-II".
+
+    References:
+        [1]. K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic algorithm: NSGA-II," in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.
+    """
+
+    def __init__(self, space_fn, objectives, recombination=None, mutate_probability=0.7, population_size=30,
+                 space_sample_validation_fn=None, random_state=None):
+        """
+        Parameters
+        ----------
+        space_fn: callable, required
+            A search space function which when called returns a `HyperSpace` instance
+
+        objectives: List[Objective], optional, (default to NumOfFeatures instance)
+            The optimization objectives.
+
+        recombination: Recombination, required
+            the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
+            - ShuffleCrossOver
+            - UniformCrossover
+            - SinglePointCrossOver
+
+        mutate_probability: float, optional, default to 0.7
+            the probability of genetic variation for offspring, when the parents can not recombine,
+            it will definitely mutate a gene for the generated offspring.
+
+        population_size: int, default to 30
+            size of population
+
+        space_sample_validation_fn: callable or None, (default=None)
+            used to verify the validity of samples from the search space, and can be used to add specific constraint
+            rules to the search space to reduce the size of the space.
+
+        random_state: np.RandomState, optional
+            used to reproduce the search process
+        """
+
+        survival = RankAndCrowdSortSurvival(directions=[o.direction for o in self.objectives],
+                                            population_size=population_size,
+                                            random_state=random_state)
+
+        super(NSGAIISearcher, self).__init__(space_fn=space_fn, objectives=objectives, survival=survival,
+                                             recombination=recombination, mutate_probability=mutate_probability,
+                                             space_sample_validation_fn=space_sample_validation_fn,
+                                             random_state=random_state)
 
 
 class RDominanceSurvival(RankAndCrowdSortSurvival):
@@ -406,8 +421,12 @@ class RDominanceSurvival(RankAndCrowdSortSurvival):
         else:
             return -1
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(ref_point={self.ref_point}, weights={self.weights}, " \
+               f"threshold={self.threshold}, random_state={self.random_state})"
 
-class RNSGAIISearcher(NSGAIISearcher):
+
+class RNSGAIISearcher(NSGAIIBasedSearcher):
     """An implementation of R-NSGA-II which is a variant of NSGA-II algorithm.
 
         References:
@@ -457,35 +476,33 @@ class RNSGAIISearcher(NSGAIISearcher):
 
         n_objectives = len(objectives)
 
-        self.ref_point = ref_point if ref_point is not None else [0.0] * n_objectives
-        self.weights = weights if weights is not None else [1 / n_objectives] * n_objectives
-        self.dominance_threshold = dominance_threshold
+        ref_point = ref_point if ref_point is not None else [0.0] * n_objectives
+        weights = weights if weights is not None else [1 / n_objectives] * n_objectives
+        directions = [o.direction for o in objectives]
+
+        random_state if random_state is not None else get_random_state()
+
+        survival = RDominanceSurvival(random_state=random_state, population_size=population_size,
+                                      ref_point=ref_point, weights=weights, threshold=dominance_threshold,
+                                      directions=directions)
 
         super(RNSGAIISearcher, self).__init__(space_fn=space_fn, objectives=objectives, recombination=recombination,
-                                              mutate_probability=mutate_probability, population_size=population_size,
+                                              survival=survival, mutate_probability=mutate_probability,
                                               space_sample_validation_fn=space_sample_validation_fn,
                                               random_state=random_state)
-
-    def create_survival(self):
-        return RDominanceSurvival(random_state=self.random_state,
-                                  population_size=self.population_size,
-                                  ref_point=self.ref_point,
-                                  weights=self.weights, threshold=self.dominance_threshold,
-                                  directions=self.directions)
 
     def _plot_population(self, figsize=(6, 6), show_ref_point=True, show_weights=False, **kwargs):
         from matplotlib import pyplot as plt
 
         def attach(ax):
             if show_ref_point:
-                ref_point = self.ref_point
+                ref_point = self.survival.ref_point
                 ax.scatter([ref_point[0]], [ref_point[1]], c='green', marker="*", label='ref point')
             if show_weights:
-                weights = self.weights
+                weights = self.survival.weights
                 # plot a vector
                 ax.quiver(0, 0, weights[0], weights[1], angles='xy', scale_units='xy', label='weights')
 
-        n_axes = 4
         figs, axes = plt.subplots(2, 2, figsize=(figsize[0] * 2, figsize[0] * 2))
         historical_individuals = self.get_historical_population()
 
@@ -518,4 +535,3 @@ class RNSGAIISearcher(NSGAIISearcher):
         attach(ax4)
 
         return figs, axes
-

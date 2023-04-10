@@ -72,6 +72,9 @@ class PredictionObjective(PerformanceObjective):
             scorer = metric_to_scoring(metric=name, task=task, pos_label=pos_label)
             return PredictionObjective(name, scorer, direction='min')
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name}, scorer={self._scorer}, direction={self.direction})"
+
 
 class FeatureComplexityObjective(ComplexityObjective):
 
@@ -131,6 +134,9 @@ class NumOfFeatures(ComplexityObjective):
             del D_
 
         return NF
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name}, sample_size={self.sample_size}, direction={self.direction})"
 
 
 def create_objective(name, **kwargs):

@@ -70,11 +70,14 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
     elif isinstance(searcher, (type, str)):
         if issubclass(get_searcher_cls(searcher), MOOSearcher):
             from hypernets.model.objectives import PredictionObjective
+            from hypernets.core import get_random_state
+
             if objectives is None:
                 objectives = ['nf']
             objectives_instance = list(map(to_objective_object, objectives))
             objectives_instance.insert(0, PredictionObjective.create(reward_metric))
             searcher_options['objectives'] = objectives_instance
+            searcher_options['random_state'] = get_random_state()
         sch = to_searcher(searcher, searcher_options)
     else:
         from hypernets.core.searcher import Searcher as SearcherSpec

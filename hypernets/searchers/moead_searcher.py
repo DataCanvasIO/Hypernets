@@ -109,6 +109,9 @@ class PBIDecomposition(Decomposition):
 
         return d1 + d2 * self.penalty
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(penalty={self.penalty})"
+
 
 class MOEADSearcher(MOOSearcher):
     """An implementation of "MOEA/D"
@@ -137,7 +140,7 @@ class MOEADSearcher(MOOSearcher):
         n_neighbors: int, optional, default to 3.
             Number of neighbors to crossover.
 
-        recombination: Recombination, required, default to instance of SinglePointCrossOver
+        recombination: Recombination, optional, default to instance of SinglePointCrossOver
             the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
             - ShuffleCrossOver
             - UniformCrossover

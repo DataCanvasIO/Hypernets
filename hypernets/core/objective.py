@@ -16,3 +16,6 @@ class Objective(metaclass=abc.ABCMeta):
 
     def __call__(self, trial, estimator, X_test, y_test, **kwargs):
         return self.call(trial=trial, estimator=estimator, X_test=X_test, y_test=y_test, **kwargs)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name}, direction={self.direction})"

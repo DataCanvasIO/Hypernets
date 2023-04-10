@@ -14,7 +14,7 @@ class Individual:
         self.scores = scores
 
     def __repr__(self):
-        return f"(dna={self.dna}, scores={self.scores})"
+        return f"{self.__class__.__name__}(dna={self.dna}, scores={self.scores}, random_state={self.random_state})"
 
 
 class Recombination:
@@ -41,9 +41,16 @@ class Recombination:
         if not self.check_parents(ind1, ind2):
             raise RuntimeError(f"Individual {ind1} & {ind2} can not recombine because of different DNA")
 
+        n_params = len(ind1.dna.get_assigned_params())
+        if n_params < 2:
+            raise RuntimeError(f"parents mush has params greater that 1, but now is {n_params}")
+
         out = self.do(ind1, ind2, out_space)
         assert out.all_assigned
         return out
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(random_state={self.random_state})"
 
 
 class SinglePointCrossOver(Recombination):
@@ -53,7 +60,7 @@ class SinglePointCrossOver(Recombination):
         params_1 = ind1.dna.get_assigned_params()
         params_2 = ind2.dna.get_assigned_params()
         n_params = len(params_1)
-        cut_i = self.random_state.randint(1, n_params - 2)  # ensure offspring has dna from both parents
+        cut_i = self.random_state.randint(0, n_params - 2)  # ensure offspring has dna from both parents
 
         for i, hp in enumerate(out_space.params_iterator):
             if i < cut_i:
@@ -74,19 +81,19 @@ class ShuffleCrossOver(Recombination):
         n_params = len(params_1)
 
         # rearrange dna & single point crossover
-        m = self.random_state.randint(1, n_params - 2)
-        R = self.random_state.permutation(len(params_1))
+        m = self.random_state.randint(0, n_params - 2)
+        R = self.random_state.permutation(n_params)
 
         t1_params = [None] * n_params
         t2_params = [None] * n_params
 
         for i in range(n_params):
-            if i < m:
-                t1_params[i] = params_1[R[i]]
-                t2_params[i] = params_2[R[i]]
-            else:
+            if i > m:
                 t1_params[i] = params_2[R[i]]
                 t2_params[i] = params_1[R[i]]
+            else:
+                t1_params[i] = params_1[R[i]]
+                t2_params[i] = params_2[R[i]]
 
         c1_params = [None] * n_params
         c2_params = [None] * n_params
@@ -120,6 +127,9 @@ class UniformCrossover(Recombination):
 
         assert out_space.all_assigned
         return out_space
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(p={self.p})"
 
 
 class SinglePointMutation:
@@ -155,6 +165,9 @@ class SinglePointMutation:
                     hp.assign(parent_params[i].value)
 
         return out_space
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(random_state={self.random_state}, proba={self.proba})"
 
 
 class Survival(metaclass=abc.ABCMeta):
