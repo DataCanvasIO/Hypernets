@@ -39,13 +39,11 @@ def default_search_callbacks():
     return cbs
 
 
-def to_objective_object(o, options=None):
+def to_objective_object(o, force_minimize=False, **kwargs):
     from hypernets.core.objective import Objective
 
-    if options is None:
-        options = {}
     if isinstance(o, str):
-        return create_objective(o, **options)
+        return create_objective(o, force_minimize=force_minimize, **kwargs)
     elif isinstance(o, Objective):
         return o
     else:
@@ -53,9 +51,8 @@ def to_objective_object(o, options=None):
 
 
 def to_search_object(search_space, optimize_direction, searcher, searcher_options,
-                     reward_metric=None, scorer=None, objectives=None):
-    from hypernets.searchers.moo import MOOSearcher
-    from hypernets.searchers import get_searcher_cls
+                     reward_metric=None, scorer=None, objectives=None,  task=None, pos_label=None):
+
 
     def to_searcher(cls, options):
         assert search_space is not None, '"search_space" should be specified if "searcher" is None or str.'
@@ -68,16 +65,27 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
         from hypernets.searchers import EvolutionSearcher
         sch = to_searcher(EvolutionSearcher, searcher_options)
     elif isinstance(searcher, (type, str)):
-        if issubclass(get_searcher_cls(searcher), MOOSearcher):
+        from hypernets.searchers.moo import MOOSearcher
+        from hypernets.searchers import get_searcher_cls
+
+        search_cls = get_searcher_cls(searcher)
+        if issubclass(search_cls, MOOSearcher):
             from hypernets.model.objectives import PredictionObjective
+            from hypernets.searchers.moead_searcher import MOEADSearcher
             from hypernets.core import get_random_state
 
             if objectives is None:
                 objectives = ['nf']
-            objectives_instance = list(map(to_objective_object, objectives))
-            objectives_instance.insert(0, PredictionObjective.create(reward_metric))
+            objectives_instance = []
+            force_minimize = search_cls == MOEADSearcher
+            for o in objectives:
+                objectives_instance.append(to_objective_object(o, force_minimize=force_minimize,
+                                                               task=task, pos_label=pos_label))
+            objectives_instance.insert(0, PredictionObjective.create(reward_metric, force_minimize=force_minimize,
+                                                                     task=task, pos_label=pos_label))
             searcher_options['objectives'] = objectives_instance
             searcher_options['random_state'] = get_random_state()
+
         sch = to_searcher(searcher, searcher_options)
     else:
         from hypernets.core.searcher import Searcher as SearcherSpec
@@ -190,12 +198,12 @@ def make_experiment(hyper_model_cls,
             - r2
             - recall
     objectives : List[Union[Objective, str]] optional, (default to ['nf'] )
-        Used for multi-objectives optimization, "reward_metric" is alway picked as the first objective.
-         For str as identifier of objectives, possible values:
+        Used for multi-objectives optimization, "reward_metric" is alway picked as the first objective, specilly for
+        "MOEADSearcher", will force the indicator to be the smaller the better by converting score to a negative number.
+        For str as identifier of objectives, possible values:
             - elapsed
             - pred_perf
             - nf
-
     optimize_direction : str, optional
         Hypernets search reward metric direction, default is detected from reward_metric.
     discriminator : instance of hypernets.discriminator.BaseDiscriminator, optional
@@ -322,7 +330,8 @@ def make_experiment(hyper_model_cls,
         searcher_options = {}
 
     searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options,
-                                reward_metric=reward_metric, scorer=scorer, objectives=objectives)
+                                reward_metric=reward_metric, scorer=scorer, objectives=objectives, task=task,
+                                pos_label=kwargs.get('pos_label'))
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
             and 'down_sample_search' not in kwargs.keys():

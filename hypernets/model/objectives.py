@@ -3,10 +3,13 @@ import time
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import log_loss, make_scorer, roc_auc_score, accuracy_score, \
+    f1_score, precision_score, recall_score
 
 from hypernets.core import get_random_state
 from hypernets.core.objective import Objective
 from hypernets.utils import const
+from hypernets.tabular.metrics import metric_to_scoring
 
 random_state = get_random_state()
 
@@ -48,29 +51,93 @@ class PredictionObjective(PerformanceObjective):
         self._scorer = scorer
 
     def call(self, trial, estimator, X_test, y_test, **kwargs):
-        #y_pred = estimator.predict(X_test)
-        #y_proba = estimator.predict_proba(X_test)
         value = self._scorer(estimator, X_test, y_test)
         return value
 
     @staticmethod
-    def create(name, task=const.TASK_BINARY, pos_label=None):
-        from sklearn.metrics import log_loss, make_scorer, roc_auc_score, accuracy_score
-
-        if name.lower() == 'logloss':
-            # Note: the logloss score in sklearn is negative of naive logloss to maximize optimization
-            scorer = make_scorer(log_loss, greater_is_better=True, needs_proba=True)  # let _sign>0
-            return PredictionObjective(name, scorer, direction='min')
-        elif name.lower() == 'roc_auc':
-            scorer = make_scorer(roc_auc_score, greater_is_better=False, needs_threshold=True)
-            return PredictionObjective(name, scorer, direction='min')
-        elif name.lower() == 'accuracy':
-            scorer = make_scorer(accuracy_score, greater_is_better=False, needs_threshold=False)
-            return PredictionObjective(name, scorer, direction='min')
+    def _default_score_args(force_minimize):
+        # for positive metrics which are the greater the better
+        if force_minimize:
+            greater_is_better = False
+            direction = 'min'
         else:
-            from hypernets.tabular.metrics import metric_to_scoring
-            scorer = metric_to_scoring(metric=name, task=task, pos_label=pos_label)
+            greater_is_better = True
+            direction = 'max'
+        return greater_is_better, direction
+
+    @staticmethod
+    def create_auc(name, force_minimize):
+
+        greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
+
+        scorer = make_scorer(roc_auc_score, greater_is_better=greater_is_better,
+                             needs_threshold=True)  # average=average
+
+        return PredictionObjective(name, scorer, direction=direction)
+
+    @staticmethod
+    def create_f1(name, force_minimize, pos_label, average):
+        greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
+
+        scorer = make_scorer(f1_score, greater_is_better=greater_is_better, needs_threshold=False,
+                             pos_label=pos_label, average=average)
+        return PredictionObjective(name, scorer, direction=direction)
+
+    @staticmethod
+    def create_precision(name, force_minimize, pos_label, average):
+        greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
+
+        scorer = make_scorer(precision_score, greater_is_better=greater_is_better, needs_threshold=False,
+                             pos_label=pos_label, average=average)
+        return PredictionObjective(name, scorer, direction=direction)
+
+    @staticmethod
+    def create_recall(name, force_minimize, pos_label, average):
+        greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
+        scorer = make_scorer(recall_score, greater_is_better=greater_is_better, needs_threshold=False,
+                             pos_label=pos_label, average=average)
+        return PredictionObjective(name, scorer, direction=direction)
+
+    @staticmethod
+    def create_accuracy(name, force_minimize):
+
+        greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
+
+        scorer = make_scorer(accuracy_score, greater_is_better=greater_is_better, needs_threshold=False)
+
+        return PredictionObjective(name, scorer, direction=direction)
+
+    @staticmethod
+    def create(name, task=const.TASK_BINARY, pos_label=1, force_minimize=False):
+        default_average = 'macro' if task == const.TASK_MULTICLASS else 'binary'
+
+        lower_name = name.lower()
+        if lower_name == 'logloss':
+            # Note: the logloss score in sklearn is negative of naive logloss to maximize optimization
+            scorer = make_scorer(log_loss, greater_is_better=True, needs_proba=True)  # let _sign > 0
             return PredictionObjective(name, scorer, direction='min')
+        elif lower_name == 'auc':
+            return PredictionObjective.create_auc(lower_name, force_minimize)
+
+        elif lower_name == 'f1':
+            return PredictionObjective.create_f1(lower_name, force_minimize,
+                                                 pos_label=pos_label, average=default_average)
+
+        elif lower_name == 'precision':
+            return PredictionObjective.create_precision(lower_name, force_minimize,
+                                                        pos_label=pos_label, average=default_average)
+
+        elif lower_name == 'recall':
+            return PredictionObjective.create_recall(lower_name, force_minimize,
+                                                     pos_label=pos_label, average=default_average)
+        elif lower_name == 'accuracy':
+            return PredictionObjective.create_accuracy(lower_name, force_minimize)
+        else:
+            scorer = metric_to_scoring(metric=name, task=task, pos_label=pos_label)
+            return PredictionObjective(name, scorer)
+
+    def get_score(self):
+        return self._scorer
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name}, scorer={self._scorer}, direction={self.direction})"
@@ -139,14 +206,13 @@ class NumOfFeatures(ComplexityObjective):
         return f"{self.__class__.__name__}(name={self.name}, sample_size={self.sample_size}, direction={self.direction})"
 
 
-def create_objective(name, **kwargs):
-    # objective factory, exclude PredictionObjective now
+def create_objective(name, force_minimize=False, sample_size=2000, task=const.TASK_BINARY, pos_label=1, **kwargs):
     name = name.lower()
     if name == 'elapsed':
         return ElapsedObjective()
     elif name == 'nf':
-        return NumOfFeatures(**kwargs)
+        return NumOfFeatures(sample_size=sample_size)
     elif name == 'pred_perf':
         return PredictionPerformanceObjective()
     else:
-        raise RuntimeError(f"unseen objective name {name}")
+        return PredictionObjective.create(name, force_minimize=force_minimize, task=task, pos_label=pos_label, **kwargs)

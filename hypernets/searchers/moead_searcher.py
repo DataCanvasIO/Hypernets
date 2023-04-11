@@ -170,7 +170,7 @@ class MOEADSearcher(MOOSearcher):
                                             space_sample_validation_fn=space_sample_validation_fn)
         for o in objectives:
             if o.direction != OptimizeDirection.Minimize.value:
-                raise ValueError("optimization towards maximization is not supported.")
+                raise ValueError(f"optimization towards maximization is not supported, objective is {o}")
 
         weight_vectors = self.init_mean_vector_by_NBI(n_sampling, self.n_objectives)  # uniform weighted vectors
 
