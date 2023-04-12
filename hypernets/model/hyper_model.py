@@ -85,12 +85,16 @@ class HyperModel:
         scores = None
         oof = None
         oof_scores = None
+        x_vals = None
+        y_vals = None
         try:
             if cv:
-                scores, oof, oof_scores = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds,
-                                                                         shuffle=False, random_state=9527,
-                                                                         metrics=metrics,
-                                                                         **fit_kwargs)
+                scores, oof, oof_scores, x_vals, y_vals = estimator.fit_cross_validation(X, y, stratified=True,
+                                                                                         num_folds=num_folds,
+                                                                                         shuffle=False,
+                                                                                         random_state=9527,
+                                                                                         metrics=metrics,
+                                                                                         **fit_kwargs)
             else:
                 estimator.fit(X, y, **fit_kwargs)
             succeeded = True
@@ -117,7 +121,12 @@ class HyperModel:
                     scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
                 reward = self._get_reward(scores, self.reward_metrics)
             else:
-                reward = [fn(trial, estimator, X_eval, y_eval) for fn in self.searcher.objectives]
+                if cv:
+                    assert x_vals is not None and y_vals is not None
+                    reward = [fn.call_cross_validation(trial, estimator.cv_models_, x_vals, y_vals)
+                              for fn in self.searcher.objectives]
+                else:
+                    reward = [fn(trial, estimator, X_eval, y_eval) for fn in self.searcher.objectives]
 
             trial.reward = reward
             trial.iteration_scores = estimator.get_iteration_scores()

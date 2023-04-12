@@ -5,7 +5,7 @@ from sklearn.preprocessing import LabelEncoder
 from hypernets.core import OptimizeDirection
 from hypernets.core.random_state import set_random_state, get_random_state
 from hypernets.examples.plain_model import PlainSearchSpace, PlainModel
-from hypernets.model.objectives import PredictionObjective, ElapsedObjective
+from hypernets.model.objectives import PredictionObjective, ElapsedObjective, NumOfFeatures
 from hypernets.searchers.genetic import create_recombination
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
@@ -23,14 +23,15 @@ class TestMOEADSearcher:
 
     @pytest.mark.parametrize('decomposition', ['pbi',  'weighted_sum', 'tchebicheff'])
     @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
-    def test_moead_training(self, decomposition: str, recombination: str):
+    @pytest.mark.parametrize('cv', [True, False])
+    def test_moead_training(self, decomposition: str, recombination: str, cv: bool):
         t1 = time.time()
         random_state = get_random_state()
         X_train, y_train, X_test, y_test = self.data
 
         search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
 
-        objectives = [ElapsedObjective(), PredictionObjective.create('logloss')]
+        objectives = [NumOfFeatures(), PredictionObjective.create('logloss')]
 
         rs = MOEADSearcher(search_space, objectives=objectives,
                            random_state=random_state,
@@ -38,10 +39,11 @@ class TestMOEADSearcher:
                            recombination=create_recombination(recombination, random_state=random_state),
                            n_sampling=2)
 
-        hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
+        hk = PlainModel(rs, task='binary', callbacks=[SummaryCallback()],
+                        transformer=MultiLabelEncoder, reward_metric='logloss')
         # N => C_3^1
         assert rs.population_size == 3
-        hk.search(X_train, y_train, X_test, y_test, max_trials=8)
+        hk.search(X_train, y_train, X_test, y_test, max_trials=8, cv=cv)
 
         len(hk.history.trials)
         assert hk.get_best_trial()

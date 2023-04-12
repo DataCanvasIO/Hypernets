@@ -228,10 +228,16 @@ def test_with_feature_generator_dask():
 
 
 class PlainContextObjective(Objective):
+
     def __init__(self):
         super(PlainContextObjective, self).__init__('plain_context', 'min')
 
     def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
+        exp = trial.context.get('exp')
+        assert exp is not None and isinstance(exp, CompeteExperiment)  # get experiment in Objective
+        return np.random.random()
+
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
         exp = trial.context.get('exp')
         assert exp is not None and isinstance(exp, CompeteExperiment)  # get experiment in Objective
         return np.random.random()

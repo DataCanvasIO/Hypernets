@@ -2,6 +2,7 @@ import os.path
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCallback, ExperimentMeta
@@ -274,44 +275,101 @@ class CatPlainModel(PlainModel):
         self.transformer = MultiLabelEncoder
 
 
-def test_moo_experiment():
-    from sklearn.preprocessing import LabelEncoder
-    df = dsutils.load_bank().sample(1000)
-    df['y'] = LabelEncoder().fit_transform(df['y'])
+class TestMOOExperiment:
 
-    tb = get_tool_box(df)
+    @classmethod
+    def setup_class(cls):
+        df = dsutils.load_bank().head(1000)
+        df['y'] = LabelEncoder().fit_transform(df['y'])
+        tb = get_tool_box(df)
+        df_train, df_test = tb.train_test_split(df, test_size=0.3, random_state=9527)
+        cls.df_train = df_train
+        cls.df_test = df_test
 
-    df_train, df_test = tb.train_test_split(df, test_size=0.3, random_state=9527)
+    def check_exp(self, experiment, estimators):
+        assert estimators is not None
+        assert isinstance(estimators, list)
+        hyper_model = experiment.hyper_model_
+        estimator = estimators[0]
+        searcher = experiment.hyper_model_.searcher
+        assert searcher.get_best()
+        fig, ax = hyper_model.history.plot_best_trials()
+        assert fig is not None
+        assert ax is not None
+        fig, ax = hyper_model.searcher.plot_population()
+        assert fig is not None
+        assert ax is not None
+        optimal_set = searcher.get_nondominated_set()
+        assert optimal_set is not None
+        # assert optimal_set[0].scores[1] > 0
+        df_trials = hyper_model.history.to_df().copy().drop(['scores', 'reward'], axis=1)
+        print(df_trials[df_trials['non_dominated'] == True])
+        df_test = self.df_test.copy()
+        X_test = df_test.copy()
+        y_test = X_test.pop('y')
+        preds = estimator.predict(X_test)
+        proba = estimator.predict_proba(X_test)
+        tb = get_tool_box(df_test)
+        score = tb.metrics.calc_score(y_test, preds, proba, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
+        print('evaluate score:', score)
+        assert score
 
-    experiment = make_experiment(CatPlainModel, df_train,
-                                 eval_data=df_test.copy(),
-                                 target='y',
-                                 searcher=NSGAIISearcher,
-                                 reward_metric='logloss',
-                                 objectives=['elapsed'],
-                                 drift_detection_threshold=0.4,
-                                 drift_detection_min_features=3,
-                                 drift_detection_remove_size=0.5,
-                                 search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
+    def test_nsga2(self):
+        df_train = self.df_train.copy()
+        df_test = self.df_test.copy()
+        experiment = make_experiment(CatPlainModel, df_train,
+                                     eval_data=df_test,
+                                     callbacks=[],
+                                     random_state=1234,
+                                     search_callbacks=[],
+                                     target='y',
+                                     searcher='nsga2',  # available MOO searcher: moead, nsga2, rnsga2
+                                     searcher_options={'population_size': 5},
+                                     reward_metric='logloss',
+                                     objectives=['nf'],
+                                     drift_detection=False,
+                                     early_stopping_rounds=10,
+                                     search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
 
-    estimators = experiment.run(max_trials=5)
-    assert estimators is not None
-    assert isinstance(estimators, list)
-    estimator = estimators[0]
+        estimators = experiment.run(max_trials=10)
+        self.check_exp(experiment, estimators)
 
-    searcher_ = experiment.hyper_model_.searcher
-    assert searcher_.get_best()
+    def test_rnsga2(self):
+        df_train = self.df_train.copy()
+        df_test = self.df_test.copy()
+        experiment = make_experiment(CatPlainModel, df_train,
+                                     eval_data=df_test.copy(),
+                                     callbacks=[],
+                                     random_state=1234,
+                                     search_callbacks=[],
+                                     target='y',
+                                     searcher='rnsga2',  # available MOO searchers: moead, nsga2, rnsga2
+                                     searcher_options=dict(ref_point=np.array([0.1, 2]), weights=np.array([0.1, 2]),
+                                                           population_size=5),
+                                     reward_metric='logloss',
+                                     objectives=['nf'],
+                                     early_stopping_rounds=10,
+                                     drift_detection=False,
+                                     search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
 
-    optimal_set = searcher_.get_nondominated_set()
-    # assert optimal_set[0].scores[1] > 0
+        estimators = experiment.run(max_trials=10)
+        self.check_exp(experiment, estimators)
 
-    X_test = df_test.copy()
-    y_test = X_test.pop('y')
+    def test_moead(self):
+        df_train = self.df_train.copy()
+        df_test = self.df_test.copy()
+        experiment = make_experiment(CatPlainModel, df_train,
+                                     eval_data=df_test.copy(),
+                                     callbacks=[],
+                                     random_state=1234,
+                                     search_callbacks=[],
+                                     target='y',
+                                     searcher='moead',  # available MOO searcher: moead, nsga2, rnsga2
+                                     reward_metric='logloss',
+                                     objectives=['nf'],
+                                     drift_detection=False,
+                                     early_stopping_rounds=10,
+                                     search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
 
-    preds = estimator.predict(X_test)
-    proba = estimator.predict_proba(X_test)
-
-    score = tb.metrics.calc_score(y_test, preds, proba, metrics=['auc', 'accuracy', 'f1', 'recall', 'precision'])
-    print('evaluate score:', score)
-    assert score
-
+        estimators = experiment.run(max_trials=10)
+        self.check_exp(experiment, estimators)

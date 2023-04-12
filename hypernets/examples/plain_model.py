@@ -208,6 +208,8 @@ class PlainEstimator(Estimator):
         oof_ = None
         oof_scores = []
         cv_models = []
+        x_vals = []
+        y_vals = []
         logger.info('start training')
         for n_fold, (train_idx, valid_idx) in enumerate(iterators.split(X, y)):
             x_train_fold, y_train_fold = X.iloc[train_idx], y[train_idx]
@@ -245,6 +247,8 @@ class PlainEstimator(Estimator):
             oof_[valid_idx] = proba
             oof_scores.append(fold_scores)
             cv_models.append(fold_model)
+            x_vals.append(x_val_fold)
+            y_vals.append(y_val_fold)
 
         self.classes_ = getattr(cv_models[0], 'classes_', None)
         self.cv_ = True
@@ -256,7 +260,7 @@ class PlainEstimator(Estimator):
 
         # return
         oof_, = tb_original.from_local(oof_)
-        return scores, oof_, oof_scores
+        return scores, oof_, oof_scores, x_vals, y_vals
 
     def predict(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore

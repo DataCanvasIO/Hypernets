@@ -30,8 +30,12 @@ class ElapsedObjective(PerformanceObjective):
     def call(self, trial, estimator, y_test, **kwargs):
         return trial.elapsed
 
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+        return trial.elapsed
+
 
 class PredictionPerformanceObjective(Objective):
+
     def __init__(self):
         super(PredictionPerformanceObjective, self).__init__('pred_perf', 'min')
 
@@ -39,6 +43,51 @@ class PredictionPerformanceObjective(Objective):
         t1 = time.time()
         estimator.predict(X_test)
         return time.time() - t1
+
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+        t1 = time.time()
+        for estimator, X_test in zip(estimators, X_tests):
+            estimator.predict(X_test)
+
+        return time.time() - t1
+
+
+class CVWrapperEstimator:
+
+    def __init__(self, estimators, x_vals, y_vals):
+        self.estimators = estimators
+        self.x_vals = x_vals
+        self.y_vals = y_vals
+
+    @property
+    def classes_(self):
+        return self.estimators[0].classes_
+
+    def predict(self, X, **kwargs):
+        rows = 0
+        for x_val in self.x_vals:
+            assert x_val.ndim == 2
+            assert X.shape[1] == x_val.shape[1]
+            rows = x_val.shape[0] + rows
+        assert rows == X.shape[0]
+
+        proba = []
+        for estimator, x_val in zip(self.estimators, self.x_vals):
+            proba.extend(estimator.predict(x_val))
+        return np.asarray(proba)
+
+    def predict_proba(self, X, **kwargs):
+        rows = 0
+        for x_val in self.x_vals:
+            assert x_val.ndim == 2
+            assert X.shape[1] == x_val.shape[1]
+            rows = x_val.shape[0] + rows
+        assert rows == X.shape[0]
+
+        proba = []
+        for estimator, x_val in zip(self.estimators, self.x_vals):
+            proba.extend(estimator.predict_proba(x_val))
+        return np.asarray(proba)
 
 
 class PredictionObjective(PerformanceObjective):
@@ -50,13 +99,9 @@ class PredictionObjective(PerformanceObjective):
         super(PredictionObjective, self).__init__(name, direction=direction)
         self._scorer = scorer
 
-    def call(self, trial, estimator, X_test, y_test, **kwargs):
-        value = self._scorer(estimator, X_test, y_test)
-        return value
-
     @staticmethod
     def _default_score_args(force_minimize):
-        # for positive metrics which are the greater the better
+        # for positive metrics which are the bigger, the better
         if force_minimize:
             greater_is_better = False
             direction = 'min'
@@ -67,18 +112,14 @@ class PredictionObjective(PerformanceObjective):
 
     @staticmethod
     def create_auc(name, force_minimize):
-
         greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
-
         scorer = make_scorer(roc_auc_score, greater_is_better=greater_is_better,
                              needs_threshold=True)  # average=average
-
         return PredictionObjective(name, scorer, direction=direction)
 
     @staticmethod
     def create_f1(name, force_minimize, pos_label, average):
         greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
-
         scorer = make_scorer(f1_score, greater_is_better=greater_is_better, needs_threshold=False,
                              pos_label=pos_label, average=average)
         return PredictionObjective(name, scorer, direction=direction)
@@ -86,7 +127,6 @@ class PredictionObjective(PerformanceObjective):
     @staticmethod
     def create_precision(name, force_minimize, pos_label, average):
         greater_is_better, direction = PredictionObjective._default_score_args(force_minimize)
-
         scorer = make_scorer(precision_score, greater_is_better=greater_is_better, needs_threshold=False,
                              pos_label=pos_label, average=average)
         return PredictionObjective(name, scorer, direction=direction)
@@ -139,6 +179,16 @@ class PredictionObjective(PerformanceObjective):
     def get_score(self):
         return self._scorer
 
+    def call(self, trial, estimator, X_test, y_test, **kwargs):
+        value = self._scorer(estimator, X_test, y_test)
+        return value
+
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+        estimator = CVWrapperEstimator(estimators, X_tests, y_tests)
+        X_test = pd.concat(X_tests, axis=0)
+        y_test = np.vstack(y_test.reshape((-1, 1)) for y_test in y_tests).reshape(-1, )
+        return self._scorer(estimator, X_test, y_test)
+
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name}, scorer={self._scorer}, direction={self.direction})"
 
@@ -164,6 +214,17 @@ class NumOfFeatures(ComplexityObjective):
         features = self.get_used_features(estimator=estimator, X_test=X_test)
         return len(features) / len(X_test.columns)
 
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+        used_features = self.get_cv_used_features(estimators, X_tests)
+        return len(used_features) / len(X_tests[0].columns)
+
+    def get_cv_used_features(self, estimators, X_tests):
+        used_features = []
+        for estimator, X_test in zip(estimators, X_tests):
+            features = self.get_used_features(estimator, X_test=X_test)
+            used_features.extend(features)
+        return list(set(used_features))
+
     def get_used_features(self, estimator, X_test):
         if self.sample_size >= X_test.shape[0]:
             sample_size = X_test.shape[0]
@@ -178,6 +239,8 @@ class NumOfFeatures(ComplexityObjective):
         for feature in X_test.columns:
             unique = X_test[feature].unique()
             n_unique = len(unique)
+            if n_unique < 2: # skip constant feature
+                continue
             samples_inx = random_state.randint(low=0, high=n_unique - 1, size=D.shape[0])
             # transform inx that does not contain self
             mapped_inx = []
@@ -215,4 +278,4 @@ def create_objective(name, force_minimize=False, sample_size=2000, task=const.TA
     elif name == 'pred_perf':
         return PredictionPerformanceObjective()
     else:
-        return PredictionObjective.create(name, force_minimize=force_minimize, task=task, pos_label=pos_label, **kwargs)
+        return PredictionObjective.create(name, force_minimize=force_minimize, task=task, pos_label=pos_label)
