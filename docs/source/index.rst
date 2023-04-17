@@ -19,7 +19,7 @@ Hypernets is a general AutoML framework that can meet various needs such as feat
    Experiment<experiment.md>
    Hyperctl<hyperctl.rst>
    API<hypernets.rst>
-   Release Notes<release_note_025.md>
+   Release Notes<release_notes.rst>
    FAQ<faq.md>
 
 Indices and tables

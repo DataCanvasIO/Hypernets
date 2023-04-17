@@ -1,5 +1,5 @@
 Version 0.2.5
-================
+-------------
 
 We add a few new features to this version:
 
