@@ -13,7 +13,7 @@ from .moo import MOOSearcher
 from ..utils import const
 
 
-class Direction:
+class _Direction:
     def __init__(self, weight_vector: np.ndarray, random_state):
 
         self.weight_vector = weight_vector
@@ -60,10 +60,8 @@ class Decomposition:
     def __init__(self, **kwargs):
         pass
 
-    def adaptive_normalization(self, F, ideal, nadir):
-        """For objectives space normalization, the formula:
-            f_{i}' = \frac{f_i - z_i^*}{z_i^{nad} - z^* + \epsilon }
-        """
+    @staticmethod
+    def adaptive_normalization(F, ideal, nadir):
         eps = 1e-6
         return (F - ideal) / (nadir - ideal + eps)
 
@@ -89,15 +87,16 @@ class TchebicheffDecomposition(Decomposition):
 
 
 class PBIDecomposition(Decomposition):
-    """An implementation of "Boundary Intersection Approach base on penalty" """
+    """An implementation of "Boundary Intersection Approach base on penalty"
+
+    Parameters
+    ----------
+    penalty: float, optional, default to 0.5
+        Penalty the solution(F) deviates from the weight vector, the larger the value,
+        the faster the convergence.
+    """
+
     def __init__(self, penalty=0.5):
-        """
-        Parameters
-        ----------
-        penalty: float, optional, default to 0.5
-            Penalty the solution(F) deviates from the weight vector, the larger the value,
-            the faster the convergence.
-        """
         super().__init__()
         self.penalty = penalty
 
@@ -114,56 +113,65 @@ class PBIDecomposition(Decomposition):
 
 
 class MOEADSearcher(MOOSearcher):
-    """An implementation of "MOEA/D"
+    """An implementation of "MOEA/D".
+
+    Parameters
+    ----------
+    space_fn: callable, required
+        A search space function which when called returns a `HyperSpace` instance
+
+    objectives: List[Objective], optional, (default to NumOfFeatures instance)
+        The optimization objectives.
+
+    n_sampling: int, optional, default to 5.
+        The number of samples in each objective, it affects the number of optimization objectives after decomposition:
+
+        :math:`N = C_{samples + objectives - 1}^{ objectives - 1 }`
+
+    n_neighbors: int, optional, default to 3.
+        Number of neighbors to crossover.
+
+    recombination: Recombination, optional, default to instance of SinglePointCrossOver
+        the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
+
+        - ShuffleCrossOver
+        - UniformCrossover
+        - SinglePointCrossOver
+
+    decomposition: Decomposition, optional, default to instance of TchebicheffDecomposition
+
+        The strategy to decompose multi-objectives optimization problem and calculate scores for the sub problem, now supported:
+
+        - TchebicheffDecomposition
+        - PBIDecomposition
+        - WeightedSumDecomposition
+
+        Due to the possible differences in dimension of objectives, normalization will be performed on the scores, the  formula:
+
+        :math:`f_{i}' = \\frac{ f_i - z_i^* } { z_i ^ {nad} - z^* + \\epsilon }`
+
+
+    mutate_probability: float, optional, default to 0.7
+        the probability of genetic variation for offspring, when the parents can not recombine,
+        it will definitely mutate a gene for the generated offspring.
+
+    space_sample_validation_fn: callable or None, (default=None)
+        used to verify the validity of samples from the search space, and can be used to add specific constraint
+        rules to the search space to reduce the size of the space.
+
+    random_state: np.RandomState, optional
+        used to reproduce the search process
+
 
     References
     ----------
-        [1]. Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
+    [1] Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition," in IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, Dec. 2007, doi: 10.1109/TEVC.2007.892759.
+
+    [2] Das I, Dennis J E. "Normal-boundary intersection: A new method for generating the Pareto surface in nonlinear multicriteria optimization problems[J]." SIAM Journal on Optimization, 1998, 8(3): 631-657.
     """
 
     def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, recombination=None, mutate_probability=0.3,
                  decomposition=None, space_sample_validation_fn=None, random_state=None):
-        """
-        Parameters
-        ----------
-        space_fn: callable, required
-            A search space function which when called returns a `HyperSpace` instance
-
-        objectives: List[Objective], optional, (default to NumOfFeatures instance)
-            The optimization objectives.
-
-        n_sampling: int, optional, default to 5.
-            The number of samples in each objective, it affects the number of optimization objectives after
-            decomposition (N):
-                N = C_{n_samples+n_objectives-1}^{n_objectives-1}
-
-        n_neighbors: int, optional, default to 3.
-            Number of neighbors to crossover.
-
-        recombination: Recombination, optional, default to instance of SinglePointCrossOver
-            the strategy to recombine DNA of parents to generate offspring. Builtin strategies:
-            - ShuffleCrossOver
-            - UniformCrossover
-            - SinglePointCrossOver
-
-        decomposition: Decomposition, optional, default to instance of TchebicheffDecomposition
-            Objectives decompose approaches, builtin strategies:
-            - TchebicheffDecomposition
-            - PBIDecomposition
-            - WeightedSumDecomposition
-
-        mutate_probability: float, optional, default to 0.7
-            the probability of genetic variation for offspring, when the parents can not recombine,
-            it will definitely mutate a gene for the generated offspring.
-
-        space_sample_validation_fn: callable or None, (default=None)
-            used to verify the validity of samples from the search space, and can be used to add specific constraint
-            rules to the search space to reduce the size of the space.
-
-        random_state: np.RandomState, optional
-            used to reproduce the search process
-
-        """
 
         super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,
                                             optimize_direction=objectives[0].direction, use_meta_learner=False,
@@ -223,7 +231,6 @@ class MOEADSearcher(MOOSearcher):
         return vectors
 
     def init_mean_vector_by_NBI(self, n_samples, n_objectives):
-        # Das I, Dennis J E. "Normal-boundary intersection: A new method for generating the Pareto surface in nonlinear multicriteria optimization problems[J]." SIAM Journal on Optimization, 1998, 8(3): 631-657.
         vectors = self.distribution_number(n_samples + n_objectives, n_objectives)
         vectors = (np.array(vectors) - 1) / n_samples
         return vectors
@@ -242,7 +249,7 @@ class MOEADSearcher(MOOSearcher):
         directions = []
         for i in range(pop_size):
             weight_vector = weight_vectors[i]
-            directions.append(Direction(weight_vector=weight_vector, random_state=self.random_state))
+            directions.append(_Direction(weight_vector=weight_vector, random_state=self.random_state))
             # space_sample = self._sample_and_check(self._random_sample)
             # pop.append(MOEADIndividual(dna=space_sample, weight_vector=weight_vector, random_state=self.random_state))
 
@@ -333,9 +340,9 @@ class MOEADSearcher(MOOSearcher):
         non_dominated = self.get_nondominated_set()
         return np.max(np.array(list(map(lambda _: _.scores, non_dominated))), axis=0)
 
-    def _update_neighbors(self, direction: Direction, candidate: Individual):
+    def _update_neighbors(self, direction: _Direction, candidate: Individual):
         for neighbor in direction.neighbors:
-            neighbor: Direction = neighbor
+            neighbor: _Direction = neighbor
             wv = neighbor.weight_vector
             Z = self.get_reference_point()
             nadir = self.get_nadir_point()

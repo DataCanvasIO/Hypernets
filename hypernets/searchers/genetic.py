@@ -169,7 +169,7 @@ class SinglePointMutation:
         return f"{self.__class__.__name__}(random_state={self.random_state}, proba={self.proba})"
 
 
-class Survival(metaclass=abc.ABCMeta):
+class _Survival(metaclass=abc.ABCMeta):
 
     def update(self, pop: List[Individual], challengers: List[Individual]):
         raise NotImplementedError

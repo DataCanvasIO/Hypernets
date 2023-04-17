@@ -88,8 +88,29 @@ class Population(object):
 
 
 class EvolutionSearcher(Searcher):
-    """
-    Evolutionary Algorithm
+    """Evolutionary Algorithm
+
+    Parameters
+    ----------
+    space_fn: callable, required
+        A search space function which when called returns a `HyperSpace` instance
+    population_size: int, required
+        Size of population
+    sample_size: int, required
+        The number of parent candidates selected in each cycle of evolution
+    regularized: bool
+        (default=False), Whether to enable regularized
+    candidates_size: int, (default=10)
+        The number of samples for the meta-learner to evaluate candidate paths when roll out
+    optimize_direction: 'min' or 'max', (default='min')
+        Whether the search process is approaching the maximum or minimum reward value.
+    use_meta_learner: bool, (default=True)
+        Whether to enable meta leaner. Meta-learner aims to evaluate the performance of unseen samples based on
+        previously evaluated samples. It provides a practical solution to accurately estimate a search branch with
+        many simulations without involving the actual training.
+    space_sample_validation_fn: callable or None, (default=None)
+        Used to verify the validity of samples from the search space, and can be used to add specific constraint
+        rules to the search space to reduce the size of the space.
 
     References
     ----------
@@ -100,25 +121,7 @@ class EvolutionSearcher(Searcher):
                  candidates_size=10, optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True,
                  space_sample_validation_fn=None, random_state=None):
         """
-        :param space_fn: callable, required
-            A search space function which when called returns a `HyperSpace` instance
-        :param population_size: int, required
-            Size of population
-        :param sample_size: int, required
-            The number of parent candidates selected in each cycle of evolution
-        :param regularized: bool
-            (default=False), Whether to enable regularized
-        :param candidates_size: int, (default=10)
-            The number of samples for the meta-learner to evaluate candidate paths when roll out
-        :param optimize_direction: 'min' or 'max', (default='min')
-            Whether the search process is approaching the maximum or minimum reward value.
-        :param use_meta_learner: bool, (default=True)
-            Whether to enable meta leaner. Meta-learner aims to evaluate the performance of unseen samples based on
-            previously evaluated samples. It provides a practical solution to accurately estimate a search branch with
-            many simulations without involving the actual training.
-        :param space_sample_validation_fn: callable or None, (default=None)
-            Used to verify the validity of samples from the search space, and can be used to add specific constraint
-            rules to the search space to reduce the size of the space.
+
         """
         Searcher.__init__(self, space_fn=space_fn, optimize_direction=optimize_direction,
                           use_meta_learner=use_meta_learner, space_sample_validation_fn=space_sample_validation_fn)

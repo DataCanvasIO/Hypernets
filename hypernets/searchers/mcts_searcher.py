@@ -8,31 +8,35 @@ from ..core.searcher import Searcher, OptimizeDirection
 
 
 class MCTSSearcher(Searcher):
-    """
+    """MCTSSearcher
+
+    Parameters
+    ----------
+    space_fn: Callable
+        A search space function which when called returns a `HyperSpace` object.
+    policy: hypernets.searchers.mcts_core.BasePolicy, (default=None)
+        The policy for *Selection* and *Backpropagation* phases, `UCT` by default.
+    max_node_space: int, (default=10)
+        Maximum space for node expansion
+    candidates_size: int, (default=10)
+        The number of samples for the meta-learner to evaluate candidate paths when roll out
+    optimize_direction: 'min' or 'max', (default='min')
+        Whether the search process is approaching the maximum or minimum reward value
+    use_meta_learner: bool, (default=True)
+        Meta-learner aims to evaluate the performance of unseen samples based on previously evaluated samples. It provides a practical solution to accurately estimate a search branch with many simulations without involving the actual training
+    space_sample_validation_fn: Callable or None, (default=None)
+        Used to verify the validity of samples from the search space, and can be used to add specific constraint rules to the search space to reduce the size of the space
+
     References
     ----------
-        Wang, Linnan, et al. "Alphax: exploring neural architectures with deep neural networks and monte carlo tree search." arXiv preprint arXiv:1903.11059 (2019).
-        Browne, Cameron B., et al. "A survey of monte carlo tree search methods." IEEE Transactions on Computational Intelligence and AI in games 4.1 (2012): 1-43.
+
+    [1] Wang, Linnan, et al. "Alphax: exploring neural architectures with deep neural networks and monte carlo tree search." arXiv preprint arXiv:1903.11059 (2019).
+
+    [2] Browne, Cameron B., et al. "A survey of monte carlo tree search methods." IEEE Transactions on Computational Intelligence and AI in games 4.1 (2012): 1-43.
     """
 
     def __init__(self, space_fn, policy=None, max_node_space=10, candidates_size=10,
                  optimize_direction=OptimizeDirection.Minimize, use_meta_learner=True, space_sample_validation_fn=None):
-        """
-        :param space_fn: Callable
-            A search space function which when called returns a `HyperSpace` object.
-        :param policy: hypernets.searchers.mcts_core.BasePolicy, (default=None)
-            The policy for *Selection* and *Backpropagation* phases, `UCT` by default.
-        :param max_node_space: int, (default=10)
-            Maximum space for node expansion
-        :param candidates_size: int, (default=10)
-            The number of samples for the meta-learner to evaluate candidate paths when roll out
-        :param optimize_direction: 'min' or 'max', (default='min')
-            Whether the search process is approaching the maximum or minimum reward value
-        :param use_meta_learner: bool, (default=True)
-            Meta-learner aims to evaluate the performance of unseen samples based on previously evaluated samples. It provides a practical solution to accurately estimate a search branch with many simulations without involving the actual training
-        :param space_sample_validation_fn: Callable or None, (default=None)
-            Used to verify the validity of samples from the search space, and can be used to add specific constraint rules to the search space to reduce the size of the space
-        """
         if policy is None:
             policy = UCT()
         self.tree = MCTree(space_fn, policy, max_node_space=max_node_space)

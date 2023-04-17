@@ -3,8 +3,8 @@ import pytest
 
 from hypernets.model.objectives import ElapsedObjective,\
     PredictionObjective, NumOfFeatures, PredictionPerformanceObjective
-from hypernets.searchers.nsga_searcher import NSGAIISearcher, NSGAIndividual, RankAndCrowdSortSurvival, \
-    RDominanceSurvival, RNSGAIISearcher
+from hypernets.searchers.nsga_searcher import NSGAIISearcher, _NSGAIndividual, _RankAndCrowdSortSurvival, \
+    _RDominanceSurvival, RNSGAIISearcher
 
 from sklearn.preprocessing import LabelEncoder
 from hypernets.core.random_state import set_random_state, get_random_state
@@ -36,16 +36,16 @@ class TestRankAndCrowdSortSurvival:
 
     @classmethod
     def setup_class(cls):
-        survival = RankAndCrowdSortSurvival(directions=['min', 'min'], population_size=10,
-                                            random_state=get_random_state())
+        survival = _RankAndCrowdSortSurvival(directions=['min', 'min'], population_size=10,
+                                             random_state=get_random_state())
         cls.survival = survival
 
     def test_crowd_distance_sort(self):
         survival = self.survival
-        i1 = NSGAIndividual("1", np.array([0.10, 0.30]), None)
-        i2 = NSGAIndividual("2", np.array([0.11, 0.25]), None)
-        i3 = NSGAIndividual("3", np.array([0.12, 0.19]), None)
-        i4 = NSGAIndividual("4", np.array([0.13, 0.10]), None)
+        i1 = _NSGAIndividual("1", np.array([0.10, 0.30]), None)
+        i2 = _NSGAIndividual("2", np.array([0.11, 0.25]), None)
+        i3 = _NSGAIndividual("3", np.array([0.12, 0.19]), None)
+        i4 = _NSGAIndividual("4", np.array([0.13, 0.10]), None)
 
         pop = survival.crowding_distance_assignment([i1, i2, i3, i4])  # i1, i2, i3, i4 are in the same rank
 
@@ -54,8 +54,8 @@ class TestRankAndCrowdSortSurvival:
 
     def test_fast_non_dominated_sort(self):
         survival = self.survival
-        i1 = NSGAIndividual("1", np.array([0.1, 0.3]), None)
-        i2 = NSGAIndividual("2", np.array([0.2, 0.3]), None)
+        i1 = _NSGAIndividual("1", np.array([0.1, 0.3]), None)
+        i2 = _NSGAIndividual("2", np.array([0.2, 0.3]), None)
 
         l = survival.fast_non_dominated_sort([i1, i2])
         assert len(l) == 2
@@ -64,14 +64,14 @@ class TestRankAndCrowdSortSurvival:
         assert l[1][0] == i2
 
         # first rank has two element
-        i3 = NSGAIndividual("3", np.array([0.3, 0.1]), None)
+        i3 = _NSGAIndividual("3", np.array([0.3, 0.1]), None)
         l = survival.fast_non_dominated_sort([i1, i2, i3])
         assert len(l) == 2
         assert i1 in l[0]
         assert i3 in l[0]
         assert l[1][0] == i2
 
-        i4 = NSGAIndividual("4", np.array([0.25, 0.3]), None)
+        i4 = _NSGAIndividual("4", np.array([0.25, 0.3]), None)
         l = survival.fast_non_dominated_sort([i1, i2, i3, i4])
         assert len(l) == 3
         assert l[2][0] == i4
@@ -199,13 +199,13 @@ class TestRDominanceSurvival:
 
         scores = np.array([[0.1, 0.1], [0.1, 0.15], [0.2, 0.2], [0.3, 0.3]])
 
-        pop = [NSGAIndividual(str(i), score, None) for i, score in enumerate(scores)]
+        pop = [_NSGAIndividual(str(i), score, None) for i, score in enumerate(scores)]
         cls.pop = pop
 
-        cls.survival = RDominanceSurvival(directions=['min', 'min'], random_state=get_random_state(),
-                                          ref_point=reference_point,
-                                          population_size=len(cls.pop),
-                                          weights=weights, threshold=0.3)
+        cls.survival = _RDominanceSurvival(directions=['min', 'min'], random_state=get_random_state(),
+                                           ref_point=reference_point,
+                                           population_size=len(cls.pop),
+                                           weights=weights, threshold=0.3)
 
     def test_dominate(self):
         a, b, c, d = self.pop
@@ -243,9 +243,9 @@ def test_r_dominate():
 
     pop = [b, c, d, f]
 
-    survival = RDominanceSurvival(directions=['min', 'min'], population_size=4,
-                                  random_state=get_random_state(),
-                                  ref_point=reference_point, weights=[0.5, 0.5], threshold=0.3)
+    survival = _RDominanceSurvival(directions=['min', 'min'], population_size=4,
+                                   random_state=get_random_state(),
+                                   ref_point=reference_point, weights=[0.5, 0.5], threshold=0.3)
 
     def cmp(x1, x2, directions=None):
         return survival.dominate(x1, x2, pop=pop)
