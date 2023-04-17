@@ -11,6 +11,7 @@ Dear folks, we are offering challenging opportunities located in Beijing for bot
 
 ## Hypernets: A General Automated Machine Learning Framework
 Hypernets is a general AutoML framework, based on which it can implement automatic optimization tools for various machine learning frameworks and libraries, including deep learning frameworks such as tensorflow, keras, pytorch, and machine learning libraries like sklearn, lightgbm, xgboost, etc.
+It also adopted various state-of-the-art optimization algorithms, including but not limited to evolution algorithm, monte carlo tree search for single objective optimization and multi-objective optimization algorithms such as MOEA/D,NSGA-II,R-NSGA-II.
 We introduced an abstract search space representation, taking into account the requirements of hyperparameter optimization and neural architecture search(NAS), making Hypernets a general framework that can adapt to various automated machine learning needs. As an abstraction computing layer, tabular toolbox, has successfully implemented in various tabular data types: pandas, dask, cudf, etc.  
 
 
@@ -25,6 +26,12 @@ We introduced an abstract search space representation, taking into account the r
 <p align="center">
 <img src="docs/source/images/hypernets_search_space.png" width="100%"/>
 </p>
+
+## What's NEW !
+
+- **New feature:** [Multi-objectives optimization support](https://hypernets.readthedocs.io/en/latest/searchers.html#multi-objective-optimization)
+- **New feature:** [Performance and model complexity measurement metrics](https://github.com/DataCanvasIO/HyperGBM/blob/main/hypergbm/examples/66.Objectives_example.ipynb)
+- **New feature:** [Distributed computing](https://hypergbm.readthedocs.io/en/latest/example_dask.html) and [GPU acceleration](https://hypergbm.readthedocs.io/en/latest/example_cuml.html) base on computational abstraction layer
 
 
 ## Installation

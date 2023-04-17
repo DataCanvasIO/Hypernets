@@ -15,8 +15,7 @@ Monte-Carlo Tree Search (MCTS) extends the celebrated Multi-armed Bandit algorit
 
 * Expansion: The algorithm adds one or more nodes to the tree. This node corresponds to the first encountered position that was not added in the tree.
 
-* Playout: When reaching the limits of the visited tree, a roll-out strategy is used to select the options until reaching a terminal node and computing the associated
-reward.
+* Playout: When reaching the limits of the visited tree, a roll-out strategy is used to select the options until reaching a terminal node and computing the associated reward.
 
 * Backpropagation: The reward value is propagated back, i.e. it is used to update the value associated to all nodes along the visited path up to the root node.
 
@@ -90,7 +89,7 @@ As its name suggests, Random Search uses random combinations of hyperparameters.
 
 **Required Parameters**
 
-- *space_fn*: callable, A search space function which when called returns a `HyperSpace` instance
+- *space_fn*: callable, A search space function which when called returns a ``HyperSpace`` instance
 
 **Optional Parameters**
 
@@ -112,8 +111,7 @@ crowded-distance are used to sort individuals in population and keep population 
    :scale: 50%
 
 
-:class:`NSGASearcher` code example:
-
+:py:class:`~hypernets.searchers.nsga_searcher.NSGAIISearcher` code example:
 
     >>> from sklearn.model_selection import train_test_split
     >>> from sklearn.preprocessing import LabelEncoder
@@ -173,7 +171,7 @@ thus, this mechanism can accelerate convergence process. One more thing,  it's a
    :scale: 50%
 
 
-:class:`MOEADSearcher` code example:
+:py:class:`~hypernets.searchers.moead_searcher.MOEADSearcher` code example:
 
     >>> from sklearn.model_selection import train_test_split
     >>> from sklearn.preprocessing import LabelEncoder
@@ -226,7 +224,7 @@ It comprehensively considers the pareto dominance relationship and the reference
    :align: center
    :scale: 50%
 
-:class:`RNSGAIISearcher` code example:
+:py:class:`~hypernets.searchers.nsga_searcher.RNSGAIISearcher` code example:
 
     >>> import numpy as np
     >>> from sklearn.model_selection import train_test_split
