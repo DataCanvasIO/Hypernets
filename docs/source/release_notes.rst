@@ -1,6 +1,8 @@
 Release Notes
 =============
 
+Releasing history:
+
 .. toctree::
    :maxdepth: 1
 
