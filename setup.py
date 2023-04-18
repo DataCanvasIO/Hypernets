@@ -69,7 +69,7 @@ import hypernets
 
 version = hypernets.__version__
 
-MIN_PYTHON_VERSION = '>=3.6.*'
+MIN_PYTHON_VERSION = '>=3.6'
 
 # long_description = open('README.md', encoding='utf-8').read()
 long_description = read_description()
