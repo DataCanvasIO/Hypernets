@@ -334,6 +334,28 @@ class TestMOOExperiment:
         estimators = experiment.run(max_trials=10)
         self.check_exp(experiment, estimators)
 
+    def test_nsga2_psi(self):
+        df_train = self.df_train.copy()
+        df_test = self.df_test.copy()
+        X_test = df_test.copy().drop('y', axis=1)
+        experiment = make_experiment(CatPlainModel, df_train,
+                                     eval_data=df_test,
+                                     test_data=X_test,
+                                     callbacks=[],
+                                     random_state=1234,
+                                     search_callbacks=[],
+                                     target='y',
+                                     searcher='nsga2',  # available MOO searcher: moead, nsga2, rnsga2
+                                     searcher_options={'population_size': 5},
+                                     reward_metric='auc',
+                                     objectives=['psi'],
+                                     drift_detection=False,
+                                     early_stopping_rounds=10,
+                                     search_space=PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True))
+
+        estimators = experiment.run(max_trials=10)
+        self.check_exp(experiment, estimators)
+
     def test_rnsga2(self):
         df_train = self.df_train.copy()
         df_test = self.df_test.copy()
@@ -373,3 +395,4 @@ class TestMOOExperiment:
 
         estimators = experiment.run(max_trials=10)
         self.check_exp(experiment, estimators)
+

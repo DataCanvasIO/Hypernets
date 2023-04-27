@@ -53,7 +53,6 @@ def to_objective_object(o, force_minimize=False, **kwargs):
 def to_search_object(search_space, optimize_direction, searcher, searcher_options,
                      reward_metric=None, scorer=None, objectives=None,  task=None, pos_label=None):
 
-
     def to_searcher(cls, options):
         assert search_space is not None, '"search_space" should be specified if "searcher" is None or str.'
         assert optimize_direction in {'max', 'min'}
@@ -77,10 +76,11 @@ def to_search_object(search_space, optimize_direction, searcher, searcher_option
             if objectives is None:
                 objectives = ['nf']
             objectives_instance = []
-            force_minimize = search_cls == MOEADSearcher
+            force_minimize = (search_cls == MOEADSearcher)
             for o in objectives:
                 objectives_instance.append(to_objective_object(o, force_minimize=force_minimize,
                                                                task=task, pos_label=pos_label))
+
             objectives_instance.insert(0, PredictionObjective.create(reward_metric, force_minimize=force_minimize,
                                                                      task=task, pos_label=pos_label))
             searcher_options['objectives'] = objectives_instance
@@ -332,6 +332,10 @@ def make_experiment(hyper_model_cls,
     searcher = to_search_object(search_space, optimize_direction, searcher, searcher_options,
                                 reward_metric=reward_metric, scorer=scorer, objectives=objectives, task=task,
                                 pos_label=kwargs.get('pos_label'))
+
+    if searcher.kind() == const.SEARCHER_MOO:
+        if 'psi' in [_.name for _ in searcher.objectives]:
+            assert X_test is not None, "psi objective requires test dataset"
 
     if cfg.experiment_auto_down_sample_enabled and not isinstance(searcher, PlaybackSearcher) \
             and 'down_sample_search' not in kwargs.keys():

@@ -1029,7 +1029,7 @@ class SpaceSearchStep(ExperimentStep):
         es = self.find_early_stopping_callback(model.callbacks)
         if es is not None and es.time_limit is not None and es.time_limit > 0:
             es.time_limit = self.estimate_time_limit(es.time_limit)
-        model.search(X_train, y_train, X_eval, y_eval, cv=self.cv, num_folds=self.num_folds, **kwargs)
+        model.search(X_train, y_train, X_eval, y_eval, X_test=X_test, cv=self.cv, num_folds=self.num_folds, **kwargs)
         return model
 
     def from_fitted_step(self, fitted_step):

@@ -67,22 +67,24 @@ class PSIObjective(Objective):
         self.eps = eps
 
     def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
+        def to_2d(array_data):
+            if array_data.ndim == 1:
+                return array_data.reshape((-1, 1))
+            else:
+                return array_data
+
         if self.task == const.TASK_BINARY:
             train_proba = estimator.predict_proba(X_train)
             test_proba = estimator.predict_proba(X_test)
-            return float(calc_psi(train_proba[:, 1], test_proba[:, 1]))
+            return float(calc_psi(to_2d(train_proba[:, 1]), to_2d(test_proba[:, 1])))
         elif self.task == const.TASK_REGRESSION:
-            train_result = estimator.predict(X_train)
-            test_result = estimator.predict(X_test)
-            if train_result.ndim == 1:
-                train_result = train_result.reshape((-1, 1))
-            if test_result.ndim == 1:
-                test_result = test_result.reshape((-1, 1))
+            train_result = to_2d(estimator.predict(X_train))
+            test_result = to_2d(estimator.predict(X_test))
             return float(calc_psi(train_result, test_result))
         elif self.task == const.TASK_MULTICLASS:
             train_proba = estimator.predict_proba(X_train)
             test_proba = estimator.predict_proba(X_test)
-            psis = [float(calc_psi(train_proba[:, i], test_proba[:, 1])) for i in range(train_proba.shape[1])]
+            psis = [float(calc_psi(to_2d(train_proba[:, i]), to_2d(test_proba[:, 1]))) for i in range(train_proba.shape[1])]
             return float(np.mean(psis))
         else:
             raise RuntimeError(f"unseen task type {self.task}")
@@ -351,17 +353,27 @@ class NumOfFeatures(ComplexityObjective):
         return f"{self.__class__.__name__}(name={self.name}, sample_size={self.sample_size}, direction={self.direction})"
 
 
-def create_objective(name,  **kwargs):
+def create_objective(name, **kwargs):
+    def copy_opt(opt_names):
+        for opt_name in opt_names:
+            if opt_name in kwargs:
+                opts[opt_name] = kwargs.get(opt_name)
+
     name = name.lower()
+    opts = {}
+
     if name == 'elapsed':
         return ElapsedObjective()
     elif name == 'nf':
-        return NumOfFeatures(**kwargs)
+        copy_opt(['sample_size'])
+        return NumOfFeatures(**opts)
     elif name == 'psi':
-        return PSIObjective(**kwargs)
+        copy_opt(['n_bins', 'task', 'average', 'eps'])
+        return PSIObjective(**opts)
     elif name == 'feature_usage':
         return FeatureUsageObjective()
     elif name == 'pred_perf':
         return PredictionPerformanceObjective()
     else:
+        copy_opt(['task', 'pos_label', 'force_minimize'])
         return PredictionObjective.create(name, **kwargs)
