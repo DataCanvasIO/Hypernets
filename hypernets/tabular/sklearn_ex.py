@@ -1576,3 +1576,38 @@ class MultiTargetEncoder(ColumnEncoder):
             le = self.label_encoder_cls()
             y = le.fit_transform(y)
         return super().fit_transform(X, y, **kwargs)
+
+
+@tb_transformer(pd.DataFrame)
+class FeatureImportanceSelection(BaseEstimator):
+
+    def __init__(self, importances, quantile, min_features=3):
+        super(FeatureImportanceSelection, self).__init__()
+        self.quantile = quantile
+        self.importances = importances
+        self.min_features = min_features
+
+        n_features = int(round(len(self.importances) * (1 - self.quantile), 0))
+        if n_features < min_features:
+            n_features = min_features
+        imps = [_[1] for _ in importances]
+        self._important_features = [self.importances[i] for i in np.argsort(-np.array(imps))[: n_features]]
+
+    def feature_usage(self):
+        return len(self.important_features) / len(self.importances)
+
+    def fit(self, X, y=None, **kwargs):
+        pass
+
+    def fit_transform(self, X, y=None, **kwargs):
+        self.fit(X, y, **kwargs)
+        return self.transform(X)
+
+    def transform(self, X):
+        important_feature_names = [_[0] for _ in self.important_features]
+        reversed_features = list(filter(lambda f: f in important_feature_names, X.columns.values))
+        return X[reversed_features]
+
+    @property
+    def important_features(self):
+        return self._important_features

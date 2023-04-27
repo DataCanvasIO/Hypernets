@@ -170,7 +170,7 @@ class MOEADSearcher(MOOSearcher):
     [2] Das I, Dennis J E. "Normal-boundary intersection: A new method for generating the Pareto surface in nonlinear multicriteria optimization problems[J]." SIAM Journal on Optimization, 1998, 8(3): 631-657.
     """
 
-    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, recombination=None, mutate_probability=0.3,
+    def __init__(self, space_fn, objectives, n_sampling=5, n_neighbors=2, recombination=None, mutate_probability=0.7,
                  decomposition=None, space_sample_validation_fn=None, random_state=None):
 
         super(MOEADSearcher, self).__init__(space_fn=space_fn, objectives=objectives,

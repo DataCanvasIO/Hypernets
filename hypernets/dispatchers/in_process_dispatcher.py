@@ -17,7 +17,7 @@ class InProcessDispatcher(Dispatcher):
         self.models_dir = models_dir
         fs.makedirs(models_dir, exist_ok=True)
 
-    def dispatch(self, hyper_model, X, y, X_eval, y_eval, cv, num_folds, max_trials, dataset_id, trial_store,
+    def dispatch(self, hyper_model, X, y, X_eval, y_eval, X_test, cv, num_folds, max_trials, dataset_id, trial_store,
                  **fit_kwargs):
         retry_limit = c.trial_retry_limit
 
@@ -80,7 +80,7 @@ class InProcessDispatcher(Dispatcher):
 
                 model_file = '%s/%05d_%s.pkl' % (self.models_dir, trial_no, space_sample.space_id)
 
-                trial = hyper_model._run_trial(space_sample, trial_no, X, y, X_eval, y_eval, cv, num_folds, model_file,
+                trial = hyper_model._run_trial(space_sample, trial_no, X, y, X_eval, y_eval, X_test, cv, num_folds, model_file,
                                                **fit_kwargs)
 
                 if trial.succeeded:

@@ -6,7 +6,7 @@ from sklearn.tree import DecisionTreeRegressor
 
 import pytest
 
-from hypernets.model.objectives import NumOfFeatures, PredictionPerformanceObjective, PredictionObjective
+from hypernets.model.objectives import NumOfFeatures, PredictionPerformanceObjective, PredictionObjective, calc_psi
 
 
 class BaseTestWithinModel:
@@ -139,4 +139,18 @@ class TestPredictionObjective:
                 assert score < 0
         else:
             assert score > 0
+
+
+class TestPSIObjective:
+
+    def test_calc_psi(self):
+        x_array = np.random.random((100, 1))
+        y_array = np.random.random((100, 1))
+
+        psi1 = calc_psi(x_array, y_array, n_bins=10, eps=1e-6)
+        psi2 = calc_psi(x_array * 10, y_array * 5, n_bins=10, eps=1e-6)
+        assert psi1 > 0
+        assert psi2 > 0
+        assert psi2 > psi1
+        print(psi1)
 

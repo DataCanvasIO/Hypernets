@@ -61,8 +61,8 @@ class HyperModel:
     def load_estimator(self, model_file):
         raise NotImplementedError
 
-    def _run_trial(self, space_sample, trial_no, X, y, X_eval, y_eval, cv=False, num_folds=3, model_file=None,
-                   **fit_kwargs):
+    def _run_trial(self, space_sample, trial_no, X, y, X_eval, y_eval, X_test=None, cv=False, num_folds=3,
+                   model_file=None, **fit_kwargs):
         start_time = time.time()
         estimator = self._get_estimator(space_sample)
         if self.discriminator:
@@ -126,7 +126,7 @@ class HyperModel:
                     reward = [fn.call_cross_validation(trial, estimator.cv_models_, x_vals, y_vals)
                               for fn in self.searcher.objectives]
                 else:
-                    reward = [fn(trial, estimator, X_eval, y_eval) for fn in self.searcher.objectives]
+                    reward = [fn.call(trial, estimator, X_eval, y_eval, X, y, X_test) for fn in self.searcher.objectives]
 
             trial.reward = reward
             trial.iteration_scores = estimator.get_iteration_scores()
@@ -223,13 +223,14 @@ class HyperModel:
     def _after_search(self, last_trial_no):
         pass
 
-    def search(self, X, y, X_eval, y_eval, cv=False, num_folds=3, max_trials=10, dataset_id=None, trial_store=None,
+    def search(self, X, y, X_eval, y_eval, X_test=None, cv=False, num_folds=3, max_trials=10, dataset_id=None, trial_store=None,
                **fit_kwargs):
         """
         :param X: Pandas or Dask DataFrame, feature data for training
         :param y: Pandas or Dask Series, target values for training
         :param X_eval: (Pandas or Dask DataFrame) or None, feature data for evaluation
         :param y_eval: (Pandas or Dask Series) or None, target values for evaluation
+        :param X_test: (Pandas or Dask Series) or None, target values for evaluation of indicators like PSI
         :param cv: Optional, int(default=False), If set to `true`, use cross-validation instead of evaluation set reward to guide the search process
         :param num_folds: Optional, int(default=3), Number of cross-validated folds, only valid when cv is true
         :param max_trials: Optional, int(default=10), The upper limit of the number of search trials, the search process stops when the number is exceeded
@@ -263,7 +264,7 @@ class HyperModel:
                 logger.warn(e)
 
         try:
-            trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval,
+            trial_no = dispatcher.dispatch(self, X, y, X_eval, y_eval, X_test,
                                            cv, num_folds, max_trials, dataset_id, trial_store,
                                            **fit_kwargs)
 

@@ -22,6 +22,86 @@ class PerformanceObjective(Objective, metaclass=abc.ABCMeta):
     pass
 
 
+def calc_psi(x_array, y_array, n_bins=10, eps=1e-6):
+    def calc_ratio(y_proba):
+        y_proba_1d = y_proba.reshape(1, -1)
+        ratios = []
+        for i, interval in enumerate(intervals):
+            if i == len(interval) - 1:
+                # include the probability==1
+                n_samples = (y_proba_1d[np.where((y_proba_1d >= interval[0]) & (y_proba_1d <= interval[1]))]).shape[0]
+            else:
+                n_samples = (y_proba_1d[np.where((y_proba_1d >= interval[0]) & (y_proba_1d < interval[1]))]).shape[0]
+            ratio = n_samples / y_proba.shape[0]
+            if ratio == 0:
+                ratios.append(eps)
+            else:
+                ratios.append(ratio)
+        return np.array(ratios)
+
+    assert x_array.ndim == 2 and y_array.ndim == 2, "please reshape to 2-d ndarray"
+
+    # stats max and min
+    all_data = np.vstack((x_array, y_array))
+    max_val = np.max(all_data)
+    min_val = np.min(all_data)
+
+    distance = (max_val - min_val) / n_bins
+    intervals = [(i * distance + min_val, (i+1) * distance + min_val) for i in range(n_bins)]
+    train_ratio = calc_ratio(x_array)
+    test_ratio = calc_ratio(y_array)
+    return np.sum((train_ratio - test_ratio) * np.log(train_ratio / test_ratio))
+
+
+class PSIObjective(Objective):
+
+    def __init__(self, n_bins=10, task=const.TASK_BINARY, average='macro', eps=1e-6):
+        super(PSIObjective, self).__init__('psi', 'min')
+        if task == const.TASK_MULTICLASS and average != 'macro':
+            raise RuntimeError("only 'macro' average is supported currently")
+        if task not in [const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION]:
+            raise RuntimeError(f"unseen task type {task}")
+        self.n_bins = n_bins
+        self.task = task
+        self.average = average
+        self.eps = eps
+
+    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
+        if self.task == const.TASK_BINARY:
+            train_proba = estimator.predict_proba(X_train)
+            test_proba = estimator.predict_proba(X_test)
+            return float(calc_psi(train_proba[:, 1], test_proba[:, 1]))
+        elif self.task == const.TASK_REGRESSION:
+            train_result = estimator.predict(X_train)
+            test_result = estimator.predict(X_test)
+            if train_result.ndim == 1:
+                train_result = train_result.reshape((-1, 1))
+            if test_result.ndim == 1:
+                test_result = test_result.reshape((-1, 1))
+            return float(calc_psi(train_result, test_result))
+        elif self.task == const.TASK_MULTICLASS:
+            train_proba = estimator.predict_proba(X_train)
+            test_proba = estimator.predict_proba(X_test)
+            psis = [float(calc_psi(train_proba[:, i], test_proba[:, 1])) for i in range(train_proba.shape[1])]
+            return float(np.mean(psis))
+        else:
+            raise RuntimeError(f"unseen task type {self.task}")
+
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+        raise NotImplementedError
+
+
+class FeatureUsageObjective(Objective):
+    def __init__(self):
+        super(FeatureUsageObjective, self).__init__('feature_usage', 'min')
+
+    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
+        return estimator.data_pipeline[0].features[0][1].steps[0][1].feature_usage()
+
+    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+        return estimators[0].data_pipeline[0].features[0][1].steps[0][1].feature_usage()
+
+
 class ElapsedObjective(PerformanceObjective):
 
     def __init__(self):
@@ -39,7 +119,7 @@ class PredictionPerformanceObjective(Objective):
     def __init__(self):
         super(PredictionPerformanceObjective, self).__init__('pred_perf', 'min')
 
-    def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
+    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
         t1 = time.time()
         estimator.predict(X_test)
         return time.time() - t1
@@ -179,14 +259,16 @@ class PredictionObjective(PerformanceObjective):
     def get_score(self):
         return self._scorer
 
-    def call(self, trial, estimator, X_test, y_test, **kwargs):
-        value = self._scorer(estimator, X_test, y_test)
+    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs):
+        value = self._scorer(estimator, X_eval, y_val)
         return value
 
     def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+
         estimator = CVWrapperEstimator(estimators, X_tests, y_tests)
         X_test = pd.concat(X_tests, axis=0)
-        y_test = np.vstack(y_test.reshape((-1, 1)) for y_test in y_tests).reshape(-1, )
+
+        y_test = np.vstack(y_test.values.reshape((-1, 1)) if isinstance(y_test, pd.Series) else y_test.reshape((-1, 1)) for y_test in y_tests).reshape(-1, )
         return self._scorer(estimator, X_test, y_test)
 
     def __repr__(self):
@@ -210,7 +292,7 @@ class NumOfFeatures(ComplexityObjective):
         super(NumOfFeatures, self).__init__('nf', 'min')
         self.sample_size = sample_size
 
-    def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
+    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
         features = self.get_used_features(estimator=estimator, X_test=X_test)
         return len(features) / len(X_test.columns)
 
@@ -269,13 +351,17 @@ class NumOfFeatures(ComplexityObjective):
         return f"{self.__class__.__name__}(name={self.name}, sample_size={self.sample_size}, direction={self.direction})"
 
 
-def create_objective(name, force_minimize=False, sample_size=2000, task=const.TASK_BINARY, pos_label=1, **kwargs):
+def create_objective(name,  **kwargs):
     name = name.lower()
     if name == 'elapsed':
         return ElapsedObjective()
     elif name == 'nf':
-        return NumOfFeatures(sample_size=sample_size)
+        return NumOfFeatures(**kwargs)
+    elif name == 'psi':
+        return PSIObjective(**kwargs)
+    elif name == 'feature_usage':
+        return FeatureUsageObjective()
     elif name == 'pred_perf':
         return PredictionPerformanceObjective()
     else:
-        return PredictionObjective.create(name, force_minimize=force_minimize, task=task, pos_label=pos_label)
+        return PredictionObjective.create(name, **kwargs)

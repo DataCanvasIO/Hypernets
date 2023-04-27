@@ -375,3 +375,12 @@ class FeatureGenerationTransformer(HyperTransformer):
             kwargs['feature_selection_args'] = feature_selection_args
 
         HyperTransformer.__init__(self, feature_generators.FeatureGenerationTransformer, space, name, **kwargs)
+
+
+class FeatureImportanceSelection(HyperTransformer):
+    def __init__(self, quantile, importances, space=None, name=None,  **kwargs):
+        if kwargs is None:
+            kwargs = {}
+
+        HyperTransformer.__init__(self, sklearn_ex.FeatureImportanceSelection, space, name, quantile=quantile,
+                                  importances=importances, **kwargs)
