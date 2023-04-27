@@ -409,7 +409,7 @@ class DominateBasedTrialHistory(TrialHistory):
 
         return df
 
-    def plot_best_trials(self, figsize=(6, 6), show_trial_no=True):
+    def plot_best_trials(self, index=True, figsize=(5, 5), loc='upper left', bbox_to_anchor=None, xlim=None, ylim=None):
         try:
             from matplotlib import pyplot as plt
         except Exception:
@@ -421,30 +421,34 @@ class DominateBasedTrialHistory(TrialHistory):
         best_trials = self.get_best()
         objective_names = self.objective_names
 
-        fig, ax = plt.subplots(figsize=figsize)
-        if len(best_trials) > 0:
-            best_scores = np.array([t.reward for t in best_trials])
-            ax.scatter(best_scores[:, 0], best_scores[:, 1], c='red', label='non-dominated', marker='o')
-            best_scores_sorted = np.array(sorted(best_scores, key=lambda v: v[1]))
-            ax.plot(best_scores_sorted[:, 0], best_scores_sorted[:, 1], color='c', label=f"pareto front")
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot()
 
-        # if show_comparison:
-        #     comparison: List[Trial] = list(filter(lambda v: v not in best_trials, self.trials))
-        #     do(comparison, color='blue', marker="p", label='dominated-trials', ax=ax)
+        comparison = list(filter(lambda v: v not in best_trials, self.trials))
 
-        comparison: List[Trial] = list(filter(lambda v: v not in best_trials, self.trials))
         if len(comparison) > 0:
             comp_scores = np.array([t.reward for t in comparison])
             ax.scatter(comp_scores[:, 0], comp_scores[:, 1], c='blue', label='dominated', marker='o')
 
-        if show_trial_no:
+        if len(best_trials) > 0:
+            best_scores = np.array([t.reward for t in best_trials])
+            ax.scatter(best_scores[:, 0], best_scores[:, 1], c='red', label='non-dominated', marker='o')
+            best_scores_sorted = np.array(sorted(best_scores, key=lambda v: v[1]))
+            # non-dominated does not mean optimal
+            ax.plot(best_scores_sorted[:, 0], best_scores_sorted[:, 1], color='c')
+
+        if index:
             for i, t in enumerate(best_trials):
                 ax.text(t.reward[0], t.reward[1], f"{i}", ha='center', va='bottom', fontsize=9)
 
-        fig.legend()
+        if xlim:
+            ax.set_xlim(*xlim)
+        if ylim:
+            ax.set_ylim(*ylim)
+
+        ax.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)
         plt.xlabel(objective_names[0])
         plt.ylabel(objective_names[1])
-
         plt.title(f"Best trials in TrialHistory(total={len(self.trials)})")
         return fig, ax
 
