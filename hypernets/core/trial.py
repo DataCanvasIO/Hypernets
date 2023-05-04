@@ -15,6 +15,18 @@ from hypernets.utils.common import isnotebook, to_repr
 from ..core.searcher import OptimizeDirection
 
 
+def _is_bigdata(v):
+    big_data_types = (pd.Series, pd.DataFrame, np.ndarray)
+    if isinstance(v, big_data_types):
+        return True
+
+    type_name = type(v).__name__.lower()
+    if any(type_name.find(s) for s in ('array', 'dataframe', 'series')):
+        return True
+
+    return False
+
+
 class Trial():
     def __init__(self, space_sample, trial_no, reward, elapsed, model_file=None, succeeded=True):
         self.space_sample = space_sample
@@ -81,10 +93,9 @@ class Trial():
 
         # state = {k: v for k, v in state.items() if k != 'memo'}
         memo = state.get('memo', None)
-        big_data_types = (pd.Series, pd.DataFrame, np.ndarray)
-        big_data_exists = isinstance(memo, dict) and any(isinstance(v, big_data_types) for v in memo.values())
+        big_data_exists = isinstance(memo, dict) and any(_is_bigdata(v) for v in memo.values())
         if big_data_exists:
-            compacted_memo = {k: v for k, v in memo.items() if not isinstance(v, big_data_types)}
+            compacted_memo = {k: v for k, v in memo.items() if not _is_bigdata(v)}
             state = state.copy()
             state['memo'] = compacted_memo
 
