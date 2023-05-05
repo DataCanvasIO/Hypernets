@@ -140,7 +140,7 @@ class EvolutionSearcher(Searcher):
     def parallelizable(self):
         return True
 
-    def sample(self):
+    def sample(self, space_options=None):
         if self.population.initializing:
             space_sample = self._sample_and_check(self._random_sample)
             return space_sample

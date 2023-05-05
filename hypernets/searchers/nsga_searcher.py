@@ -226,18 +226,21 @@ class _NSGAIIBasedSearcher(MOOSearcher):
     def directions(self):
         return [o.direction for o in self.objectives]
 
-    def sample(self):
+    def sample(self, space_options=None):
+        if space_options is None:
+            space_options = {}
+
         if len(self.population) < self.survival.population_size:
-            return self._sample_and_check(self._random_sample)
+            return self._sample_and_check(self._random_sample, space_options=space_options)
 
         # binary tournament selection operation
         p1, p2 = self.binary_tournament_select(self.population)
 
         if self.recombination.check_parents(p1, p2):
-            offspring = self.recombination.do(p1, p2, self.space_fn())
-            final_offspring = self.mutation.do(offspring, self.space_fn())
+            offspring = self.recombination.do(p1, p2, self.space_fn(**space_options))
+            final_offspring = self.mutation.do(offspring, self.space_fn(**space_options))
         else:
-            final_offspring = self.mutation.do(p1.dna, self.space_fn(), proba=1)
+            final_offspring = self.mutation.do(p1.dna, self.space_fn(**space_options), proba=1)
 
         return final_offspring
 

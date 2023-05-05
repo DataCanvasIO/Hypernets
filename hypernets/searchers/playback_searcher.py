@@ -28,7 +28,7 @@ class PlaybackSearcher(Searcher):
     def parallelizable(self):
         return True
 
-    def sample(self):
+    def sample(self, space_options=None):
         if self.index >= len(self.samples):
             raise EarlyStoppingError('no more samples.')
         sample = self.samples[self.index]

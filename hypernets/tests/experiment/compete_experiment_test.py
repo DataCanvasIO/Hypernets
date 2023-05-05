@@ -8,13 +8,14 @@ from hypernets.core import SummaryCallback
 from hypernets.core.objective import Objective
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import CompeteExperiment
-from hypernets.model.objectives import ElapsedObjective
+from hypernets.model.objectives import ElapsedObjective, PredictionObjective
 from hypernets.searchers.nsga_searcher import NSGAIISearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.tb_dask import if_dask_ready, is_dask_installed, setup_dask
+from hypernets.utils import const
 
 if is_dask_installed:
     import dask.dataframe as dd
@@ -232,12 +233,12 @@ class PlainContextObjective(Objective):
     def __init__(self):
         super(PlainContextObjective, self).__init__('plain_context', 'min')
 
-    def call(self, trial, estimator, X_test, y_test, **kwargs) -> float:
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
         exp = trial.context.get('exp')
         assert exp is not None and isinstance(exp, CompeteExperiment)  # get experiment in Objective
         return np.random.random()
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
         exp = trial.context.get('exp')
         assert exp is not None and isinstance(exp, CompeteExperiment)  # get experiment in Objective
         return np.random.random()
@@ -245,7 +246,9 @@ class PlainContextObjective(Objective):
 
 def test_moo_context():
     search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-    rs = NSGAIISearcher(search_space, objectives=[ElapsedObjective(), PlainContextObjective()], population_size=10)
+    rs = NSGAIISearcher(search_space, objectives=[PredictionObjective.create("auc", task=const.TASK_BINARY),
+                                                  PlainContextObjective()],
+                        population_size=10)
 
     hyper_model = PlainModel(rs, task='binary', callbacks=[SummaryCallback()], transformer=MultiLabelEncoder)
 
@@ -269,7 +272,7 @@ def test_moo_context():
         'max_trials': 3,
     }
     from hypernets.tabular.metrics import metric_to_scoring
-    experiment = CompeteExperiment(hyper_model, X_train, y_train, scorer=metric_to_scoring("logloss"), **init_kwargs)
+    experiment = CompeteExperiment(hyper_model, X_train, y_train, scorer=metric_to_scoring("auc"), **init_kwargs)
 
     estimators = experiment.run(**run_kwargs)
 

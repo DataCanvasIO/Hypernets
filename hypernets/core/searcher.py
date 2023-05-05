@@ -29,18 +29,23 @@ class Searcher(Stateful):
     def parallelizable(self):
         return False
 
-    def sample(self):
+    def sample(self, space_options=None):
         raise NotImplementedError
 
-    def _random_sample(self):
-        space_sample = self.space_fn()
+    def _random_sample(self, **space_kwargs):
+        if space_kwargs is None:
+            space_kwargs = {}
+        space_sample = self.space_fn(**space_kwargs)
         space_sample.random_sample()
         return space_sample
 
-    def _sample_and_check(self, sample_fn):
+    def _sample_and_check(self, sample_fn, space_options=None):
+        if space_options is None:
+            space_options = {}
+
         counter = 0
         while True:
-            space_sample = sample_fn()
+            space_sample = sample_fn(**space_options)
             counter += 1
             if counter >= 1000:
                 raise ValueError('Unable to take valid sample and exceed the retry limit 1000.')

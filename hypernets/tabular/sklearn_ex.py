@@ -1597,7 +1597,7 @@ class FeatureImportanceSelection(BaseEstimator):
         return len(self.important_features) / len(self.importances)
 
     def fit(self, X, y=None, **kwargs):
-        pass
+        return self
 
     def fit_transform(self, X, y=None, **kwargs):
         self.fit(X, y, **kwargs)

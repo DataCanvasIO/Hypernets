@@ -25,7 +25,7 @@ class GridSearcher(Searcher):
     def parallelizable(self):
         return True
 
-    def sample(self):
+    def sample(self, space_options=None):
         sample = self._sample_and_check(self._get_sample)
         return sample
 

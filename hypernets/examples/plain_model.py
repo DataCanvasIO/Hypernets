@@ -13,8 +13,19 @@ from hypernets.core import set_random_state, randint
 from hypernets.core.ops import ModuleChoice, HyperInput, ModuleSpace
 from hypernets.core.search_space import HyperSpace, Choice, Int, Real, Cascade, Constant, HyperNode
 from hypernets.model import Estimator, HyperModel
-from hypernets.tabular import get_tool_box
-from hypernets.utils import fs, logging, const
+from hypernets.tabular import get_tool_box, column_selector
+from hypernets.utils import fs, const
+
+
+from hypernets.core import randint
+from hypernets.core.ops import ModuleChoice, HyperInput
+from hypernets.core.search_space import HyperSpace, Choice, Int, Real
+from hypernets.pipeline.base import DataFrameMapper
+from hypernets.pipeline.transformers import FeatureImportanceSelection
+
+from hypernets.utils import logging
+
+
 
 logger = logging.get_logger(__name__)
 
@@ -114,6 +125,21 @@ class PlainSearchSpace(object):
                 kvalue = kvalue.value
             return fn(kvalue)
 
+    def create_feature_selection(self, hyper_input, importances, seq_no=0):
+        from hypernets.pipeline.base import Pipeline
+
+        selection = FeatureImportanceSelection(name=f'feature_importance_selection_{seq_no}',
+                                               importances=importances,
+                                               quantile=Real(0, 1, step=0.1))
+        pipeline = Pipeline([selection],
+                            name=f'feature_selection_{seq_no}',
+                            columns=column_selector.column_all)(hyper_input)
+
+        preprocessor = DataFrameMapper(default=False, input_df=True, df_out=True,
+                                       df_out_dtype_transforms=None)([pipeline])
+
+        return preprocessor
+
     # HyperSpace
     def __call__(self, *args, **kwargs):
         space = HyperSpace()
@@ -130,9 +156,14 @@ class PlainSearchSpace(object):
                 estimators.append(self.lr)
             if self.enable_nn:
                 estimators.append(self.nn)
-
             modules = [ModuleSpace(name=f'{e["cls"].__name__}', **e) for e in estimators]
-            outputs = ModuleChoice(modules)(hyper_input)
+
+            if "importances" in kwargs and kwargs["importances"] is not None:
+                importances = kwargs.pop("importances")
+                ss = self.create_feature_selection(hyper_input, importances)
+                outputs = ModuleChoice(modules)(ss)
+            else:
+                outputs = ModuleChoice(modules)(hyper_input)
             space.set_inputs(hyper_input)
 
         return space
@@ -210,6 +241,8 @@ class PlainEstimator(Estimator):
         cv_models = []
         x_vals = []
         y_vals = []
+        X_trains = []
+        y_trains = []
         logger.info('start training')
         for n_fold, (train_idx, valid_idx) in enumerate(iterators.split(X, y)):
             x_train_fold, y_train_fold = X.iloc[train_idx], y[train_idx]
@@ -247,8 +280,11 @@ class PlainEstimator(Estimator):
             oof_[valid_idx] = proba
             oof_scores.append(fold_scores)
             cv_models.append(fold_model)
+
             x_vals.append(x_val_fold)
             y_vals.append(y_val_fold)
+            X_trains.append(x_train_fold)
+            y_trains.append(y_train_fold)
 
         self.classes_ = getattr(cv_models[0], 'classes_', None)
         self.cv_ = True
@@ -260,7 +296,7 @@ class PlainEstimator(Estimator):
 
         # return
         oof_, = tb_original.from_local(oof_)
-        return scores, oof_, oof_scores, x_vals, y_vals
+        return scores, oof_, oof_scores, X_trains, y_trains, x_vals, y_vals
 
     def predict(self, X, **kwargs):
         eval_set = kwargs.pop('eval_set', None)  # ignore

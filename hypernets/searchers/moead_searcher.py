@@ -264,7 +264,7 @@ class MOEADSearcher(MOOSearcher):
 
         return directions
 
-    def sample(self):
+    def sample(self, space_options=None):
         for direction in self.directions:
             if direction.individual is None:
                 sample = self._sample_and_check(self._random_sample)

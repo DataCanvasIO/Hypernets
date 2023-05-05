@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from hypernets.model.objectives import ElapsedObjective,\
-    PredictionObjective, NumOfFeatures, PredictionPerformanceObjective
+from hypernets.model.objectives import ElapsedObjective, \
+    PredictionObjective, NumOfFeatures, PredictionPerformanceObjective, create_objective
 from hypernets.searchers.nsga_searcher import NSGAIISearcher, _NSGAIndividual, _RankAndCrowdSortSurvival, \
     _RDominanceSurvival, RNSGAIISearcher
 
@@ -94,13 +94,15 @@ class TestNSGA2:
 
     @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
     @pytest.mark.parametrize('cv', [True, False])
+    #@pytest.mark.parametrize('objective', ['feature_usage', 'nf'])
     def test_nsga2_training(self, recombination: str, cv: bool):
+        objective = 'nf'
         set_random_state(1234)
         X_train, y_train, X_test, y_test = get_bankdata()
         recombination_ins = create_recombination(recombination, random_state=get_random_state())
         search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
         rs = NSGAIISearcher(search_space, objectives=[PredictionObjective.create('accuracy'),
-                                                      PredictionPerformanceObjective()],
+                                                      create_objective(objective)],
                             recombination=recombination_ins, population_size=3)
 
         # the given reward_metric is in order to ensure SOO working, make it's the same as metrics in MOO searcher
@@ -133,16 +135,15 @@ class TestNSGA2:
 
 class TestRNSGA2:
 
-    # def setup_method(self):
-    #     set_random_state(1234)
-
     @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
     @pytest.mark.parametrize('cv', [True, False])
-    def test_nsga2_training(self, recombination: str,  cv: bool):
+    @pytest.mark.parametrize('objective', ['feature_usage', 'nf'])
+    def test_nsga2_training(self, recombination: str,  cv: bool, objective: str):
         set_random_state(1234)
-        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_SHUFFLE, cv=cv)
+        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_SHUFFLE, cv=cv, objective=objective)
         pop1 = hk1.searcher.get_historical_population()
         scores1 = np.asarray([indi.scores for indi in pop1])
+        assert scores1.ndim == 2
 
         # test search process reproduce by setting random_state
         # set_random_state(1234)  # reset random state
@@ -152,25 +153,27 @@ class TestRNSGA2:
         #
         # assert (scores1 == scores2).all()
 
-    def reproce_nsga2_training(self):
-        set_random_state(1234)
-        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_UNIFORM)
-        pop1 = hk1.searcher.get_historical_population()
-        scores1 = np.asarray([indi.scores for indi in pop1])
+    # def reproce_nsga2_training(self):
+    #     set_random_state(1234)
+    #     hk1 = self.run_nsga2_training(recombination=const.COMBINATION_UNIFORM)
+    #     pop1 = hk1.searcher.get_historical_population()
+    #     scores1 = np.asarray([indi.scores for indi in pop1])
+    #
+    #     # test search process reproduce by setting random_state
+    #     set_random_state(1234)  # reset random state
+    #     hk2 = self.run_nsga2_training(recombination=const.COMBINATION_UNIFORM)
+    #     pop2 = hk2.searcher.get_historical_population()
+    #     scores2 = np.asarray([indi.scores for indi in pop2])
+    #
+    #     assert (scores1 == scores2).all()
 
-        # test search process reproduce by setting random_state
-        set_random_state(1234)  # reset random state
-        hk2 = self.run_nsga2_training(recombination=const.COMBINATION_UNIFORM)
-        pop2 = hk2.searcher.get_historical_population()
-        scores2 = np.asarray([indi.scores for indi in pop2])
-
-        assert (scores1 == scores2).all()
-
-    def run_nsga2_training(self, recombination: str, cv: bool):
+    def run_nsga2_training(self, recombination: str, cv: bool, objective: str):
         random_state = get_random_state()
         X_train, y_train, X_test, y_test = get_bankdata()
         search_space = PlainSearchSpace(enable_dt=True, enable_lr=False, enable_nn=True)
-        rs = RNSGAIISearcher(search_space, objectives=[PredictionObjective.create('logloss'), NumOfFeatures()],
+
+        rs = RNSGAIISearcher(search_space, objectives=[PredictionObjective.create('logloss'),
+                                                       create_objective(objective)],
                              ref_point=[0.5, 0.5],
                              weights=[0.4, 0.6],
                              random_state=random_state,

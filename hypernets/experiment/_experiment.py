@@ -8,7 +8,7 @@ import time
 from IPython.display import display
 
 from hypernets.dispatchers.cfg import DispatchCfg
-from hypernets.utils import logging, df_utils
+from hypernets.utils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -68,6 +68,7 @@ class Experiment(object):
         self.model_ = None
 
     def get_data_character(self):
+        from hypernets.utils import df_utils
         data_character = df_utils.get_data_character(self.hyper_model, self.X_train, self.y_train, self.X_eval,
                                                      self.y_eval, self.X_test, self.task)
         return data_character

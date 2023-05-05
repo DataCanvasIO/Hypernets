@@ -13,15 +13,6 @@ from hypernets.tabular.metrics import metric_to_scoring
 
 random_state = get_random_state()
 
-
-class ComplexityObjective(Objective, metaclass=abc.ABCMeta):
-    pass
-
-
-class PerformanceObjective(Objective, metaclass=abc.ABCMeta):
-    pass
-
-
 def calc_psi(x_array, y_array, n_bins=10, eps=1e-6):
     def calc_ratio(y_proba):
         y_proba_1d = y_proba.reshape(1, -1)
@@ -53,10 +44,53 @@ def calc_psi(x_array, y_array, n_bins=10, eps=1e-6):
     return np.sum((train_ratio - test_ratio) * np.log(train_ratio / test_ratio))
 
 
+
+def detect_used_features(estimator, X_data, sample_size=1000):
+
+    if sample_size >= X_data.shape[0]:
+        sample_size = X_data.shape[0]
+    else:
+        sample_size = sample_size
+
+    D: pd.DataFrame = X_data.sample(sample_size, random_state=random_state)
+    # D.reset_index(inplace=True, drop=True)
+
+    y_pred = estimator.predict(D.copy())  # predict can modify D
+    NF = []
+    for feature in X_data.columns:
+        unique = X_data[feature].unique()
+        n_unique = len(unique)
+        if n_unique < 2: # skip constant feature
+            continue
+        samples_inx = random_state.randint(low=0, high=n_unique - 1, size=D.shape[0])
+        # transform inx that does not contain self
+        mapped_inx = []
+
+        for i, value in zip(samples_inx, D[feature].values):
+            j = int(np.where(unique == value)[0][0])
+            if i >= j:
+                mapped_inx.append(i + 1)
+            else:
+                mapped_inx.append(i)
+
+        D_ = D.copy()
+        D_[feature] = unique[mapped_inx]
+
+        if (D_[feature] == D[feature]).values.any():
+            raise RuntimeError("some samples have not been replaced by different value")
+
+        y_pred_modified = estimator.predict(D_)
+        if (y_pred != y_pred_modified).any():
+            NF.append(feature)
+        del D_
+
+    return NF
+
+
 class PSIObjective(Objective):
 
     def __init__(self, n_bins=10, task=const.TASK_BINARY, average='macro', eps=1e-6):
-        super(PSIObjective, self).__init__('psi', 'min')
+        super(PSIObjective, self).__init__('psi', 'min', need_train_data=True, need_val_data=False, need_test_data=True)
         if task == const.TASK_MULTICLASS and average != 'macro':
             raise RuntimeError("only 'macro' average is supported currently")
         if task not in [const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_REGRESSION]:
@@ -66,13 +100,15 @@ class PSIObjective(Objective):
         self.average = average
         self.eps = eps
 
-    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
+        return self._get_psi_score(estimator, X_train, X_test)
+
+    def _get_psi_score(self, estimator, X_train, X_test):
         def to_2d(array_data):
             if array_data.ndim == 1:
                 return array_data.reshape((-1, 1))
             else:
                 return array_data
-
         if self.task == const.TASK_BINARY:
             train_proba = estimator.predict_proba(X_train)
             test_proba = estimator.predict_proba(X_test)
@@ -84,53 +120,57 @@ class PSIObjective(Objective):
         elif self.task == const.TASK_MULTICLASS:
             train_proba = estimator.predict_proba(X_train)
             test_proba = estimator.predict_proba(X_test)
-            psis = [float(calc_psi(to_2d(train_proba[:, i]), to_2d(test_proba[:, 1]))) for i in range(train_proba.shape[1])]
+            psis = [float(calc_psi(to_2d(train_proba[:, i]), to_2d(test_proba[:, 1]))) for i in
+                    range(train_proba.shape[1])]
             return float(np.mean(psis))
         else:
             raise RuntimeError(f"unseen task type {self.task}")
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
-        raise NotImplementedError
+    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
+        X_train = pd.concat(X_trains, axis=0)
+        return self._get_psi_score(estimator, X_train=X_train, X_test=X_test)
 
 
 class FeatureUsageObjective(Objective):
     def __init__(self):
-        super(FeatureUsageObjective, self).__init__('feature_usage', 'min')
+        super(FeatureUsageObjective, self).__init__('feature_usage', 'min', need_train_data=False,
+                                                    need_val_data=True, need_test_data=False)
 
-    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
         return estimator.data_pipeline[0].features[0][1].steps[0][1].feature_usage()
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
-        return estimators[0].data_pipeline[0].features[0][1].steps[0][1].feature_usage()
+    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
+        return estimator.cv_models_[0].data_pipeline[0].features[0][1].steps[0][1].feature_usage()
 
 
-class ElapsedObjective(PerformanceObjective):
+class ElapsedObjective(Objective):
 
     def __init__(self):
-        super(ElapsedObjective, self).__init__(name='elapsed', direction='min')
+        super(ElapsedObjective, self).__init__(name='elapsed', direction='min', need_train_data=False,
+                                               need_val_data=False, need_test_data=False)
 
-    def call(self, trial, estimator, y_test, **kwargs):
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
         return trial.elapsed
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+    def _evaluate_cv(self, trial, estimators, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
         return trial.elapsed
 
 
 class PredictionPerformanceObjective(Objective):
 
     def __init__(self):
-        super(PredictionPerformanceObjective, self).__init__('pred_perf', 'min')
+        super(PredictionPerformanceObjective, self).__init__('pred_perf', 'min', need_train_data=False,
+                                                             need_val_data=True,
+                                                             need_test_data=False)
 
-    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
         t1 = time.time()
-        estimator.predict(X_test)
+        estimator.predict(X_val)
         return time.time() - t1
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
         t1 = time.time()
-        for estimator, X_test in zip(estimators, X_tests):
-            estimator.predict(X_test)
-
+        estimator.predict(pd.concat(X_vals, axis=0))
         return time.time() - t1
 
 
@@ -172,13 +212,14 @@ class CVWrapperEstimator:
         return np.asarray(proba)
 
 
-class PredictionObjective(PerformanceObjective):
+class PredictionObjective(Objective):
 
     def __init__(self, name, scorer, direction=None):
         if direction is None:
             direction = 'max' if scorer._sign > 0 else 'min'
 
-        super(PredictionObjective, self).__init__(name, direction=direction)
+        super(PredictionObjective, self).__init__(name, direction=direction, need_train_data=False,
+                                                  need_val_data=True, need_test_data=False)
         self._scorer = scorer
 
     @staticmethod
@@ -261,29 +302,23 @@ class PredictionObjective(PerformanceObjective):
     def get_score(self):
         return self._scorer
 
-    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs):
-        value = self._scorer(estimator, X_eval, y_val)
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
+        value = self._scorer(estimator, X_val, y_val)
         return value
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
+    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
 
-        estimator = CVWrapperEstimator(estimators, X_tests, y_tests)
-        X_test = pd.concat(X_tests, axis=0)
+        estimator = CVWrapperEstimator(estimator.cv_models_, X_vals, y_vals)
+        X_test = pd.concat(X_vals, axis=0)
 
-        y_test = np.vstack(y_test.values.reshape((-1, 1)) if isinstance(y_test, pd.Series) else y_test.reshape((-1, 1)) for y_test in y_tests).reshape(-1, )
+        y_test = np.vstack(y_test.values.reshape((-1, 1)) if isinstance(y_test, pd.Series) else y_test.reshape((-1, 1)) for y_test in y_vals).reshape(-1, )
         return self._scorer(estimator, X_test, y_test)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name}, scorer={self._scorer}, direction={self.direction})"
 
 
-class FeatureComplexityObjective(ComplexityObjective):
-
-    def call(self, trial, estimator, y_test, **kwargs):
-        pass
-
-
-class NumOfFeatures(ComplexityObjective):
+class NumOfFeatures(Objective):
     """Detect the number of features used (NF)
 
     References:
@@ -294,60 +329,23 @@ class NumOfFeatures(ComplexityObjective):
         super(NumOfFeatures, self).__init__('nf', 'min')
         self.sample_size = sample_size
 
-    def call(self, trial, estimator, X_eval, y_val, X_train, y_train, X_test, **kwargs) -> float:
-        features = self.get_used_features(estimator=estimator, X_test=X_test)
-        return len(features) / len(X_test.columns)
+    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
+        features = self.get_used_features(estimator=estimator, X_data=X_val)
+        return len(features) / len(X_val.columns)
 
-    def _call_cross_validation(self, trial, estimators, X_tests, y_tests, **kwargs) -> float:
-        used_features = self.get_cv_used_features(estimators, X_tests)
-        return len(used_features) / len(X_tests[0].columns)
+    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
+        used_features = self.get_cv_used_features(estimator, X_vals)
+        return len(used_features) / len(X_vals[0].columns)
 
-    def get_cv_used_features(self, estimators, X_tests):
+    def get_cv_used_features(self, estimator, X_datas):
         used_features = []
-        for estimator, X_test in zip(estimators, X_tests):
-            features = self.get_used_features(estimator, X_test=X_test)
+        for X_data in X_datas:
+            features = self.get_used_features(estimator, X_data)
             used_features.extend(features)
         return list(set(used_features))
 
-    def get_used_features(self, estimator, X_test):
-        if self.sample_size >= X_test.shape[0]:
-            sample_size = X_test.shape[0]
-        else:
-            sample_size = self.sample_size
-
-        D: pd.DataFrame = X_test.sample(sample_size, random_state=random_state)
-        # D.reset_index(inplace=True, drop=True)
-
-        y_pred = estimator.predict(D.copy())  # predict can modify D
-        NF = []
-        for feature in X_test.columns:
-            unique = X_test[feature].unique()
-            n_unique = len(unique)
-            if n_unique < 2: # skip constant feature
-                continue
-            samples_inx = random_state.randint(low=0, high=n_unique - 1, size=D.shape[0])
-            # transform inx that does not contain self
-            mapped_inx = []
-
-            for i, value in zip(samples_inx, D[feature].values):
-                j = int(np.where(unique == value)[0][0])
-                if i >= j:
-                    mapped_inx.append(i + 1)
-                else:
-                    mapped_inx.append(i)
-
-            D_ = D.copy()
-            D_[feature] = unique[mapped_inx]
-
-            if (D_[feature] == D[feature]).values.any():
-                raise RuntimeError("some samples have not been replaced by different value")
-
-            y_pred_modified = estimator.predict(D_)
-            if (y_pred != y_pred_modified).any():
-                NF.append(feature)
-            del D_
-
-        return NF
+    def get_used_features(self, estimator, X_data):
+        return detect_used_features(estimator, X_data, self.sample_size)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name}, sample_size={self.sample_size}, direction={self.direction})"

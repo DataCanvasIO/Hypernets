@@ -52,7 +52,7 @@ class MCTSSearcher(Searcher):
     def parallelizable(self):
         return self.use_meta_learner and self.meta_learner is not None
 
-    def sample(self):
+    def sample(self, space_options=None):
         # print('Sample')
         _, best_node = self.tree.selection_and_expansion()
         # print(f'Sample: {best_node.info()}')
