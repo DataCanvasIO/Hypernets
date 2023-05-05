@@ -137,10 +137,9 @@ class TestRNSGA2:
 
     @pytest.mark.parametrize('recombination', ["shuffle", "uniform", "single_point"])
     @pytest.mark.parametrize('cv', [True, False])
-    @pytest.mark.parametrize('objective', ['feature_usage', 'nf'])
-    def test_nsga2_training(self, recombination: str,  cv: bool, objective: str):
+    def test_nsga2_training(self, recombination: str,  cv: bool):
         set_random_state(1234)
-        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_SHUFFLE, cv=cv, objective=objective)
+        hk1 = self.run_nsga2_training(recombination=const.COMBINATION_SHUFFLE, cv=cv, objective='nf')
         pop1 = hk1.searcher.get_historical_population()
         scores1 = np.asarray([indi.scores for indi in pop1])
         assert scores1.ndim == 2

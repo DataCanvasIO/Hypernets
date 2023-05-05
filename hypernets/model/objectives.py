@@ -13,6 +13,7 @@ from hypernets.tabular.metrics import metric_to_scoring
 
 random_state = get_random_state()
 
+
 def calc_psi(x_array, y_array, n_bins=10, eps=1e-6):
     def calc_ratio(y_proba):
         y_proba_1d = y_proba.reshape(1, -1)
@@ -129,18 +130,6 @@ class PSIObjective(Objective):
     def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
         X_train = pd.concat(X_trains, axis=0)
         return self._get_psi_score(estimator, X_train=X_train, X_test=X_test)
-
-
-class FeatureUsageObjective(Objective):
-    def __init__(self):
-        super(FeatureUsageObjective, self).__init__('feature_usage', 'min', need_train_data=False,
-                                                    need_val_data=True, need_test_data=False)
-
-    def _evaluate(self, trial, estimator, X_train, y_train, X_val, y_val, X_test=None, **kwargs) -> float:
-        return estimator.data_pipeline[0].features[0][1].steps[0][1].feature_usage()
-
-    def _evaluate_cv(self, trial, estimator, X_trains, y_trains, X_vals, y_vals, X_test=None, **kwargs) -> float:
-        return estimator.cv_models_[0].data_pipeline[0].features[0][1].steps[0][1].feature_usage()
 
 
 class ElapsedObjective(Objective):
@@ -368,8 +357,6 @@ def create_objective(name, **kwargs):
     elif name == 'psi':
         copy_opt(['n_bins', 'task', 'average', 'eps'])
         return PSIObjective(**opts)
-    elif name == 'feature_usage':
-        return FeatureUsageObjective()
     elif name == 'pred_perf':
         return PredictionPerformanceObjective()
     else:
