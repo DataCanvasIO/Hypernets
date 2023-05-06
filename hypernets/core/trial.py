@@ -409,7 +409,7 @@ class DominateBasedTrialHistory(TrialHistory):
 
         return df
 
-    def plot_best_trials(self, index=True, figsize=(5, 5), loc='upper left', bbox_to_anchor=None, xlim=None, ylim=None):
+    def plot_best_trials(self, index=True, figsize=(5, 5), loc=None, bbox_to_anchor=None, xlim=None, ylim=None):
         try:
             from matplotlib import pyplot as plt
         except Exception:

@@ -25,7 +25,7 @@ class InProcessDispatcher(Dispatcher):
         trial_no = 1
         retry_counter = 0
 
-        importances = None
+        space_options = {}
         if hyper_model.searcher.kind() == const.SEARCHER_MOO:
             if 'feature_usage' in [_.name for _ in hyper_model.searcher.objectives]:
                 tb = get_tool_box(X, y)
@@ -33,11 +33,12 @@ class InProcessDispatcher(Dispatcher):
                 estimator = tb.general_estimator(X, y, task=hyper_model.task)
                 estimator.fit(preprocessor.fit_transform(X, y), y)
                 importances = list(zip(estimator.feature_name_, estimator.feature_importances_))
+                space_options['importances'] = importances
 
         while trial_no <= max_trials:
             gc.collect()
             try:
-                space_options = dict(importances=importances)
+
                 space_sample = hyper_model.searcher.sample(space_options=space_options)
                 if hyper_model.history.is_existed(space_sample):
                     if retry_counter >= retry_limit:
