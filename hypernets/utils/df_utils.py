@@ -1,8 +1,5 @@
-import json
-
 import numpy as np
 import pandas as pd
-from dask import dataframe as dd
 
 from hypernets.tabular import column_selector as col_se
 
@@ -70,6 +67,7 @@ def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, 
 			shape_x_test = list(X_test.shape)
 
 	else:
+		from dask import dataframe as dd
 		datatype_y = dtype2usagetype[str(y_train.dtype)]
 
 		Missing_y = y_train.isnull().compute().tolist().count(True)
@@ -255,5 +253,5 @@ def as_array(array_data):  # convert data to numpy.ndarray
 	elif _is_cupy_array(array_data):
 		return np.array(array_data.tolist())
 	else:
-		logger.warning(f"unseen data type {type(array_data)} convert to numpy ndarray")
+		logger.warning(f"unseen data type {type(array_data)} to convert to ndarray")
 		return array_data

@@ -1,5 +1,4 @@
 from hypernets.utils import df_utils
-from hypernets.tabular.datasets import dsutils
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
