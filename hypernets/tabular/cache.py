@@ -258,7 +258,7 @@ def _store_cache(toolbox, cache_path, data, meta):
     elif isinstance(data, (list, tuple)):
         items = [f'_{i}' for i in range(len(data))]
         for d, i in zip(data, items):
-            _store_cache(f'{cache_path}{i}', d, meta)
+            _store_cache(toolbox, f'{cache_path}{i}', d, meta)
         meta.update({'kind': _KIND_LIST, 'items': items})
     else:
         pq = toolbox.parquet()
