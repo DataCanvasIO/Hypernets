@@ -272,7 +272,7 @@ def _load_cache(toolbox, cache_path):
     if data_kind == _KIND_NONE:
         data = None
     elif data_kind == _KIND_LIST:
-        data = [_load_cache(f'{cache_path}{i}')[0] for i in items]
+        data = [_load_cache(toolbox, f'{cache_path}{i}')[0] for i in items]
     elif data_kind == _KIND_DEFAULT:  # pickle
         with fs.open(f'{cache_path}{items[0]}', 'rb') as f:
             data = pickle.load(f)
