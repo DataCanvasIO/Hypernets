@@ -6,7 +6,6 @@ lightgbm>=2.2.0
 fsspec>=0.8.0
 ipython
 traitlets
-featuretools>=0.23.0
 XlsxWriter>=3.0.2
 psutil
 joblib
@@ -15,3 +14,4 @@ paramiko
 requests
 tornado
 prettytable
+tqdm
