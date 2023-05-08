@@ -193,7 +193,7 @@ class MultiLabelEncoder(BaseEstimator):
             if self.columns is None:
                 self.columns = X.columns.tolist()
             for col in self.columns:
-                data = X.loc[:, col]
+                data = X[col]
                 if data.dtype == 'object':
                     data = data.astype('str')
                     # print(f'Column "{col}" has been convert to "str" type.')
@@ -216,13 +216,13 @@ class MultiLabelEncoder(BaseEstimator):
 
         if self.columns is not None:  # dataframe
             for col in self.columns:
-                data = X.loc[:, col]
+                data = X[col]
                 if data.dtype == 'object':
                     data = data.astype('str')
                 data_t = self.encoders[col].transform(data)
                 if self.dtype:
                     data_t = data_t.astype(self.dtype)
-                X.loc[:, col] = data_t
+                X[col] = data_t
         else:
             n_features = X.shape[1]
             assert n_features == len(self.encoders.items())
@@ -241,7 +241,7 @@ class MultiLabelEncoder(BaseEstimator):
             if self.columns is None:
                 self.columns = X.columns.tolist()
             for col in self.columns:
-                data = X.loc[:, col]
+                data = X[col]
                 if data.dtype == 'object':
                     data = data.astype('str')
                     # print(f'Column "{col}" has been convert to "str" type.')
@@ -249,7 +249,7 @@ class MultiLabelEncoder(BaseEstimator):
                 data_t = le.fit_transform(data)
                 if self.dtype:
                     data_t = data_t.astype(self.dtype)
-                X.loc[:, col] = data_t
+                X[col] = data_t
                 self.encoders[col] = le
         else:
             n_features = X.shape[1]
@@ -726,8 +726,8 @@ class MultiKBinsDiscretizer(BaseEstimator, TransformerMixin):
             self.columns = X.columns.tolist()
         for col in self.columns:
             new_name = col + const.COLUMNNAME_POSTFIX_DISCRETE
-            n_unique = X.loc[:, col].nunique()
-            n_null = X.loc[:, col].isnull().sum()
+            n_unique = X[col].nunique()
+            # n_null = X[col].isnull().sum()
             c_bins = self.bins
             if c_bins is None or c_bins <= 0:
                 c_bins = round(n_unique ** 0.25) + 1
@@ -1130,7 +1130,10 @@ class DatetimeEncoder(BaseEstimator, TransformerMixin):
             if c is None:
                 c = k
             if isinstance(c, str):
-                t = getattr(Xc.dt, c)
+                if hasattr(Xc.dt, c):
+                    t = getattr(Xc.dt, c)
+                else:
+                    continue
             else:
                 t = c(Xc)
             t.name = f'{Xc.name}_{k}'
