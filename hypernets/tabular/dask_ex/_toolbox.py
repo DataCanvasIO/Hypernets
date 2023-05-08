@@ -825,7 +825,7 @@ _predefined_transformers = dict(
 )
 
 if _feature_generators.is_feature_generator_ready:
-    _predefined_transformers['FeatureGenerationTransformer'] = _feature_generators.FeatureGenerationTransformer
+    _predefined_transformers['FeatureGenerationTransformer'] = _feature_generators.DaskFeatureGenerationTransformer
 
 for name, tf in _predefined_transformers.items():
     register_transformer(tf, name=name, dtypes=dd.DataFrame)
