@@ -1,17 +1,18 @@
 from datetime import datetime
 
 import numpy as np
-
+import pytest
 from sklearn.preprocessing import LabelEncoder
 
 from hypernets.core import SummaryCallback
 from hypernets.core.objective import Objective
 from hypernets.examples.plain_model import PlainModel, PlainSearchSpace
 from hypernets.experiment import CompeteExperiment
-from hypernets.model.objectives import ElapsedObjective, PredictionObjective
+from hypernets.model.objectives import PredictionObjective
 from hypernets.searchers.nsga_searcher import NSGAIISearcher
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
+from hypernets.tabular.feature_generators import is_feature_generator_ready
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from hypernets.tests.model.plain_model_test import create_plain_model
 from hypernets.tests.tabular.tb_dask import if_dask_ready, is_dask_installed, setup_dask
@@ -150,6 +151,7 @@ def test_without_cv():
     experiment_with_bank_data(dict(cv=False), {})
 
 
+@pytest.mark.skipif(not is_feature_generator_ready, reason='feature_generator is not ready')
 def test_with_feature_generation():
     experiment_with_movie_lens(dict(feature_generation=True,
                                     feature_generation_text_cols=['title']), {})
@@ -199,7 +201,8 @@ def test_with_pi():
                                    feature_reselection_threshold=0.0001), {})
 
 
-def test_with_feature_generator():
+@pytest.mark.skipif(not is_feature_generator_ready, reason='feature_generator is not ready')
+def test_with_feature_generation_and_selection():
     experiment_with_movie_lens(dict(feature_generation=True, feature_selection=True,
                                     feature_generation_text_cols=['title']), {})
 
@@ -223,6 +226,7 @@ def test_with_cv_ensemble_dask():
 
 
 @if_dask_ready
+@pytest.mark.skipif(not is_feature_generator_ready, reason='feature_generator is not ready')
 def test_with_feature_generator_dask():
     experiment_with_movie_lens(dict(feature_generation=True, feature_selection=True,
                                     feature_generation_text_cols=['title']), {}, with_dask=True)

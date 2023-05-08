@@ -1894,7 +1894,8 @@ class CompeteExperiment(SteppedExperiment):
 
         if feature_generation:
             if 'FeatureGenerationTransformer' not in tb.transformers.keys():
-                raise NotImplementedError('feature_generation is not supported for your data')
+                raise ValueError('feature_generation is not supported for your data, '
+                                 'or "featuretools" is not installed.')
 
             if data_cleaner_args is None:
                 data_cleaner_args = {}

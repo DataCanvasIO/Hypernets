@@ -9,6 +9,7 @@ from hypernets.experiment import make_experiment, MLEvaluateCallback, MLReportCa
 from hypernets.experiment.compete import StepNames
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
+from hypernets.tabular.feature_generators import is_feature_generator_ready
 from hypernets.tabular.sklearn_ex import MultiLabelEncoder
 from hypernets.utils import common as common_util
 from hypernets.searchers.nsga_searcher import NSGAIISearcher
@@ -67,7 +68,7 @@ def test_experiment_with_blood_full_features():
 
     experiment = make_experiment(PlainModel, df, target=target, search_space=PlainSearchSpace(),
                                  test_data=df_test,
-                                 feature_generation=True,
+                                 feature_generation=is_feature_generator_ready,
                                  collinearity_detection=True,
                                  drift_detection=True,
                                  feature_selection=True,

@@ -11,7 +11,7 @@ from sklearn.pipeline import Pipeline
 
 from hypernets.tabular import get_tool_box
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.feature_generators import is_geohash_installed
+from hypernets.tabular.feature_generators import is_geohash_installed, is_feature_generator_ready
 from hypernets.utils import logging
 from . import if_dask_ready, is_dask_installed, setup_dask
 
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @if_dask_ready
+@pytest.mark.skipif(not is_feature_generator_ready, reason='feature_generator is not ready')
 class TestFeatureGeneratorWithDask:
     @classmethod
     def setup_class(cls):

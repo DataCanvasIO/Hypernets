@@ -5,7 +5,6 @@
 import math
 from datetime import datetime
 
-import featuretools as ft
 import numpy as np
 import pandas as pd
 import pytest
@@ -17,7 +16,8 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 from hypernets.tabular.column_selector import column_object_category_bool, column_number_exclude_timedelta
 from hypernets.tabular.dataframe_mapper import DataFrameMapper
 from hypernets.tabular.datasets import dsutils
-from hypernets.tabular.feature_generators import FeatureGenerationTransformer, is_geohash_installed
+from hypernets.tabular.feature_generators import FeatureGenerationTransformer, is_geohash_installed, \
+    is_feature_generator_ready
 from hypernets.tabular.sklearn_ex import FeatureSelectionTransformer
 from hypernets.utils import logging
 
@@ -38,6 +38,7 @@ def general_preprocessor():
     return preprocessor
 
 
+@pytest.mark.skipif(not is_feature_generator_ready, reason='feature_generator is not ready')
 class Test_FeatureGenerator():
     def test_char_add(self):
         x1 = ['1', '2']
@@ -46,6 +47,7 @@ class Test_FeatureGenerator():
         assert list(x3) == ['1c', '2d']
 
     def test_ft_primitives(self):
+        import featuretools as ft
         tps = ft.primitives.get_transform_primitives()
         assert tps
 

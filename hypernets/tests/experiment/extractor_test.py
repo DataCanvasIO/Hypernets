@@ -1,7 +1,8 @@
 from hypernets.tests.experiment import experiment_factory
 from hypernets.experiment.compete import DataCleanStep, DriftDetectStep
 from hypernets.experiment import ExperimentExtractor, StepMeta
-import time
+import pytest
+from hypernets.tabular.feature_generators import is_feature_generator_ready
 
 
 def _run_experiment(creator):
@@ -73,6 +74,7 @@ def test_multicollinearity_detect_extractor():
     assert unselected_features['INDUS']['reserved'] == 'CRIM'
 
 
+@pytest.mark.skipif(not is_feature_generator_ready, reason='feature_generator is not ready')
 def test_feature_generation_extractor():
     exp_data, estimator = _run_experiment(experiment_factory.create_feature_generation_experiment)
     fg_step = exp_data.steps[2]

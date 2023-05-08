@@ -724,8 +724,11 @@ _predefined_transformers = dict(
     # TfidfEncoder=sk_ex.TfidfEncoder,
     # DatetimeEncoder=sk_ex.DatetimeEncoder,
 
-    FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
+    # FeatureGenerationTransformer=feature_generators_.FeatureGenerationTransformer,
 )
+
+if feature_generators_.is_feature_generator_ready:
+    _predefined_transformers['FeatureGenerationTransformer'] = feature_generators_.FeatureGenerationTransformer
 
 for name, tf in _predefined_transformers.items():
     register_transformer(tf, name=name, dtypes=pd.DataFrame)
