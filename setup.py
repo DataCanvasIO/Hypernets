@@ -41,27 +41,32 @@ def read_extra_requirements():
     return extra
 
 
-def read_description(file_path='README.md',
-                     image_root=f'{home_url}/raw/main'):
-    import re
-    import os
+# def read_description(file_path='README.md',
+#                      image_root=f'{home_url}/raw/main'):
+#     import re
+#     import os
+#
+#     def _encode_image(m):
+#         assert len(m.groups()) == 3
+#
+#         pre, src, post = m.groups()
+#         src = src.rstrip().lstrip()
+#         remote_src = os.path.join(image_root, os.path.relpath(src))
+#         return f'{pre}{remote_src}{post}'
+#
+#     desc = open(file_path, encoding='utf-8').read()
+#
+#     # substitute html image
+#     desc = re.sub(r'(<img\s+src\s*=\s*\")(docs/source/images/[^"]+)(\")', _encode_image, desc)
+#
+#     # substitute markdown image
+#     desc = re.sub(r'(\!\[.*\]\()(docs/source/images/.+)(\))', _encode_image, desc)
+#
+#     return desc
 
-    def _encode_image(m):
-        assert len(m.groups()) == 3
-
-        pre, src, post = m.groups()
-        src = src.rstrip().lstrip()
-        remote_src = os.path.join(image_root, os.path.relpath(src))
-        return f'{pre}{remote_src}{post}'
-
-    desc = open(file_path, encoding='utf-8').read()
-
-    # substitute html image
-    desc = re.sub(r'(<img\s+src\s*=\s*\")(docs/source/images/[^"]+)(\")', _encode_image, desc)
-
-    # substitute markdown image
-    desc = re.sub(r'(\!\[.*\]\()(docs/source/images/.+)(\))', _encode_image, desc)
-
+def read_description(file_path='README.md'):
+    with open(file_path, encoding='utf-8') as f:
+        desc = f.read()
     return desc
 
 
@@ -83,7 +88,7 @@ setup(
     description='An General Automated Machine Learning Framework',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='',
+    url='https://github.com/DataCanvasIO/Hypernets',
     author='DataCanvas Community',
     author_email='yangjian@zetyun.com',
     license='Apache License 2.0',

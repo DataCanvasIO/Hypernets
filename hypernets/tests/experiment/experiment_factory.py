@@ -11,7 +11,7 @@ from hypernets.utils import const
 
 
 def _create_experiment(predefined_kwargs, maker=None, need_test=False, user_kwargs=None):
-    df = dsutils.load_boston()
+    df = dsutils.load_boston().head(1000)
     df['Constant'] = [0 for i in range(df.shape[0])]
     df['Id'] = [i for i in range(df.shape[0])]
     target = 'target'

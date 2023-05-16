@@ -1,5 +1,5 @@
 <p align="center">
-<img src="docs/source/images/Hypernets.png" width="500" >
+<img src="https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/Hypernets.png" width="500" >
 
 
 [![Python Versions](https://img.shields.io/pypi/pyversions/hypernets.svg)](https://pypi.org/project/hypernets)
@@ -19,12 +19,12 @@ We introduced an abstract search space representation, taking into account the r
 ## Overview
 ### Conceptual Model
 <p align="center">
-<img src="docs/source/images/hypernets_conceptual_model.png" width="100%"/>
+<img src="https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/hypernets_conceptual_model.png" width="100%"/>
 </p>
 
 ### Illustration of the Search Space 
 <p align="center">
-<img src="docs/source/images/hypernets_search_space.png" width="100%"/>
+<img src="https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/hypernets_search_space.png" width="100%"/>
 </p>
 
 ## What's NEW !
@@ -107,7 +107,7 @@ python -m hypernets.examples.smoke_testing
 * [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
 
 
-![DataCanvas AutoML Toolkit](docs/source/images/DAT_logo.png)
+![DataCanvas AutoML Toolkit](https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/DAT_logo.png)
 
 ## Citation
 
