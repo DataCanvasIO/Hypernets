@@ -109,6 +109,10 @@ class FakeEstimator:
     def predict(self, X, **kwargs):
         return self.proba[:, 1] > 0.5
 
+    @property
+    def _estimator_type(self):
+        return 'classifier'
+
 
 class TestPredictionObjective:
 
