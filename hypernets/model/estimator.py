@@ -6,10 +6,11 @@ import copy
 
 import numpy as np
 from sklearn.model_selection import KFold, StratifiedKFold
+from hypernets.utils import const
 
 
 class Estimator():
-    def __init__(self, space_sample, task='binary', discriminator=None):
+    def __init__(self, space_sample, task=const.TASK_BINARY, discriminator=None):
         self.space_sample = space_sample
         self.task = task
         self.discriminator = discriminator
@@ -18,6 +19,15 @@ class Estimator():
         self.model = None
         self.cv_ = None
         self.cv_models_ = None
+
+    @property
+    def _estimator_type(self):
+        if self.task in {const.TASK_BINARY, const.TASK_MULTICLASS, const.TASK_MULTILABEL}:
+            return 'classifier'
+        elif self.task in {const.TASK_REGRESSION, }:
+            return 'regressor'
+        else:
+            return None
 
     def set_discriminator(self, discriminator):
         self.discriminator = discriminator

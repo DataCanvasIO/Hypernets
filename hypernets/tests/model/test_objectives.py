@@ -77,6 +77,9 @@ class FakeCVEstimator:
     def predict_proba(self, *args, **kwargs):
         return self.cv_models_[0].predict_proba(*args, **kwargs)
 
+    @property
+    def _estimator_type(self):
+        return 'classifier'
 
 class TestPredictionPerformanceObjective(BaseTestWithinModel):
 

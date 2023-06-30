@@ -174,6 +174,16 @@ class CVWrapperEstimator:
     def classes_(self):
         return self.estimators[0].classes_
 
+    @property
+    def _estimator_type(self):
+        try:
+            if len(self.classes_) > 1:
+                return 'classifier'
+            else:
+                return 'regressor'
+        except:
+            return 'regressor'
+
     def predict(self, X, **kwargs):
         rows = 0
         for x_val in self.x_vals:

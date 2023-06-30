@@ -152,6 +152,7 @@ class ExperimentStep(BaseEstimator):
         state = super().__getstate__()
         # Don't pickle experiment
         if 'experiment' in state.keys():
+            state = state.copy()
             state['experiment'] = None
         return state
 
