@@ -29,6 +29,13 @@ class BaseEnsemble:
                 self.classes_ = est.classes_
                 break
 
+    @property
+    def _estimator_type(self):
+        for est in self.estimators:
+            if est is not None:
+                return est._estimator_type
+        return None
+
     def _estimator_predict(self, estimator, X):
         if self.task == 'regression':
             pred = estimator.predict(X)
