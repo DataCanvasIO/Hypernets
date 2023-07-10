@@ -59,7 +59,7 @@ def run_generate_job_specs(template, output):
     # load file
     config_dict = load_yaml(yaml_file)
 
-    # 1.3. check values should be array
+    # 1.3. check values should be a list
     assert "params" in config_dict
 
     params = config_dict['params']
