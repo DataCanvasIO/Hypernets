@@ -107,7 +107,7 @@ python -m hypernets.examples.smoke_testing
 * [Cooka](https://github.com/DataCanvasIO/Cooka): Lightweight interactive AutoML system.
 
 
-![DataCanvas AutoML Toolkit](https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/DAT_logo.png)
+![DataCanvas AutoML Toolkit](https://raw.githubusercontent.com/DataCanvasIO/Hypernets/master/docs/source/images/DAT_latest.png)
 
 ## Citation
 
