@@ -37,7 +37,7 @@ def run_search():
             space_sample = searcher.sample()
             assert space_sample.all_assigned == True
             print(searcher.__class__.__name__, i, space_sample.params_summary())
-            searcher.update_result(space_sample, np.random.uniform(0.1, 0.9))
+            searcher.update_result(space_sample, [np.random.uniform(0.1, 0.9)])
 
 
 if __name__ == '__main__':
