@@ -53,7 +53,7 @@ class MetaLearner(object):
         x = x + store_x
         y = y + store_y
         if len(x) >= 2:
-            regressor = LGBMRegressor()
+            regressor = LGBMRegressor(min_data=1, min_data_in_bin=1, verbosity=-1)
             regressor.fit(x, y)
             #  if logger.is_info_enabled():
             #      logger.info(regressor.predict(x))
