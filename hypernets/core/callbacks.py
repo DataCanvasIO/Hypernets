@@ -368,15 +368,29 @@ class ProgressiveCallback(Callback):
         self.pbar = tqdm(total=max_trials, leave=False, desc='search')
 
     def on_search_end(self, hyper_model):
-        self.pbar.update(self.pbar.total)
-        self.pbar.close()
-        self.pbar = None
+        if self.pbar is not None:
+            self.pbar.update(self.pbar.total)
+            self.pbar.close()
+            self.pbar = None
 
     def on_search_error(self, hyper_model):
         self.on_search_end(hyper_model)
 
     def on_trial_end(self, hyper_model, space, trial_no, reward, improved, elapsed):
-        self.pbar.update(1)
+        if self.pbar is not None:
+            self.pbar.update(1)
 
     def on_trial_error(self, hyper_model, space, trial_no):
-        self.pbar.update(1)
+        if self.pbar is not None:
+            self.pbar.update(1)
+
+    def __getstate__(self):
+        try:
+            state = super().__getstate__()
+        except AttributeError:
+            state = self.__dict__
+
+        state = state.copy()
+        state['pbar'] = None
+
+        return state
