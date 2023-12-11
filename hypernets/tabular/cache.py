@@ -178,22 +178,32 @@ def decorate(fn, *, cache_dir, strategy,
                     c.on_apply(fn, cached_data, *args, **kwargs)
 
                 # restore attributes
+                original_attributes = {}
                 if attrs_to_restore is not None:
                     cached_attributes = meta.get('attributes', {})
                     for k in attrs_to_restore:
+                        original_attributes[k] = getattr(obj, k, None)
                         setattr(obj, k, cached_attributes.get(k))
 
                 if meta['strategy'] == _STRATEGY_DATA:
                     result = cached_data
+                    loaded = True
                 else:  # strategy==transform
-                    if isinstance(transformer, str):
-                        tfn = getattr(obj, transformer)
-                        assert callable(tfn)
-                        result = tfn(*args[1:], **kwargs)  # exclude args[0]==self
-                    elif callable(transformer):
-                        result = transformer(*args, **kwargs)
-
-                loaded = True
+                    try:
+                        if isinstance(transformer, str):
+                            tfn = getattr(obj, transformer)
+                            assert callable(tfn)
+                            result = tfn(*args[1:], **kwargs)  # exclude args[0]==self
+                        elif callable(transformer):
+                            result = transformer(*args, **kwargs)
+                        loaded = True
+                    except:
+                        # unexpected error, restore original attrs
+                        logger.warning(f'Failed to transform {type(obj).__name__}, '
+                                       f'the dependencies may have been changed, so try to disable cache.')
+                        for k, a in original_attributes.items():
+                            setattr(obj, k, a)
+                        loaded = False
         except SkipCache:
             pass
         except Exception as e:
