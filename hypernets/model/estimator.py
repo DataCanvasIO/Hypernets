@@ -16,9 +16,12 @@ class Estimator():
         self.discriminator = discriminator
 
         # fitted
-        self.model = None
-        self.cv_ = None
-        self.cv_models_ = None
+        if not hasattr(self, 'model'):
+            self.model = None
+        if not hasattr(self, 'cv_'):
+            self.cv_ = None
+        if not hasattr(self, 'cv_models_'):
+            self.cv_models_ = None
 
     @property
     def _estimator_type(self):

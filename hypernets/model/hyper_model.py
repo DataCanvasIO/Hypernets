@@ -2,6 +2,7 @@
 """
 
 """
+import inspect
 import time
 import traceback
 from collections import UserDict
@@ -91,9 +92,9 @@ class HyperModel:
         y_trains = None
         try:
             if cv:
-                 ret_data = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds, shuffle=False,
-                                                           random_state=9527, metrics=metrics, **fit_kwargs)
-                 scores, oof, oof_scores, X_trains, y_trains, x_vals, y_vals = ret_data
+                ret_data = estimator.fit_cross_validation(X, y, stratified=True, num_folds=num_folds, shuffle=False,
+                                                          random_state=9527, metrics=metrics, **fit_kwargs)
+                scores, oof, oof_scores, X_trains, y_trains, x_vals, y_vals = ret_data
             else:
                 estimator.fit(X, y, **fit_kwargs)
             succeeded = True
@@ -117,7 +118,9 @@ class HyperModel:
 
             if self.searcher.kind() != const.SEARCHER_MOO:
                 if scores is None:
-                    scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
+                    # scores = estimator.evaluate(X_eval, y_eval, metrics=metrics, **fit_kwargs)
+                    eval_kwargs = self._get_evaluate_options(estimator, metrics, fit_kwargs)
+                    scores = estimator.evaluate(X_eval, y_eval, **eval_kwargs)
                 reward = self._get_reward(scores, self.reward_metrics)
             else:
                 if cv:
@@ -126,7 +129,8 @@ class HyperModel:
                                              x_vals, y_vals, X_test)
                               for fn in self.searcher.objectives]
                 else:
-                    reward = [fn.evaluate(trial, estimator, X_eval, y_eval, X, y, X_test) for fn in self.searcher.objectives]
+                    reward = [fn.evaluate(trial, estimator, X_eval, y_eval, X, y, X_test)
+                              for fn in self.searcher.objectives]
 
             trial.reward = reward
             trial.iteration_scores = estimator.get_iteration_scores()
@@ -158,6 +162,15 @@ class HyperModel:
         tb = get_tool_box(oof)
         free = tb.memory_free() / tb.memory_total()
         return free > 0.618
+
+    def _get_evaluate_options(self, estimator, metrics, fit_kwargs):
+        eval_params = inspect.signature(estimator.evaluate).parameters
+        eval_kwargs = {}
+        for k, v in fit_kwargs.items():
+            if k in eval_params.keys() and eval_params[k].kind != inspect.Parameter.POSITIONAL_ONLY:
+                eval_kwargs[k] = v
+        eval_kwargs['metrics'] = metrics
+        return eval_kwargs
 
     def _get_reward(self, value: dict, keys: list = None):
         def cast_float(value):
@@ -223,8 +236,8 @@ class HyperModel:
     def _after_search(self, last_trial_no):
         pass
 
-    def search(self, X, y, X_eval, y_eval, X_test=None, cv=False, num_folds=3, max_trials=10, dataset_id=None, trial_store=None,
-               **fit_kwargs):
+    def search(self, X, y, X_eval, y_eval, X_test=None, cv=False, num_folds=3, max_trials=10, dataset_id=None,
+               trial_store=None, **fit_kwargs):
         """
         :param X: Pandas or Dask DataFrame, feature data for training
         :param y: Pandas or Dask Series, target values for training
