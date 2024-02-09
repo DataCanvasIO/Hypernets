@@ -59,11 +59,15 @@ def make_searcher(cls, search_space_fn, optimize_direction='min', objectives=Non
 
     cls = get_searcher_cls(cls)
 
-    if cls == EvolutionSearcher:
+    if cls is EvolutionSearcher:
         default_kwargs = dict(population_size=30, sample_size=10, candidates_size=10,
                               regularized=True, use_meta_learner=True, optimize_direction=optimize_direction)
-    elif cls == MCTSSearcher:
+    elif cls is MCTSSearcher:
         default_kwargs = dict(max_node_space=10, optimize_direction=optimize_direction)
+    elif cls is GridSearcher:
+        default_kwargs = dict(optimize_direction=optimize_direction)
+    elif cls is RandomSearcher:
+        default_kwargs = dict(optimize_direction=optimize_direction)
     elif issubclass(cls, MOOSearcher):
         default_kwargs = dict(objectives=objectives)
     else:
