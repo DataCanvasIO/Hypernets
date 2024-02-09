@@ -9,10 +9,10 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 from sklearn.metrics import get_scorer
-from sklearn.metrics._scorer import _PredictScorer
 
 from hypernets.utils import logging
 from ..ensemble.base_ensemble import BaseEnsemble
+from ..ensemble.misc import is_predict_scorer
 
 logger = logging.get_logger(__name__)
 
@@ -97,7 +97,7 @@ class DaskGreedyEnsemble(BaseEnsemble):
                 if sum_predictions is None:
                     sum_predictions = np.zeros(pred.shape, dtype=np.float64)
                 mean_predictions = (sum_predictions + pred) / (len(best_stack) + 1)
-                if isinstance(self.scorer, _PredictScorer):
+                if is_predict_scorer(self.scorer):
                     if self.classes_ is not None:
                         # pred = np.array(self.classes_).take(np.argmax(mean_predictions, axis=1), axis=0)
                         mean_predictions = np.array(self.classes_).take(np.argmax(mean_predictions, axis=1), axis=0)

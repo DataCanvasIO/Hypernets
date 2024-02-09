@@ -7,9 +7,9 @@ from collections import defaultdict
 
 import joblib
 from sklearn.metrics import get_scorer
-from sklearn.metrics._scorer import _PredictScorer
 
 from .base_ensemble import BaseEnsemble
+from .misc import is_predict_scorer
 from ..cfg import TabularCfg as cfg
 
 
@@ -117,7 +117,8 @@ class GreedyEnsemble(BaseEnsemble):
                 else:
                     pred = predictions[:, j, :]
                 mean_predictions = (sum_predictions + pred) / (len(best_stack) + 1)
-                if isinstance(self.scorer, _PredictScorer) and self.classes_ is not None and len(self.classes_) > 0:
+                # if isinstance(self.scorer, _PredictScorer) and self.classes_ is not None and len(self.classes_) > 0:
+                if is_predict_scorer(self.scorer) and self.classes_ is not None and len(self.classes_) > 0:
                     # pred = np.take(np.array(self.classes_), np.argmax(mean_predictions, axis=1), axis=0)
                     pred = self._indices2predict(np.argmax(mean_predictions, axis=1))
                     mean_predictions = pred
