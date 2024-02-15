@@ -104,7 +104,7 @@ class TextColumnSelector(ColumnSelector):
         assert isinstance(word_count_threshold, int) and word_count_threshold >= 1
 
         if dtype_include is None:
-            dtype_include = ['object']
+            dtype_include = ['object', 'string']
 
         super(TextColumnSelector, self).__init__(pattern,
                                                  dtype_include=dtype_include,
@@ -241,19 +241,20 @@ class CompositedColumnSelector(object):
 
 
 column_all = ColumnSelector()
-column_object_category_bool = ColumnSelector(dtype_include=['object', 'category', 'bool'])
-column_object_category_bool_with_auto = AutoCategoryColumnSelector(dtype_include=['object', 'category', 'bool'],
-                                                                   cat_exponent=0.5)
-column_text = TextColumnSelector(dtype_include=['object'])
+column_object_category_bool = ColumnSelector(dtype_include=['object', 'string', 'category', 'bool'])
+column_object_category_bool_with_auto = AutoCategoryColumnSelector(
+    dtype_include=['object', 'string', 'category', 'bool'],
+    cat_exponent=0.5)
+column_text = TextColumnSelector(dtype_include=['object', 'string'])
 column_latlong = LatLongColumnSelector()
 
-column_object = ColumnSelector(dtype_include=['object'])
+column_object = ColumnSelector(dtype_include=['object', 'string'])
 column_category = ColumnSelector(dtype_include=['category'])
 column_bool = ColumnSelector(dtype_include=['bool'])
 column_number = ColumnSelector(dtype_include='number')
 column_number_exclude_timedelta = ColumnSelector(dtype_include='number', dtype_exclude='timedelta')
 column_object_category_bool_int = ColumnSelector(
-    dtype_include=['object', 'category', 'bool',
+    dtype_include=['object', 'string', 'category', 'bool',
                    'int', 'int8', 'int16', 'int32', 'int64',
                    'uint', 'uint8', 'uint16', 'uint32', 'uint64'])
 
