@@ -105,7 +105,10 @@ class Trial():
         return state
 
     def to_df(self, include_params=False):
-        out = OrderedDict(trial_no=self.trial_no, succeeded=self.succeeded, reward=self.reward, elapsed=self.elapsed)
+        out = OrderedDict(trial_no=self.trial_no,
+                          succeeded=self.succeeded,
+                          reward=self.reward if self.succeeded else None,
+                          elapsed=self.elapsed)
         if isinstance(self.memo, dict):
             out.update(self.memo)
 
