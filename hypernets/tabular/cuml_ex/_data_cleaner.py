@@ -30,7 +30,7 @@ class CumlDataCleaner(DataCleaner, Localizable):
                              reduce_mem_usage=self.reduce_mem_usage,
                              int_convert_to=self.int_convert_to)
         copy_attrs_as_local(self, target, 'df_meta_', 'columns_', 'dropped_constant_columns_',
-                   'dropped_idness_columns_', 'dropped_duplicated_columns_')
+                            'dropped_idness_columns_', 'dropped_duplicated_columns_')
 
         return target
 
@@ -52,7 +52,7 @@ class _CumlCleanerHelper(_CleanerHelper):
 
     @staticmethod
     def replace_nan_chars(X: cudf.DataFrame, nan_chars):
-        cat_cols = X.select_dtypes(['object', ])
+        cat_cols = X.select_dtypes(['object', 'string', ])
         if cat_cols.shape[1] > 0:
             cat_cols = cat_cols.replace(nan_chars, cupy.nan)
             X[cat_cols.columns] = cat_cols
