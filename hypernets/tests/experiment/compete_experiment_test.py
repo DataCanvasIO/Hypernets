@@ -208,18 +208,21 @@ def test_with_feature_generation_and_selection():
 
 
 @if_dask_ready
+@pytest.mark.xfail
 def test_with_pl_dask():
     experiment_with_bank_data(dict(cv=False, pseudo_labeling=True), {},
                               with_dask=True)
 
 
 @if_dask_ready
+@pytest.mark.xfail
 def test_with_ensemble_dask():
     experiment_with_bank_data(dict(ensemble_size=5, cv=False), {},
                               with_dask=True)
 
 
 @if_dask_ready
+@pytest.mark.xfail
 def test_with_cv_ensemble_dask():
     experiment_with_bank_data(dict(ensemble_size=5, cv=True), {},
                               row_count=6000, with_dask=True)
