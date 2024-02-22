@@ -309,8 +309,13 @@ class PredictionObjective(Objective):
 
         estimator = CVWrapperEstimator(estimator.cv_models_, X_vals, y_vals)
         X_test = pd.concat(X_vals, axis=0)
-
-        y_test = np.vstack(y_test.values.reshape((-1, 1)) if isinstance(y_test, pd.Series) else y_test.reshape((-1, 1)) for y_test in y_vals).reshape(-1, )
+        y_tests = []
+        for y_test in y_vals:
+            if isinstance(y_test, pd.Series):
+                y_tests.append(y_test.values.reshape((-1, 1)))
+            else:
+                y_tests.append(y_test.reshape((-1, 1)))
+        y_test = np.vstack(y_tests).reshape(-1, )
         return self._scorer(estimator, X_test, y_test)
 
     def __repr__(self):
