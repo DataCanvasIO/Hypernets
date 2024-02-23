@@ -51,8 +51,7 @@ def to_objective_object(o, force_minimize=False, **kwargs):
 
 
 def to_search_object(search_space, optimize_direction, searcher, searcher_options,
-                     reward_metric=None, scorer=None, objectives=None,  task=None, pos_label=None):
-
+                     reward_metric=None, scorer=None, objectives=None, task=None, pos_label=None):
     def to_searcher(cls, options):
         assert search_space is not None, '"search_space" should be specified if "searcher" is None or str.'
         assert optimize_direction in {'max', 'min'}
@@ -352,7 +351,7 @@ def make_experiment(hyper_model_cls,
 
     if eval_data is not None:
         from hypernets.experiment import MLEvaluateCallback
-        if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS]\
+        if task in [const.TASK_REGRESSION, const.TASK_BINARY, const.TASK_MULTICLASS] \
                 and searcher.kind() == const.SEARCHER_SOO:
             if evaluation_persist_prediction is True:
                 persist_dir = evaluation_persist_prediction_dir
@@ -371,7 +370,7 @@ def make_experiment(hyper_model_cls,
         discriminator = make_discriminator(cfg.experiment_discriminator,
                                            optimize_direction=optimize_direction,
                                            **(cfg.experiment_discriminator_options or {}))
-    elif discriminator is False:
+    elif isinstance(discriminator, bool):
         discriminator = None
 
     if id is None:
