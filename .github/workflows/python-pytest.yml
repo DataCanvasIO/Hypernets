@@ -32,7 +32,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q "pandas<2.0" "XlsxWriter<3.0.5" -r requirements.txt -r requirements-zhcn.txt -r requirements-dask.txt -r requirements-fg.txt -r requirements-extra.txt
+#         pip install -q "pandas<2.0" "XlsxWriter<3.0.5" -r requirements.txt -r requirements-zhcn.txt -r requirements-dask.txt -r requirements-fg.txt -r requirements-extra.txt
+        pip install -q "pandas<2.0" "XlsxWriter<3.0.5" -r requirements.txt -r requirements-zhcn.txt -r requirements-dask.txt -r requirements-extra.txt
         pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Test with pytest
