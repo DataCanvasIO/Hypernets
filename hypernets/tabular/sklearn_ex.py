@@ -14,7 +14,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import log_loss, mean_squared_error
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer, OrdinalEncoder, StandardScaler, OneHotEncoder
+from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer, OrdinalEncoder, StandardScaler, OneHotEncoder, \
+    MinMaxScaler
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
 
@@ -371,6 +372,28 @@ class LogStandardScaler(BaseEstimator):
     def transform(self, X):
         X = np.log(np.clip(X - self.X_min_values + 1, a_min=1, a_max=None))
         X = self.scaler.transform(X)
+        return X
+
+
+@tb_transformer(pd.DataFrame)
+class MinMaxScalerTransformer(BaseEstimator):
+    def __init__(self, columns, copy=True):
+        super(MinMaxScalerTransformer, self).__init__()
+
+        self.scaler = MinMaxScaler(copy=copy)
+        self.copy = copy
+        self.columns = columns
+
+    def fit(self, X, y=None):
+        df_continuous = X[self.columns]
+        self.scaler.fit(df_continuous.values)
+        return self
+
+    def transform(self, X):
+        df_continuous = X[self.columns]
+        np_continuous = self.scaler.transform(df_continuous.values)
+        for i, v in enumerate(self.columns):
+            X[v] = np_continuous[:, i]
         return X
 
 
