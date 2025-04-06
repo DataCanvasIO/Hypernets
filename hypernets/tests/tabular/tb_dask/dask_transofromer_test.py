@@ -119,6 +119,7 @@ class Test_DaskCustomizedTransformer:
 
         multi_encoder = dex.MultiVarLenFeatureEncoder([('col_foo', '|')])
         result_df = multi_encoder.fit_transform(df.copy())
+        print(result_df.dtypes)
         print(result_df)
         assert all(result_df.values == result.values)
 
@@ -128,8 +129,11 @@ class Test_DaskCustomizedTransformer:
         assert isinstance(d_result_df, dd.DataFrame)
         d_result_df = d_result_df.compute()
 
+        result_pdf = dd.from_pandas(result, npartitions=1).compute()
+        print(d_result_df.dtypes)
         print(d_result_df)
-        assert all(d_result_df.values == result.values)
+        print(d_result_df.values == result_pdf.values)
+        assert all(d_result_df.values == result_pdf.values)
 
     @pytest.mark.xfail  # see: dask_ml ColumnTransformer
     def test_dataframe_wrapper(self):

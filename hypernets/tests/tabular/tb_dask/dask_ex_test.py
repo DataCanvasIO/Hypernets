@@ -30,9 +30,11 @@ def test_max_abs_scale():
 
     num_columns = [k for k, t in pdf.dtypes.items()
                    if t in (np.int32, np.int64, np.float32, np.float64)]
+
     pdf = pdf[num_columns]
     ddf = ddf[num_columns]
-
+    print(pdf.head())
+    print(ddf.head())
     sk_s = sk_pre.MaxAbsScaler()
     sk_r = sk_s.fit_transform(pdf)
 
@@ -74,4 +76,6 @@ def test_ordinal_encoder():
     df = ec.inverse_transform(dd.from_pandas(df_expect, npartitions=1)).compute()
     df_expect = pd.DataFrame({"A": [1, 2, 3, 5],
                               "B": ['a', 'b', None, None]})
-    assert np.where(df_expect.values == df.values, 0, 1).sum() == 0
+    # assert np.where(df_expect2.values == df.values, 0, 1).sum() == 0
+    df_expect = dd.from_pandas(df_expect, npartitions=2).compute()
+    assert df_expect.equals(df)

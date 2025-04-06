@@ -196,7 +196,10 @@ class MaxAbsScaler(sk_pre.MaxAbsScaler):
 
         # Workaround for https://github.com/dask/dask/issues/2840
         if isinstance(X, dd.DataFrame):
+            cols = X.columns.to_list()
             X = X.div(self.scale_)
+            if X.columns.to_list() != cols:
+                X = X[cols]
         else:
             X = X / self.scale_
         return X
@@ -215,7 +218,10 @@ class MaxAbsScaler(sk_pre.MaxAbsScaler):
         if copy:
             X = X.copy()
         if isinstance(X, dd.DataFrame):
+            cols = X.columns.to_list()
             X = X.mul(self.scale_)
+            if X.columns.to_list() != cols:
+                X = X[cols]
         else:
             X = X * self.scale_
 
@@ -258,9 +264,9 @@ def _safe_ordinal_decoder(categories, dtypes, pdf):
             return cat[xi - 1]
         else:
             dtype = dtypes[col]
-            if dtype in (np.float32, np.float64, float):
+            if dtype in (np.float32, np.float64, float, 'f', 'f8'):
                 return np.nan
-            elif dtype in (np.int32, np.int64, np.uint32, np.uint64, np.uint, int):
+            elif dtype in (np.int32, np.int64, np.uint32, np.uint64, np.uint, int, 'i', 'i8'):
                 return -1
             else:
                 return None
@@ -289,7 +295,7 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         self.columns_ = X.columns.to_list()
-        self.dtypes_ = {c: X[c].dtype for c in X.columns}
+        self.dtypes_ = {c: X[c].dtype.kind for c in X.columns}
 
         if self.columns is None:
             columns = X.select_dtypes(include=['category', 'object', 'string', 'bool']).columns.to_list()
@@ -338,10 +344,9 @@ class SafeOrdinalEncoder(BaseEstimator, TransformerMixin):
         decoder = self.make_decoder(self.categories_, self.dtypes_)
 
         if isinstance(X, dd.DataFrame):
-            X = X.map_partitions(decoder)
+            X = X.map_partitions(decoder, meta=self.dtypes_)
         else:
             X = decoder(X)
-
         return X
 
     @staticmethod
