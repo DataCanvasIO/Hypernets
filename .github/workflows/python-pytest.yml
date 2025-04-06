@@ -19,10 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         include:
-          - os: macos-12
-            python-version: 3.11
+          - os: ubuntu-20.04
+            python-version: 3.7
+#          - os: macos-12
+#            python-version: 3.11
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -57,7 +59,7 @@ jobs:
             ft-version: 0.23
             woodwork-version: 0.1.0
             dask-version: 2021.1.1
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             python-version: 3.7
             ft-version: 1.2
             woodwork-version: 0.13.0
