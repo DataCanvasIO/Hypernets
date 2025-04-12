@@ -9,16 +9,21 @@ import time
 
 import numpy as np
 from joblib import Parallel, delayed
+import sklearn
 from sklearn import model_selection as sksel
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, make_scorer
 
 from hypernets.core import randint
-from hypernets.utils import logging, const
+from hypernets.utils import logging, const, Version
 from .cfg import TabularCfg as cfg
 
 logger = logging.getLogger(__name__)
 
-roc_auc_scorer = make_scorer(roc_auc_score, greater_is_better=True, needs_threshold=True)
+if Version(sklearn.__version__) >= Version('1.4.0'):
+    roc_auc_scorer = make_scorer(roc_auc_score, greater_is_better=True,
+                                 response_method=("decision_function", "predict_proba"))
+else:
+    roc_auc_scorer = make_scorer(roc_auc_score, greater_is_better=True, needs_threshold=True)
 matthews_corrcoef_scorer = make_scorer(matthews_corrcoef)
 
 

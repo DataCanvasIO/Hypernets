@@ -85,19 +85,19 @@ logger = logging.get_logger(__name__)
 class SafeOneHotEncoder(dm_pre.OneHotEncoder):
     def fit(self, X, y=None):
         if isinstance(X, (dd.DataFrame, pd.DataFrame)) and self.categories == "auto" \
-                and any(d.name in {'object', 'bool'} for d in X.dtypes):
+                and any(d.name in {'object', 'string', 'bool'} for d in X.dtypes):
             a = []
             if isinstance(X, dd.DataFrame):
                 for i in range(len(X.columns)):
                     Xi = X.iloc[:, i]
-                    if Xi.dtype.name in {'object', 'bool'}:
+                    if Xi.dtype.name in {'object', 'string', 'bool'}:
                         Xi = Xi.astype('category').cat.as_known()
                     a.append(Xi)
                 X = dd.concat(a, axis=1, ignore_unknown_divisions=True)
             else:
                 for i in range(len(X.columns)):
                     Xi = X.iloc[:, i]
-                    if Xi.dtype.name in {'object', 'bool'}:
+                    if Xi.dtype.name in {'object', 'string', 'bool'}:
                         Xi = Xi.astype('category')
                     a.append(Xi)
                 X = pd.concat(a, axis=1)

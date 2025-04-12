@@ -680,7 +680,7 @@ class TransformerAdaptorStep(ExperimentStep):
             if item in transformer_kwargs.keys():
                 return transformer_kwargs[item]
             else:
-                raise e
+                raise
 
     def __dir__(self):
         transformer_kwargs = self.transformer_kwargs
@@ -1579,7 +1579,7 @@ class SteppedExperiment(Experiment):
                     if step.status_ == ExperimentStep.STATUS_RUNNING:
                         step.status_ = ExperimentStep.STATUS_FAILED
                     self.step_break(error=e)
-                    raise e
+                    raise
                 finally:
                     step.done_time = time.time()
             elif not step.is_transform_skipped():

@@ -6,7 +6,7 @@ from hypernets.tabular import column_selector as col_se
 
 def get_data_character(hyper_model, X_train, y_train, X_eval=None, y_eval=None, X_test=None, task=None):
 
-	dtype2usagetype = {'object':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
+	dtype2usagetype = {'object':'str', 'string':'str', 'int64':'int', 'float64':'float', 'datetime64[ns]':'date', 'timedelta64[ns]':'date'}
 	
 	task, _ = hyper_model.infer_task_type(y_train) #This line is just used to test
 
