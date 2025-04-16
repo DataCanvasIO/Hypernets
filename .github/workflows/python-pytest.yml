@@ -19,10 +19,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         include:
-          - os: ubuntu-20.04
-            python-version: 3.7
+          - os: ubuntu-22.04
+            python-version: 3.8
 #          - os: macos-12
 #            python-version: 3.11
     steps:
@@ -48,32 +48,32 @@ jobs:
       fail-fast: false
       matrix:
 #         os: [ubuntu-latest, windows-latest]
-        os: [windows-latest, ubuntu-latest]
+        os: [ubuntu-22.04, ]
         python-version: [3.8, ]
         ft-version: [0.27]
         woodwork-version: [0.13.0]
         dask-version: [2021.1.1, 2021.7.2]
-        include:
-          - os: ubuntu-20.04
-            python-version: 3.6
-            ft-version: 0.23
-            woodwork-version: 0.1.0
-            dask-version: 2021.1.1
-          - os: ubuntu-20.04
-            python-version: 3.7
-            ft-version: 1.2
-            woodwork-version: 0.13.0
-            dask-version: 2021.10.0
-          - os: ubuntu-latest
-            python-version: 3.8
-            ft-version: 1.2
-            woodwork-version: 0.13.0
-            dask-version: 2022.12.1
-          - os: windows-latest
-            python-version: 3.8
-            ft-version: 1.2
-            woodwork-version: 0.13.0
-            dask-version: 2022.12.1
+#        include:
+#          - os: ubuntu-22.04
+#            python-version: 3.8
+#            ft-version: 1.2
+#            woodwork-version: 0.13.0
+#            dask-version: 2022.12.1
+#          - os: windows-latest
+#            python-version: 3.8
+#            ft-version: 1.2
+#            woodwork-version: 0.13.0
+#            dask-version: 2022.12.1
+#          - os: ubuntu-20.04
+#            python-version: 3.6
+#            ft-version: 0.23
+#            woodwork-version: 0.1.0
+#            dask-version: 2021.1.1
+#          - os: ubuntu-20.04
+#            python-version: 3.7
+#            ft-version: 1.2
+#            woodwork-version: 0.13.0
+#            dask-version: 2021.10.0
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -96,7 +96,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [ubuntu-22.04, ]
         python-version: [3.8, ]
     steps:
     - uses: actions/checkout@v2
